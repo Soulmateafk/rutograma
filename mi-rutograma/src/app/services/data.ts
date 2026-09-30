@@ -1231,7 +1231,9 @@ export class DataService {
       return { ok: true, msg: 'Asignado' };
     } catch (err) {
       console.error('No se pudo guardar el viaje en la BD:', err);
-      return { ok: false, msg: 'Error de servidor' };
+      // Se pasa el motivo real (por ejemplo, "está en mantenimiento...")
+      // en vez de un "Error de servidor" genérico.
+      return { ok: false, msg: this.ui.mensajeErrorHttp(err, 'guardar el viaje') };
     }
   }
 

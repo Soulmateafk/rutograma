@@ -8,6 +8,7 @@ import { UiService } from '../../services/ui.service';
 // Reutilizamos la MISMA lógica de conflictos que ya usa el Rutograma —
 // nada de reinventar la regla de disponibilidad en un segundo lugar.
 // @ts-ignore
+import { mantenimientoQueChoca, rangosMantenimiento } from '../../services/mantenimiento';
 import { obtenerDiasViaje, obtenerViajesEnConflicto, reprogramarViajeConflictivo, siguienteNumeroCupo, buscarCupoLibre, reprogramarViajesDesde } from '../rutograma/rutograma.utils.js';
 
 @Component({
@@ -211,41 +212,6 @@ export class NavbarComponent {
     }
 
     const vehiculo = S?.vehiculos?.find((v: any) => v.p === this.nuevoViaje.placa);
-    if (vehiculo && String(vehiculo.est || vehiculo.estado || '').toLowerCase().includes('mant')) {
-      // No basta con que el vehículo esté marcado "Mantenimiento" — hay
-      // que revisar si la fecha del viaje que se está agregando cae
-      // DENTRO del rango real (mantInicio/mantFin). Si el viaje es para
-      // después de que termine el mantenimiento, sí se puede agregar.
-      // El ÚLTIMO día (mantFin) también se permite a propósito — el
-      // vehículo vuelve a operar ese mismo día, así que no tiene sentido
-      // bloquearlo justo cuando ya está saliendo del taller.
-      const fechaViajeStr = this.nuevoViaje.fecha; // "YYYY-MM-DD"
-      const dentroDelRango =
-        vehiculo.mantInicio && vehiculo.mantFin &&
-        fechaViajeStr >= vehiculo.mantInicio && fechaViajeStr < vehiculo.mantFin;
-
-      // Si no hay mantInicio/mantFin guardados (dato viejo), se mantiene
-      // el bloqueo por seguridad — no hay forma de saber si esa fecha cae
-      // dentro o fuera del rango.
-      if (dentroDelRango || !vehiculo.mantInicio || !vehiculo.mantFin) {
-        this.ui.mostrarToast(`${this.nuevoViaje.placa} todavía no vuelve de mantenimiento (sale el ${vehiculo.mantFin || '?'}) — no se le puede asignar este viaje hasta esa fecha.`, 'err');
-        return;
-      }
-    }
-
-    // Confirmación antes de crear el viaje — no importa si ese vehículo ya
-    // está en ruta ese día: el viaje nuevo se agrega igual, y si hace
-    // falta, los viajes SIGUIENTES de ese vehículo se acomodan solos.
-    const fechaLegible = new Date(this.nuevoViaje.fecha + 'T00:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'long' });
-    const confirmado = await this.mostrarConfirmPersonalizado(
-      `Vehículo: ${this.nuevoViaje.placa}\n` +
-      `Ruta: ${this.nuevoViaje.ruta}\n` +
-      `Fecha: ${fechaLegible}\n\n` +
-      `Si ese vehículo tenía otros viajes agendados después de esta fecha, se acomodarán automáticamente si hace falta.`,
-      'Agregar viaje',
-      'Cancelar'
-    );
-    if (!confirmado) return;
 
     const diaIni = new Date(this.nuevoViaje.fecha + 'T00:00:00').getDate();
 
@@ -279,6 +245,37 @@ export class NavbarComponent {
       // en vez de "- 1".
       diaFin = diaIni + diasViaje - 2 + diasRetornoExtra;
     }
+
+    // Mantenimiento: se revisan TODOS los días que el viaje ocupa al
+    // vehículo (de la salida al retorno), no solo el de salida — la
+    // misma regla que aplica el servidor. Solo se permite salir el
+    // último día del mantenimiento.
+    // Marcado "Mantenimiento" pero sin fechas guardadas (dato viejo): no
+    // hay forma de saber cuándo sale, así que se bloquea por seguridad.
+    const enMantSinFechas = !!vehiculo && String(vehiculo.est || vehiculo.estado || '').toLowerCase().includes('mant') && !(vehiculo.mantInicio && vehiculo.mantFin);
+    if (enMantSinFechas) {
+      this.ui.mostrarToast(`${this.nuevoViaje.placa} está en mantenimiento sin fechas registradas — ponle las fechas en Vehículos antes de asignarle viajes.`, 'err');
+      return;
+    }
+    const choqueMant = mantenimientoQueChoca(rangosMantenimiento(vehiculo), this.nuevoViaje.fecha, diaFin - diaIni);
+    if (choqueMant) {
+      this.ui.mostrarToast(`${this.nuevoViaje.placa} está en mantenimiento del ${choqueMant.inicio} al ${choqueMant.fin}, y este viaje lo ocuparía esos días. Solo puede salir desde el ${choqueMant.fin}.`, 'err');
+      return;
+    }
+
+    // Confirmación antes de crear el viaje — no importa si ese vehículo ya
+    // está en ruta ese día: el viaje nuevo se agrega igual, y si hace
+    // falta, los viajes SIGUIENTES de ese vehículo se acomodan solos.
+    const fechaLegible = new Date(this.nuevoViaje.fecha + 'T00:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'long' });
+    const confirmado = await this.mostrarConfirmPersonalizado(
+      `Vehículo: ${this.nuevoViaje.placa}\n` +
+      `Ruta: ${this.nuevoViaje.ruta}\n` +
+      `Fecha: ${fechaLegible}\n\n` +
+      `Si ese vehículo tenía otros viajes agendados después de esta fecha, se acomodarán automáticamente si hace falta.`,
+      'Agregar viaje',
+      'Cancelar'
+    );
+    if (!confirmado) return;
 
     const mesesTexto = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     const mesTexto = mesesTexto[S.mes];
