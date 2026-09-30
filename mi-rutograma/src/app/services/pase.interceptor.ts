@@ -32,8 +32,8 @@ export const paseInterceptor: HttpInterceptorFn = (req, next) => {
     catchError((err: unknown) => {
       if (err instanceof HttpErrorResponse
           && err.status === 401
-          && (err.error?.codigo === 'pase_invalido' || err.error?.codigo === 'sin_pase')) {
-        cuenta.sesionExpirada();
+          && (err.error?.codigo === 'pase_invalido' || err.error?.codigo === 'sin_pase' || err.error?.codigo === 'sesion_cerrada')) {
+        cuenta.sesionExpirada(err.error?.codigo === 'sesion_cerrada' ? err.error?.msg : undefined);
       }
       return throwError(() => err);
     })

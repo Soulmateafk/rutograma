@@ -115,16 +115,16 @@ export class AccountService {
    *  sesión ya no es válida (avisar y mandar al login). Se hace así, con
    *  una función que se registra, porque este servicio no puede inyectar a
    *  AuthService (AuthService ya lo inyecta a él). */
-  public alExpirarSesion: (() => void) | null = null;
+  public alExpirarSesion: ((mensaje?: string) => void) | null = null;
 
   /** Cierra la sesión local por una respuesta del servidor (pase vencido,
    *  contraseña cambiada, cuenta eliminada...) y avisa una sola vez. */
-  public sesionExpirada(): void {
+  public sesionExpirada(mensaje?: string): void {
     // Sin nada que cerrar, no se repite el aviso ni la redirección
     // (por ejemplo: varias llamadas fallan a la vez, o en la pantalla de login).
     if (!this.token && !this.emailActivo) return;
     this.limpiarSesionLocal();
-    this.alExpirarSesion?.();
+    this.alExpirarSesion?.(mensaje);
   }
 
   /** Cabeceras con la sesión activa, para llamadas hechas con fetch(). */
@@ -150,6 +150,7 @@ export class AccountService {
       try {
         const cuerpo = await respuesta.clone().json();
         if (cuerpo?.codigo === 'pase_invalido' || cuerpo?.codigo === 'sin_pase') this.sesionExpirada();
+        else if (cuerpo?.codigo === 'sesion_cerrada') this.sesionExpirada(cuerpo.msg);
       } catch { /* la respuesta no era JSON: no es un aviso de sesión */ }
     }
     return respuesta;

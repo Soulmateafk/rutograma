@@ -53,10 +53,10 @@ export class AuthService {
     // contraseña cambiada por el administrador, cuenta eliminada...), se
     // avisa y se manda al login. AccountService no puede hacerlo solo porque
     // no puede inyectar a este servicio (este ya lo inyecta a él).
-    this.account.alExpirarSesion = () => {
+    this.account.alExpirarSesion = (mensaje?: string) => {
       this.currentUser = null;
       this.currentUserStatus = null;
-      this.ui.mostrarToast('Tu sesión expiró. Inicia sesión de nuevo.', 'err');
+      this.ui.mostrarToast(mensaje || 'Tu sesión expiró. Inicia sesión de nuevo.', 'err');
       this.router.navigate(['/login']);
     };
   }

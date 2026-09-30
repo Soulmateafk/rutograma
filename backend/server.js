@@ -450,7 +450,12 @@ const identificarUsuario = (req, res, next) => {
     // (si la cerraron desde "Sesiones activas", el pase ya no sirve).
     if (v.sid) {
         const registro = sesionesActivas.find(x => x.id === v.sid);
-        if (!registro) return invalido();
+        // Código propio para que el equipo afectado sepa POR QUÉ se le
+        // cerró (no es que "expiró").
+        if (!registro) return res.status(401).json({
+            ok: false, codigo: 'sesion_cerrada',
+            msg: 'Se cerró esta sesión desde otro equipo o porque la cuenta llegó al máximo de sesiones. Inicia sesión de nuevo.'
+        });
         if (Date.now() - Date.parse(registro.ultima) > 60000) {
             registro.ultima = new Date().toISOString();
             guardarSesiones();
