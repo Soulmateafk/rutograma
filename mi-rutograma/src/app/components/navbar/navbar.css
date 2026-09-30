@@ -94,9 +94,70 @@
   }
 }
 
-.nav-search{
-   padding: 6px 10px;
-    border-radius: 6px;
-   font-size: 10px;
-   width: 162px;
+.nav-search {
+  position: relative;          /* ancla el desplegable de resultados */
+}
+
+/* === Navbar en pantallas normales (más de 900px) ===
+   Con 10 pestañas + buscador + 6 botones no cabe todo en una fila de
+   54px fijos: el buscador y los botones se encimaban sobre las
+   pestañas. Ahora son dos filas: arriba logo + buscador + botones,
+   abajo las pestañas. Si aun así no cabe, la barra crece en vez de
+   sobreponer los botones. En celular (900px o menos) sigue mandando
+   el @media de styles.css. */
+@media (min-width: 901px) {
+  nav {
+    height: auto;
+    min-height: 54px;
+    flex-wrap: wrap;
+    row-gap: 8px;
+    column-gap: 12px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .logo {
+    flex-shrink: 0;
+    white-space: nowrap;
+    margin-right: 8px;
+  }
+
+  .tabs {
+    order: 3;                  /* las pestañas van en su propia fila */
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .tab {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .nav-search {
+    flex: 0 1 220px;
+    min-width: 150px;
+    margin-left: auto;
+  }
+
+  .nav-search input {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .nav-r {
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
+  .nav-r .btn,
+  .nav-r .badge {
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1100px) {
+  .tab {
+    padding: 6px 10px;
+  }
 }
