@@ -3,7 +3,22 @@ const cors = require('cors');
 const XLSX = require('xlsx');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
+const https = require('https');
+const net = require('net');
+const tls = require('tls');
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+
+// ⚠️ Ajusta esta ruta si tu carpeta se llama distinto a "migracion"
+// (la carpeta donde pusiste esquema.sql/db.js/migrar.js).
+const { leerDB, guardarEnDB, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, importarAuditoriaJSONLSiHaceFalta } = require('./migracion/db.js');
+
+// Lee las credenciales de correo desde un archivo .env (nunca escritas
+// directo en este código) — ver las instrucciones al final de este
+// bloque sobre qué poner en ese archivo.
+require('dotenv').config();
+const nodemailer = require('nodemailer');
 
 const app = express();
 
@@ -48,15 +63,21 @@ if (!fs.existsSync(CARPETA_DATOS)) {
     console.log(`📁 Carpeta creada: ${CARPETA_DATOS}`);
 }
 
-const registrarAuditoria = (usuario, metodo, ruta, cuerpo) => {
+const registrarAuditoria = (usuario, metodo, ruta, cuerpo, modo) => {
     try {
         // Nunca guardamos contraseñas ni datos sensibles en el log, aunque
         // vengan en el cuerpo de la petición (ej. /api/auth/register).
         let resumen = {};
         if (cuerpo && typeof cuerpo === 'object') {
             resumen = { ...cuerpo };
-            delete resumen.pass;
-            delete resumen.passHash;
+            // BUG REAL encontrado y corregido: antes solo se borraban
+            // "pass" y "passHash", pero "Restablecer contraseña" manda la
+            // clave nueva en "nuevaClave" — así que cada restablecimiento
+            // dejaba la contraseña en TEXTO PLANO dentro del registro de
+            // auditoría (y de ahí, en los respaldos). Se listan aquí todos
+            // los nombres posibles para que no vuelva a pasar con otro.
+            ['pass', 'passHash', 'nuevaClave', 'password', 'clave', 'contrasena', 'token']
+                .forEach(campo => delete resumen[campo]);
         }
 
         const entrada = {
@@ -64,22 +85,470 @@ const registrarAuditoria = (usuario, metodo, ruta, cuerpo) => {
             usuario: usuario || 'desconocido',
             metodo,
             ruta,
+            modo: modo || 'real',
             resumen
         };
 
-        fs.appendFileSync(RUTA_AUDITORIA, JSON.stringify(entrada) + '\n', 'utf8');
+        // Migrado de auditoria.jsonl a SQLite (tabla "auditoria", siempre
+        // en la base Real — ver el porqué en registrarAuditoriaDB).
+        registrarAuditoriaDB(entrada.modo, entrada);
     } catch (err) {
         // Un fallo en el log de auditoría NUNCA debe tumbar la petición real.
         console.error('⚠️ No se pudo registrar la auditoría:', err.message);
     }
 };
 
+// Importa una sola vez el historial viejo de auditoria.jsonl a SQLite
+// (no hace nada si ya se importó en un arranque anterior, o si el
+// archivo no existe). Se hace aquí, al arrancar, para no perder el
+// historial de antes de esta migración.
+try {
+    importarAuditoriaJSONLSiHaceFalta(RUTA_AUDITORIA);
+} catch (err) {
+    console.error('⚠️ No se pudo importar el historial viejo de auditoría:', err.message);
+}
+
+// ============================================================================
+// SESIONES CON "PASE" (TOKEN) FIRMADO
+// ============================================================================
+// Antes, el servidor le creía a cualquiera que escribiera un correo en la
+// cabecera x-user-email — sin contraseña ni nada que lo demostrara — y una
+// petición sin ningún correo simplemente pasaba. Ahora, al iniciar sesión
+// con la contraseña correcta el servidor entrega un "pase": un texto firmado
+// con una llave que solo el servidor conoce (HMAC-SHA256). El navegador lo
+// manda en cada petición (cabecera Authorization) y el servidor lo verifica:
+// si es válido, el correo del pase REEMPLAZA a la cabecera x-user-email —
+// así todo el código que ya usa esa cabecera (roles, administrador,
+// auditoría) pasa a usar una identidad que nadie puede falsificar, sin
+// tener que tocar endpoint por endpoint.
+//
+// Dos modos (variable EXIGIR_TOKEN en el .env):
+//  - TOLERANTE (por defecto): se aceptan peticiones sin pase como antes, pero
+//    se avisa en la consola por cada ruta que llegue así — para poder
+//    comprobar que la app ya manda el pase en todas partes antes de exigirlo.
+//  - ESTRICTO (EXIGIR_TOKEN=true): toda petición a /api/ necesita un pase
+//    válido (salvo login y registro), y la cuenta debe estar aprobada.
+//
+// El pase también deja de servir en cuanto: vence (30 días), la cuenta se
+// elimina, o su contraseña cambia (restablecer contraseña cierra las
+// sesiones abiertas de esa cuenta).
+const EXIGIR_TOKEN = String(process.env.EXIGIR_TOKEN || '').trim().toLowerCase() === 'true';
+const TOKEN_DIAS = (() => { const d = parseFloat(process.env.TOKEN_DIAS); return (Number.isFinite(d) && d > 0) ? d : 30; })();
+const RUTAS_PUBLICAS_SIN_PASE = ['/api/auth/login', '/api/auth/register'];
+// Rutas para las que basta estar identificado, aunque la cuenta aún no esté
+// aprobada (en modo estricto, el resto exige cuenta APPROVED).
+const RUTAS_PARA_CUALQUIER_CUENTA = ['/api/auth/estado'];
+
+const ARCHIVO_SECRETO_SESION = path.join(CARPETA_DATOS, 'secreto-sesion.key');
+const obtenerSecretoSesion = () => {
+    const delEnv = String(process.env.AUTH_SECRET || '').trim();
+    if (delEnv.length >= 32) return delEnv;
+    try {
+        if (fs.existsSync(ARCHIVO_SECRETO_SESION)) {
+            const guardado = fs.readFileSync(ARCHIVO_SECRETO_SESION, 'utf8').trim();
+            if (guardado.length >= 32) return guardado;
+        }
+        const nuevo = crypto.randomBytes(48).toString('hex');
+        fs.writeFileSync(ARCHIVO_SECRETO_SESION, nuevo, { mode: 0o600 });
+        console.log('🔑 Se creó la llave con la que se firman las sesiones (data/secreto-sesion.key). No la compartas ni la subas a ningún lado.');
+        return nuevo;
+    } catch (err) {
+        // Sin poder guardarla, las sesiones se invalidan cada vez que se
+        // reinicia el servidor: incómodo, pero seguro.
+        console.error(`⚠️ No se pudo guardar la llave de sesiones (${err.message}). Las sesiones se cerrarán cada vez que se reinicie el servidor.`);
+        return crypto.randomBytes(48).toString('hex');
+    }
+};
+const SECRETO_SESION = obtenerSecretoSesion();
+
+const firmarTexto = (texto) => crypto.createHmac('sha256', SECRETO_SESION).update(texto).digest('base64url');
+// "Huella" de la contraseña guardada: viaja dentro del pase, así que si la
+// contraseña cambia, todos los pases anteriores de esa cuenta dejan de servir.
+const huellaClave = (passHash) => crypto.createHash('sha256').update(String(passHash || '')).digest('hex').slice(0, 16);
+
+const crearPase = (cuenta, sid) => {
+    const carga = {
+        e: String(cuenta.email || '').toLowerCase().trim(),
+        pv: huellaClave(cuenta.passHash),
+        s: sid || undefined,
+        exp: Math.floor(Date.now() / 1000 + TOKEN_DIAS * 86400)
+    };
+    const cuerpo = 'v1.' + Buffer.from(JSON.stringify(carga)).toString('base64url');
+    return `${cuerpo}.${firmarTexto(cuerpo)}`;
+};
+
+const verificarPase = (pase) => {
+    const partes = String(pase || '').split('.');
+    if (partes.length !== 3 || partes[0] !== 'v1') return { ok: false, motivo: 'formato' };
+    const esperada = Buffer.from(firmarTexto(`${partes[0]}.${partes[1]}`));
+    const recibida = Buffer.from(partes[2]);
+    if (esperada.length !== recibida.length || !crypto.timingSafeEqual(esperada, recibida)) return { ok: false, motivo: 'firma' };
+    let carga;
+    try { carga = JSON.parse(Buffer.from(partes[1], 'base64url').toString('utf8')); }
+    catch { return { ok: false, motivo: 'formato' }; }
+    if (!carga || !carga.e || !carga.exp) return { ok: false, motivo: 'formato' };
+    if (carga.exp < Math.floor(Date.now() / 1000)) return { ok: false, motivo: 'vencido' };
+    return { ok: true, email: carga.e, pv: carga.pv, sid: carga.s || null };
+};
+
+// ----------------------------------------------------------------------------
+// SESIONES ACTIVAS (para ver desde dónde hay sesiones abiertas y poder cerrarlas)
+// ----------------------------------------------------------------------------
+// Cada inicio de sesión crea un registro con un id que viaja dentro del pase.
+// Si el registro se borra (el usuario la cierra desde "Sesiones activas", cierra
+// sesión, o el admin la saca), ese pase deja de servir aunque no haya vencido.
+// Los pases emitidos ANTES de esta función no tienen id: siguen valiendo hasta
+// que venzan, pero no aparecen en la lista.
+const ARCHIVO_SESIONES = path.join(CARPETA_DATOS, 'sesiones-activas.json');
+const MAX_SESIONES_POR_CUENTA = 20;
+let sesionesActivas = (() => {
+    try {
+        if (fs.existsSync(ARCHIVO_SESIONES)) {
+            const lista = JSON.parse(fs.readFileSync(ARCHIVO_SESIONES, 'utf8'));
+            if (Array.isArray(lista)) return lista;
+        }
+    } catch (err) {
+        console.error('⚠️ No se pudo leer sesiones-activas.json:', err.message);
+    }
+    return [];
+})();
+
+let guardadoSesionesPendiente = null;
+const escribirSesionesAhora = () => {
+    try {
+        fs.writeFileSync(ARCHIVO_SESIONES, JSON.stringify(sesionesActivas), { mode: 0o600 });
+    } catch (err) {
+        console.error('⚠️ No se pudo guardar sesiones-activas.json:', err.message);
+    }
+};
+const guardarSesiones = () => {
+    if (guardadoSesionesPendiente) return;
+    guardadoSesionesPendiente = setTimeout(() => {
+        guardadoSesionesPendiente = null;
+        escribirSesionesAhora();
+    }, 1500);
+};
+// BUG REAL encontrado y corregido: el guardado de sesiones se demora
+// 1.5s a propósito (para no escribir el archivo en cada pequeño cambio),
+// pero si el servidor se detiene (Ctrl+C, un reinicio, un gestor de
+// procesos) DENTRO de esa ventana, esa última escritura nunca llegaba a
+// pasar — se perdían sesiones recién creadas o recién cerradas, y al
+// volver a arrancar, pases que deberían seguir siendo válidos (o que
+// deberían seguir cerrados) quedaban en el estado de la versión vieja
+// en disco. Lo reprodujimos de verdad: tras un reinicio limpio, hasta
+// la sesión del administrador (que nadie había tocado) dejaba de servir.
+// Ahora, al recibir la señal de apagado, se vuelca lo que haya pendiente
+// de inmediato y de forma síncrona antes de salir.
+const volcarSesionesAlSalir = () => {
+    if (guardadoSesionesPendiente) {
+        clearTimeout(guardadoSesionesPendiente);
+        guardadoSesionesPendiente = null;
+    }
+    escribirSesionesAhora();
+};
+process.on('SIGINT', () => { volcarSesionesAlSalir(); process.exit(0); });
+process.on('SIGTERM', () => { volcarSesionesAlSalir(); process.exit(0); });
+process.on('exit', volcarSesionesAlSalir);
+
+const purgarSesionesVencidas = () => {
+    const ahora = Date.now();
+    const antes = sesionesActivas.length;
+    sesionesActivas = sesionesActivas.filter(x => Date.parse(x.expira) > ahora);
+    if (sesionesActivas.length !== antes) guardarSesiones();
+};
+purgarSesionesVencidas();
+setInterval(purgarSesionesVencidas, 60 * 60 * 1000).unref();
+
+const ipDeLaPeticion = (req) => {
+    const reenviada = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    let ip = reenviada || req.socket?.remoteAddress || '';
+    ip = ip.replace(/^::ffff:/, '');
+    if (ip === '::1' || ip === '127.0.0.1') return 'Este mismo equipo (localhost)';
+    return ip || 'Desconocida';
+};
+
+const describirDispositivo = (ua) => {
+    ua = String(ua || '');
+    const navegador =
+        /Edg\//.test(ua) ? 'Edge' :
+        /OPR\/|Opera/.test(ua) ? 'Opera' :
+        /Firefox\//.test(ua) ? 'Firefox' :
+        /Chrome\//.test(ua) ? 'Chrome' :
+        /Safari\//.test(ua) ? 'Safari' : 'Navegador desconocido';
+    const sistema =
+        /Windows/.test(ua) ? 'Windows' :
+        /Android/.test(ua) ? 'Android' :
+        /iPhone|iPad|iOS/.test(ua) ? 'iOS' :
+        /Mac OS X|Macintosh/.test(ua) ? 'macOS' :
+        /Linux/.test(ua) ? 'Linux' : 'sistema desconocido';
+    return `${navegador} en ${sistema}`;
+};
+
+const crearSesion = (email, req, dispositivoId) => {
+    const ahora = new Date();
+    const sesion = {
+        id: crypto.randomBytes(12).toString('hex'),
+        email: normalizarEmail(email),
+        ip: ipDeLaPeticion(req),
+        dispositivo: describirDispositivo(req.headers['user-agent']),
+        // Id que el propio navegador genera y guarda la primera vez que entra
+        // (ver account.service.ts) — es lo que permite reconocer "ese mismo
+        // computador" después, para poder bloquearlo si alguien lo saca.
+        // Puede venir vacío en un navegador viejo, de antes de esta función.
+        dispositivoId: String(dispositivoId || '').trim() || null,
+        creada: ahora.toISOString(),
+        ultima: ahora.toISOString(),
+        expira: new Date(ahora.getTime() + TOKEN_DIAS * 86400000).toISOString()
+    };
+    sesionesActivas.push(sesion);
+    // Tope por cuenta: si hay demasiadas, se descartan las más antiguas.
+    const deLaCuenta = sesionesActivas.filter(x => x.email === sesion.email);
+    if (deLaCuenta.length > MAX_SESIONES_POR_CUENTA) {
+        const sobran = new Set(deLaCuenta.slice(0, deLaCuenta.length - MAX_SESIONES_POR_CUENTA).map(x => x.id));
+        sesionesActivas = sesionesActivas.filter(x => !sobran.has(x.id));
+    }
+    guardarSesiones();
+    return sesion.id;
+};
+
+
+// ----------------------------------------------------------------------------
+// DISPOSITIVOS BLOQUEADOS — "Sacar" una sesión ahora también le impide a ESE
+// mismo computador volver a entrar solo con la contraseña. Sin esto, "Sacar"
+// era más limpieza que seguridad: si alguien más de verdad tenía tu
+// contraseña, con solo volver a escribirla entraba otra vez sin ningún
+// obstáculo. Ahora, para que ese dispositivo vuelva a entrar, el
+// administrador tiene que desbloquearlo a mano desde el panel — sin
+// depender del correo (que además no le llegaría a cualquier cuenta, por el
+// filtro de destinatarios).
+// ----------------------------------------------------------------------------
+const ARCHIVO_DISPOSITIVOS_BLOQUEADOS = path.join(CARPETA_DATOS, 'dispositivos-bloqueados.json');
+let dispositivosBloqueados = (() => {
+    try {
+        if (fs.existsSync(ARCHIVO_DISPOSITIVOS_BLOQUEADOS)) {
+            const lista = JSON.parse(fs.readFileSync(ARCHIVO_DISPOSITIVOS_BLOQUEADOS, 'utf8'));
+            if (Array.isArray(lista)) return lista;
+        }
+    } catch (err) {
+        console.error('⚠️ No se pudo leer dispositivos-bloqueados.json:', err.message);
+    }
+    return [];
+})();
+
+const escribirDispositivosBloqueadosAhora = () => {
+    try {
+        fs.writeFileSync(ARCHIVO_DISPOSITIVOS_BLOQUEADOS, JSON.stringify(dispositivosBloqueados), { mode: 0o600 });
+    } catch (err) {
+        console.error('⚠️ No se pudo guardar dispositivos-bloqueados.json:', err.message);
+    }
+};
+
+const claveDispositivo = (email, dispositivoId) => `${normalizarEmail(email)}|${String(dispositivoId || '').trim()}`;
+
+const dispositivoEstaBloqueado = (email, dispositivoId) => {
+    if (!dispositivoId) return false; // sin id (navegador viejo, antes de esta función) — nunca se bloquea
+    const clave = claveDispositivo(email, dispositivoId);
+    return dispositivosBloqueados.some(d => claveDispositivo(d.email, d.dispositivoId) === clave);
+};
+
+// Se llama al "Sacar" una sesión que no es la propia — bloquea ese
+// dispositivo para esa cuenta, guardando algo reconocible (qué navegador
+// era, desde qué IP) para que el administrador sepa qué está desbloqueando.
+const bloquearDispositivoDeSesion = (sesion) => {
+    if (!sesion || !sesion.dispositivoId) return; // sesión de antes de esta función — no hay nada que bloquear
+    if (dispositivoEstaBloqueado(sesion.email, sesion.dispositivoId)) return; // ya estaba bloqueado
+    dispositivosBloqueados.push({
+        email: normalizarEmail(sesion.email),
+        dispositivoId: sesion.dispositivoId,
+        dispositivo: sesion.dispositivo,
+        ip: sesion.ip,
+        bloqueadoEn: new Date().toISOString()
+    });
+    escribirDispositivosBloqueadosAhora();
+};
+
+const desbloquearDispositivo = (email, dispositivoId) => {
+    const clave = claveDispositivo(email, dispositivoId);
+    const antes = dispositivosBloqueados.length;
+    dispositivosBloqueados = dispositivosBloqueados.filter(d => claveDispositivo(d.email, d.dispositivoId) !== clave);
+    if (dispositivosBloqueados.length !== antes) escribirDispositivosBloqueadosAhora();
+    return dispositivosBloqueados.length !== antes;
+};
+
+const cerrarSesionesDe = (email) => {
+    const correo = normalizarEmail(email);
+    sesionesActivas = sesionesActivas.filter(x => x.email !== correo);
+    guardarSesiones();
+};
+
+const avisosSinPase = new Map();
+const registrarPeticionSinPase = (req) => {
+    const clave = `${req.method} ${req.path}`;
+    const veces = avisosSinPase.get(clave) || 0;
+    avisosSinPase.set(clave, veces + 1);
+    if (veces === 0) {
+        console.log(`⚠️ [SIN PASE] ${clave} llegó sin sesión verificada (usuario declarado: ${req.headers['x-user-email'] || 'ninguno'}). Si esto sigue apareciendo con la app ya actualizada, todavía no conviene activar EXIGIR_TOKEN.`);
+    }
+};
+
+// Las cuentas se verifican contra la base del modo actual Y contra la base
+// REAL. El modo Prueba tiene su propia base, que es una copia vieja de la
+// real: si solo se mirara la del modo actual, al entrar a modo Prueba se
+// rechazarían los pases de quien se registró (o cambió su contraseña) DESPUÉS
+// de esa copia — cambiar de modo sacaría a la gente de la app.
+let cacheUsuariosReales = { ts: 0, usuarios: [] };
+const usuariosDeLaBaseReal = () => {
+    if (Date.now() - cacheUsuariosReales.ts < 10000) return cacheUsuariosReales.usuarios;
+    try {
+        cacheUsuariosReales = { ts: Date.now(), usuarios: leerDB('real').usuarios || [] };
+    } catch (err) {
+        console.error('⚠️ No se pudieron leer las cuentas de la base real:', err.message);
+        cacheUsuariosReales = { ts: Date.now(), usuarios: [] };
+    }
+    return cacheUsuariosReales.usuarios;
+};
+const cuentasCandidatasParaPase = (email) => {
+    const coincide = (u) => normalizarEmail(u.email) === email;
+    const candidatas = [];
+    const delModoActual = (leerExcel().usuarios || []).find(coincide);
+    if (delModoActual) candidatas.push(delModoActual);
+    if (modoActual !== 'real') {
+        const delReal = usuariosDeLaBaseReal().find(coincide);
+        if (delReal) candidatas.push(delReal);
+    }
+    return candidatas;
+};
+
+const identificarUsuario = (req, res, next) => {
+    if (!req.path.startsWith('/api/')) return next();
+
+    const coincidencia = /^Bearer\s+(.+)$/i.exec(String(req.headers['authorization'] || ''));
+
+    if (!coincidencia) {
+        if (RUTAS_PUBLICAS_SIN_PASE.includes(req.path)) return next();
+        if (EXIGIR_TOKEN) {
+            return res.status(401).json({ ok: false, codigo: 'sin_pase', msg: 'Debes iniciar sesión.' });
+        }
+        registrarPeticionSinPase(req);
+        return next();
+    }
+
+    const invalido = () => res.status(401).json({
+        ok: false, codigo: 'pase_invalido',
+        msg: 'Tu sesión expiró o ya no es válida. Inicia sesión de nuevo.'
+    });
+
+    const v = verificarPase(coincidencia[1]);
+    if (!v.ok) return invalido();
+
+    // Si el pase trae id de sesión, esa sesión tiene que seguir registrada
+    // (si la cerraron desde "Sesiones activas", el pase ya no sirve).
+    if (v.sid) {
+        const registro = sesionesActivas.find(x => x.id === v.sid);
+        if (!registro) return invalido();
+        if (Date.now() - Date.parse(registro.ultima) > 60000) {
+            registro.ultima = new Date().toISOString();
+            guardarSesiones();
+        }
+        req.sesionId = v.sid;
+    }
+
+    // Firma y vencimiento bien: se revisa que la cuenta siga existiendo y que
+    // la contraseña no haya cambiado desde que se entregó este pase.
+    let cuenta;
+    try {
+        // Vale la cuenta cuya contraseña coincide con la del pase (en modo
+        // Prueba puede haber una copia vieja con otra contraseña).
+        cuenta = cuentasCandidatasParaPase(v.email).find(c => huellaClave(c.passHash) === v.pv);
+    } catch (err) {
+        console.error('⚠️ Error consultando la cuenta al verificar un pase:', err.message);
+        return res.status(500).json({ ok: false, msg: 'No se pudo verificar tu sesión.' });
+    }
+    if (!cuenta) return invalido();
+
+    const esAdmin = v.email === normalizarEmail(ADMIN_EMAIL);
+    if (EXIGIR_TOKEN && !esAdmin && cuenta.estado !== 'APPROVED' && !RUTAS_PARA_CUALQUIER_CUENTA.includes(req.path)) {
+        return res.status(403).json({ ok: false, codigo: 'cuenta_no_aprobada', msg: 'Tu cuenta todavía no está aprobada.' });
+    }
+
+    // La identidad VERIFICADA manda: se sobrescribe la cabecera para que nada
+    // de lo que venga después use un correo que haya escrito el cliente.
+    req.headers['x-user-email'] = v.email;
+    req.usuarioVerificado = v.email;
+    next();
+};
+app.use(identificarUsuario);
+
+// --- Bloqueo por intentos fallidos de login (fuerza bruta) ---
+// Se cuenta por correo + dirección de quien intenta: así quien se equivoca
+// muchas veces queda frenado, pero nadie puede dejar sin acceso a otra
+// persona (ni al administrador) desde otro equipo, solo escribiendo su correo.
+const LOGIN_INTENTOS_MAX = 8;
+const LOGIN_VENTANA_MS = 10 * 60 * 1000;
+const fallosLogin = new Map();
+const claveIntentoLogin = (email, req) => `${email}|${req.socket?.remoteAddress || ''}`;
+
+const minutosDeBloqueoLogin = (clave) => {
+    const f = fallosLogin.get(clave);
+    if (!f) return 0;
+    if (Date.now() - f.desde > LOGIN_VENTANA_MS) { fallosLogin.delete(clave); return 0; }
+    return f.cuenta >= LOGIN_INTENTOS_MAX ? Math.max(1, Math.ceil((f.desde + LOGIN_VENTANA_MS - Date.now()) / 60000)) : 0;
+};
+const registrarFalloLogin = (clave) => {
+    const f = fallosLogin.get(clave);
+    if (!f || Date.now() - f.desde > LOGIN_VENTANA_MS) fallosLogin.set(clave, { cuenta: 1, desde: Date.now() });
+    else f.cuenta++;
+    // Tope para que un ataque con correos inventados no llene la memoria.
+    if (fallosLogin.size > 5000) fallosLogin.delete(fallosLogin.keys().next().value);
+};
+setInterval(() => {
+    const ahora = Date.now();
+    for (const [k, f] of fallosLogin) if (ahora - f.desde > LOGIN_VENTANA_MS) fallosLogin.delete(k);
+}, 30 * 60 * 1000).unref();
+
+// Guarda cuál fue la última acción (endpoint) que se ejecutó — se usa
+// para nombrar los respaldos automáticos con algo más útil que solo la
+// hora (ver crearRespaldoDB en guardarEnExcel).
+let ultimaAccionParaRespaldo = '';
+
 // Middleware: registra automáticamente CUALQUIER POST/PUT/DELETE a /api/*,
 // sin tener que tocar cada endpoint uno por uno.
 app.use((req, res, next) => {
-    if (req.path.startsWith('/api/') && req.method !== 'GET') {
-        const usuario = String(req.headers['x-user-email'] || '').toLowerCase().trim();
-        registrarAuditoria(usuario, req.method, req.path, req.body);
+    // Las llamadas "en seco" (previsualizar:true, ej. la vista previa de
+    // Generar Matriz) no cambian nada de verdad — auditarlas ensuciaría
+    // el log con eventos que nunca pasaron.
+    const esPrevisualizacion = req.body && req.body.previsualizar === true;
+    if (req.path.startsWith('/api/') && req.method !== 'GET' && !esPrevisualizacion) {
+        // La cabecera x-user-email solo existe DESPUÉS de haber iniciado
+        // sesión — en /api/auth/login y /api/auth/register (donde
+        // todavía no hay sesión) esa cabecera siempre viene vacía, así
+        // que el registro salía como "desconocido" aunque el correo SÍ
+        // viaja en el cuerpo de esa misma petición ({email, pass}).
+        // Se usa ese correo como respaldo cuando la cabecera no llega.
+        const usuario = String(
+            req.headers['x-user-email'] || req.body?.email || ''
+        ).toLowerCase().trim();
+
+        // Nombre corto y legible para el respaldo — ej. "/api/viajes" -> "viajes"
+        // Esto SÍ se necesita YA, de forma síncrona: guardarEnExcel()
+        // (dentro del handler que viene después) usa esta variable de
+        // inmediato para nombrar el respaldo automático.
+        ultimaAccionParaRespaldo = req.path
+            .replace(/^\/api\//, '')
+            .replace(/[^a-zA-Z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '') || 'accion';
+
+        // El registro de auditoría, en cambio, se hace DESPUÉS de que el
+        // handler termine (res.on('finish')) — no antes. Así el handler
+        // alcanza a dejar contexto específico en res.locals.auditoriaExtra
+        // (ej. la placa/ruta de un viaje justo antes de borrarlo) para
+        // endpoints como /api/viajes/eliminar, cuyo body de la petición
+        // solo trae un id sin nada legible.
+        res.on('finish', () => {
+            if (res.locals.auditoriaOmitir) return;
+            const resumenCompleto = { ...(req.body || {}), ...(res.locals.auditoriaExtra || {}) };
+            registrarAuditoria(usuario, req.method, req.path, resumenCompleto, modoActual);
+        });
     }
     next();
 });
@@ -108,10 +577,341 @@ app.use((req, res, next) => {
 // ============================================================================
 
 // El correo que SIEMPRE es admin (puede aprobar/rechazar). Cámbialo por el tuyo.
-const ADMIN_EMAIL = 'admin@Makand.com';
+const ADMIN_EMAIL = 'adminMak@makand.com';
+
+// ============================================================
+// ENVÍO DE CORREOS — al registrarse una cuenta nueva, se avisa por
+// correo tanto a quien se registró (confirmando que su solicitud llegó)
+// como al administrador (para que sepa que hay algo pendiente de
+// aprobar, sin tener que estar revisando el panel a cada rato).
+//
+// CÓMO CONFIGURARLO (una sola vez):
+// 1. Crea un archivo llamado ".env" en esta misma carpeta (junto a
+//    server.js) — NUNCA lo subas a Git ni lo compartas, ahí van tus
+//    credenciales reales.
+// 2. Pega dentro estas 4 líneas, con TUS datos reales:
+//      EMAIL_SERVICE=gmail
+//      EMAIL_USER=tu_correo@gmail.com
+//      EMAIL_PASS=tu_contraseña_de_aplicación
+//      EMAIL_FROM_NOMBRE=Makand Rutograma
+//    EMAIL_SERVICE acepta exactamente uno de estos 3 valores:
+//      - gmail     → para una cuenta de Gmail / Google Workspace
+//      - outlook   → para una cuenta de Outlook.com / Hotmail / Live
+//      - office365 → para una cuenta de Office 365 empresarial
+// 3. La "contraseña de aplicación" NO es tu contraseña normal de todos
+//    los días — se genera aparte:
+//      - Gmail: myaccount.google.com/apppasswords (necesitas tener
+//        activada la verificación en dos pasos primero).
+//      - Outlook/Office 365: account.microsoft.com/security →
+//        "Opciones de seguridad avanzadas" → "Contraseñas de
+//        aplicación" (mismo requisito: verificación en dos pasos activa).
+// 4. Instala el paquete que falta: en la terminal, dentro de la
+//    carpeta del backend, corre: npm install nodemailer dotenv
+// 5. Reinicia el servidor.
+//
+// Si no configuras esto, la app sigue funcionando normal — el envío de
+// correos simplemente falla en silencio (se ve un aviso en la consola
+// del servidor), sin tumbar el registro de la cuenta.
+// ============================================================
+const SERVICIOS_CORREO_VALIDOS = { gmail: 'gmail', outlook: 'hotmail', office365: 'Office365' };
+const transportadorCorreo = nodemailer.createTransport({
+    service: SERVICIOS_CORREO_VALIDOS[String(process.env.EMAIL_SERVICE || 'gmail').toLowerCase()] || 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+// Solo se manda correo de verdad si el destinatario es una cuenta de
+// Makand en Outlook — evita mandarle notificaciones reales a un correo
+// personal/de prueba que alguien haya usado al registrarse.
+const esCorreoMakandOutlook = (correo) => {
+    const c = String(correo || '').toLowerCase().trim();
+    return c.includes('makand') && c.includes('@outlook.');
+};
+
+// Devuelve { enviado, motivo } — los usos que solo "disparan y olvidan"
+// (registro, aprobado, rechazado...) simplemente lo ignoran; lo usa el
+// botón de "Enviar resumen de vencimientos ahora" para poder decirle a
+// la persona por qué un correo NO salió, en vez de fallar en silencio.
+const enviarCorreo = async (destinatario, asunto, cuerpoHtml) => {
+    if (!esCorreoMakandOutlook(destinatario)) {
+        console.log(`✉️ Correo NO enviado — "${destinatario}" no es una cuenta de Makand en Outlook. Asunto: ${asunto}`);
+        return { enviado: false, motivo: `El destinatario (${destinatario}) no pasa el filtro de correos (debe contener "makand" y ser @outlook.).` };
+    }
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        console.log(`✉️ (Correo NO enviado — falta configurar EMAIL_USER/EMAIL_PASS en .env) Para: ${destinatario} | Asunto: ${asunto}`);
+        return { enviado: false, motivo: 'Falta configurar EMAIL_USER/EMAIL_PASS en el archivo .env del servidor.' };
+    }
+    try {
+        await transportadorCorreo.sendMail({
+            from: `"${process.env.EMAIL_FROM_NOMBRE || 'Makand Rutograma'}" <${process.env.EMAIL_USER}>`,
+            to: destinatario,
+            subject: asunto,
+            html: cuerpoHtml
+        });
+        console.log(`✉️ Correo enviado a ${destinatario}: ${asunto}`);
+        return { enviado: true, motivo: '' };
+    } catch (err) {
+        // Un correo que falla NUNCA debe tumbar la petición real (el
+        // registro de la cuenta ya se guardó bien en el Excel).
+        console.error(`⚠️ No se pudo enviar el correo a ${destinatario}:`, err.message);
+        return { enviado: false, motivo: `El servidor de correo rechazó el envío: ${err.message}` };
+    }
+};
 
 // Normaliza un correo para comparar (minúsculas, sin espacios)
 const normalizarEmail = (e) => String(e || '').toLowerCase().trim();
+
+// ============================================================
+// RESUMEN SEMANAL DE VENCIMIENTOS (SOAT, Tecnomecánica, Licencias)
+// ============================================================
+// Cada lunes (a partir de las 7:00 a.m., hora del servidor) se manda al
+// administrador un correo con lo que ya venció o vence en los próximos
+// 30 días — así no depende de que alguien entre a mirar el Dashboard.
+// Siempre usa los datos del modo REAL (aunque el servidor esté en modo
+// Prueba en ese momento), y si no hay nada por vencer no manda nada.
+// Pasa por el mismo filtro de destinatarios que el resto de correos.
+const DIAS_AVISO_VENCIMIENTOS = 30;
+const ARCHIVO_ESTADO_VENCIMIENTOS = path.join(CARPETA_DATOS, 'ultimo-resumen-vencimientos.json');
+
+const escaparHtml = (t) => String(t == null ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const fechaLocalISO = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const diasHastaFecha = (fechaISO, hoy) => {
+    if (!fechaISO) return null;
+    const f = new Date(`${String(fechaISO).slice(0, 10)}T00:00:00`);
+    if (isNaN(f.getTime())) return null;
+    return Math.round((f.getTime() - hoy.getTime()) / 86400000);
+};
+
+const calcularVencimientos = (data) => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const items = { soat: [], tecno: [], licencia: [] };
+
+    (data.vehiculos || []).forEach(v => {
+        const placa = String(v.p || v.placa || '').trim();
+        if (!placa) return;
+        [['soat', v.soatVence], ['tecno', v.tecnoVence]].forEach(([tipo, fecha]) => {
+            const dias = diasHastaFecha(fecha, hoy);
+            if (dias !== null && dias <= DIAS_AVISO_VENCIMIENTOS) {
+                items[tipo].push({ nombre: placa, fecha: String(fecha).slice(0, 10), dias });
+            }
+        });
+    });
+
+    (data.conductores || []).forEach(c => {
+        const nombre = String(c.nom || c.nombre || '').trim();
+        if (!nombre) return;
+        const dias = diasHastaFecha(c.licVence, hoy);
+        if (dias !== null && dias <= DIAS_AVISO_VENCIMIENTOS) {
+            items.licencia.push({ nombre, fecha: String(c.licVence).slice(0, 10), dias });
+        }
+    });
+
+    Object.values(items).forEach(lista => lista.sort((a, b) => a.dias - b.dias));
+    return items;
+};
+
+const construirHtmlVencimientos = (items) => {
+    const textoDias = (d) => d < 0 ? `vencido hace ${Math.abs(d)} día(s)` : (d === 0 ? 'vence hoy' : `vence en ${d} día(s)`);
+    const colorDias = (d) => d < 0 ? '#b91c1c' : (d <= 15 ? '#b45309' : '#374151');
+    const celda = 'padding:7px 12px;border-bottom:1px solid #e5e7eb;';
+
+    const seccion = (titulo, columna, lista) => {
+        if (!lista.length) return '';
+        const filas = lista.map(i => `
+            <tr>
+              <td style="${celda}">${escaparHtml(i.nombre)}</td>
+              <td style="${celda}">${escaparHtml(i.fecha)}</td>
+              <td style="${celda}color:${colorDias(i.dias)};font-weight:600;">${textoDias(i.dias)}</td>
+            </tr>`).join('');
+        return `
+          <h3 style="margin:22px 0 8px;font-size:15px;color:#111827;">${titulo}</h3>
+          <table style="border-collapse:collapse;width:100%;font-size:13px;color:#1f2937;">
+            <thead>
+              <tr style="background:#f3f4f6;text-align:left;">
+                <th style="${celda}">${columna}</th>
+                <th style="${celda}">Fecha de vencimiento</th>
+                <th style="${celda}">Estado</th>
+              </tr>
+            </thead>
+            <tbody>${filas}</tbody>
+          </table>`;
+    };
+
+    return `
+      <div style="font-family:Segoe UI,Arial,sans-serif;max-width:640px;">
+        <h2 style="margin:0 0 6px;font-size:18px;color:#111827;">Resumen semanal de vencimientos</h2>
+        <p style="margin:0;font-size:13px;color:#6b7280;">
+          Documentos que ya vencieron o vencen en los próximos ${DIAS_AVISO_VENCIMIENTOS} días.
+        </p>
+        ${seccion('SOAT', 'Vehículo', items.soat)}
+        ${seccion('Tecnomecánica', 'Vehículo', items.tecno)}
+        ${seccion('Licencias de conducción', 'Conductor', items.licencia)}
+        <p style="margin-top:24px;font-size:12px;color:#9ca3af;">
+          Correo automático del Rutograma de Makand. Las fechas se editan en Vehículos y Conductores.
+        </p>
+      </div>`;
+};
+
+// Destinatarios del resumen: por defecto el administrador; si en el .env
+// se define EMAIL_VENCIMIENTOS_DESTINO (uno o varios correos separados por
+// coma) se manda a esos. Cada uno pasa por el filtro de correos por su
+// cuenta — el filtro NO se toca aquí.
+const destinatariosVencimientos = () => {
+    const lista = String(process.env.EMAIL_VENCIMIENTOS_DESTINO || '')
+        .split(',').map(s => s.trim()).filter(Boolean);
+    return lista.length ? lista : [ADMIN_EMAIL];
+};
+
+// Calcula y envía el resumen. Devuelve { enviado, enviadoA, motivo, total }:
+// "enviado" es true si llegó al menos a un destinatario; "motivo" lista a
+// quiénes NO les llegó y por qué.
+const enviarResumenVencimientos = async () => {
+    const items = calcularVencimientos(leerDB('real'));
+    const total = items.soat.length + items.tecno.length + items.licencia.length;
+    if (total === 0) {
+        return { enviado: false, enviadoA: [], motivo: `No hay nada vencido ni por vencer en los próximos ${DIAS_AVISO_VENCIMIENTOS} días.`, total: 0, sinPendientes: true };
+    }
+
+    const asunto = `Resumen semanal de vencimientos — ${total} pendiente(s)`;
+    const html = construirHtmlVencimientos(items);
+    const resultados = [];
+    for (const destinatario of destinatariosVencimientos()) {
+        resultados.push({ destinatario, ...(await enviarCorreo(destinatario, asunto, html)) });
+    }
+
+    const enviadoA = resultados.filter(r => r.enviado).map(r => r.destinatario);
+    const motivo = resultados.filter(r => !r.enviado).map(r => `${r.destinatario}: ${r.motivo}`).join(' | ');
+    return { enviado: enviadoA.length > 0, enviadoA, motivo, total };
+};
+
+const leerEstadoVencimientos = () => {
+    try { return JSON.parse(fs.readFileSync(ARCHIVO_ESTADO_VENCIMIENTOS, 'utf8')); }
+    catch { return {}; }
+};
+const guardarEstadoVencimientos = (estado) => {
+    try { fs.writeFileSync(ARCHIVO_ESTADO_VENCIMIENTOS, JSON.stringify(estado)); }
+    catch (err) { console.error('⚠️ No se pudo guardar el estado del resumen de vencimientos:', err.message); }
+};
+
+// Se llama cada 30 minutos (y una vez poco después de arrancar). Manda el
+// resumen una sola vez por semana: el lunes desde las 7:00, o el primer
+// momento después de eso en que el servidor esté encendido (si estaba
+// apagado el lunes, se manda apenas arranque). Si el envío falla, no se
+// reintenta hasta el día siguiente, para no llenar la consola de avisos.
+const revisarResumenSemanalVencimientos = async () => {
+    try {
+        const ahora = new Date();
+        if (ahora.getHours() < 7) return;
+
+        const lunes = new Date(ahora);
+        lunes.setDate(lunes.getDate() - ((lunes.getDay() + 6) % 7));
+        const lunesStr = fechaLocalISO(lunes);
+        const hoyStr = fechaLocalISO(ahora);
+
+        const estado = leerEstadoVencimientos();
+        if ((estado.ultimoEnvioLunes || '') >= lunesStr) return; // ya se resolvió esta semana
+        if (estado.ultimoIntentoDia === hoyStr) return;          // ya se intentó hoy y falló
+
+        const r = await enviarResumenVencimientos();
+        if (r.enviado || r.sinPendientes) {
+            if (r.enviado && r.motivo) console.log(`ℹ️ Resumen de vencimientos enviado, pero no a todos: ${r.motivo}`);
+            guardarEstadoVencimientos({ ultimoEnvioLunes: lunesStr });
+        } else {
+            guardarEstadoVencimientos({ ...estado, ultimoIntentoDia: hoyStr });
+            console.log(`ℹ️ Resumen semanal de vencimientos NO enviado: ${r.motivo}`);
+        }
+    } catch (err) {
+        console.error('⚠️ Error en la revisión del resumen semanal de vencimientos:', err.message);
+    }
+};
+
+// Mapa de nombre de mes a número — se usa en varios endpoints para
+// convertir "Septiembre-2026" + día 6 en la fecha real "2026-09-06".
+const MESES_MAP = { 'Enero':1,'Febrero':2,'Marzo':3,'Abril':4,'Mayo':5,'Junio':6,'Julio':7,'Agosto':8,'Septiembre':9,'Octubre':10,'Noviembre':11,'Diciembre':12 };
+
+// Cancela automáticamente los viajes "Programado" de una placa que
+// caigan dentro de un rango de fechas (mantenimiento) o en un día
+// puntual (descanso) — para que dejen de contar en el Dashboard y en
+// cualquier reporte, sin esperar a la próxima vez que se regenere la
+// matriz del mes. Nunca toca viajes "En ruta", "Entregado" o ya
+// "Cancelado" — solo los que todavía no habían pasado.
+function cancelarViajesEnConflicto(data, placa, motivo, coincide) {
+    // BUG encontrado y corregido: esto comparaba contra 'Programado',
+    // pero Generar Matriz deja los viajes nuevos en 'Planificado' (y
+    // 'Programado' es solo el TEXTO que se muestra en pantalla, no el
+    // valor real guardado) — con eso, la cancelación automática nunca
+    // se activaba para ningún viaje. Ahora se excluye por los estados
+    // que sí representan algo que ya pasó o ya se resolvió, y todo lo
+    // demás se considera "todavía pendiente" y sí se puede cancelar.
+    const ESTADOS_NO_CANCELABLES = ['Cancelado', 'Entregado', 'En ruta', 'Mantenimiento'];
+    let cancelados = 0;
+    (data.viajes || []).forEach(vj => {
+        if (String(vj.p || vj.placa || '').toUpperCase().trim() !== placa) return;
+        if (ESTADOS_NO_CANCELABLES.includes(vj.estado)) return;
+        if (!vj.fecha || !coincide(vj.fecha)) return;
+        vj.estado = 'Cancelado';
+        vj.motivoCancelacion = motivo;
+        cancelados++;
+    });
+    return cancelados;
+}
+
+// ============================================================
+// BLOQUEO REAL de cuentas "lector" — antes solo se ocultaban los
+// botones en la pantalla (rutas.ts/vehiculos.ts), pero eso es nada más
+// una comodidad visual: cualquiera con conocimientos técnicos podía
+// seguir mandando la petición directo al servidor sin pasar por la
+// interfaz, y el servidor la aceptaba igual. Este middleware SÍ
+// bloquea de verdad, revisando el rol guardado de la cuenta antes de
+// dejar pasar cualquier escritura.
+// ============================================================
+const RUTAS_SIN_RESTRICCION_DE_ROL = [
+    '/api/auth/check',
+    '/api/auth/login',
+    '/api/auth/register',
+    '/api/sesiones/cerrar',
+    '/api/sesiones/cerrar-otras',
+    '/api/sesiones/cerrar-actual'
+];
+
+app.use((req, res, next) => {
+    if (!req.path.startsWith('/api/') || req.method === 'GET') return next();
+    // Estas rutas tienen que funcionar ANTES de que exista una sesión —
+    // no tiene sentido (ni es posible) revisar el rol todavía.
+    if (RUTAS_SIN_RESTRICCION_DE_ROL.includes(req.path)) return next();
+
+    try {
+        const email = normalizarEmail(req.headers['x-user-email']);
+
+        // El administrador siempre puede escribir — nunca se le aplica
+        // esta restricción, sin importar qué rol tenga guardado.
+        if (email && email === normalizarEmail(ADMIN_EMAIL)) return next();
+
+        const data = leerExcel();
+        const cuenta = (data.usuarios || []).find(u => normalizarEmail(u.email) === email);
+
+        // Sin cuenta encontrada (correo vacío, sesión vieja, etc.) — se
+        // deja pasar tal cual estaba antes de este cambio, para no
+        // bloquear por error algo que ya funcionaba. El rol solo
+        // bloquea cuando SÍ sabemos con certeza que es "lector".
+        if (cuenta && cuenta.rol === 'lector') {
+            return res.status(403).json({ ok: false, msg: 'Tu cuenta es de solo lectura — no puedes hacer cambios.' });
+        }
+
+        next();
+    } catch (err) {
+        // Un fallo revisando el rol NUNCA debe tumbar la petición real
+        // (mismo criterio que ya se usa en registrarAuditoria).
+        console.error('⚠️ Error revisando el rol de la cuenta:', err.message);
+        next();
+    }
+});
 
 // --- Registrar / consultar una cuenta al iniciar sesión ---
 // El frontend llama aquí tras el login de Microsoft. Si el correo no existe,
@@ -146,9 +946,44 @@ app.post('/api/auth/check', (req, res) => {
             console.log(`👤 Nueva cuenta pendiente: ${email}`);
         }
 
-        return res.json({ ok: true, email, estado: usuario.estado, esAdmin: false });
+        return res.json({ ok: true, email, estado: usuario.estado, esAdmin: false, motivoRechazo: usuario.estado === 'REJECTED' ? (usuario.motivoRechazo || '') : undefined });
     } catch (error) {
         console.error("🚨 Error en /api/auth/check:", error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// --- Restaurar sesión al recargar la página (sin pedir contraseña de
+// nuevo) — el navegador ya guardó el correo de quien inició sesión;
+// esto solo confirma que la cuenta SIGUE existiendo y aprobada, y
+// devuelve su rol actual. Mismo nivel de confianza que ya usa el resto
+// de la app en la cabecera x-user-email (no hay contraseña ni token de
+// por medio en ningún otro lado tampoco). ---
+app.get('/api/auth/estado', (req, res) => {
+    try {
+        const data = leerExcel();
+        // Con un pase válido, la identidad es la del PASE (req.usuarioVerificado):
+        // el correo que llegue en la URL se ignora. Solo en modo tolerante y sin
+        // pase se sigue usando el correo de la URL, como antes.
+        const email = normalizarEmail(req.usuarioVerificado || req.query.email);
+        if (!email) return res.status(400).json({ ok: false, msg: 'Falta el correo' });
+
+        if (email === normalizarEmail(ADMIN_EMAIL)) {
+            return res.json({ ok: true, estado: 'APPROVED', esAdmin: true, rol: 'admin' });
+        }
+
+        const usuario = (data.usuarios || []).find(u => normalizarEmail(u.email) === email);
+        if (!usuario) return res.status(404).json({ ok: false, msg: 'Cuenta no encontrada' });
+
+        return res.json({
+            ok: true,
+            estado: usuario.estado,
+            esAdmin: false,
+            rol: usuario.rol === 'lector' ? 'lector' : 'editor',
+            motivoRechazo: usuario.estado === 'REJECTED' ? (usuario.motivoRechazo || '') : undefined
+        });
+    } catch (error) {
+        console.error("🚨 Error en /api/auth/estado:", error);
         res.status(500).json({ ok: false, msg: error.message });
     }
 });
@@ -204,6 +1039,7 @@ app.post('/api/auth/decidir', (req, res) => {
 
         const email = normalizarEmail(req.body.email);
         const accion = String(req.body.accion || '').toUpperCase();
+        const motivo = String(req.body.motivo || '').trim();
 
         if (!email) return res.status(400).json({ ok: false, msg: 'Falta el correo' });
         if (accion !== 'APPROVED' && accion !== 'REJECTED') {
@@ -214,6 +1050,9 @@ app.post('/api/auth/decidir', (req, res) => {
         if (!usuario) return res.status(404).json({ ok: false, msg: 'Cuenta no encontrada' });
 
         usuario.estado = accion;
+        // El motivo solo tiene sentido para un rechazo — si se aprueba
+        // (incluso después de haber estado rechazada antes), se limpia.
+        usuario.motivoRechazo = accion === 'REJECTED' ? motivo : '';
         // Si es la primera vez que se aprueba y no tiene rol, le damos 'editor'
         // (acceso completo) por defecto — el admin puede bajarlo a 'lector' después.
         if (accion === 'APPROVED' && !usuario.rol) {
@@ -224,6 +1063,27 @@ app.post('/api/auth/decidir', (req, res) => {
 
         guardarEnExcel(data);
         console.log(`✅ Cuenta ${email} => ${accion} (por ${solicitante})`);
+
+        // BUG REAL encontrado y corregido: el correo de registro dice
+        // "Te avisaremos apenas sea revisada", pero nunca se mandaba
+        // ningún correo aquí — la persona no tenía forma de enterarse
+        // salvo volviendo a intentar iniciar sesión por su cuenta.
+        if (accion === 'APPROVED') {
+            enviarCorreo(
+                usuario.email,
+                'Tu cuenta fue aprobada — Makand',
+                `<p>Hola ${usuario.nombre || ''},</p>
+                 <p>Tu cuenta en el Rutograma de Makand fue <strong>aprobada</strong> — ya puedes iniciar sesión normalmente.</p>`
+            );
+        } else {
+            enviarCorreo(
+                usuario.email,
+                'Tu solicitud de acceso fue rechazada — Makand',
+                `<p>Hola ${usuario.nombre || ''},</p>
+                 <p>Tu solicitud de acceso al Rutograma de Makand fue <strong>rechazada</strong>.</p>
+                 ${motivo ? `<p><strong>Motivo:</strong> ${motivo}</p>` : ''}`
+            );
+        }
 
         res.json({ ok: true, email, estado: accion });
     } catch (error) {
@@ -268,60 +1128,200 @@ app.post('/api/auth/rol', (req, res) => {
     }
 });
 
+// --- Restablecer la contraseña de una cuenta (solo admin) ---
+// Para cuando alguien olvida su contraseña: en vez de un flujo de
+// "recuperar por correo" (más grande y con más riesgo de dejar algo de
+// seguridad mal hecho), el admin le pone una nueva directamente, igual
+// que ya aprueba cuentas a mano.
+app.post('/api/auth/resetear-clave', async (req, res) => {
+    try {
+        const solicitante = normalizarEmail(req.headers['x-user-email']);
+        if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
+            return res.status(403).json({ ok: false, msg: 'Solo el administrador puede restablecer contraseñas' });
+        }
+
+        const data = leerExcel();
+        if (!data.usuarios) data.usuarios = [];
+
+        const email = normalizarEmail(req.body.email);
+        const nuevaClave = String(req.body.nuevaClave || '');
+
+        if (!email) return res.status(400).json({ ok: false, msg: 'Falta el correo' });
+        if (nuevaClave.length < 6) {
+            return res.status(400).json({ ok: false, msg: 'La contraseña debe tener al menos 6 caracteres' });
+        }
+
+        const usuario = data.usuarios.find(u => normalizarEmail(u.email) === email);
+        if (!usuario) return res.status(404).json({ ok: false, msg: 'Cuenta no encontrada' });
+
+        usuario.passHash = await bcrypt.hash(nuevaClave, 10);
+        usuario.actualizadoPor = solicitante;
+        usuario.actualizadoEn = new Date().toISOString();
+
+        guardarEnExcel(data);
+        cerrarSesionesDe(email);
+        console.log(`🔑 Contraseña restablecida para ${email} (por ${solicitante})`);
+
+        // Se avisa por correo, igual que con el registro — así la
+        // persona se entera sin que el admin tenga que decírselo aparte
+        // (aunque de todos modos necesita que le compartan la clave nueva
+        // por otro medio, ya que por seguridad nunca viaja por correo).
+        enviarCorreo(
+            email,
+            'Tu contraseña fue restablecida — Makand',
+            `<p>Hola ${usuario.nombre || ''},</p>
+             <p>Un administrador restableció la contraseña de tu cuenta en el Rutograma de Makand.</p>
+             <p>Pídele la nueva contraseña para poder iniciar sesión.</p>`
+        );
+
+        res.json({ ok: true });
+    } catch (error) {
+        console.error("🚨 Error en /api/auth/resetear-clave:", error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+
+// --- Enviar ahora el resumen de vencimientos (solo admin) ---
+// Para probarlo sin esperar al lunes, o mandarlo cuando se necesite. No
+// afecta el envío automático semanal.
+app.post('/api/vencimientos/enviar-ahora', async (req, res) => {
+    try {
+        const solicitante = normalizarEmail(req.headers['x-user-email']);
+        if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
+            return res.status(403).json({ ok: false, msg: 'Solo el administrador puede enviar este resumen' });
+        }
+        const resultado = await enviarResumenVencimientos();
+        return res.json({ ok: true, ...resultado });
+    } catch (error) {
+        console.error("🚨 Error en /api/vencimientos/enviar-ahora:", error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
 
 // --- CONFIGURACIÓN ---
 // Antes esto apuntaba a una carpeta de red ('//server/...'), lo que traía
 // problemas de permisos/conexión fuera de nuestro control. Ahora el Excel
 // vive LOCAL, en la misma carpeta "data" que ya se creó arriba — nada de
 // red de por medio, solo el disco de este computador.
-const RUTA_EXCEL = path.join(CARPETA_DATOS, 'DatabaseRutograma.XLSX');
+const RUTA_EXCEL_REAL = path.join(CARPETA_DATOS, 'DatabaseRutograma.XLSX');
+const RUTA_EXCEL_PRUEBAS = path.join(CARPETA_DATOS, 'DatabaseRutograma_Pruebas.XLSX');
+const RUTA_ARCHIVO_MODO = path.join(CARPETA_DATOS, 'modo-actual.json');
 const CARPETA_RESPALDOS = path.join(CARPETA_DATOS, 'Backups');
 const MAX_RESPALDOS = 30; // se guardan los últimos 30 respaldos, los más viejos se borran solos
 
-console.log("Ruta configurada como:", RUTA_EXCEL);
+// --- MODO REAL / PRUEBAS ---
+// El botón de "Modo prueba" (Configuración) cambia esta bandera, guardada
+// en un archivito aparte para que sobreviva a reinicios del servidor —
+// así nadie se queda "en pruebas sin saberlo" después de reiniciar.
+// Mientras está en modo prueba, TODA la app (Rutograma, Vehículos, Rutas,
+// Conductores) lee y escribe en un Excel COMPLETAMENTE APARTE
+// (DatabaseRutograma_Pruebas.XLSX) — el archivo real nunca se toca.
+let modoActual = 'real';
+try {
+    if (fs.existsSync(RUTA_ARCHIVO_MODO)) {
+        const guardado = JSON.parse(fs.readFileSync(RUTA_ARCHIVO_MODO, 'utf8'));
+        if (guardado && (guardado.modo === 'real' || guardado.modo === 'pruebas')) {
+            modoActual = guardado.modo;
+        }
+    }
+} catch (err) {
+    console.error('⚠️ No se pudo leer el modo guardado, se usa "real" por defecto:', err.message);
+}
+
+const obtenerRutaExcel = () => (modoActual === 'pruebas' ? RUTA_EXCEL_PRUEBAS : RUTA_EXCEL_REAL);
+
+const guardarModoEnDisco = () => {
+    try {
+        fs.writeFileSync(RUTA_ARCHIVO_MODO, JSON.stringify({ modo: modoActual }));
+        return true;
+    } catch (err) {
+        console.error('⚠️ No se pudo guardar el modo actual en disco:', err.message);
+        return false;
+    }
+};
+
+console.log("Modo activo al arrancar:", modoActual);
+console.log("Ruta configurada como:", obtenerRutaExcel());
 console.log("👉 Si tienes un Excel real con tus datos, cópialo/muévelo a esa ruta ANTES de seguir usando la app (con ese nombre exacto), o la app va a crear uno nuevo vacío.");
 
 // --- RESPALDO AUTOMÁTICO ---
 // Antes de escribir CUALQUIER cambio, guardamos una copia del archivo tal
 // como estaba justo antes. Si algo sale mal en una escritura (o alguien
 // borra algo por error), siempre hay una copia reciente de dónde recuperar.
-const crearRespaldo = () => {
+// Antes esto usaba fs.copyFileSync/readdirSync/statSync — TODO
+// BLOQUEANTE. Node.js corre en un solo hilo: mientras una copia de
+// archivo síncrona estaba en curso, el servidor entero se congelaba
+// para TODAS las peticiones (de cualquier computadora, incluida la que
+// corre el servidor) hasta que terminara. Con muchas funciones nuevas
+// que guardan varias veces seguido en cascada (reacomodar rutas,
+// reasignar conductor a varios viajes...), cada guardado individual
+// disparaba su propia copia completa del Excel, una tras otra — de ahí
+// la lentitud general reciente. Ahora todo es asíncrono (fs.promises):
+// el respaldo se sigue haciendo igual, pero de fondo, sin trabar nada.
+const crearRespaldo = async () => {
     try {
-        if (!fs.existsSync(RUTA_EXCEL)) return; // nada que respaldar todavía
+        const rutaExcelActual = obtenerRutaExcel();
+        if (!fs.existsSync(rutaExcelActual)) return; // nada que respaldar todavía
 
         if (!fs.existsSync(CARPETA_RESPALDOS)) {
-            fs.mkdirSync(CARPETA_RESPALDOS, { recursive: true });
+            await fs.promises.mkdir(CARPETA_RESPALDOS, { recursive: true });
         }
 
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const nombreRespaldo = `DatabaseRutograma_${timestamp}.XLSX`;
+        const prefijo = modoActual === 'pruebas' ? 'DatabaseRutograma_Pruebas_' : 'DatabaseRutograma_';
+        const nombreRespaldo = `${prefijo}${timestamp}.XLSX`;
         const rutaRespaldo = path.join(CARPETA_RESPALDOS, nombreRespaldo);
 
-        fs.copyFileSync(RUTA_EXCEL, rutaRespaldo);
+        await fs.promises.copyFile(rutaExcelActual, rutaRespaldo);
         console.log(`💾 Respaldo creado: ${nombreRespaldo}`);
 
-        limpiarRespaldosViejos();
+        await limpiarRespaldosViejos();
     } catch (err) {
         // Un respaldo fallido NUNCA debe impedir que se guarde el cambio real.
         console.error('⚠️ No se pudo crear el respaldo (se continúa igual):', err.message);
     }
 };
 
-const limpiarRespaldosViejos = () => {
+const limpiarRespaldosViejos = async () => {
     try {
-        const archivos = fs.readdirSync(CARPETA_RESPALDOS)
-            .filter(f => f.startsWith('DatabaseRutograma_') && f.toUpperCase().endsWith('.XLSX'))
-            .map(f => {
-                const ruta = path.join(CARPETA_RESPALDOS, f);
-                return { nombre: f, ruta, tiempo: fs.statSync(ruta).mtimeMs };
-            })
-            .sort((a, b) => b.tiempo - a.tiempo); // más reciente primero
+        const nombresArchivos = await fs.promises.readdir(CARPETA_RESPALDOS);
+        const archivosConFecha = (await Promise.all(
+            nombresArchivos
+                .filter(f => f.startsWith('DatabaseRutograma_') && f.toUpperCase().endsWith('.XLSX'))
+                .map(async f => {
+                    const ruta = path.join(CARPETA_RESPALDOS, f);
+                    try {
+                        const stat = await fs.promises.stat(ruta);
+                        return { nombre: f, ruta, tiempo: stat.mtimeMs };
+                    } catch {
+                        // El archivo pudo desaparecer entre listar la carpeta y
+                        // consultar su fecha — otra limpieza concurrente ya lo
+                        // borró un instante antes. Se descarta en silencio, en
+                        // vez de tumbar TODO el intento de limpieza por un
+                        // solo archivo que ya no está.
+                        return null;
+                    }
+                })
+        )).filter((x) => x !== null);
+        const archivos = archivosConFecha.sort((a, b) => b.tiempo - a.tiempo); // más reciente primero
 
         const sobrantes = archivos.slice(MAX_RESPALDOS);
-        sobrantes.forEach(a => {
-            fs.unlinkSync(a.ruta);
-            console.log(`🗑️ Respaldo antiguo eliminado: ${a.nombre}`);
-        });
+        for (const a of sobrantes) {
+            try {
+                await fs.promises.unlink(a.ruta);
+                console.log(`🗑️ Respaldo antiguo eliminado: ${a.nombre}`);
+            } catch (errBorrado) {
+                // ENOENT = "ya no existe" — normal cuando varios guardados
+                // corren casi al mismo tiempo y OTRA limpieza concurrente
+                // ya lo había borrado un instante antes. No es un error
+                // real, no hace falta alarmar por esto ni detener el
+                // resto de la limpieza.
+                if (errBorrado.code !== 'ENOENT') {
+                    console.error(`⚠️ No se pudo borrar el respaldo ${a.nombre}:`, errBorrado.message);
+                }
+            }
+        }
     } catch (err) {
         console.error('⚠️ Error limpiando respaldos viejos:', err.message);
     }
@@ -330,14 +1330,15 @@ const limpiarRespaldosViejos = () => {
 // --- FUNCIONES ---
 const inicializarArchivo = () => {
     try {
-        if (!fs.existsSync(RUTA_EXCEL)) {
+        const rutaExcelActual = obtenerRutaExcel();
+        if (!fs.existsSync(rutaExcelActual)) {
             console.log("Archivo NO encontrado, creando plantilla inicial...");
             const wb = XLSX.utils.book_new();
             ['Vehiculos', 'Viajes', 'Rutas', 'Conductores', 'Novedades', 'Usuarios'].forEach(sheetName => {
                 const ws = XLSX.utils.json_to_sheet([]);
                 XLSX.utils.book_append_sheet(wb, ws, sheetName);
             });
-            XLSX.writeFile(wb, RUTA_EXCEL);
+            XLSX.writeFile(wb, rutaExcelActual);
             console.log("Archivo creado correctamente.");
         } else {
             console.log("Archivo detectado correctamente.");
@@ -366,167 +1367,170 @@ const leerExcel = () => {
     if (cacheExcel) return cacheExcel;
 
     try {
-        const workbook = XLSX.readFile(RUTA_EXCEL);
-        const data = {};
-        ['Vehiculos', 'Viajes', 'Rutas', 'Conductores', 'Novedades', 'Usuarios', 'Historialvehiculos', 'Historialrutas', 'Historialconductores'].forEach(sheet => {
-            const worksheet = workbook.Sheets[sheet];
-            data[sheet.toLowerCase()] = worksheet ? XLSX.utils.sheet_to_json(worksheet) : [];
-        });
-
-        // El historial guarda una "foto" de vehículos/rutas por mes — cada
-        // fila trae { mes, anio, dataJSON } con el arreglo completo guardado
-        // como texto (igual que "dias" de las rutas, por la misma razón:
-        // Excel no guarda arreglos/objetos anidados en una celda).
-        (data.historialvehiculos || []).forEach(h => {
-            if (h.dataJSON && typeof h.dataJSON === 'string') {
-                try { h.datos = JSON.parse(h.dataJSON); } catch { h.datos = []; }
-            }
-        });
-        (data.historialrutas || []).forEach(h => {
-            if (h.dataJSON && typeof h.dataJSON === 'string') {
-                try { h.datos = JSON.parse(h.dataJSON); } catch { h.datos = []; }
-            }
-        });
-        (data.historialconductores || []).forEach(h => {
-            if (h.dataJSON && typeof h.dataJSON === 'string') {
-                try { h.datos = JSON.parse(h.dataJSON); } catch { h.datos = []; }
-            }
-        });
-
-        // Reconstruimos "dias" de cada ruta (lo guardamos como texto JSON
-        // porque Excel no soporta objetos anidados — ver /api/rutas).
-        (data.rutas || []).forEach(r => {
-            if (r.dias && typeof r.dias === 'string') {
-                try {
-                    r.dias = JSON.parse(r.dias);
-                } catch {
-                    // Si el texto no es un JSON válido (ej. datos viejos
-                    // antes de este arreglo), lo dejamos como está en vez
-                    // de tumbar toda la carga por una sola ruta con datos raros.
-                }
-            }
-        });
-
-        (data.vehiculos || []).forEach(v => {
-            if (v.historialMantenimiento && typeof v.historialMantenimiento === 'string') {
-                try {
-                    v.historialMantenimiento = JSON.parse(v.historialMantenimiento);
-                } catch {
-                    v.historialMantenimiento = [];
-                }
-            } else if (!Array.isArray(v.historialMantenimiento)) {
-                v.historialMantenimiento = [];
-            }
-        });
-
+        // leerDB() ya devuelve todo parseado (dias/descansosPorMes/
+        // historialMantenimiento/etc. ya como objetos reales, no texto
+        // JSON) — a diferencia del Excel, SQLite no necesita ese
+        // segundo paso de "reconstruir" los campos anidados aquí.
+        const data = leerDB(modoActual);
         cacheExcel = data;
         return data;
     } catch (error) {
-        console.error("❌ Error al leer Excel (se reintentará en la próxima petición):", error.message);
+        console.error("❌ Error al leer la base de datos (se reintentará en la próxima petición):", error.message);
         // OJO: a propósito NO guardamos esto en cacheExcel. Si lo
-        // cacheáramos, un fallo pasajero (ej. la red tardó en estar
-        // lista al arrancar) dejaría a todos viendo "todo en cero" para
-        // siempre, hasta reiniciar el servidor. Así, la siguiente
-        // petición vuelve a intentar leer el archivo real.
+        // cacheáramos, un fallo pasajero dejaría a todos viendo "todo
+        // en cero" para siempre, hasta reiniciar el servidor. Así, la
+        // siguiente petición vuelve a intentar leer de verdad.
         return { vehiculos: [], viajes: [], rutas: [], conductores: [], novedades: [], usuarios: [], historialvehiculos: [], historialrutas: [], historialconductores: [] };
     }
 };
 
 const guardarEnExcel = (datosActualizados) => {
     console.log("Iniciando proceso de escritura...");
-    crearRespaldo(); // primero guardamos cómo estaba, por si algo sale mal
+
+    // Se dispara SIN esperar — el respaldo es una red de seguridad de
+    // fondo, nunca debe retrasar el guardado real que el usuario está
+    // esperando ver reflejado. Ahora respalda el archivo .db real (con
+    // la API nativa de backup de SQLite), no el Excel viejo.
+    crearRespaldoDB(modoActual, ultimaAccionParaRespaldo).catch(err => console.error('⚠️ Error inesperado en el respaldo:', err.message));
+
     try {
-        const workbook = XLSX.utils.book_new();
-        Object.keys(datosActualizados).forEach(key => {
-            const sheetName = key.charAt(0).toUpperCase() + key.slice(1);
-            
-            let dataToSheet = datosActualizados[key];
-            
-            // === Normalizar la estructura de los Vehículos antes de escribir ===
-            if (key === 'vehiculos' && Array.isArray(dataToSheet)) {
-                dataToSheet = dataToSheet.map(v => {
-                    const placa = String(v.placa || v.p || v.veh || '').toUpperCase().trim();
-                    return {
-                        p: placa,
-                        placa: placa,
-                        veh: placa,
-                        tipo: v.tipo || v.t || 'Furgon refrigerado',
-                        cajas: Number(v.cajas || v.cap || v.capacidad || 660),
-                        kg: Number(v.kg || 8000),
-                        m3: Number(v.m3 || 32),
-                        conductor: v.conductor || v.cond || 'Sin asignar',
-                        transportadora: v.transportadora || v.tr || 'Makand',
-                        estado: String(v.estado || v.est || v.Estado || 'Disponible').trim(),
-                        viajes: Number(v.viajes || 0),
-                        desc: v.desc || ((v.dc !== undefined || v.dm !== undefined || v.dl !== undefined) ? `${v.dc || 0}/${v.dm || 0}/${v.dl || 0} días` : '0/1/2 días'),
-                        t: v.tipo || v.t || 'Furgon refrigerado',
-                        cap: Number(v.cajas || v.cap || v.capacidad || 660),
-                        cond: v.conductor || v.cond || 'Sin asignar',
-                        tr: v.transportadora || v.tr || 'Makand',
-                        est: String(v.estado || v.est || v.Estado || 'Disponible').trim(),
-                        dc: v.dc !== undefined ? Number(v.dc) : 0,
-                        dm: v.dm !== undefined ? Number(v.dm) : 1,
-                        dl: v.dl !== undefined ? Number(v.dl) : 2,
-                        mantInicio: v.mantInicio || null,
-                        mantFin: v.mantFin || null,
-                        um: v.um || '',
-                        origenAuto: !!v.origenAuto,
-                        // Se guarda como texto JSON porque una celda de Excel
-                        // no puede tener una lista de objetos directamente.
-                        historialMantenimiento: JSON.stringify(v.historialMantenimiento || [])
-                    };
-                });
-            }
+        // Actualizamos el caché INMEDIATAMENTE — mismo motivo que
+        // antes: cualquier lectura que llegue justo después ya ve el
+        // dato fresco, sin depender de que termine la escritura.
+        cacheExcel = datosActualizados; cacheUsuariosReales.ts = 0;
 
-            // === Normalizar las Rutas antes de escribir ===
-            // "dias" es un objeto anidado ({ lun: {checked, hora}, ... }) y
-            // Excel no sabe guardar objetos anidados en una celda (los
-            // convierte en texto roto tipo "[object Object]"). Por eso lo
-            // pasamos a texto JSON AQUÍ, sobre una COPIA — nunca tocamos el
-            // objeto original que vive en memoria/caché, para que la app
-            // siga viendo "dias" como objeto normal en todo momento.
-            if (key === 'rutas' && Array.isArray(dataToSheet)) {
-                dataToSheet = dataToSheet.map(r => {
-                    if (r.dias && typeof r.dias === 'object') {
-                        return { ...r, dias: JSON.stringify(r.dias) };
-                    }
-                    return r;
-                });
-            }
-
-            // === Normalizar el historial mensual (vehículos/rutas) ===
-            // Cada fila trae "datos" (el arreglo completo de ese mes) como
-            // objeto en memoria — lo pasamos a texto JSON en "dataJSON" para
-            // guardarlo, y no escribimos "datos" tal cual (Excel no sabe
-            // guardar arreglos anidados en una celda).
-            if ((key === 'historialvehiculos' || key === 'historialrutas' || key === 'historialconductores') && Array.isArray(dataToSheet)) {
-                dataToSheet = dataToSheet.map(h => {
-                    const { datos, ...resto } = h;
-                    return { ...resto, dataJSON: JSON.stringify(datos || []) };
-                });
-            }
-            
-            const worksheet = XLSX.utils.json_to_sheet(dataToSheet);
-            XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-        });
-        
-        XLSX.writeFile(workbook, RUTA_EXCEL);
-        console.log("✅ Archivo guardado con éxito en:", RUTA_EXCEL);
-
-        // Actualizamos el caché con lo que se acaba de guardar, para que
-        // la próxima lectura no tenga que volver a tocar el archivo real.
-        cacheExcel = datosActualizados;
+        // guardarEnDB() ya hace TODA la normalización que antes hacía
+        // este archivo a mano (convertir dias/descansosPorMes/
+        // historialMantenimiento/etc. a texto JSON) — y es síncrona,
+        // así que no hace falta la danza de escribir a un archivo
+        // temporal y renombrar: SQLite (con journal_mode=WAL) ya
+        // garantiza que la escritura es atómica por su cuenta.
+        guardarEnDB(datosActualizados, modoActual);
+        console.log("✅ Datos guardados con éxito en la base de datos.");
     } catch (error) {
-        if (error.code === 'EBUSY') {
-            console.error("❌ ERROR CRÍTICO: ¡El archivo Excel está abierto en tu computadora! Ciérralo.");
-            throw new Error("El archivo Excel está abierto. Por favor ciérralo para guardar.");
-        }
-        console.error("❌ ERROR AL ESCRIBIR EN EXCEL:", error);
+        console.error("❌ ERROR AL ESCRIBIR EN LA BASE DE DATOS:", error);
         throw error;
     }
 };
 
 // --- ENDPOINTS ---
+
+// Consultar el modo activo (Real / Pruebas) — lo usa el botón de
+// Configuración para saber qué mostrar al cargar la página.
+app.get('/api/modo', (req, res) => {
+    res.json({ ok: true, modo: modoActual });
+});
+
+// Cambiar de modo — body: { modo: 'real' | 'pruebas' }. Al entrar a
+// "pruebas" por primera vez (el archivo de pruebas todavía no existe),
+// se copia el Excel REAL tal cual está en ese momento, para empezar las
+// pruebas desde datos reales sin arriesgar el archivo real — desde ese
+// punto, cada uno sigue su propio camino de forma completamente aparte.
+app.post('/api/modo', (req, res) => {
+    try {
+        // Cambiar de modo afecta a TODOS los que usan la app a la vez — se
+        // restringe al administrador, igual que aprobar cuentas o restaurar
+        // un respaldo, en vez de dejarlo abierto a cualquier editor.
+        const solicitante = normalizarEmail(req.headers['x-user-email']);
+        if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
+            return res.status(403).json({ ok: false, msg: 'Solo el administrador puede cambiar el modo.' });
+        }
+
+        const { modo } = req.body;
+        if (modo !== 'real' && modo !== 'pruebas') {
+            return res.status(400).json({ ok: false, msg: 'El modo debe ser "real" o "pruebas".' });
+        }
+
+        if (modo === 'pruebas' && !fs.existsSync(RUTA_EXCEL_PRUEBAS)) {
+            if (fs.existsSync(RUTA_EXCEL_REAL)) {
+                fs.copyFileSync(RUTA_EXCEL_REAL, RUTA_EXCEL_PRUEBAS);
+                console.log('📋 Copia de pruebas creada a partir del Excel real.');
+            }
+        }
+
+        const modoAnterior = modoActual;
+        modoActual = modo;
+
+        // Si esto falla, el cambio de modo NO es real — se revierte aquí
+        // mismo y se avisa con un error de verdad, en vez de responder
+        // "ok" y dejar que el modo viva SOLO en memoria. Antes, si esto
+        // fallaba en silencio, todo seguía funcionando normal hasta el
+        // próximo reinicio del servidor — ahí el modo volvía a leerse
+        // del archivo (todavía con el valor viejo) sin que nadie se
+        // enterara de que nunca quedó guardado de verdad.
+        if (!guardarModoEnDisco()) {
+            modoActual = modoAnterior;
+            return res.status(500).json({
+                ok: false,
+                msg: 'No se pudo guardar el cambio de modo en el servidor. Sigues en el modo anterior — intenta de nuevo o revisa los permisos de la carpeta del backend.'
+            });
+        }
+
+        cacheExcel = null; cacheUsuariosReales.ts = 0; // se invalida — la próxima lectura toma el archivo del modo nuevo
+
+        console.log(`🔀 Modo cambiado a: ${modoActual}`);
+        res.json({ ok: true, modo: modoActual });
+    } catch (error) {
+        console.error('❌ Error cambiando de modo:', error);
+        res.status(500).json({ ok: false, msg: 'No se pudo cambiar de modo.' });
+    }
+});
+
+// ============================================================
+// RESTAURAR DESDE RESPALDO — para deshacer operaciones grandes (como
+// "Generar Matriz", que puede crear/reemplazar cientos de viajes de un
+// solo golpe) que el Deshacer normal NO cubre (ese solo guarda cambios
+// chiquitos, uno por uno). Cada guardado YA crea un respaldo automático
+// antes de escribir — esto solo expone una forma de VOLVER a uno de
+// esos respaldos, sin tener que ir a buscarlo a mano en la carpeta.
+// ============================================================
+app.get('/api/respaldos', async (req, res) => {
+    try {
+        // Solo admin: esta ruta es GET, así que el middleware global de
+        // roles (arriba) la deja pasar sin revisar nada — el chequeo tiene
+        // que hacerse aquí mismo, igual que en /api/auditoria.
+        const solicitante = normalizarEmail(req.headers['x-user-email']);
+        if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
+            return res.status(403).json({ ok: false, msg: 'Solo el administrador puede ver los respaldos' });
+        }
+        const respaldos = listarRespaldosDB(modoActual);
+        res.json({ ok: true, respaldos });
+    } catch (error) {
+        console.error('❌ Error listando respaldos:', error);
+        res.status(500).json({ ok: false, msg: 'No se pudieron listar los respaldos.' });
+    }
+});
+
+app.post('/api/respaldos/restaurar', async (req, res) => {
+    try {
+        // Solo admin: el middleware global ya bloquea 'lector' aquí (es
+        // POST), pero un 'editor' seguiría pasando. Restaurar un respaldo
+        // reemplaza la base completa, así que se restringe a admin también.
+        const solicitante = normalizarEmail(req.headers['x-user-email']);
+        if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
+            return res.status(403).json({ ok: false, msg: 'Solo el administrador puede restaurar respaldos' });
+        }
+
+        const { nombre } = req.body;
+        if (!nombre || typeof nombre !== 'string') {
+            return res.status(400).json({ ok: false, msg: 'Falta el nombre del respaldo a restaurar.' });
+        }
+
+        // Antes de sobreescribir, se guarda un respaldo del estado ACTUAL
+        // (así restaurar también se puede deshacer, restaurando ESE
+        // respaldo nuevo si hace falta volver atrás de la restauración).
+        await crearRespaldoDB(modoActual);
+
+        restaurarRespaldoDB(path.basename(nombre), modoActual);
+        cacheExcel = null; cacheUsuariosReales.ts = 0; // se invalida — la próxima lectura toma la base recién restaurada
+
+        console.log(`♻️ Base de datos restaurada desde el respaldo: ${nombre}`);
+        res.json({ ok: true });
+    } catch (error) {
+        console.error('❌ Error restaurando respaldo:', error);
+        res.status(500).json({ ok: false, msg: error.message || 'No se pudo restaurar el respaldo.' });
+    }
+});
 
 app.get('/api/dashboard-data', (req, res) => {
     try {
@@ -537,6 +1541,14 @@ app.get('/api/dashboard-data', (req, res) => {
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
+        // Se invalida el caché en memoria ANTES de leer, así esta
+        // respuesta (la que alimenta TODA la app en ds.S, cada 20
+        // segundos) siempre refleja lo que hay de verdad en la base de
+        // datos ahora mismo — nunca una copia guardada de una lectura
+        // anterior. Cuesta un poco más leer la base cada vez, pero para
+        // el tamaño de esta base es insignificante, y elimina de raíz
+        // cualquier duda de "¿el servidor tiene esto actualizado?".
+        cacheExcel = null; cacheUsuariosReales.ts = 0;
         const data = leerExcel(); 
 
         // La hoja "Viajes" del Excel no tiene columna "id" (nunca se
@@ -592,10 +1604,32 @@ app.get('/api/dashboard-data', (req, res) => {
                     mantInicio: v.mantInicio || null,
                     mantFin: v.mantFin || null,
                     um: v.um || '',
+                    // Estos dos se estaban perdiendo aquí (existían en la base
+                    // pero esta transformación armaba su propio objeto sin
+                    // incluirlos) — categoria además tenía el problema más
+                    // grave de ni siquiera existir en la tabla; ver db.js.
+                    categoria: v.categoria || 'Viajero',
+                    soatVence: v.soatVence || null,
+                    tecnoVence: v.tecnoVence || null,
+                    // Control de versiones (protección contra choques) — sin
+                    // esto, el propio endpoint que arma esta respuesta se
+                    // comía estos 3 campos antes de que llegaran a la
+                    // pantalla, igual que ya le había pasado con categoria/
+                    // soatVence/tecnoVence arriba.
+                    version: v.version || 1,
+                    editadoPor: v.editadoPor,
+                    editadoEn: v.editadoEn,
                     historialMantenimiento: (() => {
                         if (Array.isArray(v.historialMantenimiento)) return v.historialMantenimiento;
                         if (typeof v.historialMantenimiento === 'string') {
                             try { return JSON.parse(v.historialMantenimiento); } catch { return []; }
+                        }
+                        return [];
+                    })(),
+                    historialAverias: (() => {
+                        if (Array.isArray(v.historialAverias)) return v.historialAverias;
+                        if (typeof v.historialAverias === 'string') {
+                            try { return JSON.parse(v.historialAverias); } catch { return []; }
                         }
                         return [];
                     })()
@@ -674,11 +1708,38 @@ app.get('/api/dashboard-data', (req, res) => {
         // completo, exponiendo el hash de cada contraseña a cualquiera que
         // revisara la respuesta de red en el navegador.
         const { usuarios, ...dataSegura } = data;
+        // Se manda el modo actual junto con todo lo demás — así
+        // cualquier pantalla (no solo Configuración, que antes era la
+        // única que lo sabía) puede mostrar un aviso si estás en Prueba.
+        dataSegura.modo = modoActual;
         res.json({ ok: true, data: dataSegura });
     } catch (error) {
         res.status(500).json({ ok: false, message: "Error al leer el archivo", error: error.message });
     }
 });
+
+// ============================================================
+// GUARDAR VEHÍCULOS / RUTAS / CONDUCTORES CON CONTROL DE VERSIONES
+// ============================================================
+// Mismo mecanismo que guardarViajeVersionado, pero genérico — sirve para
+// las tres entidades: compara la versión que trae la petición contra la
+// actual y devuelve un choque si no coinciden, o los datos ya listos
+// para guardar (con la versión subida y quién/cuándo) si no hay choque.
+const verificarYVersionarEntidad = (existente, entrante, solicitante) => {
+    const versionActual = existente ? (Number(existente.version) || 1) : 0;
+    const versionRecibida = Number(entrante.version);
+    const traeVersion = entrante.version !== undefined && entrante.version !== null && Number.isFinite(versionRecibida);
+
+    if (existente && traeVersion && versionRecibida !== versionActual) {
+        return { conflicto: true, actual: existente };
+    }
+    return {
+        conflicto: false,
+        version: versionActual + 1,
+        editadoPor: solicitante || '',
+        editadoEn: new Date().toISOString()
+    };
+};
 
 // =================================================================
 // --- VEHÍCULOS (CREAR / ACTUALIZAR INDIVIDUAL O MASIVO) ---
@@ -703,6 +1764,26 @@ app.post('/api/vehiculos', (req, res) => {
         }
 
         let procesados = 0;
+
+        // Protección contra choques — SOLO tiene sentido cuando llega UN
+        // vehículo (el guardado normal desde el modal de edición). Las
+        // cargas masivas (importar Excel) mandan la tabla completa de una
+        // sola vez; ahí "chocar por versión" no tendría sentido.
+        const solicitanteVehiculo = normalizarEmail(req.headers['x-user-email']);
+        if (vehiculosAProcesar.length === 1) {
+            const vf = vehiculosAProcesar[0];
+            const placaChequeo = String(vf.p || vf.placa || vf.veh || '').toUpperCase().trim();
+            const existentePrevio0 = (data.vehiculos || []).find(v => String(v.p || v.placa || '').toUpperCase().trim() === placaChequeo);
+            const rChequeo = verificarYVersionarEntidad(existentePrevio0, vf, solicitanteVehiculo);
+            if (rChequeo.conflicto) {
+                res.locals.auditoriaOmitir = true;
+                return res.status(409).json({
+                    ok: false, conflicto: true,
+                    msg: 'Este vehículo fue modificado por otra persona mientras lo editabas.',
+                    actual: rChequeo.actual
+                });
+            }
+        }
 
         vehiculosAProcesar.forEach((vehFront, i) => {
             const placa = String(vehFront.p || vehFront.placa || vehFront.veh || '').toUpperCase().trim();
@@ -742,10 +1823,63 @@ app.post('/api/vehiculos', (req, res) => {
                 dm: vehFront.dm !== undefined ? Number(vehFront.dm) : 1, // ✨ CORREGIDO AQUÍ
                 dl: vehFront.dl !== undefined ? Number(vehFront.dl) : 2,  // ✨ CORREGIDO AQUÍ
                 mantInicio: vehFront.mantInicio || null,
-                mantFin: vehFront.mantFin || null
+                mantFin: vehFront.mantFin || null,
+                // Este endpoint armaba su PROPIO objeto sin estos dos campos,
+                // así que se perdían aquí mismo (se reemplazaba toda la fila
+                // de data.vehiculos con esta versión recortada) antes de
+                // llegar a guardarEnExcel() — que sí sabía guardarlos, pero
+                // ya recibía la versión sin ellos. Si el frontend los manda,
+                // se usan; si no, se conserva lo que ya hubiera guardado
+                // (nunca se borran por accidente en una actualización que
+                // no los toca).
+                historialMantenimiento: vehFront.historialMantenimiento !== undefined
+                    ? vehFront.historialMantenimiento
+                    : (data.vehiculos?.find(v => String(v.p || v.placa || '').toUpperCase().trim() === placa)?.historialMantenimiento || []),
+                historialAverias: vehFront.historialAverias !== undefined
+                    ? vehFront.historialAverias
+                    : (data.vehiculos?.find(v => String(v.p || v.placa || '').toUpperCase().trim() === placa)?.historialAverias || []),
+                // Urbano / Viajero / Tercero — mismo patrón que arriba:
+                // si el frontend no lo manda, se conserva lo que ya
+                // hubiera guardado (o "Viajero" si es un vehículo nuevo).
+                categoria: vehFront.categoria || (data.vehiculos?.find(v => String(v.p || v.placa || '').toUpperCase().trim() === placa)?.categoria) || 'Viajero'
             };
 
+            {
+                const existentePrevio = data.vehiculos?.find(v => String(v.p || v.placa || '').toUpperCase().trim() === placa);
+                if (vehiculosAProcesar.length === 1) {
+                    // El único camino (guardado de a uno) ya pasó el chequeo de
+                    // choque arriba — aquí solo se sube la versión de verdad.
+                    vehiculoFormateado.version = (Number(existentePrevio?.version) || 0) + 1;
+                    vehiculoFormateado.editadoPor = solicitanteVehiculo || existentePrevio?.editadoPor || null;
+                    vehiculoFormateado.editadoEn = new Date().toISOString();
+                } else {
+                    // Carga masiva: se conserva la versión/autoría que ya
+                    // hubiera — nunca se resetea a 1 solo por reimportar.
+                    vehiculoFormateado.version = existentePrevio?.version || 1;
+                    vehiculoFormateado.editadoPor = existentePrevio?.editadoPor || null;
+                    vehiculoFormateado.editadoEn = existentePrevio?.editadoEn || null;
+                }
+            }
+
             if (!data.vehiculos) data.vehiculos = [];
+
+            // Si el vehículo queda en mantenimiento con fechas, cualquier
+            // viaje "Programado" de esta placa que caiga en ese rango se
+            // cancela solo — así deja de contar de inmediato (Dashboard,
+            // comparativos, etc.) sin esperar a que alguien regenere la
+            // matriz del mes. No hace falta que el mantenimiento sea
+            // "nuevo": revisarlo en cada guardado es inofensivo (un viaje
+            // ya cancelado no se vuelve a tocar).
+            if (vehiculoFormateado.mantInicio && vehiculoFormateado.mantFin) {
+                const cancelados = cancelarViajesEnConflicto(
+                    data, placa,
+                    `Vehículo en mantenimiento (${vehiculoFormateado.mantInicio} a ${vehiculoFormateado.mantFin})`,
+                    (fecha) => fecha >= vehiculoFormateado.mantInicio && fecha <= vehiculoFormateado.mantFin
+                );
+                if (cancelados > 0) {
+                    console.log(`🛠️ ${cancelados} viaje(s) de ${placa} cancelados automáticamente por mantenimiento.`);
+                }
+            }
 
             const index = data.vehiculos.findIndex(v => String(v.p || v.placa || '').toUpperCase().trim() === placa);
             
@@ -764,10 +1898,20 @@ app.post('/api/vehiculos', (req, res) => {
         }
 
         guardarEnExcel(data);
-        
-        return res.status(200).json({ 
-            ok: true, 
-            msg: vehiculosAProcesar.length > 1 ? 'Maestro de vehículos actualizado y synchronized correctamente' : 'Vehículo guardado con éxito' 
+
+        const esGuardadoDeUno = vehiculosAProcesar.length === 1;
+        const vehiculoGuardado = esGuardadoDeUno
+            ? data.vehiculos.find(v => String(v.p || v.placa || '').toUpperCase().trim() === String(vehiculosAProcesar[0].p || vehiculosAProcesar[0].placa || vehiculosAProcesar[0].veh || '').toUpperCase().trim())
+            : null;
+
+        return res.status(200).json({
+            ok: true,
+            msg: vehiculosAProcesar.length > 1 ? 'Maestro de vehículos actualizado y synchronized correctamente' : 'Vehículo guardado con éxito',
+            // Igual que en /api/viajes — así el navegador sabe en qué
+            // versión quedó, sin tener que volver a pedir todos los datos.
+            version: vehiculoGuardado?.version,
+            editadoPor: vehiculoGuardado?.editadoPor,
+            editadoEn: vehiculoGuardado?.editadoEn
         });
 
     } catch (error) {
@@ -831,7 +1975,7 @@ app.post('/api/cache/refrescar', (req, res) => {
         if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
             return res.status(403).json({ ok: false, msg: 'Solo el administrador puede refrescar el caché' });
         }
-        cacheExcel = null; // la próxima leerExcel() va a releer el archivo real
+        cacheExcel = null; cacheUsuariosReales.ts = 0; // la próxima leerExcel() va a releer el archivo real
         leerExcel();
         res.json({ ok: true, msg: 'Caché recargado desde el archivo real' });
     } catch (error) {
@@ -847,23 +1991,11 @@ app.get('/api/auditoria', (req, res) => {
             return res.status(403).json({ ok: false, msg: 'Solo el administrador puede ver la auditoría' });
         }
 
-        if (!fs.existsSync(RUTA_AUDITORIA)) {
-            return res.json({ ok: true, eventos: [] });
-        }
-
         const limite = Math.min(Number(req.query.limite) || 200, 1000);
-
-        const lineas = fs.readFileSync(RUTA_AUDITORIA, 'utf8')
-            .split('\n')
-            .filter(l => l.trim().length > 0);
-
-        const eventos = lineas
-            .slice(-limite) // los últimos N (el archivo crece hacia abajo)
-            .map(l => {
-                try { return JSON.parse(l); } catch { return null; }
-            })
-            .filter(Boolean)
-            .reverse(); // más reciente primero
+        // Migrado de auditoria.jsonl a SQLite — listarAuditoriaDB ya
+        // devuelve los eventos más recientes primero, misma forma que
+        // antes ({ fecha, usuario, metodo, ruta, modo, resumen }).
+        const eventos = listarAuditoriaDB(limite);
 
         res.json({ ok: true, eventos });
     } catch (error) {
@@ -873,32 +2005,9 @@ app.get('/api/auditoria', (req, res) => {
 });
 
 // --- Ver los respaldos disponibles (solo admin) ---
-app.get('/api/respaldos', (req, res) => {
-    try {
-        const solicitante = normalizarEmail(req.headers['x-user-email']);
-        if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
-            return res.status(403).json({ ok: false, msg: 'Solo el administrador puede ver los respaldos' });
-        }
-
-        if (!fs.existsSync(CARPETA_RESPALDOS)) {
-            return res.json({ ok: true, respaldos: [] });
-        }
-
-        const respaldos = fs.readdirSync(CARPETA_RESPALDOS)
-            .filter(f => f.startsWith('DatabaseRutograma_') && f.toUpperCase().endsWith('.XLSX'))
-            .map(f => {
-                const ruta = path.join(CARPETA_RESPALDOS, f);
-                const stats = fs.statSync(ruta);
-                return { nombre: f, fecha: stats.mtime, tamanoKB: Math.round(stats.size / 1024) };
-            })
-            .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-        res.json({ ok: true, respaldos });
-    } catch (error) {
-        console.error("🚨 Error en /api/respaldos:", error);
-        res.status(500).json({ ok: false, msg: error.message });
-    }
-});
+// (el endpoint GET /api/respaldos real está arriba, cerca de guardarEnExcel —
+// aquí había una segunda definición duplicada que NUNCA se ejecutaba,
+// porque Express usa la primera que coincide con la ruta. Se quitó.)
 
 // =================================================================
 // --- NOVEDADES ---
@@ -945,6 +2054,9 @@ app.post('/api/novedades/resolver', (req, res) => {
             return res.status(404).json({ ok: false, msg: 'Novedad no encontrada' });
         }
 
+        // Contexto para la auditoría — el body de la petición solo trae el id.
+        res.locals.auditoriaExtra = { titulo: novedad.titulo, tipo: novedad.tipo };
+
         novedad.resuelta = true;
         guardarEnExcel(data);
         res.json({ ok: true, novedad });
@@ -957,6 +2069,47 @@ app.post('/api/novedades/resolver', (req, res) => {
 // =================================================================
 // --- VIAJES ---
 // =================================================================
+// ============================================================
+// GUARDAR UN VIAJE CON CONTROL DE VERSIONES
+// ============================================================
+// Evita que dos personas se pisen los cambios sin darse cuenta. Cada viaje
+// tiene una "version" que sube en 1 con cada guardado aceptado (junto con
+// quién lo guardó y cuándo):
+//  - Si la petición TRAE una versión y no coincide con la actual, alguien
+//    más lo modificó en medio: NO se guarda y se devuelve el viaje actual,
+//    para que quien editaba decida qué hacer (conflicto).
+//  - Si la petición NO trae versión (guardados rápidos/automáticos, deshacer,
+//    viajes nuevos), se guarda como siempre — solo el modal de edición y los
+//    cambios hechos sin conexión mandan versión y quedan protegidos.
+// Función pura (recibe y modifica "data"), para poder probarla sola.
+const guardarViajeVersionado = (data, viaje, solicitante) => {
+    if (!data.viajes) data.viajes = [];
+
+    const index = viaje.id !== undefined
+        ? data.viajes.findIndex(v => v.id === viaje.id)
+        : -1;
+    const existente = index !== -1 ? data.viajes[index] : null;
+    const versionActual = existente ? (Number(existente.version) || 1) : 0;
+
+    const versionRecibida = Number(viaje.version);
+    const traeVersion = viaje.version !== undefined && viaje.version !== null && Number.isFinite(versionRecibida);
+
+    if (existente && traeVersion && versionRecibida !== versionActual) {
+        return { conflicto: true, actual: existente };
+    }
+
+    const guardado = {
+        ...viaje,
+        version: versionActual + 1,
+        editadoPor: solicitante || '',
+        editadoEn: new Date().toISOString()
+    };
+    if (index !== -1) data.viajes[index] = guardado;
+    else data.viajes.push(guardado);
+
+    return { conflicto: false, guardado, esNuevo: index === -1 };
+};
+
 app.post('/api/viajes', (req, res) => {
     try {
         console.log("\n📥 [PETICIÓN] POST /api/viajes");
@@ -967,24 +2120,35 @@ app.post('/api/viajes', (req, res) => {
             return res.status(400).json({ ok: false, msg: 'Falta la placa del vehículo' });
         }
 
-        if (!data.viajes) data.viajes = [];
+        const solicitante = normalizarEmail(req.headers['x-user-email']);
+        const resultado = guardarViajeVersionado(data, viaje, solicitante);
 
-        // Si el viaje ya trae un id y existe, lo actualizamos; si no, lo insertamos.
-        const idViaje = viaje.id;
-        const index = idViaje !== undefined
-            ? data.viajes.findIndex(v => v.id === idViaje)
-            : -1;
-
-        if (index !== -1) {
-            console.log(`🔄 Actualizando viaje id=${idViaje}`);
-            data.viajes[index] = viaje;
-        } else {
-            console.log(`➕ Insertando nuevo viaje: ${viaje.placa || viaje.p} -> ${viaje.ruta}`);
-            data.viajes.push(viaje);
+        if (resultado.conflicto) {
+            console.log(`⚠️ Choque de edición en el viaje id=${viaje.id}: llegó versión ${viaje.version}, la actual es ${resultado.actual.version} (editado por ${resultado.actual.editadoPor || 'desconocido'}).`);
+            // Un intento rechazado no cambió nada — no va a la auditoría
+            // (saldría como "Guardó el viaje..." sin haberlo guardado).
+            res.locals.auditoriaOmitir = true;
+            return res.status(409).json({
+                ok: false,
+                conflicto: true,
+                msg: 'Este viaje fue modificado por otra persona mientras lo editabas.',
+                actual: resultado.actual
+            });
         }
 
+        const g = resultado.guardado;
+        console.log(resultado.esNuevo
+            ? `➕ Insertando nuevo viaje: ${g.placa || g.p} -> ${g.ruta}`
+            : `🔄 Actualizando viaje id=${g.id} (versión ${g.version})`);
+
         guardarEnExcel(data);
-        return res.status(200).json({ ok: true, msg: 'Viaje guardado correctamente' });
+        return res.status(200).json({
+            ok: true,
+            msg: 'Viaje guardado correctamente',
+            version: g.version,
+            editadoPor: g.editadoPor,
+            editadoEn: g.editadoEn
+        });
     } catch (error) {
         console.error("🚨 Error en /api/viajes:", error);
         res.status(500).json({ ok: false, msg: error.message });
@@ -999,6 +2163,20 @@ app.post('/api/viajes/eliminar', (req, res) => {
         const idViaje = req.body.id;
         if (idViaje === undefined || idViaje === null) {
             return res.status(400).json({ ok: false, msg: 'Falta el id del viaje a eliminar' });
+        }
+
+        // Se busca ANTES de borrar — el body de la petición solo trae el
+        // id (no dice nada por sí solo en la auditoría), así que se deja
+        // el contexto legible en res.locals para que el middleware lo
+        // recoja al final.
+        const viajeEncontrado = data.viajes.find(v => v.id === idViaje);
+        if (viajeEncontrado) {
+            res.locals.auditoriaExtra = {
+                placa: viajeEncontrado.p || viajeEncontrado.placa,
+                ruta: viajeEncontrado.ruta || viajeEncontrado.codigo,
+                destino: viajeEncontrado.destino,
+                fecha: viajeEncontrado.fecha
+            };
         }
 
         const longitudInicial = data.viajes.length;
@@ -1038,6 +2216,22 @@ app.post('/api/rutas', (req, res) => {
         // ruta creaba una segunda ruta duplicada en vez de cambiar la
         // que ya existía, dejando la vieja huérfana.
         const codBuscado = (codOriginal && codOriginal !== ruta.cod) ? codOriginal : ruta.cod;
+
+        const solicitanteRuta = normalizarEmail(req.headers['x-user-email']);
+        const existenteRuta = data.rutas.find(r => String(r.cod || r.codigo || '').toUpperCase().trim() === String(codBuscado).toUpperCase().trim());
+        const vRuta = verificarYVersionarEntidad(existenteRuta, ruta, solicitanteRuta);
+        if (vRuta.conflicto) {
+            res.locals.auditoriaOmitir = true;
+            return res.status(409).json({
+                ok: false, conflicto: true,
+                msg: 'Esta ruta fue modificada por otra persona mientras la editabas.',
+                actual: vRuta.actual
+            });
+        }
+        ruta.version = vRuta.version;
+        ruta.editadoPor = vRuta.editadoPor;
+        ruta.editadoEn = vRuta.editadoEn;
+
         const index = data.rutas.findIndex(r => String(r.cod || r.codigo || '').toUpperCase().trim() === String(codBuscado).toUpperCase().trim());
 
         if (index !== -1) {
@@ -1067,7 +2261,7 @@ app.post('/api/rutas', (req, res) => {
         }
 
         guardarEnExcel(data);
-        res.status(200).json({ ok: true, msg: 'Ruta guardada correctamente' });
+        res.status(200).json({ ok: true, msg: 'Ruta guardada correctamente', version: ruta.version, editadoPor: ruta.editadoPor, editadoEn: ruta.editadoEn });
     } catch (error) {
         console.error("🚨 Error en /api/rutas:", error);
         res.status(500).json({ ok: false, msg: error.message });
@@ -1124,7 +2318,47 @@ app.post('/api/conductores', (req, res) => {
             obs: entrada.obs || ''
         };
 
+        const solicitanteCond = normalizarEmail(req.headers['x-user-email']);
         if (!data.conductores) data.conductores = [];
+        const existenteCond = data.conductores.find(c => String(c.ced || c.cedula || c.cc || '').trim() === cedula);
+        const vCond = verificarYVersionarEntidad(existenteCond, entrada, solicitanteCond);
+        if (vCond.conflicto) {
+            res.locals.auditoriaOmitir = true;
+            return res.status(409).json({
+                ok: false, conflicto: true,
+                msg: 'Este conductor fue modificado por otra persona mientras lo editabas.',
+                actual: vCond.actual
+            });
+        }
+        nuevoConductor.version = vCond.version;
+        nuevoConductor.editadoPor = vCond.editadoPor;
+        nuevoConductor.editadoEn = vCond.editadoEn;
+
+        // Mismo criterio que con mantenimiento: si este conductor tiene
+        // un vehículo asignado y descansos registrados, cualquier viaje
+        // "Programado" de esa placa que caiga justo en un día de
+        // descanso se cancela solo — sin esperar a regenerar el mes.
+        if (nuevoConductor.veh && nuevoConductor.descansosPorMes) {
+            let totalCancelados = 0;
+            Object.entries(nuevoConductor.descansosPorMes).forEach(([claveMes, diasTexto]) => {
+                const [nombreMes, anioTexto] = String(claveMes).split('-');
+                const numeroMes = MESES_MAP[nombreMes];
+                if (!numeroMes || !anioTexto) return; // clave con formato inesperado — se ignora
+
+                const dias = String(diasTexto || '').split(',').map(x => Number(x.trim())).filter(x => !isNaN(x));
+                dias.forEach(dia => {
+                    const fechaDescanso = `${anioTexto}-${String(numeroMes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+                    totalCancelados += cancelarViajesEnConflicto(
+                        data, nuevoConductor.veh,
+                        `Conductor en descanso el ${fechaDescanso}`,
+                        (fecha) => fecha === fechaDescanso
+                    );
+                });
+            });
+            if (totalCancelados > 0) {
+                console.log(`💤 ${totalCancelados} viaje(s) de ${nuevoConductor.veh} cancelados automáticamente por descanso del conductor.`);
+            }
+        }
 
         const index = data.conductores.findIndex(c => String(c.ced || c.cedula || c.cc || '').trim() === cedula);
         if (index !== -1) {
@@ -1134,7 +2368,7 @@ app.post('/api/conductores', (req, res) => {
         }
 
         guardarEnExcel(data);
-        res.status(201).json({ ok: true, msg: 'Conductor guardado correctamente' });
+        res.status(201).json({ ok: true, msg: 'Conductor guardado correctamente', version: nuevoConductor.version, editadoPor: nuevoConductor.editadoPor, editadoEn: nuevoConductor.editadoEn });
     } catch (error) {
         res.status(500).json({ ok: false, msg: error.message });
     }
@@ -1145,6 +2379,17 @@ app.post('/api/conductores/eliminar', (req, res) => {
         const data = leerExcel();
         const { id, ced } = req.body; 
         const cedulaBuscar = String(id || ced).trim();
+
+        // Se busca ANTES de borrar, por la misma razón que en
+        // viajes/eliminar — el body solo trae la cédula, no el nombre.
+        const conductorEncontrado = data.conductores.find(c => String(c.ced).trim() === cedulaBuscar);
+        if (conductorEncontrado) {
+            res.locals.auditoriaExtra = {
+                nombre: conductorEncontrado.nom || conductorEncontrado.nombre,
+                placa: conductorEncontrado.veh || conductorEncontrado.placa
+            };
+        }
+
         data.conductores = data.conductores.filter(c => String(c.ced).trim() !== cedulaBuscar);
         guardarEnExcel(data);
         res.json({ ok: true, msg: 'Conductor eliminado correctamente' });
@@ -1156,6 +2401,98 @@ app.post('/api/conductores/eliminar', (req, res) => {
 
 //-------------------------------------------------------------------------
 
+
+// --- SESIONES ACTIVAS: ver desde dónde hay sesiones abiertas y cerrarlas ---
+const datosPublicosSesion = (x, sesionActualId) => ({
+    id: x.id,
+    email: x.email,
+    ip: x.ip,
+    dispositivo: x.dispositivo,
+    creada: x.creada,
+    ultima: x.ultima,
+    actual: !!sesionActualId && x.id === sesionActualId
+});
+
+app.get('/api/sesiones', (req, res) => {
+    const yo = req.usuarioVerificado;
+    if (!yo) return res.status(401).json({ ok: false, codigo: 'sin_pase', msg: 'Debes iniciar sesión.' });
+    const esAdmin = yo === normalizarEmail(ADMIN_EMAIL);
+    const verTodas = esAdmin && String(req.query.todas || '') === '1';
+    const lista = sesionesActivas
+        .filter(x => verTodas || x.email === yo)
+        .map(x => datosPublicosSesion(x, req.sesionId))
+        .sort((a, b) => Date.parse(b.ultima) - Date.parse(a.ultima));
+    res.json({ ok: true, esAdmin, sesiones: lista });
+});
+
+app.post('/api/sesiones/cerrar', (req, res) => {
+    const yo = req.usuarioVerificado;
+    if (!yo) return res.status(401).json({ ok: false, codigo: 'sin_pase', msg: 'Debes iniciar sesión.' });
+    const esAdmin = yo === normalizarEmail(ADMIN_EMAIL);
+    const id = String(req.body?.id || '');
+    const sesion = sesionesActivas.find(x => x.id === id);
+    if (!sesion) return res.status(404).json({ ok: false, msg: 'Esa sesión ya no existe.' });
+    if (sesion.email !== yo && !esAdmin) {
+        return res.status(403).json({ ok: false, msg: 'No puedes cerrar la sesión de otra cuenta.' });
+    }
+    // "Sacar" una sesión que no es la propia actual bloquea ese dispositivo
+    // para esa cuenta — así no basta con volver a escribir la contraseña
+    // para entrar de nuevo ahí. Cerrar tu PROPIA sesión actual (un logout
+    // normal) nunca bloquea nada — eso seguiría dejándote sin poder volver
+    // a entrar desde tu propio computador. El administrador nunca se
+    // bloquea a sí mismo (ver el porqué en dispositivoEstaBloqueado/login).
+    const esLaPropiaActual = id === req.sesionId;
+    if (!esLaPropiaActual && sesion.email !== normalizarEmail(ADMIN_EMAIL)) {
+        bloquearDispositivoDeSesion(sesion);
+    }
+
+    sesionesActivas = sesionesActivas.filter(x => x.id !== id);
+    guardarSesiones();
+    res.json({ ok: true, eraActual: esLaPropiaActual });
+});
+
+app.post('/api/sesiones/cerrar-otras', (req, res) => {
+    const yo = req.usuarioVerificado;
+    if (!yo) return res.status(401).json({ ok: false, codigo: 'sin_pase', msg: 'Debes iniciar sesión.' });
+    const antes = sesionesActivas.length;
+    sesionesActivas = sesionesActivas.filter(x => x.email !== yo || x.id === req.sesionId);
+    guardarSesiones();
+    res.json({ ok: true, cerradas: antes - sesionesActivas.length });
+});
+
+app.post('/api/sesiones/cerrar-actual', (req, res) => {
+    if (req.sesionId) {
+        sesionesActivas = sesionesActivas.filter(x => x.id !== req.sesionId);
+        guardarSesiones();
+    }
+    res.json({ ok: true });
+});
+
+// --- Ver los dispositivos bloqueados (solo admin) ---
+app.get('/api/dispositivos-bloqueados', (req, res) => {
+    const solicitante = normalizarEmail(req.headers['x-user-email']);
+    if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
+        return res.status(403).json({ ok: false, msg: 'Solo el administrador puede ver los dispositivos bloqueados' });
+    }
+    const lista = [...dispositivosBloqueados].sort((a, b) => Date.parse(b.bloqueadoEn) - Date.parse(a.bloqueadoEn));
+    res.json({ ok: true, dispositivos: lista });
+});
+
+// --- Desbloquear un dispositivo (solo admin) ---
+app.post('/api/dispositivos/desbloquear', (req, res) => {
+    const solicitante = normalizarEmail(req.headers['x-user-email']);
+    if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
+        return res.status(403).json({ ok: false, msg: 'Solo el administrador puede desbloquear dispositivos' });
+    }
+    const { email, dispositivoId } = req.body || {};
+    if (!email || !dispositivoId) {
+        return res.status(400).json({ ok: false, msg: 'Faltan datos del dispositivo a desbloquear.' });
+    }
+    const encontrado = desbloquearDispositivo(email, dispositivoId);
+    if (!encontrado) return res.status(404).json({ ok: false, msg: 'Ese dispositivo ya no estaba bloqueado.' });
+    console.log(`🔓 Dispositivo de ${email} desbloqueado (por ${solicitante})`);
+    res.json({ ok: true });
+});
 
 // --- LOGIN: valida contraseña real (bcrypt) Y estado de aprobación ---
 // El admin YA NO se salta la validación de contraseña: también necesita
@@ -1174,23 +2511,49 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(400).json({ ok: false, msg: 'Correo y contraseña son obligatorios' });
         }
 
+        // Bloqueo por intentos fallidos repetidos (ver LOGIN_INTENTOS_MAX).
+        const claveIntento = claveIntentoLogin(email, req);
+        const minutosBloqueo = minutosDeBloqueoLogin(claveIntento);
+        if (minutosBloqueo > 0) {
+            return res.status(429).json({
+                ok: false, codigo: 'demasiados_intentos',
+                msg: `Demasiados intentos fallidos. Espera ${minutosBloqueo} minuto(s) e inténtalo de nuevo.`
+            });
+        }
+
         const usuario = usuarios.find(u => normalizarEmail(u.email) === email);
 
         // No distinguimos "no existe" de "contraseña mala" por seguridad
         // (mismo mensaje genérico para no dar pistas a quien intenta adivinar).
         if (!usuario || !usuario.passHash) {
+            registrarFalloLogin(claveIntento);
             return res.status(401).json({ ok: false, msg: 'Correo o contraseña incorrectos' });
         }
 
         const passOk = await bcrypt.compare(pass, usuario.passHash);
         if (!passOk) {
+            registrarFalloLogin(claveIntento);
             return res.status(401).json({ ok: false, msg: 'Correo o contraseña incorrectos' });
         }
+        fallosLogin.delete(claveIntento);
 
         // Contraseña correcta: ahora sí miramos el estado de aprobación
         const esAdmin = (email === normalizarEmail(ADMIN_EMAIL));
         const estado = esAdmin ? 'APPROVED' : usuario.estado;
         const rol = esAdmin ? 'admin' : (usuario.rol || 'editor');
+
+        // Dispositivo bloqueado (alguien lo "Sacó" antes) — aunque la
+        // contraseña sea correcta, este computador en particular no entra
+        // hasta que el administrador lo desbloquee desde el panel. El
+        // administrador mismo NUNCA se bloquea: si se bloqueara su único
+        // dispositivo, nadie más podría entrar a desbloquearlo.
+        const dispositivoId = String(req.body.dispositivoId || '').trim();
+        if (!esAdmin && dispositivoEstaBloqueado(email, dispositivoId)) {
+            return res.status(403).json({
+                ok: false, codigo: 'dispositivo_bloqueado',
+                msg: 'Este dispositivo fue desconectado de tu cuenta. Pide al administrador que lo reactive desde el panel.'
+            });
+        }
 
         return res.json({
             ok: true,
@@ -1198,7 +2561,13 @@ app.post('/api/auth/login', async (req, res) => {
             nombre: usuario.nombre,
             estado: estado,
             esAdmin: esAdmin,
-            rol: rol
+            rol: rol,
+            // El "pase" que el navegador debe mandar en cada petición. Se
+            // entrega con cualquier contraseña correcta (incluso si la cuenta
+            // aún está pendiente): el pase solo prueba QUIÉN eres — lo que
+            // puedes hacer lo decide el estado de la cuenta en cada petición.
+            token: crearPase(usuario, crearSesion(usuario.email, req, dispositivoId)),
+            motivoRechazo: estado === 'REJECTED' ? (usuario.motivoRechazo || '') : undefined
         });
     } catch (error) {
         console.error('🚨 Error en /api/auth/login:', error);
@@ -1247,6 +2616,28 @@ app.post('/api/auth/register', async (req, res) => {
         guardarEnExcel(data);
         console.log(`👤 Nueva cuenta registrada: ${email}`);
 
+        // Se disparan SIN esperar (fire-and-forget) — si el correo tarda
+        // o falla, la persona no debe quedarse esperando la respuesta
+        // del registro por eso. La cuenta ya quedó guardada bien.
+        enviarCorreo(
+            email,
+            'Tu solicitud de acceso fue recibida — Makand',
+            `<p>Hola ${nombre},</p>
+             <p>Tu solicitud de acceso al Rutograma de Makand fue recibida correctamente y está <strong>pendiente de aprobación</strong> por parte del administrador.</p>
+             <p>Te avisaremos apenas sea revisada.</p>`
+        );
+        enviarCorreo(
+            ADMIN_EMAIL,
+            'Nueva solicitud de acceso pendiente — Makand',
+            `<p>Hay una solicitud de acceso nueva esperando tu revisión:</p>
+             <ul>
+               <li><strong>Nombre:</strong> ${nombre}</li>
+               <li><strong>Correo:</strong> ${email}</li>
+               <li><strong>Departamento:</strong> ${departamento}</li>
+             </ul>
+             <p>Entra al panel de Administrador para aprobarla o rechazarla.</p>`
+        );
+
         return res.status(201).json({
             ok: true,
             msg: 'Cuenta registrada correctamente',
@@ -1265,7 +2656,7 @@ app.post('/api/auth/register', async (req, res) => {
 // =================================================================
 app.post('/api/configuracion/generar-matriz', async (req, res) => {
     try {
-        const { mes, anio, festivos } = req.body; 
+        const { mes, anio, festivos, previsualizar } = req.body; 
 
         if (!mes || !anio) {
             return res.status(400).json({ ok: false, msg: 'Faltan parámetros operativos (mes o año).' });
@@ -1285,7 +2676,17 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
 
         console.log(`🚀 Iniciando automatización para: ${mes} de ${anio}`);
         
-        const data = leerExcel();
+        const dataOriginal = leerExcel();
+        // En modo previsualización trabajamos sobre una COPIA completa.
+        // leerExcel() devuelve la MISMA referencia en memoria (cacheExcel)
+        // — sin este clon, todo el motor de abajo (borrado de viajes del
+        // mes, reseteo de vehículos, creación de cupos) mutaría los datos
+        // reales en vivo aunque al final no se llame a guardarEnExcel(),
+        // dejando el caché a medias hasta el próximo reinicio. Con el
+        // clon, todo lo de abajo se queda en esta copia y se descarta
+        // solo al terminar la petición.
+        const esPrevisualizacion = !!previsualizar;
+        const data = esPrevisualizacion ? JSON.parse(JSON.stringify(dataOriginal)) : dataOriginal;
 
         // Blindaje: si por cualquier motivo quedaron rutas duplicadas (mismo
         // codigo repetido), nos quedamos solo con la primera de cada una --
@@ -1299,6 +2700,7 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
             return true;
         });
         const listaVehiculos = data.vehiculos || [];
+        const listaConductores = data.conductores || [];
 
         if (!listaRutas.length) return res.status(400).json({ ok: false, msg: 'La pestaÃ±a de Rutas estÃ¡ vacÃ­a.' });
         if (!listaVehiculos.length) return res.status(400).json({ ok: false, msg: 'La pestaÃ±a de VehÃ­culos estÃ¡ vacÃ­a.' });
@@ -1308,6 +2710,7 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
         // real, para no dejar pegado nada de una generacion anterior
         // (incluida gente que le haya dado clic mas de una vez seguida).
         const mesIndexLimpieza = { 'Enero':0,'Febrero':1,'Marzo':2,'Abril':3,'Mayo':4,'Junio':5,'Julio':6,'Agosto':7,'Septiembre':8,'Octubre':9,'Noviembre':10,'Diciembre':11 }[mes];
+        const totalViajesAntesDeLimpiar = (data.viajes || []).length;
         data.viajes = (data.viajes || []).filter(v => {
             const coincidePorEtiqueta = v.mes === mes && String(v.anio) === String(anio);
             let coincidePorFecha = false;
@@ -1319,9 +2722,23 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
             }
             return !(coincidePorEtiqueta || coincidePorFecha);
         });
+        const viajesReemplazados = totalViajesAntesDeLimpiar - data.viajes.length;
 
         listaVehiculos.forEach(v => {
             v.viajes = 0;
+        });
+
+        // Al regenerar la matriz de un mes, también se borran los
+        // registros de "Vehículo varado" (historialAverias) de ESE MISMO
+        // mes en cada vehículo — quedan intactos los de otros meses. Esto
+        // permite reiniciar limpio para hacer pruebas sin arrastrar
+        // averías de una corrida anterior de este mismo mes.
+        listaVehiculos.forEach(v => {
+            if (Array.isArray(v.historialAverias)) {
+                v.historialAverias = v.historialAverias.filter(
+                    a => !(a.mes === mes && String(a.anio) === String(anio))
+                );
+            }
         });
 
         // Limpiamos los cupos automáticos de Arsitrans/Polar antes de
@@ -1351,14 +2768,16 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
         }
         data.vehiculos = listaVehiculos;
 
-        // Antes de inicializar la disponibilidad, calculamos si algún
-        // vehículo todavía está "en tránsito" arrastrado de un mes
-        // anterior — es decir, si su último viaje conocido (de CUALQUIER
-        // mes, no solo el que se está generando) todavía no llega a su
-        // fecha real de liberación. Sin esto, un vehículo que salió el 30
-        // de julio con 4 días de tránsito (libre hasta el 4 de agosto)
-        // quedaba "libre desde siempre" al generar agosto, y el día 1 se
-        // le asignaba un viaje nuevo encima del tránsito anterior.
+        // Mes/año INMEDIATAMENTE ANTERIOR al que se está generando — el
+        // único que puede tener un vehículo "todavía en tránsito" cuando
+        // arranca este mes. Antes se miraba TODO data.viajes sin filtrar
+        // por mes, así que un dato suelto de pruebas viejas (de cualquier
+        // mes, incluso con una fecha rota muy en el futuro) podía dejar
+        // una placa "bloqueada" para siempre, sin importar cuántas veces
+        // se regenerara el mes actual — el dato corrupto seguía ahí.
+        const mesAnteriorIndex = mesIndex === 0 ? 11 : mesIndex - 1;
+        const anioMesAnterior = mesIndex === 0 ? Number(anio) - 1 : Number(anio);
+
         const ultimaLiberacionPorPlaca = {};
         (data.viajes || []).forEach(v => {
             const placaV = String(v.p || v.placa || '').toUpperCase().trim();
@@ -1370,6 +2789,12 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
 
             const fechaSalidaV = new Date(v.fecha + 'T00:00:00');
             if (isNaN(fechaSalidaV.getTime())) return;
+
+            // Blindaje: solo cuenta si la fecha real del viaje cae en el
+            // mes inmediatamente anterior al que se está generando ahora.
+            // Cualquier otro mes (pasado lejano, futuro, o dato huérfano
+            // de pruebas) se ignora para este cálculo.
+            if (fechaSalidaV.getFullYear() !== anioMesAnterior || fechaSalidaV.getMonth() !== mesAnteriorIndex) return;
 
             const fechaLiberacionV = new Date(fechaSalidaV);
             fechaLiberacionV.setDate(fechaLiberacionV.getDate() + diasBloqueadoV);
@@ -1388,6 +2813,8 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
 
         const totalDiasMes = new Date(anio, mesIndex + 1, 0).getDate();
         let viajesEstructurados = 0;
+        let viajesMakand = 0; // Solo flota propia — para el desglose Makand vs terceros en la respuesta
+        let cuposNuevosCreados = 0; // Cupos Arsitrans/Polar nuevos (no reutilizados) — para la vista previa
 
         // Cupos automáticos de Arsitrans/Polar de este mes — cada uno con su
         // propia placa numerada, PERO reutilizable: si un cupo ya hizo su
@@ -1396,6 +2823,8 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
         // ninguno de los existentes está libre todavía ese día.
         let contadorCupoArsitrans = 0;
         let contadorCupoPolar = 0;
+        let viajesArsitransTotal = 0; // total de viajes (no solo cupos nuevos) que cayeron en Arsitrans esta corrida — para diagnóstico
+        let viajesPolarTotal = 0;
         const cupoVehiculosArsitrans = []; // { placa, disponibleDesde }
         const cupoVehiculosPolar = [];
 
@@ -1420,6 +2849,18 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
             const claveDiaActual = esFestivo ? 'fes' : mapaDiasClave[fechaActual.getDay()];
 
             const rutasDelDia = listaRutas.filter(r => {
+                // Ruta cancelada/desactivada: no genera viajes, sin
+                // importar qué días tenga marcados. "undefined" (rutas
+                // guardadas antes de que existiera este campo) se trata
+                // como activa — solo un false explícito la excluye.
+                if (r.activa === false) return false;
+
+                // Vigente desde: si la ruta tiene fecha de inicio y este
+                // día es anterior, todavía no debe generar nada — así una
+                // ruta creada a mitad de mes no "aparece" retroactivamente
+                // desde el día 1.
+                if (r.vigenteDesde && fechaString < r.vigenteDesde) return false;
+
                 // Preferimos el objeto real "dias" (el que arma tu formulario
                 // actual de Rutas) — solo si la ruta no lo tiene, usamos el
                 // texto viejo "horaBase" como respaldo para rutas antiguas.
@@ -1440,6 +2881,56 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
                         const p = String(v.p || v.placa || '').toUpperCase().trim();
                         if (!p || controlDisponibilidad[p] === undefined || controlDisponibilidad[p] > timestampActual) return false;
 
+                        // BUG REAL encontrado y corregido: Generar Matriz nunca
+                        // revisaba si el vehículo tenía un mantenimiento YA
+                        // REGISTRADO (mantInicio/mantFin) que cubriera este
+                        // día — como esta función BORRA y vuelve a crear todos
+                        // los viajes del mes desde cero, un mantenimiento que
+                        // ya había cancelado correctamente algunos viajes
+                        // quedaba "olvidado": la siguiente regeneración volvía
+                        // a crear viajes normales ahí, como si el vehículo
+                        // nunca hubiera estado en el taller. Se excluye aquí,
+                        // igual que se excluyen los Urbanos o las rutas no
+                        // permitidas — el hueco lo cubre otro vehículo propio,
+                        // o si no hay ninguno, el relleno automático.
+                        if (v.mantInicio && v.mantFin && fechaString >= v.mantInicio && fechaString <= v.mantFin) return false;
+
+                        // BUG REAL encontrado y corregido: lo de arriba solo
+                        // revisa el mantenimiento ACTIVO ahora mismo. Pero en
+                        // cuanto alguien le da "Quitar mantenimiento" a un
+                        // vehículo, mantInicio/mantFin se vacían y ese rango
+                        // pasa a archivarse en "historialMantenimiento" — para
+                        // el motor, el vehículo vuelve a verse 100% libre para
+                        // CUALQUIER día de CUALQUIER mes, incluidos los días
+                        // en que sí estuvo en el taller. Al regenerar un mes
+                        // que cae dentro de un mantenimiento ya cerrado, le
+                        // metía viajes nuevos ahí como si nada. Se revisa
+                        // también el historial para que esos días sigan
+                        // bloqueados aunque el mantenimiento ya se haya cerrado.
+                        if (Array.isArray(v.historialMantenimiento)) {
+                            const cayoEnMantenimientoCerrado = v.historialMantenimiento.some(m =>
+                                m && m.inicio && m.fin && fechaString >= m.inicio && fechaString <= m.fin
+                            );
+                            if (cayoEnMantenimientoCerrado) return false;
+                        }
+
+                        // BUG REAL encontrado y corregido: Generar Matriz tampoco
+                        // revisaba si el CONDUCTOR asignado a este vehículo tenía
+                        // descanso registrado justo este día — mismo problema que
+                        // el mantenimiento de arriba: al borrar y recrear todo el
+                        // mes desde cero, un viaje nuevo se montaba encima de un
+                        // día que debía mostrar "DESCANSO", en vez de respetarlo.
+                        const conductorAsignado = listaConductores.find(c =>
+                            String(c.nom || c.nombre || '').trim() === String(v.cond || v.conductor || '').trim() ||
+                            String(c.veh || '').toUpperCase().trim() === p
+                        );
+                        if (conductorAsignado?.descansosPorMes) {
+                            const claveMes = `${mes}-${anio}`;
+                            const diasDescanso = String(conductorAsignado.descansosPorMes[claveMes] || '')
+                                .split(',').map(x => Number(x.trim())).filter(x => !isNaN(x));
+                            if (diasDescanso.includes(dia)) return false;
+                        }
+
                         // Arsitrans y Polar (cualquier vehículo con esa
                         // transportadora — el viejo "ARSI-?"/"POLAR-?" o los
                         // cupos numerados) NUNCA compiten en el reparto
@@ -1451,6 +2942,15 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
                         // el relleno automático siquiera se active.
                         const empresaVeh = String(v.transportadora || v.tr || '').toLowerCase();
                         if (empresaVeh.includes('arsitran') || empresaVeh.includes('polar')) return false;
+
+                        // Los vehículos "Urbano" nunca entran al Rutograma —
+                        // solo se usan Viajero y Tercero. No se filtran en
+                        // listaVehiculos (esa lista se reasigna de vuelta a
+                        // data.vehiculos más abajo, y filtrarla ahí borraría
+                        // los Urbanos del Excel al guardar) — se excluyen
+                        // solo aquí, en el reparto real de viajes.
+                        const categoriaVeh = String(v.categoria || 'Viajero').trim();
+                        if (categoriaVeh === 'Urbano') return false;
 
                         // Si este vehículo tiene una rutina restringida (como
                         // LUN 428, solo Barranquilla/Montería), lo saltamos
@@ -1476,16 +2976,25 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
                     vehiculoAsignado.viajes = (vehiculoAsignado.viajes || 0) + 1;
 
                     const diasBloqueado = Number(ruta.diasTrans || 1);
+                    // "Días de retorno" (diasDesc) es un campo APARTE que se
+                    // SUMA encima de "Días en tránsito" — para rutas donde el
+                    // vehículo entrega la carga un día, pero tarda días
+                    // adicionales en volver de verdad a Bogotá antes de poder
+                    // tomar otra ruta. Si diasDesc es 0 (o no está puesto),
+                    // no cambia nada de lo que ya funciona.
+                    const diasRetornoExtra = Number(ruta.diasDesc || 0);
 
-                    // El vehículo queda libre el día SIGUIENTE a que termina
-                    // su tránsito. "diasTrans" cuenta los días de tránsito
-                    // después de la salida (sin contar el propio día de
-                    // salida): diasTrans=1 -> sale lunes, el martes está en
-                    // tránsito, el miércoles ya puede tomar otra ruta.
-                    // diasTrans=2 -> sale lunes, martes y miércoles en
-                    // tránsito, libre el jueves.
+                    // El vehículo YA está viajando de nuevo el ÚLTIMO día de
+                    // su tránsito + retorno (no un día después). "diasTrans"
+                    // cuenta los días de tránsito después de la salida (sin
+                    // contar el propio día de salida): diasTrans=1 -> sale
+                    // lunes, el martes ya puede tomar otra ruta. diasTrans=3
+                    // -> sale lunes, martes/miércoles/jueves en tránsito, y
+                    // el jueves (el último de esos 3 días) ya está viajando
+                    // de nuevo. "diasDesc" (días de retorno) se suma aparte
+                    // si la ruta lo necesita.
                     const fechaLiberacion = new Date(fechaActual);
-                    fechaLiberacion.setDate(fechaLiberacion.getDate() + diasBloqueado + 1);
+                    fechaLiberacion.setDate(fechaLiberacion.getDate() + diasBloqueado + diasRetornoExtra);
                     
                     controlDisponibilidad[placaAsignada] = fechaLiberacion.getTime();
 
@@ -1509,7 +3018,7 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
                         fecha: fechaString,
                         dia: dia, // día del mes (entero) — varias partes de la app lo usan como respaldo
                         salida: dia, // OBLIGATORIO para agruparViajes(): sin esto, el viaje nunca aparece en el Rutograma
-                        retorno: dia + diasBloqueado + 1, // día en que el vehículo queda libre — un día después de terminar el tránsito (ver comentario arriba)
+                        retorno: dia + diasBloqueado + diasRetornoExtra, // día en que el vehículo YA está viajando de nuevo — tránsito + retorno (ver comentario arriba)
                         cajas: Number(ruta.cajasMin || 660),
                         mes: mes,
                         anio: Number(anio),
@@ -1520,6 +3029,7 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
 
                     data.viajes.push(registroViaje);
                     viajesEstructurados++;
+                    viajesMakand++;
                 } else {
                     // No hay vehículo propio libre ese día — en vez de dejar
                     // la ruta sin cubrir, se completa con un cupo externo.
@@ -1589,6 +3099,8 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
 
                     data.viajes.push(registroViajeCupo);
                     viajesEstructurados++;
+                    if (nombreTrCupo === 'Arsitrans') viajesArsitransTotal++;
+                    else viajesPolarTotal++;
 
                     // Creamos el "vehículo" de este cupo si es la primera vez
                     // que se usa esta placa en la corrida — así aparece con
@@ -1615,6 +3127,7 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
                         };
                         listaVehiculos.push(nuevoVehiculoCupo);
                         data.vehiculos = listaVehiculos;
+                        cuposNuevosCreados++;
                         // OJO: a propósito NO se registra en controlDisponibilidad.
                         // Si lo hiciéramos, el motor podría reutilizar esta misma
                         // placa para OTRA ruta distinta más adelante, como si
@@ -1628,30 +3141,41 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
             }
         }
 
-        // --- HISTÓRICO MENSUAL: guardamos una "foto" de cómo quedaron
-        // configurados los vehículos y las rutas justo en el momento de
-        // generar la matriz de este mes — es el punto donde de verdad se
-        // "define" ese mes. Si ya existía una foto para este mes/año, la
-        // reemplazamos (por si regeneras el mismo mes más de una vez).
-        if (!data.historialvehiculos) data.historialvehiculos = [];
-        if (!data.historialrutas) data.historialrutas = [];
-        if (!data.historialconductores) data.historialconductores = [];
+        if (!esPrevisualizacion) {
+            // --- HISTÓRICO MENSUAL: guardamos una "foto" de cómo quedaron
+            // configurados los vehículos y las rutas justo en el momento de
+            // generar la matriz de este mes — es el punto donde de verdad se
+            // "define" ese mes. Si ya existía una foto para este mes/año, la
+            // reemplazamos (por si regeneras el mismo mes más de una vez).
+            if (!data.historialvehiculos) data.historialvehiculos = [];
+            if (!data.historialrutas) data.historialrutas = [];
+            if (!data.historialconductores) data.historialconductores = [];
 
-        data.historialvehiculos = data.historialvehiculos.filter(h => !(h.mes === mes && String(h.anio) === String(anio)));
-        data.historialvehiculos.push({ mes, anio: Number(anio), datos: JSON.parse(JSON.stringify(data.vehiculos || [])) });
+            data.historialvehiculos = data.historialvehiculos.filter(h => !(h.mes === mes && String(h.anio) === String(anio)));
+            data.historialvehiculos.push({ mes, anio: Number(anio), datos: JSON.parse(JSON.stringify(data.vehiculos || [])) });
 
-        data.historialrutas = data.historialrutas.filter(h => !(h.mes === mes && String(h.anio) === String(anio)));
-        data.historialrutas.push({ mes, anio: Number(anio), datos: JSON.parse(JSON.stringify(data.rutas || [])) });
+            data.historialrutas = data.historialrutas.filter(h => !(h.mes === mes && String(h.anio) === String(anio)));
+            data.historialrutas.push({ mes, anio: Number(anio), datos: JSON.parse(JSON.stringify(data.rutas || [])) });
 
-        data.historialconductores = data.historialconductores.filter(h => !(h.mes === mes && String(h.anio) === String(anio)));
-        data.historialconductores.push({ mes, anio: Number(anio), datos: JSON.parse(JSON.stringify(data.conductores || [])) });
+            data.historialconductores = data.historialconductores.filter(h => !(h.mes === mes && String(h.anio) === String(anio)));
+            data.historialconductores.push({ mes, anio: Number(anio), datos: JSON.parse(JSON.stringify(data.conductores || [])) });
 
-        guardarEnExcel(data);
+            guardarEnExcel(data);
+        }
 
         return res.status(200).json({
             ok: true,
+            previsualizacion: esPrevisualizacion,
             total: viajesEstructurados,
-            msg: `Se estructuró la programación mensual de ${mes} de manera exitosa.`
+            makand: viajesMakand,
+            terceros: viajesEstructurados - viajesMakand,
+            viajesArsitrans: viajesArsitransTotal,
+            viajesPolar: viajesPolarTotal,
+            viajesReemplazados,
+            cuposNuevosCreados,
+            msg: esPrevisualizacion
+                ? `Previsualización de ${mes}: se generarían ${viajesEstructurados} viajes.`
+                : `Se estructuró la programación mensual de ${mes} de manera exitosa.`
         });
 
     } catch (error) {
@@ -1664,7 +3188,6 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
 });
 
 // --- INICIO DEL SERVIDOR ---
-const PORT = 5000;
 // --- HISTÓRICO MENSUAL: consultar la foto de vehículos/rutas de un mes ---
 app.get('/api/historial-vehiculos', (req, res) => {
     try {
@@ -1728,20 +3251,52 @@ app.get('/api/exportar-rutograma', (req, res) => {
             return Number(a.dia) - Number(b.dia);
         });
 
-        const filas = viajesDelMes.map(v => ({
-            Vehiculo: v.p || v.placa || '',
-            Transportadora: v.tr || v.transportadora || '',
-            Dia: v.dia,
-            Fecha: v.fecha || '',
-            Ruta: v.ruta || v.codigo || '',
-            Destino: v.destino || '',
-            Cliente: v.cliente || '',
-            Cajas: v.cajas || 0,
-            Salida: v.salida,
-            Retorno: v.retorno,
-            Estado: v.estado || '',
-            Tarifa: v.tarifa || 0
-        }));
+        // El campo "cond" del viaje a veces solo trae un valor genérico
+        // ("Asignado", "Sin asignar") en vez del nombre real. El nombre
+        // real puede vivir en CUALQUIERA de dos lugares según cómo se
+        // haya cargado el dato: la lista de conductores (por placa), o
+        // el campo "conductor"/"cond" del propio vehículo — se revisan
+        // los dos, en ese orden, antes de rendirse.
+        const conductoresPorPlaca = {};
+        (data.conductores || []).forEach(c => {
+            const placaCond = String(c.veh || c.vehiculo || c.placa || c.p || '').toUpperCase().trim();
+            const nombreCond = c.nom || c.n || c.nombre || c.nombreCompleto || c.conductor || '';
+            if (placaCond && nombreCond) conductoresPorPlaca[placaCond] = nombreCond;
+        });
+        const conductorPorVehiculo = {};
+        (data.vehiculos || []).forEach(veh => {
+            const placaVeh = String(veh.p || veh.placa || veh.veh || '').toUpperCase().trim();
+            const nombreVeh = veh.conductor || veh.cond || '';
+            if (placaVeh && nombreVeh) conductorPorVehiculo[placaVeh] = nombreVeh;
+        });
+        const esCondGenerico = (cond) => {
+            const c = String(cond || '').trim().toUpperCase();
+            return !c || ['ASIGNADO', 'SIN ASIGNAR', 'SIN CONDUCTOR', ''].includes(c);
+        };
+
+        const filas = viajesDelMes.map(v => {
+            const placaViaje = String(v.p || v.placa || '').toUpperCase().trim();
+            let conductorReal = v.cond;
+            if (esCondGenerico(conductorReal)) conductorReal = conductoresPorPlaca[placaViaje];
+            if (esCondGenerico(conductorReal)) conductorReal = conductorPorVehiculo[placaViaje];
+            if (esCondGenerico(conductorReal)) conductorReal = 'Sin asignar';
+
+            return {
+                Vehiculo: v.p || v.placa || '',
+                Conductor: conductorReal,
+                Transportadora: v.tr || v.transportadora || '',
+                Dia: v.dia,
+                Fecha: v.fecha || '',
+                Ruta: v.ruta || v.codigo || '',
+                Destino: v.destino || '',
+                Cliente: v.cliente || '',
+                Cajas: v.cajas || 0,
+                Salida: v.salida,
+                Retorno: v.retorno,
+                Estado: v.estado || '',
+                Tarifa: v.tarifa || 0
+            };
+        });
 
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.json_to_sheet(filas);
@@ -1819,6 +3374,69 @@ app.get('/api/limpiar-cupos-huerfanos', (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
+// ============================================================
+// ARRANQUE — http:// siempre, y https:// si hay certificado
+// ============================================================
+// Si en la carpeta "certs" (junto a este archivo) están los dos archivos
+// del certificado (key.pem y cert.pem), el servidor atiende http:// Y
+// https:// por el MISMO puerto — así se puede migrar poco a poco: quien
+// siga entrando por http:// no se queda sin servicio mientras los demás
+// pasan a https://. Si esos archivos no están, arranca por http:// igual
+// que siempre. HTTPS hace falta para que el celular permita funciones
+// como "Compartir" con un archivo adjunto. Las rutas se pueden cambiar
+// con HTTPS_KEY_FILE y HTTPS_CERT_FILE en el .env.
+const RUTA_HTTPS_KEY = process.env.HTTPS_KEY_FILE || path.join(__dirname, 'certs', 'key.pem');
+const RUTA_HTTPS_CERT = process.env.HTTPS_CERT_FILE || path.join(__dirname, 'certs', 'cert.pem');
+const PORT = 5000;
+
+const cargarCredencialesHttps = () => {
+    if (!fs.existsSync(RUTA_HTTPS_KEY) || !fs.existsSync(RUTA_HTTPS_CERT)) return null;
+    try {
+        const credenciales = { key: fs.readFileSync(RUTA_HTTPS_KEY), cert: fs.readFileSync(RUTA_HTTPS_CERT) };
+        tls.createSecureContext(credenciales); // lanza error si los archivos no sirven
+        return credenciales;
+    } catch (err) {
+        console.error(`⚠️ Se encontraron los archivos del certificado pero no sirven (${err.message}). Se arranca solo por http:// como siempre.`);
+        return null;
+    }
+};
+
+// Atiende http y https en el mismo puerto: mira el primer byte de cada
+// conexión (0x16 es el saludo de TLS -> https; cualquier otro -> http) y
+// se la pasa al servidor que corresponde.
+const crearServidorDual = (aplicacion, credenciales, esperaPrimerByteMs = 10000) => {
+    const servidorHttp = http.createServer(aplicacion);
+    const servidorHttps = https.createServer(credenciales, aplicacion);
+
+    return net.createServer((socket) => {
+        // Una conexión que abre y nunca manda nada no puede quedarse colgada.
+        socket.setTimeout(esperaPrimerByteMs, () => socket.destroy());
+        socket.on('error', () => socket.destroy());
+        socket.once('data', (primerBloque) => {
+            socket.setTimeout(0);
+            socket.pause();
+            socket.unshift(primerBloque);
+            (primerBloque[0] === 0x16 ? servidorHttps : servidorHttp).emit('connection', socket);
+            process.nextTick(() => socket.resume());
+        });
+    });
+};
+
+const alArrancar = (conHttps) => {
     console.log(`🚀 Servidor backend corriendo en: http://localhost:${PORT}`);
-});
+    if (conHttps) console.log(`🔒 Y también por HTTPS en: https://localhost:${PORT}`);
+    console.log(EXIGIR_TOKEN
+        ? '🔐 Sesiones: modo ESTRICTO — toda petición necesita un pase válido.'
+        : '🔓 Sesiones: modo TOLERANTE — se aceptan peticiones sin pase (con aviso [SIN PASE] por cada ruta). Cuando ya no aparezcan avisos, se puede activar EXIGIR_TOKEN=true en el .env.');
+    // Resumen semanal de vencimientos: una revisión poco después de arrancar
+    // (por si el servidor estaba apagado el lunes) y luego cada 30 minutos.
+    setTimeout(revisarResumenSemanalVencimientos, 30 * 1000);
+    setInterval(revisarResumenSemanalVencimientos, 30 * 60 * 1000);
+};
+
+const credencialesHttps = cargarCredencialesHttps();
+if (credencialesHttps) {
+    crearServidorDual(app, credencialesHttps).listen(PORT, () => alArrancar(true));
+} else {
+    app.listen(PORT, () => alArrancar(false));
+}
