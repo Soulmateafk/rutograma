@@ -740,14 +740,16 @@ export class RutasComponent implements OnInit, OnDestroy {
     );
   }
 
-  public readonly diasSemanaCedis: { clave: string; label: string }[] = [
-    { clave: 'lun', label: 'Lunes' },
-    { clave: 'mar', label: 'Martes' },
-    { clave: 'mie', label: 'Miércoles' },
-    { clave: 'jue', label: 'Jueves' },
-    { clave: 'vie', label: 'Viernes' },
-    { clave: 'sab', label: 'Sábado' },
-    { clave: 'dom', label: 'Domingo' }
+  // "corto" es lo que se muestra en celular (ver .dia-corto en rutas.css),
+  // donde los nombres completos no caben y se montaban unos sobre otros.
+  public readonly diasSemanaCedis: { clave: string; label: string; corto: string }[] = [
+    { clave: 'lun', label: 'Lunes', corto: 'L' },
+    { clave: 'mar', label: 'Martes', corto: 'M' },
+    { clave: 'mie', label: 'Miércoles', corto: 'Mi' },
+    { clave: 'jue', label: 'Jueves', corto: 'J' },
+    { clave: 'vie', label: 'Viernes', corto: 'V' },
+    { clave: 'sab', label: 'Sábado', corto: 'S' },
+    { clave: 'dom', label: 'Domingo', corto: 'D' }
   ];
 
   public tablaRutasPorDiaSemana(): { cod: string; destino: string; dias: { [clave: string]: boolean } }[] {

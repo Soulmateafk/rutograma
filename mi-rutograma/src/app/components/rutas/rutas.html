@@ -101,10 +101,10 @@
     </table>
   </div>
 
-  <div class="tabla-contenedor"
+  <div class="tabla-contenedor tabla-rutas-contenedor"
        style="background: var(--color-fondo-tarjeta); border-radius: 8px; border: 1px solid var(--color-borde); overflow: hidden;">
 
-    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+    <table class="tabla-rutas" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
 
       <thead>
         <tr style="background: var(--color-fondo-tarjeta); color: var(--color-texto-secundario); border-bottom: 1px solid var(--color-borde);">
@@ -290,8 +290,9 @@
               </th>
 
               <th *ngFor="let d of diasSemanaCedis"
-                  style="padding: 12px 10px; text-align: center;">
-                {{ d.label }}
+                  style="padding: 12px 10px; text-align: center;"
+                  [attr.title]="d.label">
+                <span class="dia-largo">{{ d.label }}</span><span class="dia-corto">{{ d.corto }}</span>
               </th>
 
             </tr>
@@ -379,8 +380,9 @@
               </th>
 
               <th *ngFor="let d of diasSemanaCedis"
-                  style="padding: 12px 10px; text-align: center;">
-                {{ d.label }}
+                  style="padding: 12px 10px; text-align: center;"
+                  [attr.title]="d.label">
+                <span class="dia-largo">{{ d.label }}</span><span class="dia-corto">{{ d.corto }}</span>
               </th>
 
             </tr>
@@ -412,7 +414,7 @@
 
                   <div *ngIf="r.dias[d.clave]"
                        style="color: var(--color-texto-secundario); font-size: 11px; margin-top: 2px; line-height: 13px; white-space: nowrap;">
-                    Sale {{ r.dias[d.clave] }}
+                    <span class="dia-largo">Sale </span>{{ r.dias[d.clave] }}
                   </div>
 
                 </div>
