@@ -232,8 +232,15 @@
   margin-bottom: 10px;
 }
 
+/* En celular la tabla se desliza de lado dentro de su tarjeta en vez
+   de empujar toda la página. */
+.tabla-liq-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 .tabla-liquidacion {
   width: 100%;
+  min-width: 420px;
   border-collapse: collapse;
   font-size: 12px;
 }

@@ -90,7 +90,7 @@
      aquí había dos placeholders vacíos ("...") que nadie usaba, se
      quitaron. -->
 
-<div id="sp-toast" style="display:none;position:fixed;bottom:24px;right:24px;z-index:9999;background:#052e16;border:1px solid #166534;border-radius:8px;padding:10px 18px;font-size:12px;color:#bbf7d0;max-width:380px;box-shadow:0 4px 20px rgba(0,0,0,.5)"></div>
+<div id="sp-toast" style="display:none;position:fixed;bottom:24px;right:24px;z-index:9999;background:#052e16;border:1px solid #166534;border-radius:8px;padding:10px 18px;font-size:12px;color:#bbf7d0;max-width:min(380px, calc(100vw - 48px));box-shadow:0 4px 20px rgba(0,0,0,.5)"></div>
 
 <div id="sp-spinner" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9998;background:rgba(0,0,0,.6);align-items:center;justify-content:center;flex-direction:column;gap:12px;color:#fff;font-size:14px">
   <div style="width:32px;height:32px;border:3px solid #374151;border-top-color:#3b82f6;border-radius:50%;animation:spin .8s linear infinite"></div>
@@ -264,6 +264,21 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
+  }
+  /* Celular: el texto va en líneas normales. Con display:flex cada
+     trozo de texto quedaba en su propia columna, apretadas y altísimas. */
+  @media (max-width: 600px) {
+    .banner-sin-conexion {
+      display: block;
+      padding: 6px 12px;
+      font-size: 11px;
+      text-align: left;
+    }
+    .banner-sin-conexion span {
+      display: block;
+      font-weight: 400;
+      margin-top: 2px;
+    }
   }
   /* --- Aviso de choque de edición --- */
   .aviso-choque-bloque {

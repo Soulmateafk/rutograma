@@ -158,7 +158,8 @@
     <p *ngIf="!cargandoDispositivos && dispositivosBloqueados.length === 0" class="admin-msg">
       No hay dispositivos bloqueados en este momento.
     </p>
-    <table class="user-table" *ngIf="!cargandoDispositivos && dispositivosBloqueados.length > 0">
+    <div class="tabla-scroll" *ngIf="!cargandoDispositivos && dispositivosBloqueados.length > 0">
+    <table class="user-table">
       <thead>
         <tr>
           <th>Cuenta</th>
@@ -180,6 +181,7 @@
         </tr>
       </tbody>
     </table>
+    </div>
   </ng-container>
 
 <!-- Modal de confirmación propio — reemplaza el confirm() nativo del
