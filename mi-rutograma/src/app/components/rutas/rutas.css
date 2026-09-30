@@ -17,7 +17,7 @@
     width: 100%;
   }
   .ruta-check-table {
-    min-width: 560px;
+    min-width: 520px;
   }
 }
 
@@ -211,5 +211,53 @@
 @media (max-width: 900px) {
   .tabla-prioridades {
     min-width: 760px !important;
+  }
+}
+
+/* =========================================================
+   CELULAR — Rutas
+   ========================================================= */
+
+/* Días de la semana: nombre completo en PC, abreviado en celular
+   (L, M, Mi, J, V, S, D) — los nombres completos no cabían en las
+   columnas de "Check de Rutas" y se montaban unos sobre otros. */
+.dia-corto {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .dia-largo {
+    display: none;
+  }
+  .dia-corto {
+    display: inline;
+  }
+
+  .ruta-check-table {
+    min-width: 520px;
+    font-size: 13px !important;
+  }
+  /* Más espacio para el código de la ruta, que es lo que más importa. */
+  .ruta-check-table th:nth-child(1) {
+    width: 20% !important;
+  }
+  .ruta-check-table th:nth-child(2) {
+    width: 16% !important;
+  }
+  .ruta-check-table th,
+  .ruta-check-table td {
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
+
+  /* Tabla principal de rutas: antes tenía overflow:hidden y en celular
+     las columnas de la derecha quedaban cortadas sin forma de verlas.
+     Ahora solo la tabla se desliza de lado; la página no se mueve. */
+  .tabla-rutas-contenedor {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tabla-rutas {
+    min-width: 900px;
   }
 }

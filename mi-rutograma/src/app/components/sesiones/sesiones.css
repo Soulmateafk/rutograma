@@ -14,3 +14,12 @@
 .ses-btn:hover { background: rgba(255,255,255,0.05); }
 .ses-btn-danger { border-color: rgba(239,68,68,0.5); color: #f87171; }
 .ses-btn-danger:hover { background: rgba(239,68,68,0.1); }
+
+/* Celular: menos margen y cada sesión en columna (texto arriba, botón
+   abajo a lo ancho), para que no se aprieten ni se corten. */
+@media (max-width: 600px) {
+  .ses-page { padding: 16px 12px; }
+  .ses-item { flex-direction: column; align-items: stretch; }
+  .ses-item .ses-btn { width: 100%; }
+  .ses-meta { word-break: break-word; }
+}

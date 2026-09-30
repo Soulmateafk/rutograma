@@ -3,9 +3,13 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
 import { UiService } from '../../services/ui.service';
 
-// ⚠️ Pon aquí la MISMA dirección base que usa AccountService para llamar
-// al servidor (por ejemplo 'http://localhost:5000').
-const API_URL = 'http://localhost:5000';
+// Misma dirección que usan AccountService y DataService: el servidor en
+// el puerto 5000 del MISMO equipo con el que se abrió la app. Antes era
+// 'http://localhost:5000' fijo — en el celular "localhost" es el propio
+// celular, así que la lista de sesiones nunca cargaba desde ahí.
+const API_URL = (typeof window !== 'undefined')
+  ? `${window.location.protocol}//${window.location.hostname}:5000`
+  : 'http://localhost:5000';
 
 interface Sesion {
   id: string;
@@ -48,6 +52,8 @@ export class SesionesComponent implements OnInit {
       if (data.ok) {
         this.sesiones = data.sesiones;
         this.esAdmin = !!data.esAdmin;
+      } else {
+        this.ui.mostrarToast(data.msg || 'No se pudieron cargar las sesiones.', 'err');
       }
     } catch {
       this.ui.mostrarToast('No se pudieron cargar las sesiones.', 'err');

@@ -200,7 +200,8 @@ const verificarPase = (pase) => {
 // Los pases emitidos ANTES de esta función no tienen id: siguen valiendo hasta
 // que venzan, pero no aparecen en la lista.
 const ARCHIVO_SESIONES = path.join(CARPETA_DATOS, 'sesiones-activas.json');
-const MAX_SESIONES_POR_CUENTA = 20;
+// Máximo de sesiones abiertas a la vez por cuenta.
+const MAX_SESIONES_POR_CUENTA = 5;
 let sesionesActivas = (() => {
     try {
         if (fs.existsSync(ARCHIVO_SESIONES)) {
@@ -300,12 +301,23 @@ const crearSesion = (email, req, dispositivoId) => {
         ultima: ahora.toISOString(),
         expira: new Date(ahora.getTime() + TOKEN_DIAS * 86400000).toISOString()
     };
+    // Volver a entrar desde el MISMO dispositivo reemplaza su sesión
+    // anterior — si no, cada nuevo inicio de sesión en el mismo equipo
+    // gastaría uno de los cupos de la cuenta.
+    if (sesion.dispositivoId) {
+        sesionesActivas = sesionesActivas.filter(x => !(x.email === sesion.email && x.dispositivoId === sesion.dispositivoId));
+    }
     sesionesActivas.push(sesion);
-    // Tope por cuenta: si hay demasiadas, se descartan las más antiguas.
-    const deLaCuenta = sesionesActivas.filter(x => x.email === sesion.email);
-    if (deLaCuenta.length > MAX_SESIONES_POR_CUENTA) {
-        const sobran = new Set(deLaCuenta.slice(0, deLaCuenta.length - MAX_SESIONES_POR_CUENTA).map(x => x.id));
+    // Tope por cuenta (MAX_SESIONES_POR_CUENTA): si se pasa, se cierran
+    // las que llevan más tiempo sin usarse, nunca la que acaba de entrar.
+    const deLaCuenta = sesionesActivas
+        .filter(x => x.email === sesion.email && x.id !== sesion.id)
+        .sort((a, b) => Date.parse(a.ultima || a.creada) - Date.parse(b.ultima || b.creada));
+    const sobranCuantas = deLaCuenta.length + 1 - MAX_SESIONES_POR_CUENTA;
+    if (sobranCuantas > 0) {
+        const sobran = new Set(deLaCuenta.slice(0, sobranCuantas).map(x => x.id));
         sesionesActivas = sesionesActivas.filter(x => !sobran.has(x.id));
+        console.log(`🔒 ${sesion.email} llegó al máximo de ${MAX_SESIONES_POR_CUENTA} sesiones — se cerraron ${sobran.size} sin usar.`);
     }
     guardarSesiones();
     return sesion.id;
@@ -841,6 +853,52 @@ const MESES_MAP = { 'Enero':1,'Febrero':2,'Marzo':3,'Abril':4,'Mayo':5,'Junio':6
 // cualquier reporte, sin esperar a la próxima vez que se regenere la
 // matriz del mes. Nunca toca viajes "En ruta", "Entregado" o ya
 // "Cancelado" — solo los que todavía no habían pasado.
+// ------------------------------------------------------------
+// MANTENIMIENTO vs VIAJES — una sola regla para todo el servidor
+// (Generar Matriz, guardar un viaje y la cancelación automática):
+// un vehículo en mantenimiento NO puede tener ningún viaje que lo
+// ocupe en esos días. La única excepción es un viaje que SALGA el
+// último día del mantenimiento (ese día ya vuelve del taller).
+// Antes solo se revisaba el día de SALIDA: un viaje que salía el 16
+// y volvía el 18 quedaba encima de un mantenimiento del 17 al 19.
+// ------------------------------------------------------------
+function sumarDiasFecha(fecha, dias) {
+    const d = new Date(fecha + 'T00:00:00');
+    d.setDate(d.getDate() + dias);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Mantenimiento activo + los ya cerrados (historialMantenimiento).
+function rangosMantenimiento(vehiculo) {
+    const rangos = [];
+    if (!vehiculo) return rangos;
+    if (vehiculo.mantInicio && vehiculo.mantFin) rangos.push({ inicio: vehiculo.mantInicio, fin: vehiculo.mantFin });
+    let historial = vehiculo.historialMantenimiento;
+    if (typeof historial === 'string') {
+        try { historial = JSON.parse(historial); } catch { historial = []; }
+    }
+    if (Array.isArray(historial)) {
+        historial.forEach(m => { if (m && m.inicio && m.fin) rangos.push({ inicio: m.inicio, fin: m.fin }); });
+    }
+    return rangos;
+}
+
+// Días que el vehículo queda ocupado por un viaje (de la salida hasta
+// el día en que ya está libre otra vez, "retorno").
+function diasOcupadoViaje(viaje) {
+    const salida = Number(viaje.salida || viaje.dia || 0);
+    const retorno = Number(viaje.retorno || 0);
+    return retorno > salida ? retorno - salida : 1;
+}
+
+// Devuelve el mantenimiento con el que choca el viaje, o null.
+// fechaSalida: 'YYYY-MM-DD'; dias: días que el vehículo queda ocupado.
+function mantenimientoQueChoca(rangos, fechaSalida, dias) {
+    if (!fechaSalida) return null;
+    const fechaLibre = sumarDiasFecha(fechaSalida, Math.max(1, dias));
+    return rangos.find(r => fechaSalida < r.fin && fechaLibre > r.inicio) || null;
+}
+
 function cancelarViajesEnConflicto(data, placa, motivo, coincide) {
     // BUG encontrado y corregido: esto comparaba contra 'Programado',
     // pero Generar Matriz deja los viajes nuevos en 'Planificado' (y
@@ -854,7 +912,7 @@ function cancelarViajesEnConflicto(data, placa, motivo, coincide) {
     (data.viajes || []).forEach(vj => {
         if (String(vj.p || vj.placa || '').toUpperCase().trim() !== placa) return;
         if (ESTADOS_NO_CANCELABLES.includes(vj.estado)) return;
-        if (!vj.fecha || !coincide(vj.fecha)) return;
+        if (!vj.fecha || !coincide(vj.fecha, vj)) return;
         vj.estado = 'Cancelado';
         vj.motivoCancelacion = motivo;
         cancelados++;
@@ -1874,7 +1932,10 @@ app.post('/api/vehiculos', (req, res) => {
                 const cancelados = cancelarViajesEnConflicto(
                     data, placa,
                     `Vehículo en mantenimiento (${vehiculoFormateado.mantInicio} a ${vehiculoFormateado.mantFin})`,
-                    (fecha) => fecha >= vehiculoFormateado.mantInicio && fecha <= vehiculoFormateado.mantFin
+                    (fecha, vj) => !!mantenimientoQueChoca(
+                        [{ inicio: vehiculoFormateado.mantInicio, fin: vehiculoFormateado.mantFin }],
+                        fecha, diasOcupadoViaje(vj)
+                    )
                 );
                 if (cancelados > 0) {
                     console.log(`🛠️ ${cancelados} viaje(s) de ${placa} cancelados automáticamente por mantenimiento.`);
@@ -2118,6 +2179,32 @@ app.post('/api/viajes', (req, res) => {
 
         if (!viaje || !viaje.placa && !viaje.p) {
             return res.status(400).json({ ok: false, msg: 'Falta la placa del vehículo' });
+        }
+
+        // Ningún viaje puede quedar encima de un mantenimiento (salvo
+        // salir el último día). Solo se revisa si el viaje es nuevo o si
+        // cambió de vehículo/fechas — así se puede seguir marcando como
+        // Entregado o cancelando un viaje viejo sin que se bloquee.
+        const ESTADOS_SIN_VEHICULO = ['Cancelado', 'Mantenimiento'];
+        if (viaje.fecha && !ESTADOS_SIN_VEHICULO.includes(viaje.estado)) {
+            const placaViaje = String(viaje.placa || viaje.p || '').toUpperCase().trim();
+            const previo = viaje.id !== undefined ? (data.viajes || []).find(v => v.id === viaje.id) : null;
+            const cambioVehiculoOFechas = !previo ||
+                String(previo.placa || previo.p || '').toUpperCase().trim() !== placaViaje ||
+                previo.fecha !== viaje.fecha ||
+                Number(previo.salida || 0) !== Number(viaje.salida || 0) ||
+                Number(previo.retorno || 0) !== Number(viaje.retorno || 0);
+            if (cambioVehiculoOFechas) {
+                const vehiculo = (data.vehiculos || []).find(v => String(v.p || v.placa || '').toUpperCase().trim() === placaViaje);
+                const choque = mantenimientoQueChoca(rangosMantenimiento(vehiculo), viaje.fecha, diasOcupadoViaje(viaje));
+                if (choque) {
+                    res.locals.auditoriaOmitir = true;
+                    return res.status(400).json({
+                        ok: false,
+                        msg: `${placaViaje} está en mantenimiento del ${choque.inicio} al ${choque.fin}. Solo se le puede asignar un viaje que salga el último día (${choque.fin}).`
+                    });
+                }
+            }
         }
 
         const solicitante = normalizarEmail(req.headers['x-user-email']);
@@ -2881,38 +2968,15 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
                         const p = String(v.p || v.placa || '').toUpperCase().trim();
                         if (!p || controlDisponibilidad[p] === undefined || controlDisponibilidad[p] > timestampActual) return false;
 
-                        // BUG REAL encontrado y corregido: Generar Matriz nunca
-                        // revisaba si el vehículo tenía un mantenimiento YA
-                        // REGISTRADO (mantInicio/mantFin) que cubriera este
-                        // día — como esta función BORRA y vuelve a crear todos
-                        // los viajes del mes desde cero, un mantenimiento que
-                        // ya había cancelado correctamente algunos viajes
-                        // quedaba "olvidado": la siguiente regeneración volvía
-                        // a crear viajes normales ahí, como si el vehículo
-                        // nunca hubiera estado en el taller. Se excluye aquí,
-                        // igual que se excluyen los Urbanos o las rutas no
-                        // permitidas — el hueco lo cubre otro vehículo propio,
-                        // o si no hay ninguno, el relleno automático.
-                        if (v.mantInicio && v.mantFin && fechaString >= v.mantInicio && fechaString <= v.mantFin) return false;
-
-                        // BUG REAL encontrado y corregido: lo de arriba solo
-                        // revisa el mantenimiento ACTIVO ahora mismo. Pero en
-                        // cuanto alguien le da "Quitar mantenimiento" a un
-                        // vehículo, mantInicio/mantFin se vacían y ese rango
-                        // pasa a archivarse en "historialMantenimiento" — para
-                        // el motor, el vehículo vuelve a verse 100% libre para
-                        // CUALQUIER día de CUALQUIER mes, incluidos los días
-                        // en que sí estuvo en el taller. Al regenerar un mes
-                        // que cae dentro de un mantenimiento ya cerrado, le
-                        // metía viajes nuevos ahí como si nada. Se revisa
-                        // también el historial para que esos días sigan
-                        // bloqueados aunque el mantenimiento ya se haya cerrado.
-                        if (Array.isArray(v.historialMantenimiento)) {
-                            const cayoEnMantenimientoCerrado = v.historialMantenimiento.some(m =>
-                                m && m.inicio && m.fin && fechaString >= m.inicio && fechaString <= m.fin
-                            );
-                            if (cayoEnMantenimientoCerrado) return false;
-                        }
+                        // Mantenimiento (activo o ya cerrado en el historial):
+                        // se revisan TODOS los días que este viaje ocuparía al
+                        // vehículo, no solo el día de salida — si no, un viaje
+                        // que sale justo antes del mantenimiento quedaba encima
+                        // de él. Solo se permite salir el último día del
+                        // mantenimiento. El hueco lo cubre otro vehículo propio
+                        // o, si no hay ninguno, el relleno automático.
+                        const diasOcupado = Number(ruta.diasTrans || 1) + Number(ruta.diasDesc || 0);
+                        if (mantenimientoQueChoca(rangosMantenimiento(v), fechaString, diasOcupado)) return false;
 
                         // BUG REAL encontrado y corregido: Generar Matriz tampoco
                         // revisaba si el CONDUCTOR asignado a este vehículo tenía
