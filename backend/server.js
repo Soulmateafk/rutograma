@@ -200,7 +200,8 @@ const verificarPase = (pase) => {
 // Los pases emitidos ANTES de esta función no tienen id: siguen valiendo hasta
 // que venzan, pero no aparecen en la lista.
 const ARCHIVO_SESIONES = path.join(CARPETA_DATOS, 'sesiones-activas.json');
-const MAX_SESIONES_POR_CUENTA = 20;
+// Máximo de sesiones abiertas a la vez por cuenta.
+const MAX_SESIONES_POR_CUENTA = 5;
 let sesionesActivas = (() => {
     try {
         if (fs.existsSync(ARCHIVO_SESIONES)) {
@@ -300,12 +301,23 @@ const crearSesion = (email, req, dispositivoId) => {
         ultima: ahora.toISOString(),
         expira: new Date(ahora.getTime() + TOKEN_DIAS * 86400000).toISOString()
     };
+    // Volver a entrar desde el MISMO dispositivo reemplaza su sesión
+    // anterior — si no, cada nuevo inicio de sesión en el mismo equipo
+    // gastaría uno de los cupos de la cuenta.
+    if (sesion.dispositivoId) {
+        sesionesActivas = sesionesActivas.filter(x => !(x.email === sesion.email && x.dispositivoId === sesion.dispositivoId));
+    }
     sesionesActivas.push(sesion);
-    // Tope por cuenta: si hay demasiadas, se descartan las más antiguas.
-    const deLaCuenta = sesionesActivas.filter(x => x.email === sesion.email);
-    if (deLaCuenta.length > MAX_SESIONES_POR_CUENTA) {
-        const sobran = new Set(deLaCuenta.slice(0, deLaCuenta.length - MAX_SESIONES_POR_CUENTA).map(x => x.id));
+    // Tope por cuenta (MAX_SESIONES_POR_CUENTA): si se pasa, se cierran
+    // las que llevan más tiempo sin usarse, nunca la que acaba de entrar.
+    const deLaCuenta = sesionesActivas
+        .filter(x => x.email === sesion.email && x.id !== sesion.id)
+        .sort((a, b) => Date.parse(a.ultima || a.creada) - Date.parse(b.ultima || b.creada));
+    const sobranCuantas = deLaCuenta.length + 1 - MAX_SESIONES_POR_CUENTA;
+    if (sobranCuantas > 0) {
+        const sobran = new Set(deLaCuenta.slice(0, sobranCuantas).map(x => x.id));
         sesionesActivas = sesionesActivas.filter(x => !sobran.has(x.id));
+        console.log(`🔒 ${sesion.email} llegó al máximo de ${MAX_SESIONES_POR_CUENTA} sesiones — se cerraron ${sobran.size} sin usar.`);
     }
     guardarSesiones();
     return sesion.id;
