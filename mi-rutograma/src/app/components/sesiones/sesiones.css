@@ -2,6 +2,8 @@
 .ses-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
 .ses-head h2 { margin: 0 0 4px; font-size: 20px; color: #f1f5f9; }
 .ses-head p { margin: 0; font-size: 13px; color: #64748b; }
+.ses-head p.ses-cupo { margin-top: 8px; color: #94a3b8; font-weight: 600; }
+.ses-head p.ses-cupo-lleno { color: #fbbf24; }
 .ses-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .ses-list { display: flex; flex-direction: column; gap: 10px; }
 .ses-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #121b2e; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px 16px; }

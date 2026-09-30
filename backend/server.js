@@ -317,6 +317,8 @@ const crearSesion = (email, req, dispositivoId) => {
     if (sobranCuantas > 0) {
         const sobran = new Set(deLaCuenta.slice(0, sobranCuantas).map(x => x.id));
         sesionesActivas = sesionesActivas.filter(x => !sobran.has(x.id));
+        // Para avisarle a quien acaba de entrar (ver /api/auth/login).
+        if (req) req.sesionesCerradasPorTope = sobran.size;
         console.log(`🔒 ${sesion.email} llegó al máximo de ${MAX_SESIONES_POR_CUENTA} sesiones — se cerraron ${sobran.size} sin usar.`);
     }
     guardarSesiones();
@@ -2509,7 +2511,7 @@ app.get('/api/sesiones', (req, res) => {
         .filter(x => verTodas || x.email === yo)
         .map(x => datosPublicosSesion(x, req.sesionId))
         .sort((a, b) => Date.parse(b.ultima) - Date.parse(a.ultima));
-    res.json({ ok: true, esAdmin, sesiones: lista });
+    res.json({ ok: true, esAdmin, sesiones: lista, maxSesiones: MAX_SESIONES_POR_CUENTA });
 });
 
 app.post('/api/sesiones/cerrar', (req, res) => {
@@ -2654,7 +2656,11 @@ app.post('/api/auth/login', async (req, res) => {
             // aún está pendiente): el pase solo prueba QUIÉN eres — lo que
             // puedes hacer lo decide el estado de la cuenta en cada petición.
             token: crearPase(usuario, crearSesion(usuario.email, req, dispositivoId)),
-            motivoRechazo: estado === 'REJECTED' ? (usuario.motivoRechazo || '') : undefined
+            motivoRechazo: estado === 'REJECTED' ? (usuario.motivoRechazo || '') : undefined,
+            // Cuántas sesiones viejas se cerraron por el tope de
+            // MAX_SESIONES_POR_CUENTA al entrar ahora (0 casi siempre).
+            sesionesCerradas: req.sesionesCerradasPorTope || 0,
+            maxSesiones: MAX_SESIONES_POR_CUENTA
         });
     } catch (error) {
         console.error('🚨 Error en /api/auth/login:', error);
