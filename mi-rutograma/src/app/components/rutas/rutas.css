@@ -1,0 +1,215 @@
+/* =========================================================
+   TABLA PRIORIDADES TRANSPORTE DIARIO FINCA
+   ========================================================= */
+
+/* BUG REAL encontrado y corregido: estas dos tarjetas (Despacho y
+   Entrega) tenían min-width:460px puesto directo en el HTML — cada
+   una por su cuenta ya era más ancha que cualquier celular, así que
+   ni siquiera cabía una sola apilada, aunque su tabla interna ya
+   tuviera su propio scroll. Se mueve ese ancho aquí para poder darle
+   un valor más chico en celular sin tocar el de PC. */
+.ruta-check-card {
+  min-width: 460px;
+}
+@media (max-width: 900px) {
+  .ruta-check-card {
+    min-width: 0;
+    width: 100%;
+  }
+  .ruta-check-table {
+    min-width: 560px;
+  }
+}
+
+.prioridades-finca {
+  width: 100% !important;
+  margin-top: 20px !important;
+  background: var(--bg) !important;
+  border: 1px solid var(--border2) !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+}
+
+/* =========================
+   TITULO
+   ========================= */
+
+.prioridades-titulo {
+  width: 100% !important;
+  height: 42px !important;
+  min-height: 42px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  background: var(--bg) !important;
+  color: var(--text) !important;
+
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: 19px !important;
+  font-weight: 700 !important;
+
+  border-bottom: 1px solid var(--border2) !important;
+
+  box-sizing: border-box !important;
+}
+
+/* =========================
+   CONTENEDOR
+   ========================= */
+
+.prioridades-scroll {
+  width: 100% !important;
+  overflow-x: auto !important;
+}
+
+/* =========================
+   TABLA
+   ========================= */
+
+.tabla-prioridades {
+  width: 100% !important;
+  min-width: 100% !important;
+
+  table-layout: fixed !important;
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+
+  background: var(--bg) !important;
+  color: var(--text) !important;
+
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: 14px !important;
+}
+
+/* =========================
+   ENCABEZADOS
+   ========================= */
+
+.tabla-prioridades thead th {
+  background: var(--blue2) !important;
+  color: white !important;
+
+  border: 1px solid var(--border) !important;
+
+  height: 45px !important;
+  min-height: 45px !important;
+
+  padding: 5px 6px !important;
+
+  text-align: center !important;
+  vertical-align: middle !important;
+
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+
+  line-height: 1.15 !important;
+}
+
+/* =========================
+   CELDAS
+   ========================= */
+
+.tabla-prioridades tbody td {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+
+  border: 1px solid var(--border2) !important;
+
+  height: 31px !important;
+  min-height: 31px !important;
+
+  padding: 5px 7px !important;
+
+  vertical-align: middle !important;
+
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+
+  line-height: 1.15 !important;
+
+  white-space: nowrap !important;
+}
+
+/* =========================
+   CENTRADO
+   ========================= */
+
+.tabla-prioridades .celda-vehiculo,
+.tabla-prioridades .celda-hora,
+.tabla-prioridades .celda-numero {
+  text-align: center !important;
+}
+
+/* =========================
+   ANCHOS
+   ========================= */
+
+/* # VEHICULOS */
+.tabla-prioridades th:nth-child(1),
+.tabla-prioridades td:nth-child(1) {
+  width: 7.3% !important;
+}
+
+/* HORA LLEGADA */
+.tabla-prioridades th:nth-child(2),
+.tabla-prioridades td:nth-child(2) {
+  width: 8.2% !important;
+}
+
+/* HORA SALIDA */
+.tabla-prioridades th:nth-child(3),
+.tabla-prioridades td:nth-child(3) {
+  width: 8.2% !important;
+}
+
+/* # */
+.tabla-prioridades th:nth-child(4),
+.tabla-prioridades td:nth-child(4) {
+  width: 3% !important;
+}
+
+/* LUNES - DOMINGO */
+.tabla-prioridades th:nth-child(n+5),
+.tabla-prioridades td:nth-child(n+5) {
+  width: 10.47% !important;
+}
+
+/* =========================
+   FILAS
+   ========================= */
+
+.tabla-prioridades tbody tr {
+  height: 31px !important;
+}
+
+.tabla-prioridades tbody tr:hover td {
+  background: var(--bg3) !important;
+}
+
+/* =========================
+   SCROLLBAR
+   ========================= */
+
+.prioridades-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.prioridades-scroll::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+.prioridades-scroll::-webkit-scrollbar-thumb {
+  background: var(--border2);
+  border-radius: 3px;
+}
+
+
+@media (max-width: 900px) {
+  .tabla-prioridades {
+    min-width: 760px !important;
+  }
+}

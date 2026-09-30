@@ -1,0 +1,452 @@
+/* ============================================================
+   Solicitud de acceso — Makand
+   Misma paleta del login (navy profundo + azul + acento naranja),
+   con más energía: glow sutil, gradientes en movimiento suave,
+   foco e interacciones vivas en inputs y botón.
+   ============================================================ */
+
+:root {
+  --bg-deep: #060a14;
+  --bg-glow-blue: #1e3a8a;
+  --bg-glow-orange: #c2410c;
+  --card-bg: #0f1729;
+  --card-border: #1e293b;
+  --blue: #3b82f6;
+  --blue-bright: #60a5fa;
+  --orange: #f97316;
+  --text-main: #e7ecf5;
+  --text-muted: #7c8aa3;
+  --input-bg: #131f38;
+  --input-border: #4a5f8c;
+}
+
+.login-container {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg-deep);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow: hidden;
+}
+
+/* Líneas diagonales tenues + resplandores difuminados azul/naranja —
+   mismo lenguaje visual que login y la pantalla de carga inicial. */
+.reg-bg-lines {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.025) 0px,
+    rgba(255, 255, 255, 0.025) 1px,
+    transparent 1px,
+    transparent 46px
+  );
+  pointer-events: none;
+}
+.reg-glow {
+  position: absolute;
+  width: 480px;
+  height: 480px;
+  border-radius: 50%;
+  filter: blur(110px);
+  pointer-events: none;
+}
+.reg-glow-blue {
+  background: var(--blue);
+  top: -160px;
+  left: -140px;
+  opacity: 0.28;
+}
+.reg-glow-orange {
+  background: var(--orange);
+  bottom: -180px;
+  right: -160px;
+  opacity: 0.18;
+}
+
+.login-card {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 42px 40px 34px;
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(59, 130, 246, 0.04);
+  overflow: hidden;
+}
+
+/* barra superior con gradiente animado */
+.login-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--blue), var(--blue-bright), var(--orange));
+  background-size: 200% 100%;
+  animation: correr-gradiente 6s ease-in-out infinite;
+}
+
+@keyframes correr-gradiente {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Insignia con el ícono de camión */
+.reg-badge {
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 14px;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(249,115,22,0.14));
+  border: 1px solid rgba(96,165,250,0.28);
+  box-shadow: 0 6px 20px rgba(59,130,246,0.15);
+  color: var(--blue-bright);
+}
+.reg-badge svg {
+  width: 27px;
+  height: 27px;
+}
+
+.reg-wordmark {
+  text-align: center;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--text-main);
+  margin-bottom: 16px;
+}
+.reg-wordmark span {
+  color: var(--blue-bright);
+}
+
+/* Línea de "ruta" decorativa */
+.reg-route {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 140px;
+  margin: 0 auto 24px;
+}
+.reg-route-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--blue-bright);
+  flex-shrink: 0;
+}
+.reg-route-dot.reg-route-dot-end {
+  background: var(--orange);
+}
+.reg-route-line {
+  flex: 1;
+  height: 1px;
+  background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0, rgba(255,255,255,0.18) 4px, transparent 4px, transparent 8px);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 26px;
+}
+.header h2 {
+  margin: 0 0 6px;
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+}
+.header p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Cada campo con su etiqueta arriba — mucho más claro que solo el
+   placeholder, y le da al formulario una sensación más "de producto". */
+.reg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.reg-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  padding-left: 2px;
+}
+
+.reg-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.reg-input-icon {
+  position: absolute;
+  left: 14px;
+  width: 17px;
+  height: 17px;
+  color: var(--blue-bright);
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+/* Al enfocar el campo, su ícono pasa a naranja. */
+.reg-input-wrap:focus-within .reg-input-icon {
+  color: var(--orange);
+}
+
+.reg-input-wrap input,
+.reg-input-wrap select.form-control {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 16px 13px 42px;
+  border-radius: 10px;
+  border: 1.5px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-main);
+  font-size: 0.95rem;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 0 rgba(255, 255, 255, 0.03);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.reg-input-wrap input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+.reg-input-wrap input:hover,
+.reg-input-wrap select.form-control:hover {
+  border-color: #3d5480;
+}
+
+.reg-input-wrap input:focus,
+.reg-input-wrap select.form-control:focus {
+  outline: none;
+  border-color: var(--blue-bright);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22), 0 0 18px rgba(59, 130, 246, 0.15);
+  transform: translateY(-1px);
+}
+
+/* el select ya trae estilos inline en el HTML; estos lo sobreescriben */
+select.form-control {
+  margin-bottom: 0 !important;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237c8aa3' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
+
+/* Las opciones del desplegable no heredan el estilo del <select>. */
+select.form-control option {
+  background: var(--input-bg);
+  color: var(--text-main);
+}
+
+/* ============================================================
+   Desplegable propio de "Departamento" — reemplaza el <select> nativo,
+   ya que la mayoría de navegadores ignoran el estilo personalizado de
+   sus opciones (siempre salían con fondo blanco, sin importar el CSS).
+   Con esto se tiene control total: mismo fondo oscuro, mismos colores
+   de marca, sin depender de cómo cada navegador dibuje el <select>.
+   ============================================================ */
+.reg-dropdown {
+  position: relative;
+}
+
+.reg-dropdown-trigger {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 16px 13px 42px;
+  border-radius: 10px;
+  border: 1.5px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-main);
+  font-size: 0.95rem;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 0 rgba(255, 255, 255, 0.03);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.reg-dropdown-placeholder {
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
+.reg-dropdown-chevron {
+  width: 15px;
+  height: 15px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.reg-dropdown-open .reg-dropdown-trigger {
+  border-color: var(--blue-bright);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22), 0 0 18px rgba(59, 130, 246, 0.15);
+}
+.reg-dropdown-open .reg-dropdown-chevron {
+  transform: rotate(180deg);
+  color: var(--orange);
+}
+.reg-dropdown-open .reg-input-icon {
+  color: var(--orange);
+}
+
+.reg-dropdown-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: var(--input-bg);
+  border: 1.5px solid var(--input-border);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reg-dropdown-item {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 0.9rem;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.reg-dropdown-item:hover {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--blue-bright);
+}
+.reg-dropdown-item-activo {
+  background: rgba(59, 130, 246, 0.22);
+  color: var(--blue-bright);
+  font-weight: 600;
+}
+
+.btn-primary {
+  margin-top: 8px;
+  width: 100%;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--blue) 0%, #2563eb 55%, var(--orange) 130%);
+  background-size: 160% 160%;
+  background-position: 0% 50%;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.35);
+  transition: background-position 0.4s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.reg-btn-arrow {
+  width: 17px;
+  height: 17px;
+  transition: transform 0.2s ease;
+}
+.btn-primary:hover .reg-btn-arrow {
+  transform: translateX(3px);
+}
+
+.btn-primary:hover {
+  background-position: 100% 50%;
+  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.5), 0 0 20px rgba(249, 115, 22, 0.2);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+}
+
+.reg-hint {
+  margin: 4px 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.reg-footer {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--card-border);
+  text-align: center;
+}
+.reg-footer a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--blue-bright);
+  font-weight: 500;
+  font-size: 0.88rem;
+  text-decoration: none;
+  transition: color 0.2s ease, gap 0.2s ease;
+}
+.reg-footer a svg {
+  width: 15px;
+  height: 15px;
+}
+.reg-footer a:hover {
+  color: var(--orange);
+  gap: 9px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-card::before,
+  .btn-primary,
+  .reg-btn-arrow,
+  .reg-footer a {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* Mismo ajuste que ya tiene login.css — la tarjeta era más ancha
+   (max-width:460px vs 400px) así que en celulares angostos su
+   padding lateral se sentía todavía más apretado. */
+@media (max-width: 420px) {
+  .login-card {
+    padding: 30px 20px 24px;
+  }
+}

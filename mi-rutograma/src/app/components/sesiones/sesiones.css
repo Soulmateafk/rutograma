@@ -1,0 +1,16 @@
+.ses-page { max-width: 760px; margin: 0 auto; padding: 24px; color: #e2e8f0; }
+.ses-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.ses-head h2 { margin: 0 0 4px; font-size: 20px; color: #f1f5f9; }
+.ses-head p { margin: 0; font-size: 13px; color: #64748b; }
+.ses-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.ses-list { display: flex; flex-direction: column; gap: 10px; }
+.ses-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #121b2e; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px 16px; }
+.ses-item.ses-actual { border-color: rgba(59,130,246,0.5); }
+.ses-device { font-size: 14px; font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ses-tag { font-size: 11px; font-weight: 600; color: #3b82f6; background: rgba(59,130,246,0.12); border-radius: 6px; padding: 2px 8px; }
+.ses-meta { font-size: 12px; color: #64748b; margin-top: 3px; }
+.ses-empty { text-align: center; color: #64748b; padding: 30px 0; font-size: 14px; }
+.ses-btn { border: 1px solid rgba(255,255,255,0.12); background: transparent; color: #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 13px; font-family: inherit; cursor: pointer; white-space: nowrap; }
+.ses-btn:hover { background: rgba(255,255,255,0.05); }
+.ses-btn-danger { border-color: rgba(239,68,68,0.5); color: #f87171; }
+.ses-btn-danger:hover { background: rgba(239,68,68,0.1); }

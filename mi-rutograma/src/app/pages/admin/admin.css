@@ -1,0 +1,197 @@
+.admin-container {
+  padding: 24px;
+  max-width: 820px;
+  margin: 0 auto;
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.admin-container h1 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.admin-msg {
+  color: var(--text3);
+  font-style: italic;
+  padding: 20px;
+  text-align: center;
+}
+
+.user-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* BUG REAL encontrado y corregido: esta tabla no tenía ningún
+   contenedor con scroll horizontal — en celular, con columnas como
+   Email/Departamento/Estado/Rol/Acciones (esta última con varios
+   botones), se aplastaba o se cortaba en vez de deslizar. */
+.tabla-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 900px) {
+  .user-table {
+    min-width: 700px;
+  }
+}
+
+.user-table th {
+  background: var(--bg);
+  color: var(--text3);
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  border-bottom: 1px solid var(--border2);
+}
+
+.user-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border2);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.user-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Insignias de estado y botones de acción — colores con significado,
+   se quedan fijos a propósito en ambos temas (mismo criterio que
+   vehiculos.css/conductores.css). */
+.estado {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.estado-aprobado  { background: #064e3b; color: #6ee7b7; }
+.estado-pendiente { background: #78350f; color: #fcd34d; }
+.estado-rechazado { background: #7f1d1d; color: #fca5a5; }
+
+.acciones {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-aprobar,
+.btn-rechazar {
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  border: 1px solid transparent;
+}
+
+.btn-aprobar {
+  background: #064e3b;
+  border-color: #22c55e;
+  color: #bbf7d0;
+}
+.btn-aprobar:hover { background: #15803d; }
+
+.btn-rechazar {
+  background: #7f1d1d;
+  border-color: #ef4444;
+  color: #fecaca;
+}
+.btn-rechazar:hover { background: #991b1b; }
+
+.admin-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border2);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-tab {
+  background: transparent;
+  border: none;
+  color: var(--text3);
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.admin-tab:hover { color: var(--text); }
+.admin-tab.activa {
+  color: var(--blue);
+  border-bottom-color: var(--blue);
+}
+
+.admin-head-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-subtexto {
+  color: var(--text3);
+  font-size: 12px;
+}
+
+.btn-refrescar {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+}
+.btn-refrescar:hover { background: var(--bg3); }
+
+.rol-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #1e3a8a;
+  color: #bfdbfe;
+}
+.rol-badge.rol-lector {
+  background: #374151;
+  color: #d1d5db;
+}
+
+.btn-rol {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.btn-rol:hover { background: var(--bg3); }
+
+/* Área táctil más cómoda en celular para los botones de acción. */
+@media (max-width: 900px) {
+  .btn-aprobar, .btn-rechazar, .btn-rol, .btn-refrescar {
+    padding-top: 9px;
+    padding-bottom: 9px;
+    min-height: 38px;
+  }
+}

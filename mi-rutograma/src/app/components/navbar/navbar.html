@@ -1,0 +1,171 @@
+<nav>
+  <div class="logo">MAKA<span>ND</span></div>
+
+  <div class="tabs">
+    <button class="tab" routerLink="/dashboard" routerLinkActive="on">Dashboard</button>
+    <button class="tab" routerLink="/rutograma" routerLinkActive="on">Rutograma</button>
+    <button class="tab" routerLink="/vehiculos" routerLinkActive="on">Vehículos</button>
+    <button class="tab" routerLink="/rutas" routerLinkActive="on">Rutas</button>
+    <button class="tab" routerLink="/conductores" routerLinkActive="on">Conductores</button>
+    <button class="tab" routerLink="/configuracion" routerLinkActive="on">Configuración</button>
+    <button class="tab" routerLink="/historico" routerLinkActive="on">Histórico</button>
+    <button class="tab" routerLink="/comparativo" routerLinkActive="on">Comparativo</button>
+    <button class="tab" routerLink="/sesiones" routerLinkActive="on">Sesiones</button>
+
+    <button class="tab" routerLink="/admin" routerLinkActive="on">Administrador</button>
+  </div>
+
+  <div class="nav-search">
+    <input #inputBusquedaGlobal
+           type="text"
+           placeholder="Buscar placa, conductor o ruta... (Ctrl+K)"
+           [(ngModel)]="busquedaGlobal"
+           (ngModelChange)="buscarGlobal()"
+           (blur)="cerrarResultadosBusqueda()"
+           style="background: var(--color-fondo-input); border: 1px solid var(--color-borde); color: var(--color-texto-principal); padding: 6px 12px; border-radius: 6px; font-size: 12px;">
+
+    <div *ngIf="mostrandoResultadosBusqueda && resultadosBusqueda.length"
+         style="position: absolute; top: calc(100% + 4px); left: 0; width: 280px; background: var(--color-fondo-tarjeta); border: 1px solid var(--color-borde); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); z-index: 9999; overflow: hidden;">
+      <div *ngFor="let r of resultadosBusqueda"
+           (mousedown)="irAResultadoBusqueda(r)"
+           style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--color-borde-suave);">
+        <div style="font-size: 12px; font-weight: 600; color: var(--color-texto-principal);">{{ r.etiqueta }}</div>
+        <div style="font-size: 11px; color: var(--color-texto-apagado);">{{ r.tipo }} — {{ r.subtitulo }}</div>
+      </div>
+    </div>
+
+    <div *ngIf="mostrandoResultadosBusqueda && busquedaGlobal.trim() && !resultadosBusqueda.length"
+         style="position: absolute; top: calc(100% + 4px); left: 0; width: 280px; background: var(--color-fondo-tarjeta); border: 1px solid var(--color-borde); border-radius: 8px; padding: 10px 12px; font-size: 12px; color: var(--color-texto-apagado); z-index: 9999;">
+      Sin resultados para "{{ busquedaGlobal }}"
+    </div>
+  </div>
+
+  <div class="nav-r">
+    <span class="badge" id="bdg-mes">{{ fechaHoy }}</span>
+
+    <!-- Deshacer/Rehacer — historial LOCAL de esta computadora (hasta 3
+         cambios), separado por Modo Real/Prueba. Deshabilitados cuando
+         no hay nada que deshacer/rehacer. El title muestra qué cambio
+         se va a revertir/reaplicar, sin tener que adivinar. -->
+    <button class="btn sm" *ngIf="authService.puedeEditar"
+            [disabled]="!dataService.descripcionProximoDeshacer"
+            [title]="dataService.descripcionProximoDeshacer ? ('Deshacer: ' + dataService.descripcionProximoDeshacer) : 'No hay ningún cambio reciente para deshacer'"
+            (click)="deshacerUltimoCambio()">
+      <i class="bi bi-arrow-counterclockwise"></i> Deshacer
+    </button>
+    <button class="btn sm" *ngIf="authService.puedeEditar"
+            [disabled]="!dataService.descripcionProximoRehacer"
+            [title]="dataService.descripcionProximoRehacer ? ('Rehacer: ' + dataService.descripcionProximoRehacer) : 'No hay ningún cambio para rehacer'"
+            (click)="rehacerUltimoCambio()">
+      <i class="bi bi-arrow-clockwise"></i> Rehacer
+    </button>
+
+    <button class="btn grn sm" (click)="descargarDiario()">Descargar Diario</button>
+    <button class="btn pri sm" *ngIf="authService.puedeEditar" (click)="abrirModal('m-viaje')">Viaje Extra</button>
+    <button class="btn sm" *ngIf="authService.puedeEditar" (click)="abrirModal('m-novedad')">Novedad</button>
+  </div>
+</nav>
+
+<!-- ============================================================ -->
+<!-- MODAL: VIAJE EXTRA                                            -->
+<!-- ============================================================ -->
+<div class="nb-modal-backdrop" *ngIf="isModalViajeOpen" (click)="cerrarModalViaje()">
+  <div class="nb-modal" (click)="$event.stopPropagation()">
+    <h3>+ Viaje Extra</h3>
+
+    <div class="nb-form-grid">
+      <div class="nb-field">
+        <label>Vehículo</label>
+        <select [(ngModel)]="nuevoViaje.placa">
+          <option value="" disabled selected>Selecciona un vehículo</option>
+          <option *ngFor="let v of vehiculosParaViajeExtra()" [value]="v.p">
+            {{ v.p }} — {{ v.tr }}
+          </option>
+        </select>
+      </div>
+
+      <div class="nb-field">
+        <label>Ruta</label>
+        <select [(ngModel)]="nuevoViaje.ruta" (ngModelChange)="onRutaExtraChange()">
+          <option value="" disabled selected>Selecciona una ruta</option>
+          <option *ngFor="let r of dataService.S?.rutas" [value]="r.cod">
+            {{ r.cod }} — {{ r.dest || r.destino }}
+          </option>
+        </select>
+      </div>
+
+      <div class="nb-field">
+        <label>Fecha</label>
+        <input type="date" [(ngModel)]="nuevoViaje.fecha">
+      </div>
+
+      <div class="nb-field">
+        <label>Cliente</label>
+        <input type="text" [(ngModel)]="nuevoViaje.cliente" placeholder="Cliente">
+      </div>
+
+      <div class="nb-field">
+        <label>Cajas</label>
+        <input type="number" [(ngModel)]="nuevoViaje.cajas" placeholder="660">
+      </div>
+
+      <div class="nb-field">
+        <label>Hora</label>
+        <input type="time" [(ngModel)]="nuevoViaje.hora">
+      </div>
+    </div>
+
+    <div class="nb-modal-footer">
+      <button class="btn sm" [disabled]="procesandoViajeExtra" (click)="cerrarModalViaje()">Cerrar</button>
+      <button class="btn pri sm" [disabled]="procesandoViajeExtra" (click)="guardarViajeExtra()">{{ procesandoViajeExtra ? 'Guardando...' : 'Guardar viaje' }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL: NOVEDAD                                                -->
+<!-- ============================================================ -->
+<div class="nb-modal-backdrop" *ngIf="isModalNovedadOpen" (click)="cerrarModalNovedad()">
+  <div class="nb-modal" (click)="$event.stopPropagation()">
+    <h3>&#9889; Reportar novedad</h3>
+
+    <div class="nb-form-grid nb-form-grid-1">
+      <div class="nb-field">
+        <label>Tipo</label>
+        <select [(ngModel)]="nuevaNovedad.tipo">
+          <option value="Incidente">Incidente</option>
+          <option value="Retraso">Retraso</option>
+          <option value="Avería">Avería</option>
+          <option value="Aviso">Aviso general</option>
+        </select>
+      </div>
+
+      <div class="nb-field">
+        <label>Título</label>
+        <input type="text" [(ngModel)]="nuevaNovedad.titulo" placeholder="Resumen corto">
+      </div>
+
+      <div class="nb-field">
+        <label>Descripción</label>
+        <textarea [(ngModel)]="nuevaNovedad.desc" rows="4" placeholder="Detalles de la novedad"></textarea>
+      </div>
+    </div>
+
+    <div class="nb-modal-footer">
+      <button class="btn sm" (click)="cerrarModalNovedad()">Cerrar</button>
+      <button class="btn pri sm" (click)="guardarNovedad()">Guardar novedad</button>
+    </div>
+  </div>
+</div>
+<!-- Modal de confirmación propio — reemplaza el confirm() nativo del
+     navegador (feo/genérico) por uno con el mismo estilo del resto de
+     la app. Mismo patrón ya usado en Rutograma. -->
+<div class="nb-modal-backdrop" *ngIf="confirmDialogAbierto" style="z-index: 10002;">
+  <div class="nb-modal" style="max-width: 420px;" (click)="$event.stopPropagation()">
+    <p style="font-size: 14px; color: #e2e8f0; line-height: 1.5; margin: 0 0 18px 0; white-space: pre-line;">{{ confirmDialogMensaje }}</p>
+    <div class="nb-modal-footer">
+      <button class="btn sm" (click)="confirmDialogElegir(false)">{{ confirmDialogBtnCancelar }}</button>
+      <button class="btn pri sm" (click)="confirmDialogElegir(true)">{{ confirmDialogBtnAceptar }}</button>
+    </div>
+  </div>
+</div>

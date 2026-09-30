@@ -1,0 +1,273 @@
+<div class="dashboard-container">
+
+  <div class="gestion-header">
+    <div class="gestion-periodo">
+      <span class="gestion-icono"><i class="bi bi-calendar-week-fill"></i></span>
+      <div class="gestion-campo">
+        <label>Periodo de gestión</label>
+        <button type="button" class="gestion-boton" (click)="$event.stopPropagation(); toggleCalendarioMes()">
+          {{ nombresMesCalendario[ds.S.mes] }} {{ ds.S.anio }}
+          <div class="mini-calendario mc-mes" *ngIf="calendarioMesAbierto" (click)="$event.stopPropagation()">
+            <div class="mc-header">
+              <button type="button" class="mc-nav" (click)="cambiarAnioCalendarioMes(-1)">‹</button>
+              <span class="mc-titulo">{{ calendarioMesAnioMostrado }}</span>
+              <button type="button" class="mc-nav" (click)="cambiarAnioCalendarioMes(1)">›</button>
+            </div>
+            <div class="mc-meses-grid">
+              <button type="button" *ngFor="let m of nombresMesCalendario; let i = index"
+                      class="mc-mes-item"
+                      [class.mc-seleccionado]="i === ds.S.mes && calendarioMesAnioMostrado === ds.S.anio"
+                      (click)="seleccionarMesCalendario(i)">
+                {{ m.slice(0, 3) }}
+              </button>
+            </div>
+          </div>
+        </button>
+      </div>
+    </div>
+    <button class="btn-cerrar-sesion" (click)="cerrarSesion()">Cerrar sesión</button>
+  </div>
+
+  <div id="pg-dashboard" class="pg on">
+    <div class="kgrid k5">
+      <div class="kpi kpi-green">
+        <div class="lbl">Disponibles hoy</div>
+        <div class="val">{{ kDisp }}</div>
+        <div class="sub">de {{ kTotalesActivos }} activos</div>
+      </div>
+      <div class="kpi kpi-amber">
+        <div class="lbl">En ruta ahora</div>
+        <div class="val">{{ kAct }}</div>
+        <div class="sub">vehículos</div>
+      </div>
+      <div class="kpi kpi-red">
+        <div class="lbl">Mantenimiento</div>
+        <div class="val">{{ kMant }}</div>
+        <div class="sub">fuera de servicio</div>
+      </div>
+      <div class="kpi kpi-orange" title="{{ kMantMesPlacas }}">
+        <div class="lbl">Mantenimientos del mes</div>
+        <div class="val">{{ kMantMes }}</div>
+        <div class="sub">{{ kMantMesPlacas }}</div>
+      </div>
+      <div class="kpi kpi-blue">
+        <div class="lbl">Viajes de la semana</div>
+        <div class="val">{{ kViaj }}</div>
+        <div class="sub">{{ kExt }}</div>
+      </div>
+      <div class="kpi kpi-purple" [title]="kViajMesComparativoDetalle">
+        <div class="lbl">Viajes del mes</div>
+        <div class="val">{{ kViajMes }}</div>
+        <div class="sub">{{ nombresMesCalendario[ds.S?.mes] }}</div>
+        <div class="sub comparativo-tendencia" [ngClass]="'tendencia-' + kViajMesTendencia">
+          <span *ngIf="kViajMesTendencia === 'up'">▲</span><span *ngIf="kViajMesTendencia === 'down'">▼</span><span *ngIf="kViajMesTendencia === 'igual'">■</span>
+          {{ kViajMesComparativoTexto }}
+        </div>
+      </div>
+      <div class="kpi kpi-urgente">
+        <div class="lbl">Urgentes</div>
+        <div class="val">{{ kUrg }}</div>
+        <div class="sub">prioridad alta</div>
+      </div>
+      <div class="kpi kpi-cyan text-left">
+        <div class="lbl">Almacenes visitados</div>
+        <div class="val">{{ kAlm }}</div>
+        <div class="sub">{{ kEntregados }} entregados + {{ kAct }} en ruta + {{ kDoble }} dobles</div>
+      </div>
+      <div class="kpi kpi-purple text-left">
+        <div class="lbl">Doble entrega</div>
+        <div class="val">{{ kDoble }}</div>
+        <div class="sub">viajes con 2 paradas</div>
+      </div>
+      <div class="kpi kpi-orange text-left">
+        <div class="lbl">Split capacidad</div>
+        <div class="val">{{ kSplit }}</div>
+        <div class="sub">vehículo adicional</div>
+      </div>
+      <div class="kpi kpi-cyan text-left" [title]="kTransportadoraDetalle">
+        <div class="lbl">Transportadora líder (mes)</div>
+        <div class="val">{{ kTransportadoraTop }}</div>
+        <div class="sub">{{ kTransportadoraDesglose }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="stitle-row">
+        <span class="stitle">Alertas activas</span>
+        <span class="criticas-count">{{ alertasCriticasCount }} críticas</span>
+      </div>
+      <div class="lista-alertas">
+        <div *ngFor="let a of alertas" class="alerta-base" [ngClass]="'alerta-' + a.t">
+          <span class="alerta-icon" [innerHTML]="a.ic"></span>
+          <div class="alerta-body">
+            <strong>{{ a.tt }}</strong>
+            <p>{{ a.d }}</p>
+          </div>
+        </div>
+        <div *ngIf="!alertas.length" class="estado-vacio">Sin alertas por ahora</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="stitle">Disponibles hoy</div>
+      <div class="contenedor-disponibles">
+        <div *ngFor="let v of disponibles" class="card-vehiculo" [ngClass]="'transportadora-' + (v.tr || 'default').toLowerCase()">
+          <div class="v-placa">{{ v.p }}</div>
+          <div class="v-tipo">{{ v.t || 'Furgón refrigerado' }}</div>
+          <div class="v-capacidad">{{ v.cap || 660 }} cajas</div>
+          <div class="v-badge">{{ v.tr || 'Sin asignar' }}</div>
+        </div>
+        <div *ngIf="!disponibles.length" class="estado-vacio">No hay vehículos disponibles</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="header-resumen">
+        <div class="stitle">Resumen semanal</div>
+        <button class="btn sm" (click)="irA('rutograma')">Ver mes completo &rarr;</button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="rutograma-mini">
+          <thead>
+            <tr>
+              <th>Vehículo</th>
+              <th *ngFor="let dia of diasRutogramaSemana" [class.hoy]="dia.esHoy">
+                {{ dia.nombre }}<br>{{ dia.numero }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let v of vehiculosActivos">
+              <td class="vname">{{ v.p }}</td>
+              <td *ngFor="let dia of diasRutogramaSemana" [class.hoy]="dia.esHoy">
+                <div *ngIf="buscarViaje(v.p, dia.fechaCompleta) as viaje" class="bloque-viaje" [ngClass]="'bloque-viaje-' + (viaje.tr ? viaje.tr.toLowerCase() : 'default')">
+                  {{ viaje.ruta || viaje.destino }}
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="!vehiculosActivos.length">
+              <td [attr.colspan]="diasRutogramaSemana.length + 1" class="fila-vacia">Sin vehículos registrados</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="stitle stitle-danger">Viajes urgentes</div>
+      <div class="urg-list">
+        <div *ngFor="let u of listaUrgentes" class="urg-item">
+          <strong>{{ u.placa }}</strong> — {{ u.cli }}
+          <span class="urg-fecha">{{ u.fecha || u.dia }}</span>
+        </div>
+        <div *ngIf="!listaUrgentes.length" class="estado-vacio">Sin viajes urgentes</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="layout-tablas">
+    <div class="card card-tabla">
+      <div class="salidas-header">
+        <span class="stitle">Próximas salidas — semana actual</span>
+        <div class="salidas-filtros">
+          <div class="filtro-grupo">
+            <label>Día específico</label>
+            <button type="button" class="input-fecha" (click)="$event.stopPropagation(); toggleCalendario('especifica')">
+              {{ etiquetaCampoCalendario('especifica') }}
+              <div class="mini-calendario" *ngIf="calendarioAbierto === 'especifica'" (click)="$event.stopPropagation()">
+                <ng-container *ngTemplateOutlet="calendarioTpl"></ng-container>
+              </div>
+            </button>
+          </div>
+          <div class="filtro-divisor"><span>y</span></div>
+          <div class="filtro-grupo">
+            <label>Transportadora</label>
+            <select class="input-fecha" [(ngModel)]="filtroTransportadora" (ngModelChange)="actualizarProximosViajes()">
+              <option value="">Todas</option>
+              <option value="Makand">Makand</option>
+              <option value="Arsitrans">Arsitrans</option>
+              <option value="Polar">Polar</option>
+            </select>
+          </div>
+          <button class="btn-quitar-filtro" *ngIf="filtroFechaEspecifica || filtroTransportadora" (click)="limpiarFiltroSalidas()"><i class="bi bi-x-lg"></i> Quitar filtro</button>
+        </div>
+      </div>
+
+      <!-- Plantilla compartida del calendario — se repite dentro de cada
+           campo, pero el contenido/lógica vive en un solo lado (dashboard.ts) -->
+      <ng-template #calendarioTpl>
+        <div class="mc-header">
+          <button type="button" class="mc-nav" (click)="cambiarMesCalendario(-1)">‹</button>
+          <span class="mc-titulo">{{ nombresMesCalendario[calendarioMes] }} {{ calendarioAnio }}</span>
+          <button type="button" class="mc-nav" (click)="cambiarMesCalendario(1)">›</button>
+        </div>
+        <div class="mc-dias-semana">
+          <span *ngFor="let d of nombresDiaCalendario">{{ d }}</span>
+        </div>
+        <div class="mc-grid">
+          <button type="button" *ngFor="let c of diasDelCalendario()"
+                  class="mc-dia"
+                  [class.mc-otro-mes]="c.esOtroMes"
+                  [class.mc-hoy]="c.esHoy"
+                  [class.mc-seleccionado]="c.esSeleccionado"
+                  (click)="seleccionarDiaCalendario(c.fechaISO)">
+            {{ c.dia }}
+          </button>
+        </div>
+        <div class="mc-footer">
+          <button type="button" class="mc-accion" (click)="borrarCampoCalendario()">Borrar</button>
+          <button type="button" class="mc-accion mc-accion-primaria" (click)="hoyCalendario()">Hoy</button>
+        </div>
+      </ng-template>
+      <div class="table-responsive">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Fecha</th><th>Vehículo</th><th>Conductor</th><th>Destino</th><th>Transp.</th><th>Hora</th><th>Cajas</th><th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of proximosViajes">
+              <td class="celda-fecha">{{ p.fecha || p.dia }}</td>
+              <td>{{ p.p || p.placa || '—' }}</td>
+              <td>{{ p.cond || '—' }}</td>
+              <td>{{ p.ruta }}</td>
+              <td><span class="badge-mini" [ngClass]="'tag-' + (p.tr ? p.tr.toLowerCase() : 'default')">{{ p.tr || '—' }}</span></td>
+              <td class="celda-hora">{{ p.hora || p.horaDespacho || '--:--' }}</td>
+              <td>{{ p.cajas }}</td>
+              <td><span class="status-programado"><span class="dot-red"></span> Programado</span></td>
+            </tr>
+            <tr *ngIf="!proximosViajes.length">
+              <td colspan="8" class="fila-vacia">
+                {{ (filtroFechaEspecifica || filtroTransportadora) ? 'Sin salidas con ese filtro' : 'Sin salidas próximas esta semana' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card card-novedades">
+      <div class="stitle">Historial de novedades</div>
+      <div class="lista-novedades">
+        <div *ngFor="let n of novedadesRecientes" class="novedad-item" [class.resuelta]="n.resuelta">
+          <div class="novedad-cabecera">
+            <span class="novedad-tipo">{{ n.tipo }}</span>
+            <span class="novedad-fecha">{{ n.fecha }}</span>
+          </div>
+          <div class="novedad-titulo">{{ n.titulo }}</div>
+          <div class="novedad-desc" *ngIf="n.desc">{{ n.desc }}</div>
+          <button *ngIf="!n.resuelta" class="btn-resolver" (click)="resolverNovedad(n.id)">Marcar como resuelta</button>
+          <span *ngIf="n.resuelta" class="novedad-resuelta-tag"><i class="bi bi-check-lg"></i> Resuelta</span>
+        </div>
+        <div *ngIf="!novedadesRecientes.length" class="empty-novedades">Sin novedades</div>
+      </div>
+    </div>
+  </div>
+
+</div>

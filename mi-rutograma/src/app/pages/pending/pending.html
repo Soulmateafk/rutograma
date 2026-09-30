@@ -1,0 +1,23 @@
+<div class="pending-wrapper">
+  <div class="pending-card">
+    <div class="icon"><i class="bi bi-hourglass reloj-animado"></i></div>
+
+    <ng-container *ngIf="!fueRechazada">
+      <h1>Tu solicitud ha sido recibida.</h1>
+      <p>Tu cuenta se encuentra en estado <strong>PENDIENTE</strong> de revisión.</p>
+      <p>El administrador debe validar tu acceso para proteger la información de nuestro sistema.</p>
+      <p>Por favor, intenta ingresar más tarde. Agradecemos tu paciencia.</p>
+    </ng-container>
+
+    <ng-container *ngIf="fueRechazada">
+      <h1>Tu solicitud fue rechazada.</h1>
+      <p>Tu cuenta se encuentra en estado <strong>RECHAZADA</strong>.</p>
+      <p *ngIf="motivoRechazo"><strong>Motivo:</strong> {{ motivoRechazo }}</p>
+      <p>Si crees que esto es un error, contacta al administrador.</p>
+    </ng-container>
+
+    <button (click)="regresarAlLogin()" class="btn-logout">
+      Volver al inicio
+    </button>
+  </div>
+</div>

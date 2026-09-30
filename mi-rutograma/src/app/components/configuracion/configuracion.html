@@ -1,0 +1,308 @@
+<div class="contenedor-config">
+  <div style="font-size: 22px; font-weight: 700; margin-bottom: 20px; color: var(--color-texto-principal);">Configuración</div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 20px;">
+    
+    <div class="card">
+      <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Parámetros generales</div>
+      
+      <div class="fg" style="margin-bottom: 12px;">
+        <label>Empresa</label>
+        <input [(ngModel)]="ds.S.empresa" name="empresa">
+      </div>
+      
+      <div class="fg" style="margin-bottom: 12px;">
+        <label>Mes activo</label>
+        <input type="month" [(ngModel)]="ds.S.mesActivo" name="mes">
+      </div>
+      
+      <div class="fg" style="margin-bottom: 16px;">
+        <label>Días festivos (separar por una coma)</label>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input [(ngModel)]="ds.S.festivosString" placeholder="ej: 1,7,19" style="flex:1;">
+          <button type="button" class="btn sm" (click)="sugerirFestivosColombia()" title="Rellena con los festivos oficiales de Colombia del mes activo, sin borrar lo que ya hayas escrito">
+            <i class="bi bi-stars"></i> Sugerir
+          </button>
+        </div>
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <button class="btn pri" (click)="ds.autoSave()">Guardar Parámetros</button>
+        <button class="btn" style="background: #581c87; color: white; font-weight: bold;" [disabled]="generandoMatriz" [style.opacity]="generandoMatriz ? 0.6 : 1" [style.cursor]="generandoMatriz ? 'not-allowed' : 'pointer'" (click)="generarMatrizMensual()">
+          <i class="bi" [ngClass]="generandoMatriz ? 'bi-hourglass-split' : 'bi-lightning-charge-fill'" style="color:#fbbf24;"></i> {{ generandoMatriz ? 'Generando...' : 'Generar Matriz del Mes' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Transportadoras</div>
+      
+      <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px;">
+        
+        <div *ngFor="let transp of listaTransportadoras" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--color-borde-suave);">
+          <span style="font-size: 14px; font-weight: 600;">{{ transp.nombre }}</span>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <span class="tag" style="background: #1e3a8a; color: #93c5fd; padding: 2px 10px; border-radius: 12px; font-size: 11px; text-transform: lowercase;">
+              {{ transp.clave }}
+            </span>
+            <button class="btn pri sm" style="padding: 2px 8px; font-size: 11px; border-radius: 4px;" (click)="abrirCupo(transp.nombre)">
+              Cupo
+            </button>
+          </div>
+        </div>
+
+        <div *ngIf="listaTransportadoras.length === 0" style="font-size: 13px; color: var(--color-texto-apagado); padding: 8px 0; text-align: center;">
+          No hay transportadoras registradas.
+        </div>
+      </div>
+      
+      <button class="btn sm" (click)="isModalTranspOpen = true">+ Agregar</button>
+    </div>
+
+    <div class="card">
+      <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Motor de reasignación</div>
+      <div style="font-size: 13px; color: var(--color-texto-secundario); line-height: 1.8; font-weight: 400;">
+        Al agregar un viaje extra:<br> 
+        1. Verificar vehículos disponibles<br> 
+        2. Filtrar por capacidad de cajas<br> 
+        3. Verificar días de descanso<br> 
+        4. Verificar conductor activo<br> 
+        5. Asignar el de menor carga<br> 
+        6. Si hay conflicto mueve el viaje existente<br> 
+        7. Si no hay disponibilidad se generara una alerta
+      </div>
+    </div>
+
+    <div class="card" [style.border]="modoActual === 'pruebas' ? '2px solid #f59e0b' : '2px solid transparent'">
+      <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Modo de trabajo</div>
+
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+        <span style="font-size: 13px; color: var(--color-texto-secundario);">Modo activo:</span>
+        <span style="font-size: 13px; font-weight: 700; padding: 3px 12px; border-radius: 12px;"
+              [style.background]="modoActual === 'pruebas' ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)'"
+              [style.color]="modoActual === 'pruebas' ? '#fbbf24' : '#34d399'">
+          <i class="bi" [ngClass]="modoActual === 'pruebas' ? 'bi-flask-fill' : 'bi-check-circle-fill'"></i> {{ modoActual === 'pruebas' ? 'PRUEBA' : 'REAL' }}
+        </span>
+      </div>
+
+      <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0; line-height: 1.5;">
+        {{ modoActual === 'pruebas'
+          ? 'Estás trabajando sobre una copia de prueba — el Excel real se mantiene intacto hasta cambiar a el real.'
+          : 'Estás trabajando sobre tu Excel real de siempre.' }}
+      </p>
+
+      <button class="btn" *ngIf="auth.isAdmin" [style.background]="modoActual === 'pruebas' ? '#10b981' : '#f59e0b'" style="color: var(--color-texto-principal); font-weight:bold;"
+              [disabled]="cambiandoModo" (click)="cambiarModo()">
+        {{ cambiandoModo ? 'Cambiando...' : (modoActual === 'pruebas' ? 'Volver a modo Real' : 'Entrar a modo Prueba') }}
+      </button>
+      <p *ngIf="!auth.isAdmin" style="font-size: 12px; color: var(--color-texto-apagado); font-style: italic; margin: 0;">
+        Solo el administrador puede cambiar el modo de trabajo.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Apariencia</div>
+
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+        <span style="font-size: 13px; color: var(--color-texto-secundario);">Tema actual:</span>
+        <span style="font-size: 13px; font-weight: 700; padding: 3px 12px; border-radius: 12px;"
+              [style.background]="theme.temaActual === 'claro' ? 'rgba(245,158,11,0.2)' : 'rgba(96,165,250,0.2)'"
+              [style.color]="theme.temaActual === 'claro' ? '#fbbf24' : '#60a5fa'">
+          <i class="bi" [ngClass]="theme.temaActual === 'claro' ? 'bi-sun-fill' : 'bi-moon-stars-fill'"></i> {{ theme.temaActual === 'claro' ? 'CLARO' : 'OSCURO' }}
+        </span>
+      </div>
+
+      <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0; line-height: 1.5;">
+        Nota: esto es un trabajo en construcción — por ahora solo algunas partes de la app cambian de color al activarlo; el resto se irá actualizando poco a poco.
+      </p>
+
+      <button class="btn" [style.background]="theme.temaActual === 'claro' ? '#334155' : '#f59e0b'" style="color: var(--color-texto-principal); font-weight:bold;"
+              (click)="theme.alternarTema()">
+        <i class="bi" [ngClass]="theme.temaActual === 'claro' ? 'bi-moon-stars-fill' : 'bi-sun-fill'"></i>
+        {{ theme.temaActual === 'claro' ? 'Cambiar a modo Oscuro' : 'Cambiar a modo Claro' }}
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Respaldos</div>
+      <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0; line-height: 1.5;">
+        Cada guardado crea un respaldo automático — úsalo para volver atrás si algo grande (como "Generar Matriz") no salió como esperabas. Solo se muestran los respaldos del modo en el que estás trabajando ahora ({{ modoActual === 'pruebas' ? 'Prueba' : 'Real' }}).
+      </p>
+      <button class="btn" *ngIf="auth.isAdmin" style="background:var(--color-fondo-tarjeta-hover); color: var(--color-texto-principal); font-weight:bold;" (click)="abrirModalRespaldos()">
+        <i class="bi bi-clock-history"></i> Restaurar desde un respaldo
+      </button>
+      <p *ngIf="!auth.isAdmin" style="font-size: 12px; color: var(--color-texto-apagado); font-style: italic; margin: 0;">
+        Solo el administrador puede restaurar respaldos.
+      </p>
+    </div>
+
+    <div class="card" *ngIf="auth.isAdmin">
+      <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Resumen de vencimientos</div>
+      <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0; line-height: 1.5;">
+        Cada lunes el sistema envía por correo un resumen (a los correos definidos en el servidor; por defecto, el del administrador) de los SOAT, tecnomecánicas y licencias que ya vencieron o vencen en los próximos 30 días (si no hay nada pendiente, no envía nada). Con este botón puedes mandarlo ahora mismo.
+      </p>
+      <button class="btn" style="background:var(--color-fondo-tarjeta-hover); color: var(--color-texto-principal); font-weight:bold;" [disabled]="enviandoResumenVencimientos" (click)="enviarResumenVencimientos()">
+        <i class="bi" [ngClass]="enviandoResumenVencimientos ? 'bi-hourglass-split' : 'bi-envelope-paper'"></i>
+        {{ enviandoResumenVencimientos ? 'Enviando...' : 'Enviar resumen ahora' }}
+      </button>
+    </div>
+
+  </div>
+
+  <div class="card" style="margin-top: 16px;" *ngIf="ds.S?.cuposExt?.length > 0">
+    <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Cupos Extraordinarios Programados</div>
+    <div style="overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: var(--color-texto-principal); text-align: left;">
+        <thead>
+          <tr style="border-bottom: 2px solid rgba(255,255,255,0.1);">
+            <th style="padding: 8px;">Fecha</th>
+            <th style="padding: 8px;">Placa</th>
+            <th style="padding: 8px;">Transportadora</th>
+            <th style="padding: 8px;">Ruta</th>
+            <th style="padding: 8px; text-align: center;">Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let c of ds.S.cuposExt" style="border-bottom: 1px solid var(--color-borde-suave);">
+            <td style="padding: 8px;">{{ c.fecha }}</td>
+            <td style="padding: 8px;"><code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">{{ c.placa }}</code></td>
+            <td style="padding: 8px;">{{ c.transp }}</td>
+            <td style="padding: 8px;"><code>{{ c.ruta }}</code></td>
+            <td style="padding: 8px; text-align: center;">
+              <button class="btn red sm" style="padding: 2px 8px; font-size: 11px; font-weight: bold;" (click)="verDetalleCupo(c.id)"><i class="bi bi-eye-fill" style="color: var(--color-texto-principal);"></i></button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="mbg" [class.hide]="!isModalTranspOpen">
+  <div class="modal" style="width:360px">
+    <h3>Nueva Transportadora</h3>
+    <div class="frow full">
+      <div class="fg">
+        <label>Nombre de la transportadora</label>
+        <input type="text" [(ngModel)]="datosTransp.nombre" placeholder="Nombre de la transportadora">
+      </div>
+    </div>
+    <div class="frow full">
+      <div class="fg">
+        <label>Clave (sin espacios)</label>
+        <input type="text" [(ngModel)]="datosTransp.clave" placeholder="Clave (sin espacios)">
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn" (click)="isModalTranspOpen = false">Cancelar</button>
+      <button class="btn pri" (click)="guardarTransp()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="mbg" [class.hide]="!isModalCupoOpen">
+  <div class="modal" style="width:360px">
+    <h3>Fijar Cupo Extraordinario</h3>
+    <div style="font-size: 12px; color: #a855f7; margin-bottom: 12px; font-weight: bold;">Aliado: {{ cupo.transp }}</div>
+    
+    <div class="frow full">
+      <div class="fg">
+        <label>Placa del Vehículo</label>
+        <input type="text" [(ngModel)]="cupo.placa" placeholder="Ej: XYZ123" style="text-transform: uppercase;">
+      </div>
+    </div>
+    <div class="frow full">
+      <div class="fg">
+        <label>Fecha de Operación</label>
+        <input type="date" [(ngModel)]="cupo.fecha">
+      </div>
+    </div>
+    <div class="frow full">
+      <div class="fg">
+        <label>Ruta Asignada</label>
+        <select [(ngModel)]="cupo.ruta" (change)="onRutaChange()" style="width: 100%; background: #1e1e2e; color: var(--color-texto-principal); padding: 6px; border: 1px solid var(--color-borde); border-radius: 4px;">
+          <option value="" disabled selected>-- Selecciona Ruta --</option>
+          <option *ngFor="let r of ds.S?.rutas" [value]="r.cod">{{ r.cod }} - {{ r.dest || r.destino }}</option>
+        </select>
+      </div>
+    </div>
+    <div class="frow full" style="margin-top: 12px;">
+      <div class="fg">
+        <label>Hora Programada</label>
+        <input type="text" [(ngModel)]="cupo.horaProg" placeholder="Ej: 18:30">
+      </div>
+    </div>
+    <div class="mfoot" style="margin-top: 16px;">
+      <button class="btn" (click)="isModalCupoOpen = false">Cancelar</button>
+      <button class="btn pri" (click)="guardarCupo()">Confirmar Cupo</button>
+    </div>
+  </div>
+</div>
+
+<div class="mbg" [class.hide]="!isModalDetalleOpen">
+  <div class="modal" style="width:360px" *ngIf="selectedCupo">
+    <h3>Detalle de Cupo</h3>
+    <div style="font-size: 13px; color: var(--color-texto-secundario); line-height: 1.6; margin-bottom: 16px;">
+      <p><strong>Transportadora:</strong> {{ selectedCupo.transp }}</p>
+      <p><strong>Placa:</strong> {{ selectedCupo.placa }}</p>
+      <p><strong>Fecha:</strong> {{ selectedCupo.fecha }}</p>
+      <p><strong>Ruta:</strong> {{ selectedCupo.ruta }}</p>
+      <p><strong>Hora:</strong> {{ selectedCupo.horaProg }}</p>
+    </div>
+    <div class="mfoot" style="display: flex; justify-content: space-between; width: 100%;">
+      <button class="btn red" (click)="eliminarCupo()">Eliminar</button>
+      <button class="btn" (click)="isModalDetalleOpen = false">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="mbg" [class.hide]="!isModalRespaldosOpen">
+  <div class="modal" style="width:480px; max-height: 80vh; overflow-y: auto;">
+    <h3>Restaurar desde un respaldo</h3>
+    <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0;">
+      Solo se muestran los respaldos del modo actual ({{ modoActual === 'pruebas' ? 'Prueba' : 'Real' }}). El más reciente aparece primero.
+    </p>
+
+    <div *ngIf="cargandoRespaldos" style="text-align:center; padding: 20px; color: var(--color-texto-secundario);">Cargando respaldos...</div>
+
+    <div *ngIf="!cargandoRespaldos" style="display: flex; flex-direction: column; gap: 8px;">
+      <div *ngFor="let r of listaRespaldos" style="display:flex; align-items:center; justify-content:space-between; background: var(--color-fondo-tarjeta); border-radius: 6px; padding: 10px 12px;">
+        <span style="font-size: 13px; color: var(--color-texto-principal);">
+          <i class="bi bi-file-earmark-spreadsheet-fill" style="color:#34d399;"></i> {{ r.fecha }}
+          <span *ngIf="etiquetaRespaldo(r.nombre)" style="color: var(--color-texto-secundario); font-size: 11px;"> — {{ etiquetaRespaldo(r.nombre) }}</span>
+        </span>
+        <button class="btn sm" style="background:var(--color-fondo-tarjeta-hover); color: var(--color-texto-principal);" [disabled]="restaurandoRespaldo" (click)="restaurarRespaldo(r.nombre, r.fecha)">
+          {{ restaurandoRespaldo ? 'Restaurando...' : 'Restaurar' }}
+        </button>
+      </div>
+
+      <div *ngIf="!listaRespaldos.length" style="text-align:center; padding: 20px; color: var(--color-texto-apagado); font-style: italic;">
+        No hay respaldos disponibles para este modo todavía.
+      </div>
+    </div>
+
+    <div class="mfoot" style="margin-top: 16px;">
+      <button class="btn" (click)="cerrarModalRespaldos()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="mbg" [class.hide]="!isModalCargaOpen" style="background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center;">
+  <div style="text-align: center; color: var(--color-texto-principal);">
+    <div style="font-size: 16px; font-weight: bold; margin-bottom: 8px;"><i class="bi bi-gear-wide-connected" style="color:#a855f7;"></i> Procesando Matriz Logística...</div>
+    <div style="font-size: 12px; color: #a855f7;">Escribiendo cambios en Excel central y recalculando rutas ordinarias/festivas.</div>
+  </div>
+</div>
+<button (click)="ds.borrarCache()" class="btn-danger">
+  Limpiar Caché y Recargar
+</button>
+<!-- Modal de confirmación propio — mismo patrón ya usado en el resto de la app. -->
+<div class="mbg" [class.hide]="!confirmDialogAbierto">
+  <div class="modal" style="width:420px">
+    <p style="font-size: 14px; color: var(--color-texto-principal); line-height: 1.5; margin: 0 0 18px 0; white-space: pre-line;">{{ confirmDialogMensaje }}</p>
+    <div class="mfoot">
+      <button class="btn" (click)="confirmDialogElegir(false)">{{ confirmDialogBtnCancelar }}</button>
+      <button class="btn pri" (click)="confirmDialogElegir(true)">{{ confirmDialogBtnAceptar }}</button>
+    </div>
+  </div>
+</div>

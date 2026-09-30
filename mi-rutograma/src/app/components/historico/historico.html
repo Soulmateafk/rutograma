@@ -1,0 +1,158 @@
+<div class="historico-container">
+  <div class="historico-header">
+    <h2>Historico de Meses</h2>
+    <div class="button-group">
+      <button class="btn-primary" *ngIf="auth.puedeEditar" (click)="cerrarMes()">Cerrar mes y guardar</button>
+      <button class="btn-success" (click)="exportarHistorico()">Exportar todo a Excel</button>
+      <button class="btn-danger" *ngIf="auth.puedeEditar" (click)="limpiarHistorico()">Limpiar historico</button>
+    </div>
+  </div>
+
+  <!-- ===================== TENDENCIA HISTÓRICA ===================== -->
+  <div class="tendencia-card" *ngIf="historialOrdenado.length > 1">
+    <div class="card-label">TENDENCIA — ÚLTIMOS MESES</div>
+
+    <div class="grafica-bloque">
+      <div class="grafica-titulo">Costo total de operación</div>
+      <svg [attr.viewBox]="'0 0 ' + anchoGrafica + ' ' + altoGrafica" class="grafica-svg">
+        <polyline [attr.points]="lineaCosto" fill="none" stroke="#3b82f6" stroke-width="2" />
+        <circle *ngFor="let p of puntosCosto; let i = index" [attr.cx]="p.x" [attr.cy]="p.y" r="3.5" fill="#3b82f6">
+          <title>{{ etiquetasTendencia[i] }}: $ {{ historialOrdenado[i].costo | number:'1.0-0' }}</title>
+        </circle>
+      </svg>
+      <div class="grafica-ejes">
+        <span *ngFor="let e of etiquetasTendencia">{{ e }}</span>
+      </div>
+    </div>
+
+    <div class="grafica-bloque">
+      <div class="grafica-titulo">Viajes totales</div>
+      <svg [attr.viewBox]="'0 0 ' + anchoGrafica + ' ' + altoGrafica" class="grafica-svg">
+        <polyline [attr.points]="lineaViajes" fill="none" stroke="#10b981" stroke-width="2" />
+        <circle *ngFor="let p of puntosViajes; let i = index" [attr.cx]="p.x" [attr.cy]="p.y" r="3.5" fill="#10b981">
+          <title>{{ etiquetasTendencia[i] }}: {{ historialOrdenado[i].totalViajes }} viajes</title>
+        </circle>
+      </svg>
+      <div class="grafica-ejes">
+        <span *ngFor="let e of etiquetasTendencia">{{ e }}</span>
+      </div>
+    </div>
+  </div>
+  <div class="empty-state" *ngIf="historialOrdenado.length <= 1">
+    Necesitas al menos 2 meses cerrados para ver la tendencia.
+  </div>
+
+  <div class="historico-card">
+    <div class="card-label">MESES GUARDADOS</div>
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:14px;">
+      <div class="form-group" style="margin:0;">
+        <label>Transportadora</label>
+        <select [(ngModel)]="filtroTransportadoraHist">
+          <option value="">Todas</option>
+          <option value="makand">Makand</option>
+          <option value="arsi">Arsitrans</option>
+          <option value="polar">Polar</option>
+          <option value="tercero">Tercero</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label>Año desde</label>
+        <input type="number" [(ngModel)]="filtroAnioDesde" placeholder="Ej: 2025">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label>Año hasta</label>
+        <input type="number" [(ngModel)]="filtroAnioHasta" placeholder="Ej: 2026">
+      </div>
+      <button class="btn" *ngIf="hayFiltrosHistActivos" (click)="limpiarFiltrosHistorico()"><i class="bi bi-x-lg"></i> Limpiar filtros</button>
+      <span *ngIf="hayFiltrosHistActivos" style="font-size:12px; color: var(--color-texto-apagado);">
+        {{ historialFiltrado.length }} de {{ historial.length }} meses
+      </span>
+    </div>
+
+    <div *ngIf="historial.length === 0" class="empty-state">
+      Sin meses guardados. Usa "Cerrar mes y guardar".
+    </div>
+    <div *ngIf="historial.length > 0 && historialFiltrado.length === 0" class="empty-state">
+      Ningún mes coincide con estos filtros.
+    </div>
+
+    <div *ngFor="let item of historialFiltrado"
+         class="historico-item"
+         [class.seleccionado]="detalle === item"
+         (click)="verDetHist(item)">
+      <div class="hist-item-top">
+        <span class="hist-item-label">{{ item.label }}</span>
+        <span class="hist-item-costo">$ {{ item.costo | number:'1.0-0' }}</span>
+      </div>
+      <div class="hist-item-sub">
+        {{ item.totalViajes }} viajes · {{ item.totalCajas }} cajas · {{ item.viajesExtra }} extra
+      </div>
+      <button class="btn-exportar-mes" (click)="exportarMes(item, $event)"><i class="bi bi-download"></i> Excel</button>
+      <button class="btn-exportar-mes" (click)="descargarPDF(item, $event)"><i class="bi bi-file-earmark-pdf-fill"></i> PDF</button>
+    </div>
+  </div>
+
+  <!-- ===================== DETALLE / LIQUIDACIÓN ===================== -->
+  <div class="detalle-card" *ngIf="detalle">
+    <div class="detalle-header">
+      <h3>{{ detalle.label }}</h3>
+      <button class="btn-cerrar-detalle" (click)="detalle = null"><i class="bi bi-x-lg"></i></button>
+    </div>
+
+    <div class="detalle-resumen">
+      <div class="resumen-cifra">
+        <span>Viajes totales</span>
+        <strong>{{ detalle.totalViajes }}</strong>
+      </div>
+      <div class="resumen-cifra">
+        <span>Cajas</span>
+        <strong>{{ detalle.totalCajas }}</strong>
+      </div>
+      <div class="resumen-cifra">
+        <span>Viajes extra</span>
+        <strong>{{ detalle.viajesExtra }}</strong>
+      </div>
+      <div class="resumen-cifra costo-total">
+        <span>Costo total de operación</span>
+        <strong>$ {{ detalle.costo | number:'1.0-0' }}</strong>
+      </div>
+    </div>
+
+    <div class="stitle-liq">Liquidación por transportadora</div>
+    <table class="tabla-liquidacion">
+      <thead>
+        <tr>
+          <th>Transportadora</th>
+          <th>Viajes</th>
+          <th>Cajas</th>
+          <th>Costo</th>
+          <th>% del total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let k of getKeys(detalle.porTr)">
+          <td>
+            <span class="dot-tr" [style.background]="coloresTransportadora[k] || '#64748b'"></span>
+            {{ tNom(k) }}
+          </td>
+          <td>{{ detalle.porTr[k].n }}</td>
+          <td>{{ detalle.porTr[k].cajas }}</td>
+          <td>$ {{ detalle.porTr[k].costo | number:'1.0-0' }}</td>
+          <td>{{ detalle.costo ? ((detalle.porTr[k].costo / detalle.costo) * 100 | number:'1.0-0') : 0 }}%</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal de confirmación propio — reemplaza confirm() nativo. -->
+<div class="mbg" [class.hide]="!confirmDialogAbierto">
+  <div class="modal" style="width:420px">
+    <p style="font-size: 14px; line-height: 1.5; margin: 0 0 18px 0; white-space: pre-line;">{{ confirmDialogMensaje }}</p>
+    <div class="mfoot">
+      <button class="btn" (click)="confirmDialogElegir(false)">{{ confirmDialogBtnCancelar }}</button>
+      <button class="btn pri" (click)="confirmDialogElegir(true)">{{ confirmDialogBtnAceptar }}</button>
+    </div>
+  </div>
+</div>

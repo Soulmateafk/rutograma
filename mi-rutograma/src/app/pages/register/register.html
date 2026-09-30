@@ -1,0 +1,105 @@
+<div class="login-container">
+  <div class="reg-bg-lines"></div>
+  <div class="reg-glow reg-glow-blue"></div>
+  <div class="reg-glow reg-glow-orange"></div>
+
+  <div class="login-card">
+    <div class="reg-badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 17V7a1 1 0 0 1 1-1h9v11" />
+        <path d="M13 10h4l3 3v4h-7" />
+        <circle cx="7" cy="17.5" r="1.8" />
+        <circle cx="17" cy="17.5" r="1.8" />
+      </svg>
+    </div>
+    <div class="reg-wordmark">MAKA<span>ND</span></div>
+
+    <div class="reg-route">
+      <span class="reg-route-dot"></span>
+      <span class="reg-route-line"></span>
+      <span class="reg-route-dot reg-route-dot-end"></span>
+    </div>
+
+    <div class="header">
+      <h2>Solicitar Acceso</h2>
+      <p>Completa tus datos para crear una solicitud</p>
+    </div>
+
+    <div class="form-group">
+      <div class="reg-field">
+        <label class="reg-label">Nombre completo</label>
+        <div class="reg-input-wrap">
+          <svg class="reg-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+          <input type="text" [(ngModel)]="nombre" placeholder="Ej: Camilo Rodríguez">
+        </div>
+      </div>
+
+      <div class="reg-field">
+        <label class="reg-label">Correo electrónico</label>
+        <div class="reg-input-wrap">
+          <svg class="reg-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="5" width="18" height="14" rx="2" />
+            <path d="m3 7 9 6 9-6" />
+          </svg>
+          <input type="email" [(ngModel)]="email" placeholder="tu.correo@makand.com">
+        </div>
+      </div>
+
+      <div class="reg-field">
+        <label class="reg-label">Contraseña</label>
+        <div class="reg-input-wrap">
+          <svg class="reg-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="11" width="16" height="9" rx="2" />
+            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+          </svg>
+          <input type="password" [(ngModel)]="pass" placeholder="Mínimo 6 caracteres">
+        </div>
+      </div>
+
+      <div class="reg-field">
+        <label class="reg-label">Departamento</label>
+        <div class="reg-input-wrap reg-dropdown" [class.reg-dropdown-open]="isDropdownOpen">
+          <svg class="reg-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 21V9l9-6 9 6v12" />
+            <path d="M9 21v-6h6v6" />
+          </svg>
+          <button type="button" class="reg-dropdown-trigger" (click)="toggleDropdown()">
+            <span [class.reg-dropdown-placeholder]="!departamento">{{ departamento || 'Selecciona tu departamento' }}</span>
+            <svg class="reg-dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+
+          <div class="reg-dropdown-panel" *ngIf="isDropdownOpen">
+            <button type="button" *ngFor="let d of departamentos" class="reg-dropdown-item" [class.reg-dropdown-item-activo]="d === departamento" (click)="seleccionarDepartamento(d)">
+              {{ d }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <button (click)="enviarSolicitud()" class="btn-primary">
+        <span>Enviar solicitud</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="reg-btn-arrow">
+          <path d="M5 12h14" />
+          <path d="m13 6 6 6-6 6" />
+        </svg>
+      </button>
+
+      <p class="reg-hint">Un administrador revisará tu solicitud antes de darte acceso.</p>
+    </div>
+
+    <div class="reg-footer">
+      <a routerLink="/login">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5" />
+          <path d="m12 19-7-7 7-7" />
+        </svg>
+        Volver al inicio de sesión
+      </a>
+    </div>
+  </div>
+</div>

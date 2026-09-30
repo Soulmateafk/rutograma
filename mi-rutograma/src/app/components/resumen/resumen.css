@@ -1,0 +1,146 @@
+.resumen-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(37, 99, 235, 0.15), transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(245, 158, 11, 0.12), transparent 45%);
+}
+
+.resumen-card {
+  background: var(--color-fondo-tarjeta, #0f172a);
+  border: 1px solid var(--color-borde, #334155);
+  border-radius: 18px;
+  padding: 40px;
+  max-width: 640px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+.resumen-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 28px;
+  text-align: left;
+}
+
+.resumen-banner-icon {
+  font-size: 42px;
+  line-height: 1;
+}
+
+.resumen-card h1 {
+  margin: 0 0 4px 0;
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--color-texto-principal, #e2e8f0);
+}
+
+.resumen-fecha {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-texto-apagado, #94a3b8);
+  text-transform: capitalize;
+}
+
+.resumen-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 26px;
+}
+
+.resumen-stat {
+  background: var(--color-fondo-input, #1e293b);
+  border: 1px solid var(--color-borde, #334155);
+  border-radius: 12px;
+  padding: 20px 10px;
+  transition: transform 0.15s ease;
+}
+
+.resumen-stat-destacado {
+  background: linear-gradient(160deg, rgba(37, 99, 235, 0.25), rgba(37, 99, 235, 0.05));
+  border-color: #2563eb;
+}
+
+.resumen-stat-valor {
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--color-texto-principal, #e2e8f0);
+  line-height: 1;
+}
+
+.resumen-stat-label {
+  font-size: 12px;
+  color: var(--color-texto-apagado, #94a3b8);
+  margin-top: 8px;
+  font-weight: 600;
+}
+
+.resumen-stat.resumen-alerta {
+  border-color: #f59e0b;
+  background: linear-gradient(160deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.04));
+}
+
+.resumen-stat.resumen-alerta .resumen-stat-valor {
+  color: #f59e0b;
+}
+
+.resumen-nota {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-texto-apagado, #94a3b8);
+  margin-bottom: 24px;
+}
+
+.resumen-nota-alerta {
+  color: #f59e0b;
+}
+
+.resumen-btn {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  width: 100%;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.resumen-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+}
+
+@media (max-width: 520px) {
+  .resumen-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mismo criterio que login.css/register.css para celulares angostos. */
+@media (max-width: 420px) {
+  .resumen-card {
+    padding: 26px 18px;
+  }
+  .resumen-banner {
+    gap: 10px;
+  }
+  .resumen-banner-icon {
+    font-size: 32px;
+  }
+  .resumen-card h1 {
+    font-size: 21px;
+  }
+  .resumen-stat-valor {
+    font-size: 28px;
+  }
+}

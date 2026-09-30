@@ -1,0 +1,48 @@
+<div class="resumen-wrapper">
+  <div class="resumen-card">
+    <div class="resumen-banner">
+      <div class="resumen-banner-icon"><i class="bi bi-truck"></i></div>
+      <div>
+        <h1>¡Bienvenido de vuelta!</h1>
+        <p class="resumen-fecha">{{ hoyTexto }}</p>
+      </div>
+    </div>
+
+    <div class="resumen-grid">
+      <div class="resumen-stat resumen-stat-destacado">
+        <div class="resumen-stat-valor">{{ viajesHoy }}</div>
+        <div class="resumen-stat-label">Viajes hoy</div>
+      </div>
+
+      <div class="resumen-stat resumen-stat-destacado">
+        <div class="resumen-stat-valor">{{ vehiculosDisponibles }}</div>
+        <div class="resumen-stat-label">Vehículos disponibles</div>
+      </div>
+
+      <div class="resumen-stat" [class.resumen-alerta]="vehiculosEnMantenimiento > 0">
+        <div class="resumen-stat-valor">{{ vehiculosEnMantenimiento }}</div>
+        <div class="resumen-stat-label">En mantenimiento</div>
+      </div>
+
+      <div class="resumen-stat" [class.resumen-alerta]="novedadesSinResolver > 0">
+        <div class="resumen-stat-valor">{{ novedadesSinResolver }}</div>
+        <div class="resumen-stat-label">Novedades sin resolver</div>
+      </div>
+
+      <div class="resumen-stat" [class.resumen-alerta]="licenciasPorVencer > 0">
+        <div class="resumen-stat-valor">{{ licenciasPorVencer }}</div>
+        <div class="resumen-stat-label">Licencias por vencer</div>
+      </div>
+
+      <div class="resumen-stat" [class.resumen-alerta]="documentosPorVencer > 0">
+        <div class="resumen-stat-valor">{{ documentosPorVencer }}</div>
+        <div class="resumen-stat-label">Documentos por vencer</div>
+      </div>
+    </div>
+
+    <p class="resumen-nota" *ngIf="!hayAlertas"><i class="bi bi-check-circle-fill"></i> Todo se ve tranquilo por ahora.</p>
+    <p class="resumen-nota resumen-nota-alerta" *ngIf="hayAlertas"><i class="bi bi-exclamation-triangle-fill"></i> Hay puntos que valen la pena revisar hoy.</p>
+
+    <button class="resumen-btn" (click)="irADashboard()">Ir al Dashboard completo →</button>
+  </div>
+</div>

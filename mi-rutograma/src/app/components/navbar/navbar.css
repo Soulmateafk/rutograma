@@ -1,0 +1,102 @@
+/* === Modales de Viaje Extra / Novedad ===
+   Si tu navbar.css ya tiene estilos del propio <nav> (logo, tabs, badge,
+   btn...), esos ya deberían venir de tus estilos globales. Esto de aquí
+   es SOLO lo nuevo para los modales — agrégalo al final de tu archivo,
+   no lo reemplaces si ya tiene contenido. */
+
+.nb-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .75);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nb-modal {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 22px;
+  width: 480px;
+  max-width: 92vw;
+  max-height: 88vh;
+  overflow-y: auto;
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.nb-modal h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.nb-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.nb-form-grid-1 {
+  grid-template-columns: 1fr;
+}
+
+.nb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.nb-field label {
+  font-size: 11px;
+  color: var(--text2);
+  font-weight: 500;
+}
+
+.nb-field input,
+.nb-field select,
+.nb-field textarea {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.nb-field input:focus,
+.nb-field select:focus,
+.nb-field textarea:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.nb-field textarea {
+  resize: vertical;
+}
+
+.nb-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+/* BUG REAL encontrado y corregido: estos modales (Viaje Extra,
+   Novedad) usaban 2 columnas fijas sin ninguna versión para celular —
+   se apilan en una sola columna en pantallas chicas. */
+@media (max-width: 560px) {
+  .nb-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.nav-search{
+   padding: 6px 10px;
+    border-radius: 6px;
+   font-size: 10px;
+   width: 162px;
+}

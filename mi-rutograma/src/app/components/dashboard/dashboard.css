@@ -1,0 +1,723 @@
+/* ============================================================
+   DASHBOARD — usa las variables globales de styles.css
+   (--bg, --bg2, --bg3, --border2, --text, --blue, --green, etc.)
+   ============================================================ */
+
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* --- Selector de mes/año --- */
+.gestion-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(135deg, var(--bg2), var(--bg3));
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  padding: 12px 16px;
+  width: 100%;
+}
+.gestion-periodo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.gestion-icono {
+  font-size: 22px;
+  line-height: 1;
+  background: rgba(59, 130, 246, .12);
+  border: 1px solid rgba(59, 130, 246, .3);
+  border-radius: 10px;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gestion-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.gestion-header label {
+  font-size: 10px;
+  color: var(--text2);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+}
+.gestion-header input[type="month"] {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+}
+.gestion-header input[type="month"]:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, .15);
+}
+.gestion-boton {
+  position: relative;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 6px 12px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  text-transform: capitalize;
+  text-align: left;
+}
+.gestion-boton:hover {
+  border-color: var(--blue);
+}
+.mc-mes {
+  top: calc(100% + 6px);
+  width: 220px;
+}
+.mc-meses-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.mc-mes-item {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 8px 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  text-transform: capitalize;
+}
+.mc-mes-item:hover {
+  border-color: var(--blue);
+}
+.mc-mes-item.mc-seleccionado {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.btn-cerrar-sesion {
+  margin-left: auto;
+  background: #7f1d1d;
+  border: 1px solid #ef4444;
+  color: #fecaca;
+  padding: 7px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-cerrar-sesion:hover {
+  background: #991b1b;
+}
+
+/* --- Filtro de fechas: "Próximas salidas" --- */
+.salidas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border2);
+}
+.salidas-filtros {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.filtro-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.filtro-grupo label {
+  font-size: 10px;
+  color: var(--text2);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.input-fecha {
+  position: relative;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  min-width: 100px;
+  color-scheme: dark;
+}
+.input-fecha:hover {
+  border-color: var(--blue);
+}
+.input-fecha:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, .15);
+}
+
+/* --- Calendario propio (reemplaza el selector nativo del navegador) --- */
+.mini-calendario {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 40;
+  width: 240px;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .45);
+  cursor: default;
+  font-weight: normal;
+  text-align: left;
+}
+.mc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.mc-titulo {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: capitalize;
+}
+.mc-nav {
+  background: var(--bg4);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mc-nav:hover {
+  background: var(--border2);
+  color: var(--text);
+}
+.mc-dias-semana {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+.mc-dias-semana span {
+  text-align: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+}
+.mc-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.mc-dia {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 11px;
+  padding: 6px 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.mc-dia:hover {
+  background: var(--bg4);
+}
+.mc-dia.mc-otro-mes {
+  color: var(--text3);
+  opacity: .5;
+}
+.mc-dia.mc-hoy {
+  border: 1px solid var(--blue);
+  font-weight: 700;
+}
+.mc-dia.mc-seleccionado {
+  background: var(--blue);
+  color: #fff;
+  font-weight: 700;
+}
+.mc-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border2);
+}
+.mc-accion {
+  background: none;
+  border: none;
+  color: var(--text2);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.mc-accion:hover {
+  background: var(--bg4);
+  color: var(--text);
+}
+.mc-accion-primaria {
+  color: var(--blue);
+}
+.filtro-divisor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  align-self: stretch;
+  padding: 0 2px;
+}
+.filtro-divisor::before,
+.filtro-divisor::after {
+  content: '';
+  width: 1px;
+  align-self: stretch;
+  background: var(--border2);
+}
+.filtro-divisor span {
+  color: var(--text3);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  white-space: nowrap;
+}
+.btn-quitar-filtro {
+  background: var(--bg4);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  padding: 7px 12px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .12s ease;
+  align-self: center;
+}
+.btn-quitar-filtro:hover {
+  background: var(--border2);
+  color: var(--text);
+}
+
+/* --- KPIs: variantes de color por borde superior --- */
+.kpi { border-top-width: 3px; }
+.kpi.text-left { text-align: left; }
+.kpi-green   { border-top-color: var(--green); }
+.kpi-amber   { border-top-color: var(--amber); }
+.kpi-red     { border-top-color: var(--red); }
+.kpi-blue    { border-top-color: var(--blue); }
+.kpi-urgente { border-top-color: var(--red2); background: linear-gradient(180deg, rgba(153,27,27,.12), transparent 60%); }
+.kpi-cyan    { border-top-color: var(--cyan); }
+.kpi-purple  { border-top-color: var(--purple); }
+.kpi-orange  { border-top-color: #F97316; }
+
+/* --- Título de sección con acción a la derecha --- */
+.stitle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.stitle-row .stitle { margin-bottom: 0; }
+.stitle-danger { color: var(--red); }
+.criticas-count {
+  background: #7f1d1d;
+  color: #FECACA;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 10px;
+  letter-spacing: .3px;
+}
+
+.header-resumen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.header-resumen .stitle { margin-bottom: 0; }
+
+/* --- Alertas --- */
+.lista-alertas {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.alerta-base {
+  display: flex;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--r);
+  font-size: 12px;
+  border: 1px solid transparent;
+}
+.alerta-r { background: #2d0a0a; border-color: #7f1d1d; color: #fecaca; }
+.alerta-a { background: #2d1b00; border-color: #92400e; color: #fde68a; }
+.alerta-g { background: #052e16; border-color: #14532d; color: #bbf7d0; }
+.alerta-b { background: #0c1a3d; border-color: #1e40af; color: #bfdbfe; }
+.alerta-icon { font-size: 15px; line-height: 1; margin-top: 1px; }
+.alerta-body strong { display: block; margin-bottom: 2px; font-size: 12px; }
+.alerta-body p { color: inherit; font-size: 11px; margin: 0; opacity: 0.85; }
+
+.estado-vacio {
+  color: var(--text3);
+  font-size: 12px;
+  text-align: center;
+  padding: 24px 10px;
+  font-style: italic;
+}
+
+/* --- Vehículos disponibles --- */
+.contenedor-disponibles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.card-vehiculo {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-left: 3px solid var(--blue);
+  border-radius: var(--r);
+  padding: 10px;
+  transition: transform .12s, border-color .12s;
+}
+.card-vehiculo:hover { transform: translateY(-2px); border-color: var(--blue); }
+.card-vehiculo.transportadora-arsi    { border-left-color: var(--green); }
+.card-vehiculo.transportadora-polar   { border-left-color: var(--cyan); }
+.card-vehiculo.transportadora-tercero { border-left-color: var(--purple); }
+.card-vehiculo.transportadora-makand  { border-left-color: var(--blue); }
+
+/* El dato real de v.tr es "Arsitrans"/"Polar" (palabra completa, ver
+   server.js), así que v.tr.toLowerCase() da "arsitrans"/"polar" — las
+   reglas de arriba (con "arsi") nunca coincidían con eso para Arsitrans.
+   Estas usan el nombre real y los mismos colores exactos que ya pinta el
+   Rutograma (transpExt: #064e3b / #0c4a6e), para que se vea consistente
+   en toda la app. */
+.card-vehiculo.transportadora-arsitrans { border-left-color: #064e3b; }
+.card-vehiculo.transportadora-polar     { border-left-color: #0c4a6e; }
+.v-placa {
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--text);
+}
+.v-tipo {
+  font-size: 10px;
+  color: var(--text2);
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.v-capacidad {
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 1px;
+}
+.v-badge {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--text2);
+  background: var(--bg4);
+  padding: 2px 7px;
+  border-radius: 8px;
+}
+
+/* --- Resumen semanal (mini rutograma) --- */
+.rutograma-mini {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.rutograma-mini th {
+  background: var(--bg3);
+  color: var(--text2);
+  font-weight: 600;
+  font-size: 10px;
+  padding: 8px 6px;
+  text-align: center;
+  border: 1px solid var(--border2);
+}
+.rutograma-mini th:first-child { text-align: left; padding-left: 10px; }
+.rutograma-mini th.hoy { background: var(--blue2); color: #fff; }
+.rutograma-mini td {
+  border: 1px solid var(--border);
+  padding: 5px;
+  text-align: center;
+  vertical-align: middle;
+}
+.rutograma-mini td.vname {
+  text-align: left;
+  padding-left: 10px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--bg3);
+}
+.rutograma-mini td.hoy { background: rgba(59, 130, 246, .08); }
+.bloque-viaje {
+  background: #1e3a8a;
+  border-left: 3px solid #93c5fd;
+  border-radius: 4px;
+  padding: 3px 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #dbeafe;
+}
+
+/* Color por transportadora — mismos tonos exactos que ya usa el
+   Rutograma (transpExt) y el resto del Dashboard (badge-mini/card-vehiculo),
+   para que se vea consistente en toda la app. */
+.bloque-viaje-arsitrans {
+  background: #064e3b;
+  border-left-color: #6ee7b7;
+  color: #a7f3d0;
+}
+.bloque-viaje-polar {
+  background: #0c4a6e;
+  border-left-color: #7dd3fc;
+  color: #bae6fd;
+}
+.bloque-viaje-makand {
+  background: #1e3a8a;
+  border-left-color: #93c5fd;
+  color: #dbeafe;
+}
+.fila-vacia {
+  text-align: center;
+  color: var(--text3);
+  font-style: italic;
+  padding: 18px;
+}
+
+/* --- Viajes urgentes --- */
+.urg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.urg-item {
+  background: #2d0a0a;
+  border: 1px solid #7f1d1d;
+  border-radius: var(--r);
+  padding: 8px 12px;
+  font-size: 12px;
+  color: white;
+}
+.urg-item strong { color: #FCA5A5; }
+.urg-fecha {
+  float: right;
+  color: var(--text2);
+  font-size: 11px;
+}
+
+/* --- Layout de tablas inferiores --- */
+.layout-tablas {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 14px;
+}
+.celda-fecha, .celda-hora { color: var(--text2); font-size: 11px; }
+.celda-placa { font-weight: 800; color: var(--text); }
+
+.badge-mini {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.badge-mini.tag-makand  { background: #1e3a8a; color: #bfdbfe; }
+.badge-mini.tag-arsi    { background: #064e3b; color: #a7f3d0; }
+.badge-mini.tag-polar   { background: #0c4a6e; color: #bae6fd; }
+.badge-mini.tag-tercero { background: #4c1d95; color: #ede9fe; }
+.badge-mini.tag-default { background: var(--bg4); color: var(--text2); }
+
+/* Nombre real de transportadora ("Arsitrans" → "tag-arsitrans"), ver nota
+   arriba en .card-vehiculo — mismo color exacto que el Rutograma. */
+.badge-mini.tag-arsitrans { background: #064e3b; color: #a7f3d0; }
+
+.status-programado {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text2);
+}
+.dot-red {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+  display: inline-block;
+}
+
+.card-novedades .empty-novedades {
+  color: var(--text3);
+  font-style: italic;
+  text-align: center;
+  padding: 30px 10px;
+  font-size: 12px;
+}
+
+.lista-novedades {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.novedad-item {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-left: 3px solid var(--amber);
+  border-radius: var(--r);
+  padding: 8px 10px;
+}
+.novedad-item.resuelta {
+  border-left-color: var(--text3);
+  opacity: .6;
+}
+
+.novedad-cabecera {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text2);
+  margin-bottom: 3px;
+}
+.novedad-tipo {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+
+.novedad-titulo {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.novedad-desc {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+
+.btn-resolver {
+  margin-top: 6px;
+  background: var(--bg4);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-resolver:hover { background: var(--border2); color: var(--text); }
+
+.novedad-resuelta-tag {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--green);
+  font-weight: 600;
+}
+
+/* BUG REAL encontrado y corregido: este contenedor existía en el HTML
+   pero no tenía NINGUNA regla CSS — no hacía nada. La tabla de
+   "Próximas salidas" (8 columnas: Fecha/Vehículo/Conductor/Destino/
+   Transp./Hora/Cajas/Estado) se aplastaba en celular en vez de
+   deslizar. overflow-x:auto es inofensivo en PC (si ya cabe todo, no
+   aparece ninguna barra de scroll). */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 900px) {
+  .table-responsive .tbl {
+    min-width: 720px;
+  }
+}
+
+/* --- Responsive --- */
+@media (max-width: 900px) {
+  .g2, .layout-tablas { grid-template-columns: 1fr; }
+  .kgrid.k5 { grid-template-columns: repeat(2, 1fr); }
+  .kgrid.k3 { grid-template-columns: 1fr; }
+
+  /* BUG REAL encontrado y corregido: "Próximas salidas" tenía título +
+     filtros (fecha, transportadora, quitar filtro) en una sola fila
+     con flex-wrap — en la práctica, en celular, los filtros quedaban
+     apretados contra el borde derecho y se cortaban en vez de bajar
+     limpiamente a su propia fila. Se fuerza a apilar en vertical. */
+  .salidas-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .salidas-filtros {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .filtro-grupo {
+    flex: 1;
+    min-width: 0;
+  }
+  .filtro-grupo .input-fecha {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+.comparativo-tendencia {font-weight: 600; margin-top: 2px; }
+.tendencia-up { color: #16a34a; }
+.tendencia-down { color: #dc2626; }
+.tendencia-igual { color: var(--texto-secundario, #888); }

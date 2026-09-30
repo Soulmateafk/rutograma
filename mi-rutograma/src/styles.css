@@ -1,0 +1,360 @@
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+/* --- AJUSTES PARA SOLUCIONAR EL BLOQUEO DE NAVEGACIÓN --- */
+
+/*
+ * VARIABLES DE COLOR — Modo Oscuro / Modo Claro
+ * =============================================
+ * Este archivo define los "nombres" de color que el resto de la app debe
+ * usar en vez de valores fijos (ej. usar var(--color-texto) en vez de
+ * escribir "#fff" directamente). Así, cambiar de tema es tan simple como
+ * agregar o quitar la clase "tema-claro" en el <body> (lo hace
+ * ThemeService automáticamente) — cada variable cambia de valor sola.
+ *
+ * CÓMO INTEGRARLO: pega TODO el contenido de este archivo al PRINCIPIO
+ * de tu src/styles.css (el archivo global donde ya viven tus clases
+ * compartidas .btn/.card/.modal). NO uses @import — dentro de un
+ * <style> embebido en un template de Angular no se resuelve bien
+ * (confirmado con un error real). Pegarlo directo es lo más simple y
+ * confiable, ya que styles.css ya se carga de forma global en toda la
+ * app sin configuración adicional.
+ *
+ * IMPORTANTE: definir estas variables NO cambia nada todavía por sí solo
+ * — cada archivo .html/.css de cada página tiene que ir reemplazando sus
+ * colores fijos por estas variables, uno por uno. Esa es la parte grande
+ * del trabajo que falta (ver notas en /areas/rutograma-makand.md).
+ */
+
+/*
+ * MODO OSCURO / MODO CLARO
+ * ========================
+ * CORREGIDO: la primera versión de este bloque inventaba nombres de
+ * variable nuevos (--color-fondo-pagina, etc.) sin saber que el proyecto
+ * YA tenía su propio sistema de variables más abajo en este mismo
+ * archivo (--bg, --text, --blue, etc. — ver el bloque ":root{...}" que
+ * sigue después de este). Ahora este bloque hace DOS cosas:
+ *
+ * 1. Define el MODO CLARO directamente sobre esas variables REALES
+ *    (--bg, --text, etc.) dentro de "body.tema-claro" — así todo lo que
+ *    YA usa esas variables (como dashboard.css) cambia de tema gratis,
+ *    sin tocar ni un archivo más.
+ * 2. Deja los nombres que Claude usó al principio (--color-texto-
+ *    principal, etc., ya aplicados en configuracion.html/rutograma.html/
+ *    rutas.html/conductores.html) como simples ALIAS que apuntan a las
+ *    variables reales — así esos archivos también seguirán funcionando
+ *    bien sin tener que re-convertirlos otra vez.
+ *
+ * El interruptor (ThemeService.alternarTema()) sigue igual: solo agrega
+ * o quita la clase "tema-claro" en el <body>.
+ */
+body.tema-claro {
+  --bg: #f1f5f9;
+  --bg2: #ffffff;
+  --bg3: #f8fafc;
+  --bg4: #e2e8f0;
+  --border: #e2e8f0;
+  --border2: #cbd5e1;
+  --text: #0f172a;
+  --text2: #475569;
+  --text3: #64748b;
+  --blue: #2563eb;
+  --blue2: #1d4ed8;
+  --green: #16a34a;
+  --green2: #15803d;
+  --amber: #d97706;
+  --red: #dc2626;
+  --red2: #991b1b;
+  --purple: #7c3aed;
+  --teal: #0d9488;
+  --cyan: #0891b2;
+}
+
+body {
+  /* Alias — apuntan a las variables reales de abajo, para que los
+     archivos ya convertidos con estos nombres sigan funcionando.
+     IMPORTANTE: van aquí en "body" (NO en ":root", que es el <html>) a
+     propósito — el interruptor de tema pone la clase "tema-claro" en el
+     <body>, y una variable CSS que hace referencia a otra ("var(--text)")
+     se recalcula usando el valor que tenga ESE MISMO elemento en ese
+     momento. Si el alias vive en :root pero el cambio de tema ocurre en
+     body (un elemento hijo), el alias se queda "congelado" con el valor
+     oscuro para siempre, sin importar lo que diga el interruptor — eso
+     es justo el bug real que hacía que nada pareciera cambiar. */
+  --color-fondo-pagina: var(--bg);
+  --color-fondo-tarjeta: var(--bg2);
+  --color-fondo-tarjeta-hover: var(--bg3);
+  --color-fondo-input: var(--bg3);
+  --color-fondo-modal: var(--bg2);
+  --color-borde: var(--border2);
+  --color-borde-suave: var(--border);
+
+  --color-texto-principal: var(--text);
+  --color-texto-secundario: var(--text2);
+  --color-texto-apagado: var(--text3);
+
+  --color-exito: var(--green);
+  --color-peligro: var(--red);
+  --color-advertencia: var(--amber);
+  --color-info: var(--blue);
+}
+
+body {
+  background-color: var(--color-fondo-pagina);
+  color: var(--color-texto-principal);
+  transition: background-color 1.5s ease, color 1.5s ease;
+}
+
+
+/* 1. Mantenemos el display: none, pero añadimos pointer-events para mayor seguridad */
+.mbg.hide {
+  display: none !important;
+  pointer-events: none !important; /* Esto evita que el div "invisible" atrape los clics */
+}
+
+/* 2. Aseguramos que la barra de navegación esté SIEMPRE encima de todo */
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 10000; /* Aumentado de 200 a 10000 para ganar a cualquier modal */
+}
+
+/* 3. Aseguramos que el main (donde está el router-outlet) tenga un z-index menor */
+main {
+  position: relative;
+  z-index: 1;
+}
+
+/* --- EL RESTO DE TU CÓDIGO (NO SE HA BORRADO NADA) --- */
+:root{
+  --bg:#0B1120;--bg2:#111827;--bg3:#1F2937;--bg4:#374151;
+  --border:#1F2937;--border2:#374151;
+  --text:#F9FAFB;--text2:#9CA3AF;--text3:#4B5563;
+  --blue:#3B82F6;--blue2:#1D4ED8;
+  --green:#22C55E;--green2:#15803D;
+  --amber:#F59E0B;--red:#EF4444;--red2:#991B1B;
+  --purple:#8B5CF6;--teal:#14B8A6;--cyan:#06B6D4;
+  --r:8px;--r2:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;transition:background-color 1.5s ease, color 1.5s ease, border-color 1.5s ease;}
+
+/* Los modales (y todo lo de adentro) quedan FUERA de la transición
+   larga de arriba — un modal aparece de golpe (no estaba en pantalla
+   un instante antes), así que no tiene sentido que "se desvanezca"
+   hacia su color final durante 1.5 segundos; eso se veía como texto
+   débil/a medio camino entre dos colores justo al abrir uno. La
+   transición larga solo tiene sentido para lo que YA estaba visible
+   en pantalla (el cambio de tema con la app ya abierta). */
+.mbg, .mbg *, .modal, .modal *, .ruto-modal-backdrop, .ruto-modal-backdrop * {
+  transition: none !important;
+}
+/* BUG REAL encontrado y corregido: pese a arreglar el navbar y el
+   grid de KPIs por separado, la PÁGINA seguía permitiendo deslizarse
+   hacia los lados en el celular — quedando un espacio vacío a la
+   derecha una vez que se acababa el contenido real. En vez de seguir
+   cazando uno por uno cada elemento que se pasa de ancho, este candado
+   bloquea el scroll horizontal de la página completa de una vez por
+   todas: cualquier cosa que se pase de ancho ahora se recorta, en vez
+   de dejar que el usuario se deslice hacia un vacío. El scroll
+   horizontal de cosas que SÍ lo necesitan (la tabla del Rutograma, las
+   tablas de Vehículos, la fila de botones del navbar) sigue
+   funcionando igual, porque esas ya tienen su PROPIO scroll interno. */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;}
+nav{background:var(--bg2);border-bottom:2px solid var(--border2);padding:0 20px;display:flex;align-items:center;height:54px;}
+.logo{font-size:16px;font-weight:800;color:var(--text);margin-right:28px;letter-spacing:1px;}
+.logo span{color:var(--blue);}
+.tabs{display:flex;gap:2px;flex:1;}
+.tab{padding:7px 16px;border-radius:6px;cursor:pointer;color:var(--text2);font-size:12px;font-weight:500;border:none;background:transparent;transition:all .15s;}
+.tab:hover{background:var(--bg3);color:var(--text);}
+.tab.on{background:var(--blue2);color:#fff;font-weight:600;}
+.nav-r{display:flex;align-items:center;gap:8px;}
+.badge{background:var(--bg3);border:1px solid var(--border2);padding:4px 12px;border-radius:6px;font-size:12px;color:var(--text2);}
+.btn{background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;transition:all .15s;font-family:inherit;}
+.btn:hover{background:var(--bg4);}
+.btn.pri{background:var(--blue2);border-color:var(--blue);color:#fff;font-weight:600;}
+.btn.pri:hover{background:var(--blue);}
+.btn.grn{background:#064E3B;border-color:var(--green);color:#BBF7D0;}
+.btn.grn:hover{background:var(--green2);}
+.btn.dan{background:var(--red2);border-color:var(--red);color:#FECACA;}
+.btn.sm{padding:4px 10px;font-size:11px;}
+.pg{display:none;padding:18px 20px;}
+.pg.on{display:block;}
+.card{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);padding:16px;}
+.stitle{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;}
+.kgrid{display:grid;gap:12px;margin-bottom:18px;}
+.k5{grid-template-columns:repeat(5,1fr);}
+.k6{grid-template-columns:repeat(6,1fr);}
+/* BUG REAL encontrado y corregido: por defecto, un elemento dentro de
+   un CSS Grid nunca se encoge más allá del ancho de su contenido (el
+   texto más largo sin cortar) — sin "min-width:0" aquí, un texto largo
+   como el de .kpi .sub (la lista de placas en "Mantenimientos del
+   mes") empujaba TODA la cuadrícula, y con ella TODA LA PÁGINA, a ser
+   más ancha que la pantalla. Como .kpi/.kgrid son clases globales
+   usadas en varias pantallas, este único arreglo evita el scroll
+   horizontal de toda la página en cualquiera de ellas. */
+.kpi{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:14px 16px;border-top-width:3px;min-width:0;}
+.kpi .lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.kpi .val{font-size:26px;font-weight:800;line-height:1;}
+.kpi .sub{font-size:11px;color:var(--text3);margin-top:5px;overflow-wrap:break-word;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px;}
+/* Misma protección que en .kpi — evita que una tarjeta con texto largo
+   vuelva a empujar toda la página a ser más ancha que la pantalla. */
+.g2 > *, .g3 > *, .kgrid > * { min-width: 0; }
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th{background:var(--bg3);padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border2);}
+.tbl td{padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle;}
+.tbl tr:hover td{background:var(--bg3);}
+.rtbl{border-collapse:collapse;width:100%;min-width:900px;}
+.rtbl th{background:var(--bg3);padding:6px 8px;text-align:center;font-size:10px;font-weight:600;color:var(--text2);border:1px solid var(--border2);white-space:nowrap;}
+.rtbl th.hoy{background:var(--blue2);color:#fff;}
+.rtbl td.vname{background:var(--bg3);padding:6px 10px;font-size:11px;font-weight:600;border:1px solid var(--border2);white-space:nowrap;min-width:92px;position:sticky;left:0;z-index:2;}
+.rtbl td{border:1px solid var(--border);padding:2px;min-width:50px;vertical-align:top;}
+.rtbl td.choy{background:rgba(59,130,246,.07);}
+.tc{border-radius:4px;padding:3px 5px;font-size:10px;cursor:pointer;margin:1px;transition:opacity .15s;}
+.tc:hover{opacity:.8;}
+.tc.makand{background:#1e3a8a;border-left:3px solid #93c5fd;}
+.tc.arsi{background:#064e3b;border-left:3px solid #6ee7b7;}
+.tc.polar{background:#0c4a6e;border-left:3px solid #7dd3fc;}
+.tc.tercero{background:#4c1d95;border-left:3px solid #c4b5fd;}
+.tc.extra{background:#78350f;border-left:3px solid #fcd34d;}
+.tc.mant{background:#1f2937;border-left:3px solid #6b7280;}
+.tc.scond{background:#2d0a0a;border-left:3px solid #ef4444;}
+.td{font-weight:700;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:42px;}
+.tt{font-size:9px;opacity:.75;}
+.tk{font-size:9px;opacity:.6;}
+.urg-ring{outline:2px solid var(--red);outline-offset:1px;}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;}
+.tag.makand{background:#1e3a8a;color:#bfdbfe;}
+.tag.arsi{background:#064e3b;color:#a7f3d0;}
+.tag.polar{background:#0c4a6e;color:#bae6fd;}
+.tag.tercero{background:#4c1d95;color:#ede9fe;}
+.tag.extra{background:#78350f;color:#fed7aa;}
+.tag.ok{background:#064e3b;color:#a7f3d0;}
+.tag.warn{background:#78350f;color:#fed7aa;}
+.tag.urg{background:#991b1b;color:#fecaca;}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;}
+.dot.g{background:var(--green);}
+.dot.a{background:var(--amber);}
+.dot.r{background:var(--red);}
+.alr{display:flex;gap:10px;padding:9px 14px;border-radius:var(--r);margin-bottom:7px;font-size:12px;}
+.alr.r{background:#2d0a0a;border:1px solid #7f1d1d;}
+.alr.a{background:#2d1b00;border:1px solid #92400e;}
+.alr.g{background:#052e16;border:1px solid #14532d;}
+.alr.b{background:#0c1a3d;border:1px solid #1e40af;}
+.alr-ic{font-size:14px;margin-top:1px;}
+.alr-b{flex:1;}
+.alr-t{font-weight:600;margin-bottom:2px;}
+.alr-d{color:var(--text2);}
+.mbg{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);padding:24px;width:540px;max-width:95vw;max-height:90vh;overflow-y:auto;}
+.modal h3{font-size:15px;font-weight:700;margin-bottom:18px;}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.frow.full{grid-template-columns:1fr;}
+.fg{display:flex;flex-direction:column;gap:5px;}
+.fg label{font-size:11px;color:var(--text2);font-weight:500;}
+.fg input,.fg select,.fg textarea{background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;width:100%;font-family:inherit;}
+.fg input:focus,.fg select:focus{outline:none;border-color:var(--blue);}
+.mfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;}
+.leg{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--text2);}
+.leg-i{display:flex;align-items:center;gap:5px;}
+.leg-sq{width:12px;height:12px;border-radius:2px;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+/* ============================================================
+   BUG REAL encontrado y corregido: NAVBAR EN CELULAR
+   ============================================================
+   El <nav> nunca tuvo ninguna regla para pantallas chicas — el logo,
+   las 9 pestañas, la barra de búsqueda y los 5 botones de la derecha
+   estaban todos forzados en una sola fila de 54px de alto que nunca
+   podía acomodarse en un celular. Como el navbar aparece en TODAS las
+   páginas, esto era la causa de que la app se viera "rota" en todas
+   partes por igual, no un problema de cada pantalla por separado.
+
+   El arreglo: en pantallas angostas, el navbar pasa a varias filas
+   (logo arriba, pestañas en su propia fila con scroll horizontal
+   propio, los botones de la derecha en otra fila con scroll horizontal
+   propio) — nada se encima ni se desborda sobre el resto de la página.
+   ============================================================ */
+@media (max-width: 900px) {
+  nav {
+    height: auto;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    row-gap: 8px;
+  }
+
+  .logo {
+    margin-right: auto;
+  }
+
+  .tabs {
+    order: 3;
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab {
+    flex-shrink: 0;
+  }
+
+  /* Tenía un "left: -45px" fijo en línea, pensado para acomodarse al
+     lado de las pestañas en una sola fila — en el layout apilado de
+     celular eso la sacaba de su sitio, así que se anula aquí. */
+  .nav-search {
+    order: 2;
+    left: 0 !important;
+    width: 100%;
+  }
+  .nav-search input {
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  .nav-r {
+    order: 4;
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .nav-r > * {
+    flex-shrink: 0;
+  }
+
+  /* BUG REAL encontrado y corregido: .frow es la fila de 2 columnas
+     que usan VARIOS modales compartidos en toda la app (Viaje Extra,
+     Novedad, y otros) — sin esto, esos formularios quedaban con dos
+     columnas apretadísimas en celular. Un solo arreglo aquí beneficia
+     a todos esos modales de una vez. */
+  .frow {
+    grid-template-columns: 1fr;
+  }
+
+  /* BUG REAL encontrado y corregido: los botones (.btn, .tab) estaban
+     dimensionados para clic de mouse, no para el dedo — en celular,
+     tocar algo tan chico falla seguido. Se agranda el área táctil
+     mínima (criterio estándar ~44px) solo en pantallas chicas. */
+  .btn, .tab {
+    min-height: 40px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    box-sizing: border-box;
+  }
+  .btn.sm {
+    min-height: 36px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  margin: 0;
+}

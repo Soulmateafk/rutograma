@@ -1,0 +1,114 @@
+.page-container { padding: 20px; color: var(--text); font-family: sans-serif; }
+.card { background: var(--bg2); border-radius: 8px; padding: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+
+.header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+.btn-add { background: var(--blue); color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
+
+/* Tabla compacta */
+.main-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.main-table th { color: var(--text2); text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border2); font-weight: 500; }
+.main-table td { padding: 8px; border-bottom: 1px solid var(--border2); }
+
+/* BUG REAL encontrado y corregido: esta tabla tiene 11 columnas y no
+   tenía NINGÚN manejo para pantallas chicas — en un celular, los
+   badges de colores (mant-badge, badge) se desbordaban sobre las
+   columnas vecinas en vez de simplemente quedar cortados con scroll.
+   La envolvemos en un contenedor con scroll horizontal propio (ver
+   .card en vehiculos.html) y evitamos que las columnas se aplasten
+   más allá de un ancho legible. */
+.tabla-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.main-table th, .main-table td {
+  white-space: nowrap;
+}
+
+.cap-sub { font-size: 10px; color: var(--text3); }
+.badge { background: var(--bg4); padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+.status-dot { height: 6px; width: 6px; background: var(--green); border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+/* Botones compactos */
+.actions-cell { display: flex; gap: 4px; }
+.btn-action { border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; background: var(--bg4); color: var(--text); font-size: 11px; }
+.btn-action.del { background: var(--red2); color: white; } /* Rojo oscuro como la referencia — se queda igual en ambos temas, por eso el texto blanco es fijo aquí */
+.btn-action:hover { opacity: 0.9; }
+
+/* Área táctil más cómoda en celular — el padding de 4px 8px es muy
+   chico para tocar con el dedo sin fallar seguido. */
+@media (max-width: 900px) {
+  .btn-action {
+    padding: 8px 12px;
+    font-size: 12px;
+    min-height: 36px;
+  }
+}
+
+/* Modal (el fondo oscuro semitransparente del backdrop se queda igual en ambos temas, a propósito) */
+.modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.modal-card { background: var(--bg2); padding: 20px; border-radius: 12px; width: 500px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow-y: auto; box-sizing: border-box; }
+.modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+
+/* BUG REAL encontrado y corregido: el modal tenía un ancho fijo de
+   500px (más ancho que cualquier celular), así que en pantallas
+   chicas se salía del viewport o quedaba cortado. Además, la rejilla
+   de 2 columnas de los campos del formulario no cabía — se apilan en
+   una sola columna cuando la pantalla es angosta. */
+@media (max-width: 560px) {
+  .modal-grid { grid-template-columns: 1fr; }
+}
+.input-group { display: flex; flex-direction: column; }
+.input-group label { font-size: 11px; color: var(--text2); margin-bottom: 2px; }
+.input-group input, .input-group select { background: var(--bg3); border: 1px solid var(--border2); color: var(--text); padding: 6px; border-radius: 4px; font-size: 13px; }
+.modal-actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
+.btn-save { background: var(--blue); color: white; padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; }
+.btn-cancel { background: transparent; color: var(--text2); border: 1px solid var(--border2); padding: 8px 16px; border-radius: 6px; font-size: 13px; }
+
+/* Insignias de estado de mantenimiento — colores con significado, se quedan fijos a propósito en ambos temas */
+.mant-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.mant-badge.mant-ok      { background: #064e3b; color: #6ee7b7; }
+.mant-badge.mant-pronto  { background: #78350f; color: #fcd34d; }
+.mant-badge.mant-vencido { background: #7f1d1d; color: #fca5a5; }
+ 
+.solo-lectura-tag {
+  font-size: 10px;
+  color: var(--text3);
+  font-style: italic;
+}/* --- Historial de mantenimientos cerrados (dentro del modal Mant.) --- */
+.historial-mant-bloque {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-borde, var(--border2));
+}
+
+.historial-mant-bloque h4 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-texto-apagado, var(--text2));
+}
+
+.historial-mant-fila {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.historial-mant-borrar {
+  height: 36px;
+  align-self: end;
+}
+
+.historial-mant-guardar {
+  margin-top: 4px;
+  justify-content: flex-start;
+}

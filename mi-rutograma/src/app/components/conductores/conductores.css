@@ -1,0 +1,328 @@
+/* ==========================================================================
+   1. ESTILOS ORIGINALES (MANTENIDOS INTACTOS)
+   ========================================================================== */
+
+/* Contenedor Principal */
+.conductores-container {
+  padding: 20px;
+  background-color: var(--bg);
+  font-family: sans-serif;
+  color: var(--text);
+}
+
+/* Grid de Indicadores (5 columnas exactas de la foto) */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+/* BUG REAL encontrado y corregido: 5 columnas fijas sin ninguna
+   versión para celular — en pantallas chicas se aplastaban a un
+   tamaño ilegible. */
+@media (max-width: 900px) {
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.metric-card {
+  background-color: var(--bg2);
+  border-radius: 6px;
+  padding: 14px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.metric-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text3);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.metric-value {
+  font-size: 26px;
+  font-weight: 800;
+}
+
+/* Colores de bordes y números específicos de la imagen */
+.m-total { border-top: 3px solid #2563eb; }
+.text-total { color: #2563eb; }
+
+.m-activos { border-top: 3px solid #10b981; }
+.text-activos { color: #10b981; }
+
+.m-descanso { border-top: 3px solid #f59e0b; }
+.text-descanso { color: #f59e0b; }
+
+.m-incapacidad { border-top: 3px solid #ef4444; }
+.text-incapacidad { color: #ef4444; }
+
+.m-vacaciones { border-top: 3px solid #8b5cf6; }
+.text-vacaciones { color: #8b5cf6; }
+
+/* Fila de título y botón */
+.title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.main-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* Botón estilo píldora azul de la foto */
+.btn-nuevo-cond {
+  background-color: var(--blue);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-nuevo-cond:hover {
+  background-color: var(--blue2);
+}
+
+/* Estructura de la Tabla */
+.table-card {
+  background-color: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Estado vacío idéntico a tu captura */
+.empty-state-container {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--text3);
+  font-size: 14px;
+}
+
+/* Tabla Estilizada */
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+@media (max-width: 900px) {
+  .custom-table {
+    min-width: 640px;
+  }
+}
+
+.custom-table th {
+  background-color: var(--bg3);
+  color: var(--text3);
+  padding: 12px 16px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border2);
+}
+
+.custom-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border2);
+  color: var(--text);
+}
+
+/* Utilidades para los datos activos */
+.plate-badge {
+  background-color: var(--bg3);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.actions-group {
+  display: flex;
+  gap: 6px;
+}
+
+.action-btn {
+  background: var(--bg4);
+  border: none;
+  color: var(--text);
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+/* Área táctil más cómoda en celular. */
+@media (max-width: 900px) {
+  .action-btn {
+    padding: 8px 12px;
+    min-height: 36px;
+  }
+}
+.action-btn.btn-delete {
+  background-color: var(--red2);
+  color: white; /* se queda fijo — este fondo rojo oscuro no cambia con el tema */
+}
+
+.lic-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.lic-badge.venc-ok      { background: #064e3b; color: #6ee7b7; }
+.lic-badge.venc-pronto  { background: #78350f; color: #fcd34d; }
+.lic-badge.venc-vencida { background: #7f1d1d; color: #fca5a5; }
+
+
+/* ==========================================================================
+   2. NUEVO BLOQUE: ARREGLO DE MODAL Y FORMULARIOS (SIN DAÑAR LO ANTERIOR)
+   ========================================================================== */
+
+/* Fondo Oscuro Detrás del Modal (Backdrop) */
+.mbg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(5, 8, 15, 0.7); /* Capa translúcida */
+  backdrop-filter: blur(4px);            /* Desenfoque estético moderno */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+/* Regla estricta para ocultar */
+.mbg.hide {
+  display: none !important;
+}
+
+/* Ventana Contenedora del Modal */
+.modal {
+  background-color: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 600px; /* Tamaño ideal balanceado para dos columnas */
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  color: var(--text);
+  box-sizing: border-box;
+}
+
+.modal h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Distribución en Filas del Formulario (Alineación Horizontal) */
+.form-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* Grupo de Control (Etiqueta arriba, Input abajo) */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1; /* Distribuye equitativamente las columnas de la fila */
+}
+
+.form-group label {
+  font-size: 12px;
+  color: var(--text2); /* Gris azulado sutil */
+  font-weight: 600;
+}
+
+/* Campos de Entrada Estilizados (Inputs, Selects y Textareas) */
+.form-group input,
+.form-group select,
+.form-group textarea {
+  background-color: var(--bg3); /* Fondo gris oscuro unificado */
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease;
+}
+
+/* Enfoque azul de los elementos activos */
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: var(--blue);
+}
+
+.form-group input::placeholder {
+  color: var(--text3);
+}
+
+.form-group textarea {
+  resize: none; /* Evita que rompan la estructura del modal */
+  font-family: sans-serif;
+}
+
+/* Pie del Modal (Contenedor de Botones) */
+.mfoot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  border-top: 1px solid var(--border2);
+  padding-top: 16px;
+}
+
+/* Estilo de los Botones del Modal */
+.btn {
+  background-color: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  background-color: var(--bg4);
+  color: var(--text);
+}
+
+/* Variante para Botón Primario (Guardar Cambios) */
+.btn.pri {
+  background-color: var(--blue);
+  border: none;
+  color: white;
+}
+
+.btn.pri:hover {
+  background-color: var(--blue2);
+}

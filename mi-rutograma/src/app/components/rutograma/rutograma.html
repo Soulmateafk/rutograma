@@ -1,0 +1,951 @@
+<div *ngIf="debugError !== 'Ninguno'" class="ruto-debug-banner">
+  <div class="ruto-debug-title"><i class="bi bi-exclamation-triangle-fill" style="color:#ef4444;"></i> {{ debugError }}</div>
+</div>
+
+<div *ngIf="ds?.S?.modo === 'pruebas'"
+     style="background:#78350f; color:#fde68a; padding:10px 16px; text-align:center; font-weight:700; font-size:13px; letter-spacing:0.3px;">
+  <i class="bi bi-flask-fill"></i> Estás en MODO PRUEBA — nada de lo que veas o generes aquí afecta la operación real.
+</div>
+
+<div id="pg-rutograma" class="ruto-container">
+
+  <div class="ruto-header">
+    <div>
+      <div id="ruto-title" class="ruto-title">Rutograma</div>
+
+      <div class="ruto-mes-selector" role="button" tabindex="0"
+           (click)="$event.stopPropagation(); toggleCalendarioMes($event)"
+           (keydown.enter)="toggleCalendarioMes($event)">
+        <span class="ruto-mes-icono"><i class="bi bi-calendar-week" style="color:#60a5fa;"></i></span>
+        <span class="ruto-mes-texto">{{ ds?.S?.mes !== undefined ? nombresMesCalendario[ds.S.mes] : 'Mes no definido' }} {{ ds?.S?.anio }}</span>
+        <span class="ruto-mes-caret" [class.abierto]="calendarioMesAbierto">▾</span>
+      </div>
+
+      <div class="ruto-subtitle">Matriz de operación fija activa</div>
+    </div>
+
+    <div class="ruto-controls-wrapper">
+      <div class="ruto-buscar-vehiculo">
+        <i class="bi bi-search"></i>
+        <input type="text" #inputBusquedaVehiculoRuto [(ngModel)]="busquedaVehiculoRuto" placeholder="Resaltar placa..." (keydown.escape)="busquedaVehiculoRuto = ''">
+        <i *ngIf="busquedaVehiculoRuto" class="bi bi-x-circle-fill ruto-buscar-limpiar" (click)="busquedaVehiculoRuto = ''"></i>
+      </div>
+
+      <div class="ruto-legend">
+        <div class="ruto-legend-item ruto-legend-clickeable"
+             [class.ruto-legend-activo]="filtroTransportadoraRuto === 'makand'"
+             [class.ruto-legend-atenuado]="filtroTransportadoraRuto && filtroTransportadoraRuto !== 'makand'"
+             (click)="alternarFiltroTransportadora('makand')"
+             title="Clic para mostrar solo Makand">
+          <div class="ruto-legend-dot dot-makand"></div>Makand
+        </div>
+        <div class="ruto-legend-item ruto-legend-clickeable"
+             [class.ruto-legend-activo]="filtroTransportadoraRuto === 'arsitrans'"
+             [class.ruto-legend-atenuado]="filtroTransportadoraRuto && filtroTransportadoraRuto !== 'arsitrans'"
+             (click)="alternarFiltroTransportadora('arsitrans')"
+             title="Clic para mostrar solo Arsitrans">
+          <div class="ruto-legend-dot dot-arsitrans"></div>Arsitrans
+        </div>
+        <div class="ruto-legend-item ruto-legend-clickeable"
+             [class.ruto-legend-activo]="filtroTransportadoraRuto === 'polar'"
+             [class.ruto-legend-atenuado]="filtroTransportadoraRuto && filtroTransportadoraRuto !== 'polar'"
+             (click)="alternarFiltroTransportadora('polar')"
+             title="Clic para mostrar solo Polar">
+          <div class="ruto-legend-dot dot-polar"></div>Polar
+        </div>
+        <div class="ruto-legend-item"><div class="ruto-legend-dot dot-extra"></div>Extra</div>
+        <div class="ruto-legend-item"><div class="ruto-legend-dot dot-sin-conductor"></div>Sin conductor</div>
+        <div class="ruto-legend-item"><div class="ruto-legend-dot dot-entregado"></div>Entregado</div>
+        <div class="ruto-legend-item"><div class="ruto-legend-dot dot-en-ruta"></div>En ruta</div>
+        <div class="ruto-legend-item"><div class="ruto-legend-dot dot-pendiente"></div>Pendiente</div>
+      </div>
+
+      <input type="file" #fileInput (change)="cargarExcel($event)" accept=".xlsx, .xls" class="ruto-file-input" hidden>
+      <button class="btn-import" *ngIf="auth.puedeEditar" (click)="fileInput.click()"><i class="bi bi-folder2-open" style="color:#34d399;"></i> Importar Operación</button>
+      <button class="btn-export" (click)="descargarRutograma()"><i class="bi bi-download"></i> Exportar</button>
+      <button class="btn-export" (click)="abrirFotoMes()"><i class="bi bi-camera-fill" style="color:#c084fc;"></i> Foto del mes</button>
+      <button class="btn-zoom" (click)="cambiarZoom(-10)"><i class="bi bi-zoom-out"></i></button>
+      <button class="btn-zoom" (click)="cambiarZoom(10)"><i class="bi bi-zoom-in"></i></button>
+      <span class="ruto-zoom-text">{{ zoomPorcentaje }}%</span>
+    </div>
+  </div>
+
+  <div class="ruto-table-responsive">
+    <table id="rtbl" class="ruto-table">
+      <thead>
+        <tr class="ruto-thead-tr">
+          <th class="ruto-th-vehicle">Vehículo</th>
+          <th class="ruto-th-delivery">Prox. Entrega</th>
+          <th *ngFor="let d of diasMes" class="ruto-th-day" [class.hoy]="esHoy(d)">
+            <span class="ruto-day-name">{{ getDiaSem(d) }}</span><br><b>{{ d }}</b>
+            <span *ngIf="esFestivo(d)" class="ruto-festivo-icon"><i class="bi bi-ban" style="color:#ef4444;"></i></span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngIf="!ds?.S?.vehiculos || ds.S.vehiculos.length === 0">
+          <td [attr.colspan]="diasMes.length + 2" class="ruto-td-empty">
+            No hay vehículos individuales en la caché. ¡Usa el botón <b><i class="bi bi-folder2-open" style="color:#34d399;"></i> Importar Operación</b> para procesar el Excel!
+          </td>
+        </tr>
+
+        <ng-container *ngFor="let v of vehiculosPropiosOrdenados(); trackBy: trackByVehiculo">
+          <tr class="ruto-tr-vehicle" *ngIf="filaVisiblePorTransportadora(v)" [class.ruto-fila-resaltada]="esVehiculoResaltado(v)" [attr.data-estado]="v.estado" [attr.data-transportadora]="v.tr || v.transportadora || 'Makand'">
+          <td class="ruto-td-vehicle-info">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
+              <div>
+                <strong class="ruto-vehicle-plate">{{ v.p }}</strong><br>
+                <span class="ruto-vehicle-desc">{{ v.t }} — {{ v.ruta }}</span>
+              </div>
+
+              <span *ngIf="auth.puedeEditar"
+                    (click)="abrirMantenimiento(v)"
+                    [style.color]="v.estado === 'Mantenimiento' ? '#ef4444' : '#10b981'"
+                    style="font-size: 15px; cursor: pointer;"
+                    title="Clic para poner/quitar mantenimiento">●</span>
+              <span *ngIf="!auth.puedeEditar"
+                    [style.color]="v.estado === 'Mantenimiento' ? '#ef4444' : '#10b981'"
+                    style="font-size: 15px;"
+                    title="Solo lectura">●</span>
+            </div>
+          </td>
+
+          <td class="ruto-td-next-delivery" [innerHTML]="safeHtml(proximaEntrega(v))"></td>
+
+          <td *ngFor="let d of diasMes" class="ruto-td-day-cell" [class.hoy]="esHoy(d)">
+
+            <!-- Varado: un registro por día, independiente del estado
+                 general del vehículo — nunca lo tapa un mantenimiento
+                 posterior en otro rango de fechas. -->
+            <div *ngIf="infoVaradoDelDia(v, d) as infoVarado" class="ruto-card-viaje bg-varado">
+              <div class="ruto-card-route"><i class="bi bi-cone-striped"></i> VARADO</div>
+              <div class="ruto-card-transport">{{ infoVarado.razon }}</div>
+            </div>
+
+            <!-- Mantenimiento: solo desde el día en que se activó, no todo el mes -->
+            <div *ngIf="!infoVaradoDelDia(v, d) && esDiaMantenimiento(v, d)" class="ruto-card-viaje bg-mantenimiento">
+              <div class="ruto-card-route"><i class="bi bi-exclamation-triangle-fill"></i> EN TALLER</div>
+              <div class="ruto-card-transport">Mantenimiento</div>
+              <div class="ruto-card-driver">NO OPERATIVO</div>
+            </div>
+
+            <ng-container *ngIf="!infoVaradoDelDia(v, d) && !esDiaMantenimiento(v, d)">
+              <ng-container *ngFor="let vj of (viajesAgrupados?.[(v.p || '').toUpperCase().trim() + '-' + d] || []); trackBy: trackByViajeId">
+                <div *ngIf="vj.isStart && vj.type === 'cancelado'"
+                     (click)="verDetalle(vj.id)"
+                     class="ruto-card-viaje bg-cancelado">
+                  <div class="ruto-card-route"><i class="bi bi-x-circle-fill"></i> CANCELADO</div>
+                  <div class="ruto-card-transport">{{ vj.destino || vj.ruta || 'Sin Ruta' }}</div>
+                  <div class="ruto-card-driver">{{ vj.motivoCancelacion || 'Por mantenimiento del vehículo' }}</div>
+                </div>
+
+                <div *ngIf="vj.isStart && vj.type !== 'cancelado'"
+                     (click)="verDetalle(vj.id)"
+                     (mouseenter)="mostrarTooltipViaje($event, vj, v)"
+                     (mousemove)="moverTooltipViaje($event)"
+                     (mouseleave)="ocultarTooltipViaje()"
+                     class="ruto-card-viaje"
+                     [ngClass]="vj.cssClass"
+                     [style.border-left]="vj.prioridad === 'urgente' ? '4px solid #ef4444' : (vj.prioridad === 'alta' ? '4px solid #f59e0b' : '')">
+
+                  <div *ngIf="vj.prioridad === 'urgente' || vj.prioridad === 'alta'"
+                       [style.color]="vj.prioridad === 'urgente' ? '#f87171' : '#fbbf24'"
+                       style="font-size: 9px; font-weight: 700; margin-bottom: 2px;">
+                    <i class="bi" [ngClass]="vj.prioridad === 'urgente' ? 'bi-exclamation-triangle-fill' : 'bi-arrow-up-circle-fill'"></i>
+                    {{ vj.prioridad === 'urgente' ? 'URGENTE' : 'PRIORIDAD ALTA' }}
+                  </div>
+                  <div class="ruto-card-route">
+                    {{ vj.destino || vj.ruta || 'Sin Ruta' }}<span *ngIf="vj.dest2"> + {{ vj.dest2 }}</span>
+                  </div>
+                  <div *ngIf="vj.dest2 || vj.cli2" style="font-size: 9px; color: #38bdf8; margin-top: -2px; margin-bottom: 2px;">
+                    <i class="bi bi-signpost-split-fill"></i> Doble entrega{{ vj.cli2 ? ' — ' + vj.cli2 : '' }}
+                  </div>
+                  <div class="ruto-card-transport">{{ vj.tr || 'Makand' }}</div>
+                  <div class="ruto-card-driver">{{ vj.cond || conductoresMap[v.p] || 'Sin Conductor' }}</div>
+                  <div class="ruto-card-meta">{{ vj.estado || 'PROG' }} · {{ vj.hora || vj.horaEntrega || '--:--' }}</div>
+                  <div class="ruto-card-cajas">{{ vj.cajas || 660 }} cj</div>
+                  <div *ngIf="vj.viajeVaradoDe" style="font-size: 9px; color: #fbbf24; margin-top: 2px;"><i class="bi bi-cone-striped"></i> Cumple viaje de {{ vj.viajeVaradoDe }}</div>
+                  <div *ngIf="vj.placaOriginal" style="font-size: 9px; color: #fbbf24; margin-top: 2px;"><i class="bi bi-tools"></i> Mantenimiento del vehículo {{ vj.placaOriginal }} — viaje reasignado aquí</div>
+                  <div *ngIf="conductorEnDescanso(v.p, vj.dia)"
+                       style="font-size: 9px; color: #f87171; margin-top: 2px; cursor: pointer; text-decoration: underline;"
+                       (click)="$event.stopPropagation(); abrirAsignarRespaldo(vj, v.p, vj.dia)">
+                    <i class="bi bi-moon-stars-fill"></i> Conductor descansa — asignar respaldo
+                  </div>
+                </div>
+
+                <div *ngIf="!vj.isStart && !hayViajeRealEnCelda(v.p, d)" class="celda-descanso">{{ etiquetaTransito(vj, d) }}</div>
+              </ng-container>
+
+              <div *ngIf="!(viajesAgrupados?.[(v.p || '').toUpperCase().trim() + '-' + d] || []).length && estuvoEnMantenimiento(v, d)"
+                   class="ruto-card-viaje bg-estuvo-mantenimiento">
+                <div class="ruto-card-route"><i class="bi bi-tools"></i> MANTENIMIENTO</div>
+                <ng-container *ngIf="viajeMovidoPorMantenimiento(v.p, d) as viajeMovido; else sinMoverTplA">
+                  <div class="ruto-card-driver">Movido a {{ viajeMovido.p || viajeMovido.placa }} ({{ viajeMovido.tr }})</div>
+                </ng-container>
+                <ng-template #sinMoverTplA>
+                  <div class="ruto-card-driver">Vehículo estuvo en taller</div>
+                </ng-template>
+              </div>
+
+              <!-- Día sin viaje ni mantenimiento — se marca "Disponible", o
+                   "Descanso" si el conductor asignado a esta placa tiene
+                   descanso justo ese día (ver conductorEnDescanso). -->
+              <ng-container *ngIf="!(viajesAgrupados?.[(v.p || '').toUpperCase().trim() + '-' + d] || []).length && !estuvoEnMantenimiento(v, d)">
+                <div *ngIf="conductorEnDescanso(v.p, d) as conductorDescansando; else disponibleTplMakand"
+                     class="ruto-card-viaje"
+                     style="background: #8c204b; border: 1px dashed #fa71b8;">
+                  <div class="ruto-card-route" style="color:#ffb7de; font-weight:700;"><i class="bi bi-moon-stars-fill"></i> DESCANSANDO</div>
+                  <div class="ruto-card-driver" style="color:#ff93d0; font-weight:600;">{{ conductorDescansando.nom || conductorDescansando.nombre }}</div>
+                </div>
+                <ng-template #disponibleTplMakand>
+                  <div class="ruto-card-viaje" style="background: #064e3b; border: 1px dashed #34d399;">
+                    <div class="ruto-card-route" style="color:#78ffc9; font-weight:700;"><i class="bi bi-check-circle-fill"></i> VEHICULO DISPONIBLE</div>
+                  </div>
+                </ng-template>
+              </ng-container>
+            </ng-container>
+
+          </td>
+        </tr>
+        </ng-container>
+
+        <!-- Un bloque por transportadora (ARSITRANS, luego POLAR), cada uno
+             con su encabezado de color y botón — igual estilo que el
+             Rutograma original ("Cupos confirmados el mismo día") — seguido
+             directo de sus cupos numerados. El botón "+ Confirmar cupo" del
+             encabezado ya cumple la función que antes tenía una fila aparte
+             de "+ Añadir viaje". -->
+        <ng-container *ngFor="let te of transpExt">
+          <tr class="ruto-tr-cupo-header" [style.background]="te.col">
+            <td [attr.colspan]="diasMes.length + 2">
+              <div class="ruto-cupo-header-inner">
+                <span>{{ te.nombre }} - Cupos confirmados el mismo día</span>
+                <button class="ruto-btn-confirmar-cupo" (click)="abrirCupo(te.clave)">+ Confirmar cupo</button>
+              </div>
+            </td>
+          </tr>
+
+          <ng-container *ngFor="let v of vehiculosCupoDeTransportadora(te.nombre); trackBy: trackByVehiculo">
+            <tr class="ruto-tr-vehicle" *ngIf="filaVisiblePorTransportadora(v)" [class.ruto-fila-resaltada]="esVehiculoResaltado(v)" [attr.data-estado]="v.estado" [attr.data-transportadora]="v.tr || v.transportadora || te.nombre">
+            <td class="ruto-td-vehicle-info ruto-td-vehicle-info-cupo" [style.background]="te.col" [style.borderColor]="te.col">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
+                <div>
+                  <strong class="ruto-vehicle-plate">{{ v.p }}</strong><br>
+                  <span class="ruto-vehicle-desc">{{ v.t }} — {{ v.ruta }}</span>
+                </div>
+
+                <span *ngIf="auth.puedeEditar"
+                      (click)="abrirMantenimiento(v)"
+                      [style.color]="v.estado === 'Mantenimiento' ? '#ef4444' : '#10b981'"
+                      style="font-size: 15px; cursor: pointer;"
+                      title="Clic para poner/quitar mantenimiento">●</span>
+                <span *ngIf="!auth.puedeEditar"
+                      [style.color]="v.estado === 'Mantenimiento' ? '#ef4444' : '#10b981'"
+                      style="font-size: 15px;"
+                      title="Solo lectura">●</span>
+              </div>
+            </td>
+
+            <td class="ruto-td-next-delivery" [innerHTML]="safeHtml(proximaEntrega(v))"></td>
+
+            <td *ngFor="let d of diasMes" class="ruto-td-day-cell" [class.hoy]="esHoy(d)">
+
+              <!-- Varado: un registro por día, independiente del estado
+                   general del vehículo — nunca lo tapa un mantenimiento
+                   posterior en otro rango de fechas. -->
+              <div *ngIf="infoVaradoDelDia(v, d) as infoVarado" class="ruto-card-viaje bg-varado">
+                <div class="ruto-card-route"><i class="bi bi-cone-striped"></i> VARADO</div>
+                <div class="ruto-card-transport">{{ infoVarado.razon }}</div>
+              </div>
+
+              <!-- Mantenimiento: solo desde el día en que se activó, no todo el mes -->
+              <div *ngIf="!infoVaradoDelDia(v, d) && esDiaMantenimiento(v, d)" class="ruto-card-viaje bg-mantenimiento">
+                <div class="ruto-card-route"><i class="bi bi-exclamation-triangle-fill"></i> EN TALLER</div>
+                <div class="ruto-card-transport">Mantenimiento</div>
+                <div class="ruto-card-driver">NO OPERATIVO</div>
+              </div>
+
+              <ng-container *ngIf="!infoVaradoDelDia(v, d) && !esDiaMantenimiento(v, d)">
+                <ng-container *ngFor="let vj of (viajesAgrupados?.[(v.p || '').toUpperCase().trim() + '-' + d] || []); trackBy: trackByViajeId">
+                  <div *ngIf="vj.isStart && vj.type === 'cancelado'"
+                       (click)="verDetalle(vj.id)"
+                       class="ruto-card-viaje bg-cancelado">
+                    <div class="ruto-card-route"><i class="bi bi-x-circle-fill"></i> CANCELADO</div>
+                    <div class="ruto-card-transport">{{ vj.destino || vj.ruta || 'Sin Ruta' }}</div>
+                    <div class="ruto-card-driver">{{ vj.motivoCancelacion || 'Por mantenimiento del vehículo' }}</div>
+                  </div>
+
+                  <div *ngIf="vj.isStart && vj.type !== 'cancelado'"
+                       (click)="verDetalle(vj.id)"
+                       (mouseenter)="mostrarTooltipViaje($event, vj, v)"
+                       (mousemove)="moverTooltipViaje($event)"
+                       (mouseleave)="ocultarTooltipViaje()"
+                       class="ruto-card-viaje"
+                       [ngClass]="vj.cssClass">
+
+                    <div class="ruto-card-route">{{ vj.destino || vj.ruta || 'Sin Ruta' }}</div>
+                    <div class="ruto-card-transport">{{ vj.tr || 'Makand' }}</div>
+                    <div class="ruto-card-driver">{{ vj.cond || conductoresMap[v.p] || 'Sin Conductor' }}</div>
+                    <div class="ruto-card-meta">{{ vj.estado || 'PROG' }} · {{ vj.hora || vj.horaEntrega || '--:--' }}</div>
+                    <div class="ruto-card-cajas">{{ vj.cajas || 660 }} cj</div>
+                      <div *ngIf="vj.viajeVaradoDe" style="font-size: 9px; color: #fbbf24; margin-top: 2px;"><i class="bi bi-cone-striped"></i> Cumple viaje de {{ vj.viajeVaradoDe }}</div>
+                      <div *ngIf="vj.placaOriginal" style="font-size: 9px; color: #fbbf24; margin-top: 2px;"><i class="bi bi-tools"></i> Mantenimiento del vehículo {{ vj.placaOriginal }} — viaje reasignado aquí</div>
+                    <div *ngIf="conductorEnDescanso(v.p, vj.dia)"
+                         style="font-size: 9px; color: #f87171; margin-top: 2px; cursor: pointer; text-decoration: underline;"
+                         (click)="$event.stopPropagation(); abrirAsignarRespaldo(vj, v.p, vj.dia)">
+                      <i class="bi bi-moon-stars-fill"></i> Conductor descansa — asignar respaldo
+                    </div>
+                  </div>
+
+                  <div *ngIf="!vj.isStart && !hayViajeRealEnCelda(v.p, d)" class="celda-descanso">{{ etiquetaTransito(vj, d) }}</div>
+                </ng-container>
+
+                <div *ngIf="!(viajesAgrupados?.[(v.p || '').toUpperCase().trim() + '-' + d] || []).length && estuvoEnMantenimiento(v, d)"
+                     class="ruto-card-viaje bg-estuvo-mantenimiento">
+                  <div class="ruto-card-route"><i class="bi bi-tools"></i> MANTENIMIENTO</div>
+                  <ng-container *ngIf="viajeMovidoPorMantenimiento(v.p, d) as viajeMovido; else sinMoverTplB">
+                    <div class="ruto-card-driver">Movido a {{ viajeMovido.p || viajeMovido.placa }} ({{ viajeMovido.tr }})</div>
+                  </ng-container>
+                  <ng-template #sinMoverTplB>
+                    <div class="ruto-card-driver">Vehículo estuvo en taller</div>
+                  </ng-template>
+                </div>
+              </ng-container>
+
+            </td>
+          </tr>
+          </ng-container>
+        </ng-container>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="ruto-resumen-dias">
+
+    <div class="ruto-resumen-header-top">
+      <div class="ruto-resumen-titulo">Resumen de viajes — {{ meses[ds.S.mes] }}</div>
+      <div class="ruto-resumen-contadores-globales">
+        <span><b>{{ contadorSemanaActiva().vehiculos }}</b> vehículos</span>
+        <span><b>{{ contadorSemanaActiva().viajes }}</b> viajes esta semana</span>
+      </div>
+    </div>
+
+    <div class="ruto-resumen-split-mes" *ngIf="resumenTransportadoraMes().total > 0">
+      <div class="ruto-resumen-split-barra">
+        <div class="ruto-resumen-split-makand" [style.width.%]="resumenTransportadoraMes().pctMakand"></div>
+        <div class="ruto-resumen-split-polar" [style.width.%]="resumenTransportadoraMes().pctPolar"></div>
+        <div class="ruto-resumen-split-arsitrans" [style.width.%]="resumenTransportadoraMes().pctArsitrans"></div>
+      </div>
+      <div class="ruto-resumen-split-texto">
+        <span class="ruto-resumen-split-item">
+          <span class="ruto-legend-dot dot-makand"></span>
+          {{ resumenTransportadoraMes().makand }} Makand ({{ resumenTransportadoraMes().pctMakand }}%)
+        </span>
+        <span class="ruto-resumen-split-item">
+          <span class="ruto-legend-dot dot-polar"></span>
+          {{ resumenTransportadoraMes().polar }} Polar ({{ resumenTransportadoraMes().pctPolar }}%)
+        </span>
+        <span class="ruto-resumen-split-item">
+          <span class="ruto-legend-dot dot-arsitrans"></span>
+          {{ resumenTransportadoraMes().arsitrans }} Arsitrans ({{ resumenTransportadoraMes().pctArsitrans }}%)
+        </span>
+        <span class="ruto-resumen-split-item ruto-resumen-split-total">
+          {{ resumenTransportadoraMes().total }} viajes en total este mes
+        </span>
+      </div>
+    </div>
+
+    <input type="text"
+           class="ruto-resumen-buscador"
+           placeholder=" Buscar destino o código vehicular..."
+           [(ngModel)]="buscadorResumen">
+
+    <div class="ruto-resumen-semanas-tabs">
+      <button *ngFor="let semana of semanasDelMes(); let i = index"
+              class="ruto-resumen-semana-tab"
+              [class.activo]="semanaActivaIndex === i"
+              (click)="seleccionarSemana(i)">
+        {{ semana.etiqueta }}
+      </button>
+    </div>
+
+    <div class="ruto-resumen-tabs">
+      <button *ngFor="let d of diasDeSemanaActiva()"
+              class="ruto-resumen-tab"
+              [class.activo]="diaActivoNum === d.dia"
+              (click)="seleccionarDiaResumen(d.dia)">
+        {{ d.nombreDia }} {{ d.dia }}
+        <span class="ruto-resumen-tab-count">{{ contadorDia(d.dia).vehiculos }}</span>
+      </button>
+    </div>
+
+    <div class="ruto-resumen-dia-stats">
+      {{ contadorDia(diaActivoNum).vehiculos }} vehículos · {{ contadorDia(diaActivoNum).paradas }} paradas este día
+    </div>
+
+    <div class="ruto-resumen-lista">
+      <div *ngFor="let veh of vehiculosDelDiaActivo(); trackBy: trackByPlaca" class="ruto-resumen-lista-fila">
+        <div class="ruto-resumen-lista-veh">
+          <span class="ruto-resumen-veh-placa">{{ veh.placa }}</span>
+          <span class="ruto-resumen-veh-tr">{{ veh.tr }}</span>
+        </div>
+        <div class="ruto-resumen-lista-paradas">
+          <ng-container *ngFor="let p of veh.paradas; let last = last; trackBy: trackByViajeId">
+            <span class="ruto-resumen-parada" (click)="verDetalle(p.id)">
+              <span class="ruto-resumen-punto" [style.background]="colorCiudad(p.destinoReal || p.destino || p.ruta)"></span>
+              {{ p.ruta || 'Sin Ruta' }}<span *ngIf="p.destinoReal"> — {{ p.destinoReal }}</span>
+            </span>
+            <span *ngIf="!last" class="ruto-resumen-flecha">→</span>
+          </ng-container>
+        </div>
+      </div>
+
+      <div *ngIf="!vehiculosDelDiaActivo().length" class="ruto-resumen-vacio">
+        Sin vehículos que coincidan ese día
+      </div>
+    </div>
+
+    <div class="ruto-resumen-leyenda">
+      <span *ngFor="let c of leyendaCiudades" class="ruto-resumen-leyenda-item">
+        <span class="ruto-resumen-punto" [style.background]="c[1]"></span>{{ c[0] }}
+      </span>
+    </div>
+
+    <!-- Punto 3: total de viajes por vehículo en todo el mes -->
+    <div class="ruto-resumen-titulo" style="margin-top:24px;">Total de viajes por vehículo — {{ meses[ds.S.mes] }}</div>
+    <div class="ruto-resumen-totales">
+      <div *ngFor="let t of resumenViajesPorVehiculoMes()" class="ruto-resumen-total-item">
+        <span class="ruto-resumen-veh-placa">{{ t.placa }}</span>
+        <span class="ruto-resumen-veh-tr">{{ t.tr }}</span>
+        <span class="ruto-resumen-total-num">{{ t.total }} viajes</span>
+      </div>
+
+      <div class="ruto-resumen-total-item ruto-resumen-total-general">
+        <span class="ruto-resumen-veh-placa">TOTAL GENERAL</span>
+        <span class="ruto-resumen-veh-tr">Todos los vehículos</span>
+        <span class="ruto-resumen-total-num">{{ totalViajesMes() }} viajes</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div *ngIf="isModalMantenimientoOpen && vehiculoMantenimientoActivo" class="ruto-modal-backdrop">
+  <div class="ruto-modal-content" style="max-width:380px;">
+    <div class="ruto-modal-header">
+      <h2 class="ruto-modal-title">Mantenimiento — {{ vehiculoMantenimientoActivo.p }}</h2>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:12px; padding:4px 0;">
+      <div>
+        <label style="display:block; color: var(--color-texto-secundario); font-size:13px; margin-bottom:4px;">Fecha de inicio</label>
+        <input type="date"
+               style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:6px 8px;border-radius:6px;"
+               [(ngModel)]="mantForm.inicio">
+      </div>
+
+      <div>
+        <label style="display:block; color: var(--color-texto-secundario); font-size:13px; margin-bottom:4px;">Fecha de fin</label>
+        <input type="date"
+               style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:6px 8px;border-radius:6px;"
+               [(ngModel)]="mantForm.fin">
+      </div>
+    </div>
+
+    <div class="ruto-modal-footer">
+      <button *ngIf="vehiculoMantenimientoActivo.estado === 'Mantenimiento'"
+              class="btn-delete"
+              [disabled]="procesandoMantenimiento"
+              (click)="quitarMantenimiento()">Quitar mantenimiento</button>
+      <button class="btn-save" style="background:#10b981;color: var(--color-texto-principal);border:none;padding:8px 14px;border-radius:6px;cursor:pointer;"
+              [disabled]="procesandoMantenimiento"
+              (click)="guardarMantenimiento()">{{ procesandoMantenimiento ? 'Guardando...' : 'Guardar' }}</button>
+      <button class="btn-close" [disabled]="procesandoMantenimiento" (click)="cerrarMantenimiento()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="isModalCupoOpen" class="ruto-modal-backdrop">
+  <div class="ruto-modal-content" style="max-width:420px;">
+    <div class="ruto-modal-header">
+      <h2 class="ruto-modal-title">
+        + Gestión — {{ selectedTr === 'arsi' ? 'ARSITRANS' : 'POLAR' }}
+      </h2>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:12px; padding:4px 0;">
+      <div>
+        <label style="display:block; color: var(--color-texto-secundario); font-size:13px; margin-bottom:4px;">Día</label>
+        <select style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:6px 8px;border-radius:6px;"
+                [(ngModel)]="nuevoCupo.dia" (ngModelChange)="nuevoCupo.rutaSeleccionada = null">
+          <option *ngFor="let d of diasMes" [ngValue]="d">{{ d }}</option>
+        </select>
+      </div>
+
+      <div>
+        <label style="display:block; color: var(--color-texto-secundario); font-size:13px; margin-bottom:4px;">Ruta</label>
+        <select style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:6px 8px;border-radius:6px;"
+                [(ngModel)]="nuevoCupo.rutaSeleccionada">
+          <option [ngValue]="null">Selecciona una ruta...</option>
+          <option *ngFor="let r of rutasDisponiblesParaDia()" [ngValue]="r">{{ r.label }}</option>
+        </select>
+      </div>
+
+      <div>
+        <label style="display:block; color: var(--color-texto-secundario); font-size:13px; margin-bottom:4px;">Cajas</label>
+        <input type="number" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:6px 8px;border-radius:6px;"
+               [(ngModel)]="nuevoCupo.cajas">
+      </div>
+
+      <div *ngIf="cupoError" style="color:#f87171; font-size:13px;">{{ cupoError }}</div>
+    </div>
+
+    <div class="ruto-modal-footer">
+      <button class="btn-save" style="background:#10b981;color: var(--color-texto-principal);border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" (click)="guardarCupo()">Añadir viaje</button>
+      <button class="btn-close" (click)="cerrarCupo()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="isModalDetalleOpen && selectedViaje" class="ruto-modal-backdrop">
+  <div class="ruto-modal-content">
+    <div class="ruto-modal-header">
+      <h2 class="ruto-modal-title">
+        {{ selectedViaje.veh }} &gt; {{ selectedViaje.destino || selectedViaje.ruta }}
+      </h2>
+    </div>
+    <div class="ruto-modal-grid">
+      <div>
+        <span class="ruto-grid-label">Placa:</span>
+        <!-- La fila de agrupación (ej. "ARSITRANS 1") nunca se toca —
+             lo que se ve/edita aquí es la placa REAL que cumplió el
+             viaje (selectedViaje.placaReal), sin crear ni mover nada.
+             Si no se ha puesto ninguna, se muestra el nombre del cupo
+             como referencia. -->
+        <b *ngIf="!editandoViaje" class="ruto-grid-value-bold">{{ selectedViaje.placaReal || selectedViaje.veh || selectedViaje.p }}</b>
+
+        <input *ngIf="editandoViaje && selectedViaje.tr && selectedViaje.tr !== 'Makand'" type="text" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.placaReal" placeholder="Ej: ABC 123">
+
+        <select *ngIf="editandoViaje && (!selectedViaje.tr || selectedViaje.tr === 'Makand')" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [ngModel]="selectedViaje.p" (ngModelChange)="seleccionarPlacaMakandParaEdicion($event)">
+          <option value="" disabled>Selecciona una placa Makand...</option>
+          <option *ngFor="let x of vehiculosMakandTodosParaEdicion()" [value]="x.vehiculo.p || x.vehiculo.placa">{{ x.vehiculo.p || x.vehiculo.placa }} — {{ x.libre ? 'libre ese día' : 'OCUPADA ese día' }}</option>
+          <option *ngIf="vehiculosMakandTodosParaEdicion().length === 0" value="" disabled>No hay vehículos Makand registrados</option>
+        </select>
+      </div>
+      <div><span class="ruto-grid-label">Ruta:</span> <b class="ruto-grid-value-bold">{{ selectedViaje.ruta }}</b></div>
+
+      <div>
+        <span class="ruto-grid-label">Destino:</span>
+        <span *ngIf="!editandoViaje" class="ruto-grid-value">{{ selectedViaje.destino }}</span>
+        <input *ngIf="editandoViaje" type="text" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.destino">
+      </div>
+      <div>
+        <span class="ruto-grid-label">Conductor:</span>
+        <span *ngIf="!editandoViaje" class="ruto-grid-value">
+          {{ selectedViaje.cond || conductoresMap[selectedViaje.veh] || 'Sin Conductor' }}
+        </span>
+        <input *ngIf="editandoViaje" type="text" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.cond">
+      </div>
+
+      <div>
+        <span class="ruto-grid-label">Salida:</span>
+        <span *ngIf="!editandoViaje" class="ruto-grid-value">{{ selectedViaje.salida }}</span>
+        <input *ngIf="editandoViaje" type="number" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.salida">
+      </div>
+      <div>
+        <span class="ruto-grid-label">Retorno:</span>
+        <span *ngIf="!editandoViaje" class="ruto-grid-value">{{ retornoMostrado }}</span>
+        <input *ngIf="editandoViaje" type="number" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="retornoMostrado">
+      </div>
+
+      <div>
+        <span class="ruto-grid-label">Transportadora:</span>
+        <span *ngIf="!editandoViaje" class="ruto-badge-tr" [style.background]="(!selectedViaje.tr || selectedViaje.tr === 'Makand') ? '#1e3a8a' : '#4b5563'">
+          {{ selectedViaje.tr || 'Makand' }}
+        </span>
+        <select *ngIf="editandoViaje" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.tr">
+          <option value="Makand">Makand</option>
+          <option value="Arsitrans">Arsitrans</option>
+          <option value="Polar">Polar</option>
+        </select>
+      </div>
+      <div><span class="ruto-grid-label">Tipo:</span> <span class="ruto-badge-type">programado</span></div>
+
+      <div>
+        <span class="ruto-grid-label">Cajas:</span>
+        <span *ngIf="!editandoViaje" class="ruto-grid-value-bold">{{ selectedViaje.cajas || 660 }}</span>
+        <input *ngIf="editandoViaje" type="number" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.cajas">
+      </div>
+      <div>
+        <span class="ruto-grid-label">Peso:</span>
+        <span *ngIf="!editandoViaje" class="ruto-grid-value-bold">{{ selectedViaje.peso }} kg</span>
+        <input *ngIf="editandoViaje" type="number" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.peso">
+      </div>
+
+      <div>
+        <span class="ruto-grid-label">Volumen:</span>
+        <span *ngIf="!editandoViaje" class="ruto-grid-value-bold">{{ selectedViaje.volumen }} m³</span>
+        <input *ngIf="editandoViaje" type="number" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.volumen">
+      </div>
+      <div>
+        <span class="ruto-grid-label">Producto:</span>
+        <span *ngIf="!editandoViaje" class="ruto-grid-value">{{ selectedViaje.prod || 'frescos' }}</span>
+        <input *ngIf="editandoViaje" type="text" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.prod" placeholder="frescos">
+      </div>
+
+      <div>
+        <span class="ruto-grid-label">Cliente:</span>
+        <span *ngIf="!editandoViaje" class="ruto-grid-value">{{ selectedViaje.cliente }}</span>
+        <input *ngIf="editandoViaje" type="text" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.cliente">
+      </div>
+      <div>
+        <span class="ruto-grid-label">2do Cliente (doble entrega):</span>
+        <span *ngIf="!editandoViaje" class="ruto-grid-value">{{ selectedViaje.cli2 || 'N/A' }}</span>
+        <input *ngIf="editandoViaje" type="text" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.cli2" placeholder="Solo si hay doble entrega">
+      </div>
+      <div>
+        <span class="ruto-grid-label">2do Destino (doble entrega):</span>
+        <span *ngIf="!editandoViaje" class="ruto-grid-value">{{ selectedViaje.dest2 || 'N/A' }}</span>
+        <input *ngIf="editandoViaje" type="text" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.dest2" placeholder="Solo si hay doble entrega">
+      </div>
+      <div>
+        <span class="ruto-grid-label">Prioridad:</span>
+        <span *ngIf="!editandoViaje" class="ruto-grid-value">{{ selectedViaje.prioridad || 'Normal' }}</span>
+        <select *ngIf="editandoViaje" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.prioridad">
+          <option value="Normal">Normal</option>
+          <option value="alta">Alta</option>
+          <option value="urgente">Urgente</option>
+        </select>
+      </div>
+
+      <div>
+        <span class="ruto-grid-label">Estado:</span>
+        <span *ngIf="!editandoViaje" class="ruto-badge-status" [style.background]="selectedViaje.estado === 'Entregado' ? '#10b981' : (selectedViaje.estado === 'Cancelado' ? '#ef4444' : '#f59e0b')">● {{ selectedViaje.estado || 'Planificado' }}</span>
+        <select *ngIf="editandoViaje" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.estado">
+          <option value="Planificado">Planificado</option>
+          <option value="Pendiente">Pendiente</option>
+          <option value="En ruta">En ruta</option>
+          <option value="Entregado">Entregado</option>
+          <option value="Cancelado">Cancelado</option>
+        </select>
+      </div>
+      <div *ngIf="selectedViaje.estado === 'Cancelado' && (editandoViaje || selectedViaje.motivoCancelacion)" style="grid-column: 1 / -1;">
+        <span class="ruto-grid-label">Motivo de cancelación:</span>
+        <span *ngIf="!editandoViaje" class="ruto-grid-value">{{ selectedViaje.motivoCancelacion || 'Sin especificar' }}</span>
+        <textarea *ngIf="editandoViaje" class="ruto-input-edit" rows="2" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;resize:vertical;" [(ngModel)]="selectedViaje.motivoCancelacion" placeholder="Ej: cliente canceló el pedido, clima, avería..."></textarea>
+      </div>
+      <div>
+        <span class="ruto-grid-label">Manifiesto:</span>
+        <span *ngIf="!editandoViaje" class="ruto-grid-value">{{ selectedViaje.manifiesto || 'N/A' }}</span>
+        <input *ngIf="editandoViaje" type="text" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.manifiesto" placeholder="Ej: MF-123456">
+      </div>
+      <div class="ruto-grid-colspan-2"><span class="ruto-grid-label">Costo:</span> <span class="ruto-grid-value-bold">${{ selectedViaje.costo }}</span></div>
+    </div>
+    <div class="ruto-ultima-edicion">
+      <i class="bi bi-person-check"></i> {{ textoUltimaEdicion(selectedViaje) }}
+    </div>
+    <div class="ruto-modal-footer">
+      <button class="btn-delete" *ngIf="auth.puedeEditar && !editandoViaje" (click)="eliminarViaje()">Eliminar viaje</button>
+      <button class="btn-edit" style="background:#b45309;color: var(--color-texto-principal);border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" *ngIf="auth.puedeEditar && !editandoViaje && selectedViaje.estado !== 'Cancelado'" (click)="abrirVarado()"><i class="bi bi-cone-striped"></i> Vehículo varado</button>
+      <button class="btn-edit" style="background:#2563eb;color: var(--color-texto-principal);border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" *ngIf="auth.puedeEditar && !editandoViaje" (click)="abrirEdicion()"><i class="bi bi-pencil-square"></i> Editar viaje</button>
+      <button class="btn-save" style="background:#10b981;color: var(--color-texto-principal);border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" *ngIf="editandoViaje" (click)="guardarCambiosViaje()"><i class="bi bi-save-fill"></i> Guardar cambios</button>
+      <button class="btn-close" (click)="cerrarDetalle()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Vehículo Varado: otro vehículo (de cualquier transportadora) termina
+     de llevar el viaje cuando el original se avería a mitad de camino. -->
+<div *ngIf="isModalVaradoOpen" class="ruto-modal-backdrop" style="z-index: 10001;">
+  <div class="ruto-modal-content" style="max-width: 480px;">
+    <h3 style="margin: 0 0 4px 0;"><i class="bi bi-cone-striped"></i> Vehículo varado</h3>
+    <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0;">
+      El viaje se le pasa a otro vehículo disponible ese mismo día. La placa original quedará marcada como "Varado" ese día, con el motivo.
+    </p>
+
+    <div style="margin-bottom: 14px;">
+      <label style="display:block; font-size: 12px; color: var(--color-texto-secundario); margin-bottom: 4px;">Razón de la avería (obligatorio)</label>
+      <textarea [(ngModel)]="varadoRazon" rows="2" placeholder="Ej: pinchazo, falla de motor..." style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:6px 8px;border-radius:6px;resize:vertical;"></textarea>
+    </div>
+
+    <div style="max-height: 320px; overflow-y: auto;">
+      <div *ngFor="let c of varadoCandidatos"
+           style="display:flex; align-items:center; justify-content:space-between; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+        <div>
+          <div style="font-size: 13px; font-weight: 600; color: var(--color-texto-principal);">{{ c.placa }} <span style="font-size: 10px; color: #93c5fd; font-weight: normal;">— {{ c.tr }}</span></div>
+          <div style="font-size: 11px;" [style.color]="c.varadoEseDia ? '#c084fc' : (c.libre ? '#34d399' : '#f59e0b')">
+            {{ c.varadoEseDia ? ('Varado ese día: ' + c.varadoEseDia.razon) : (c.libre ? 'Libre ese día' : ('Ocupado: ' + (c.viajeConflicto?.ruta || c.viajeConflicto?.codigo))) }}
+          </div>
+        </div>
+        <button class="btn-save" style="background:#10b981;color: var(--color-texto-principal);border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;" [disabled]="procesandoVarado || c.varadoEseDia" (click)="elegirVehiculoVarado(c)">
+          Elegir
+        </button>
+      </div>
+
+      <div *ngIf="varadoCandidatos.length === 0" style="text-align:center; color: var(--color-texto-apagado); font-style: italic; padding: 16px 0; font-size: 12px;">
+        No hay otros vehículos registrados.
+      </div>
+    </div>
+
+    <div class="ruto-modal-footer" style="margin-top: 14px;">
+      <button class="btn-close" [disabled]="procesandoVarado" (click)="cerrarVarado()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Eliminar viaje — 3 opciones explícitas: acomodar los siguientes
+     viajes de esa placa, eliminar sin tocar nada más, o cancelar. -->
+<div *ngIf="isModalEliminarViajeOpen" class="ruto-modal-backdrop" style="z-index: 10002;">
+  <div class="ruto-modal-content" style="max-width: 460px;">
+    <h3 style="margin: 0 0 4px 0;">Eliminar viaje</h3>
+    <p style="font-size: 13px; color: var(--color-texto-secundario); margin: 0 0 16px 0;">
+      ¿Qué quieres hacer con los viajes que vienen después de este, en la misma placa?
+    </p>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <button class="btn-save" style="background:#10b981;color: var(--color-texto-principal);border:none;padding:10px 14px;border-radius:6px;cursor:pointer;text-align:left;" (click)="elegirOpcionEliminarViaje('acomodar')">
+        Eliminar y acomodar los siguientes viajes
+      </button>
+      <button class="btn-save" style="background:#f59e0b;color: var(--color-texto-principal);border:none;padding:10px 14px;border-radius:6px;cursor:pointer;text-align:left;" (click)="elegirOpcionEliminarViaje('sin_acomodar')">
+        Eliminar sin acomodar nada
+      </button>
+      <button class="btn-close" (click)="elegirOpcionEliminarViaje('cancelar')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Al elegir una placa Makand ya ocupada en "Editar viaje" — 3 opciones
+     para resolver el choque con el viaje que ya estaba ahí. -->
+<div *ngIf="isModalConflictoPlacaOpen" class="ruto-modal-backdrop" style="z-index: 10003;">
+  <div class="ruto-modal-content" style="max-width: 480px;">
+    <h3 style="margin: 0 0 4px 0;">Esa placa ya tiene un viaje</h3>
+    <p style="font-size: 13px; color: var(--color-texto-secundario); margin: 0 0 16px 0;" *ngIf="viajeConflictivoParaResolucion">
+      Ese día ya hay un viaje ahí: <b style="color: var(--color-texto-principal);">{{ viajeConflictivoParaResolucion.ruta || viajeConflictivoParaResolucion.codigo }}</b>
+      ({{ viajeConflictivoParaResolucion.destino || viajeConflictivoParaResolucion.dest }}). ¿Qué quieres hacer?
+    </p>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <button class="btn-save" style="background:#10b981;color: var(--color-texto-principal);border:none;padding:10px 14px;border-radius:6px;cursor:pointer;text-align:left;" (click)="resolverConflictoPlacaCambiar()">
+        Cambiar ese viaje por este (el que ya estaba se cancela)
+      </button>
+      <button class="btn-save" style="background:#3b82f6;color: var(--color-texto-principal);border:none;padding:10px 14px;border-radius:6px;cursor:pointer;text-align:left;" (click)="resolverConflictoPlacaMoverAdelante()">
+        Mover ese viaje hacia adelante (al siguiente día que le sirva)
+      </button>
+      <button class="btn-save" style="background:#f59e0b;color: var(--color-texto-principal);border:none;padding:10px 14px;border-radius:6px;cursor:pointer;text-align:left;" (click)="resolverConflictoPlacaMoverATercero('Arsitrans')">
+        Mover ese viaje a Arsitrans
+      </button>
+      <button class="btn-save" style="background:#f59e0b;color: var(--color-texto-principal);border:none;padding:10px 14px;border-radius:6px;cursor:pointer;text-align:left;" (click)="resolverConflictoPlacaMoverATercero('Polar')">
+        Mover ese viaje a Polar
+      </button>
+      <button class="btn-close" (click)="cerrarModalConflictoPlaca()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de confirmación propio — reemplaza el confirm() nativo del
+     navegador (solo decía "Aceptar/Cancelar") por botones que dicen
+     exactamente la acción. Reusable para cualquier decisión parecida. -->
+<div *ngIf="confirmDialogAbierto" class="ruto-modal-backdrop" style="z-index: 10002;">
+  <div class="ruto-modal-content" style="max-width: 440px;">
+    <p style="font-size: 14px; color: var(--color-texto-principal); line-height: 1.5; margin: 0 0 18px 0;">
+      {{ confirmDialogMensaje }}
+    </p>
+    <div class="ruto-modal-footer">
+      <button class="btn-close" (click)="confirmDialogElegir(false)">{{ confirmDialogBtnCancelar }}</button>
+      <button class="btn-save" style="background:#10b981;color: white;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" (click)="confirmDialogElegir(true)">{{ confirmDialogBtnAceptar }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de selección de opciones — FALTABA por completo, igual que en
+     vehiculos.html. Sin esto, guardar un mantenimiento desde Rutograma
+     se quedaba pegado en "Guardando..." para siempre cuando había
+     varios viajes de terceros robables ese día: el código pedía la
+     elección, pero no había nada en pantalla que mostrarla. -->
+<div *ngIf="isModalSeleccionOpen" class="ruto-modal-backdrop" style="z-index: 10002;">
+  <div class="ruto-modal-content" style="max-width: 460px;">
+    <p style="font-size: 14px; color: var(--color-texto-principal); line-height: 1.5; margin: 0 0 16px 0; white-space: pre-line;">
+      {{ seleccionMensaje }}
+    </p>
+    <div style="display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto;">
+      <button *ngFor="let op of seleccionOpciones"
+              class="btn-close"
+              style="text-align: left; width: 100%;"
+              (click)="seleccionElegir(op.valor)">
+        {{ op.etiqueta }}
+      </button>
+    </div>
+    <div class="ruto-modal-footer">
+      <button class="btn-close" (click)="seleccionElegir(null)">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Descanso de conductor — el titular de la placa descansa ese día; se
+     asigna un respaldo SOLO para este viaje, sin tocar la asignación
+     permanente del conductor a la placa. -->
+<div *ngIf="isModalDescansoOpen" class="ruto-modal-backdrop" style="z-index: 10002;">
+  <div class="ruto-modal-content" style="max-width: 440px;">
+    <h3 style="margin: 0 0 4px 0;"><i class="bi bi-moon-stars-fill"></i> Conductor de descanso</h3>
+    <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0;">
+      El conductor titular de esta placa está de descanso este día. Añade un respaldo solo para este viaje.
+    </p>
+
+    <div style="max-height: 300px; overflow-y: auto;">
+      <div *ngFor="let c of candidatosRespaldoConductor"
+           style="display:flex; align-items:center; justify-content:space-between; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+        <div style="font-size: 13px; font-weight: 600; color: var(--color-texto-principal);">{{ c.nom || c.nombre }}</div>
+        <button class="btn-save" style="background:#10b981;color: var(--color-texto-principal);border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;" (click)="elegirRespaldoConductor(c)">
+          Elegir
+        </button>
+      </div>
+
+      <div *ngIf="candidatosRespaldoConductor.length === 0" style="text-align:center; color: var(--color-texto-apagado); font-style: italic; padding: 16px 0; font-size: 12px;">
+        No hay otro conductor disponible para el dia escogido.
+      </div>
+    </div>
+
+    <div class="ruto-modal-footer" style="margin-top: 14px;">
+      <button class="btn-close" (click)="cerrarAsignarRespaldo()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirmación de conflicto al editar un viaje: la placa/transportadora
+     a la que se cambió ya tiene otro viaje asignado ese día. -->
+<div *ngIf="conflictoEdicionViaje && selectedViaje" class="ruto-modal-backdrop" style="z-index: 10000;">
+  <div class="ruto-modal-content" style="max-width: 480px;">
+    <div class="ruto-modal-header">
+      <h3 style="margin:0;"><i class="bi bi-exclamation-triangle-fill"></i> {{ selectedViaje.tr || 'Makand' }} Sin disponible ese día</h3>
+    </div>
+
+    <div style="padding: 16px 20px; color: var(--color-texto-principal); font-size: 13px; line-height: 1.6;">
+      <p>
+        La placa <strong>{{ selectedViaje.p }}</strong> ({{ selectedViaje.tr || 'Makand' }}) ya tiene
+        {{ conflictoEdicionViaje.viajesConflicto.length > 1 ? 'estos viajes asignados' : 'este viaje asignado' }}
+        ese rango de días:
+      </p>
+      <ul style="margin: 8px 0; padding-left: 20px;">
+        <li *ngFor="let vj of conflictoEdicionViaje.viajesConflicto">
+          <strong>{{ vj.ruta }}</strong> — {{ vj.destino || 'Sin destino' }} (día {{ vj.dia }})
+        </li>
+      </ul>
+      <p>Escoge una opcion.</p>
+    </div>
+
+    <div class="ruto-modal-footer">
+      <button class="btn-close" (click)="cancelarCambioTransportadora()">Dejar el viaje asignado</button>
+      <button class="btn-save" style="background:#ef4444;color: var(--color-texto-principal);border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" (click)="confirmarReemplazoConflicto()">Reemplazar por este viaje</button>
+    </div>
+  </div>
+</div>
+<!-- Tooltip flotante de viaje (pulido visual): vive fuera de la tabla y de
+     cualquier contenedor con overflow, así "position: fixed" nunca se
+     recorta. Se posiciona con las coordenadas del mouse. -->
+<div *ngIf="tooltipVisible && tooltipDatos"
+     class="ruto-hover-tooltip"
+     [style.left.px]="tooltipX"
+     [style.top.px]="tooltipY">
+  <div class="ruto-hover-tooltip-header">
+    <span class="ruto-hover-tooltip-placa">{{ tooltipDatos.placa }}</span>
+    <span class="ruto-hover-tooltip-tr">{{ tooltipDatos.transportadora }}</span>
+  </div>
+  <div class="ruto-hover-tooltip-row"><span>Ruta</span><b>{{ tooltipDatos.ruta }}</b></div>
+  <div class="ruto-hover-tooltip-row"><span>Conductor</span><b>{{ tooltipDatos.conductor }}</b></div>
+  <div class="ruto-hover-tooltip-row"><span>Estado</span><b>{{ tooltipDatos.estado }} · {{ tooltipDatos.hora }}</b></div>
+  <div class="ruto-hover-tooltip-row"><span>Cajas</span><b>{{ tooltipDatos.cajas }} cj</b></div>
+  <div class="ruto-hover-tooltip-row" *ngIf="tooltipDatos.dia"><span>Día</span><b>{{ tooltipDatos.dia }}</b></div>
+</div>
+
+<!-- Calendario de mes flotante (pulido visual): igual que el tooltip de
+     arriba, vive fuera de la tabla y de cualquier contenedor con
+     overflow/sticky, con "position: fixed" anclado a coordenadas reales
+     de pantalla (calculadas al abrir) — así nunca vuelve a mezclarse
+     visualmente con los encabezados "sticky" de la tabla. -->
+<div *ngIf="calendarioMesAbierto"
+     class="ruto-mini-calendario"
+     [style.left.px]="calendarioMesX"
+     [style.top.px]="calendarioMesY"
+     (click)="$event.stopPropagation()">
+  <div class="ruto-mc-header">
+    <button type="button" class="ruto-mc-nav" (click)="cambiarAnioCalendarioMes(-1)"><i class="bi bi-arrow-left-short"></i></button>
+    <span class="ruto-mc-titulo">{{ calendarioMesAnioMostrado }}</span>
+    <button type="button" class="ruto-mc-nav" (click)="cambiarAnioCalendarioMes(1)"><i class="bi bi-arrow-right-short"></i></button>
+  </div>
+  <div class="ruto-mc-meses-grid">
+    <button type="button" *ngFor="let m of nombresMesCalendario; let i = index"
+            class="ruto-mc-mes-item"
+            [class.ruto-mc-seleccionado]="i === ds.S.mes && calendarioMesAnioMostrado === ds.S.anio"
+            (click)="seleccionarMesCalendario(i)">
+      {{ m.slice(0, 3) }}
+    </button>
+  </div>
+</div>
+
+<!-- "Foto del mes" — captura la matriz REAL de Rutograma (colores y
+     tarjetas de verdad) sobre una copia clonada, filtrada por
+     transportadora, y la descarga como imagen. -->
+<div *ngIf="isModalFotoOpen" class="ruto-modal-backdrop" style="z-index: 10003;">
+  <div class="ruto-modal-content" style="max-width: 1100px; width: 95%;">
+    <h3 style="margin: 0 0 4px 0;"><i class="bi bi-camera-fill"></i> Foto del mes</h3>
+    <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 16px 0;">
+      Vista previa de la matriz, filtrada por transportadora — cambia las opciones y se actualizara por si sola.
+    </p>
+
+    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+      <div style="flex: 0 0 220px;">
+        <div style="margin-bottom: 12px;">
+          <label style="display:block; font-size: 12px; color: var(--color-texto-secundario); margin-bottom: 4px;">Transportadora</label>
+          <select [(ngModel)]="fotoTransportadora" (ngModelChange)="actualizarPreviewFoto()" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:6px 8px;border-radius:6px;">
+            <option value="Makand">Makand</option>
+            <option value="Polar">Polar</option>
+            <option value="Arsitrans">Arsitrans</option>
+            <option value="Todas">Todas juntas</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+          <label style="display:block; font-size: 12px; color: var(--color-texto-secundario); margin-bottom: 4px;">Orientación final</label>
+          <select [(ngModel)]="fotoOrientacion" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:6px 8px;border-radius:6px;">
+            <option value="horizontal">Horizontal (tal cual se ve)</option>
+            <option value="vertical">Vertical (rotada 90°)</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+          <label style="display:block; font-size: 12px; color: var(--color-texto-secundario); margin-bottom: 4px;">Tamaño de papel (nitidez)</label>
+          <select [(ngModel)]="fotoTamano" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:6px 8px;border-radius:6px;">
+            <option value="A1">A1 (máxima resolución)</option>
+            <option value="A2">A2</option>
+            <option value="A3">A3</option>
+            <option value="A4">A4</option>
+          </select>
+        </div>
+
+        <p style="font-size: 10px; color: var(--color-texto-apagado); line-height: 1.4;">
+          La orientación y el tamaño solo afectan la imagen final descargada, no a la vista previa.
+        </p>
+      </div>
+
+      <!-- Vista previa — una imagen REAL de la tabla (capturada de una
+           copia, nunca la tabla en pantalla), no un dibujo aparte. -->
+      <div style="flex: 1; min-width: 320px; display: flex; align-items: center; justify-content: center; background: var(--color-fondo-input); border-radius: 8px; padding: 12px; min-height: 200px;">
+        <div *ngIf="generandoPreviewFoto" style="color: var(--color-texto-secundario); font-size: 12px;">Generando vista previa...</div>
+        <img *ngIf="!generandoPreviewFoto && fotoPreviewUrl" [src]="fotoPreviewUrl" style="max-width: 100%; max-height: 420px; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
+        <div *ngIf="!generandoPreviewFoto && !fotoPreviewUrl" style="color: var(--color-texto-apagado); font-size: 12px; font-style: italic;">No se pudo generar la vista previa.</div>
+      </div>
+    </div>
+
+    <div class="ruto-modal-footer" style="margin-top: 16px;">
+      <button class="btn-close" (click)="cerrarFotoMes()">Cerrar</button>
+      <button class="btn-save" style="background:#1d4ed8;color: var(--color-texto-principal);border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" [disabled]="generandoPDF" (click)="generarPDF()">
+        <i class="bi" [ngClass]="generandoPDF ? 'bi-hourglass-split' : 'bi-file-earmark-pdf-fill'"></i>
+        {{ generandoPDF ? 'Generando PDF...' : 'Descargar como PDF' }}
+      </button>
+      <button class="btn-save" style="background:#10b981;color: var(--color-texto-principal);border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" [disabled]="generandoFoto" (click)="generarFoto()">
+        <i class="bi" [ngClass]="generandoFoto ? 'bi-hourglass-split' : 'bi-download'"></i>
+        {{ generandoFoto ? 'Generando imagen...' : 'Descargar como imagen' }}
+      </button>
+    </div>
+  </div>
+</div>

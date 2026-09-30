@@ -1,0 +1,189 @@
+<div class="comp-container">
+
+  <div class="comp-header">
+    <div>
+      <h1>Comparativo de Meses</h1>
+      <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--color-texto-apagado);">Solo viajes de Makand (flota propia)</p>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <button class="comp-modo-btn" style="background: var(--color-fondo-tarjeta-hover); color: var(--color-texto-principal);" (click)="exportarComparativoCSV()">
+        <i class="bi bi-download"></i> Exportar a Excel
+      </button>
+      <div class="comp-modo-toggle">
+        <button class="comp-modo-btn" [class.activo]="modoVista === 'dos'" (click)="cambiarModo('dos')">
+          Comparar 2 meses
+        </button>
+        <button class="comp-modo-btn" [class.activo]="modoVista === 'seis'" (click)="cambiarModo('seis')">
+          Últimos 6 meses
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== RITMO DEL MES EN CURSO ===================== -->
+  <div class="comp-ritmo" *ngIf="ritmo as r">
+    <div class="comp-ritmo-cab">
+      <div>
+        <div class="comp-ritmo-titulo"><i class="bi bi-speedometer2"></i> Ritmo del mes — {{ r.etiqueta }}</div>
+        <div class="comp-ritmo-sub">Hoy es el día {{ r.diaHoy }} de {{ r.diasDelMes }} · solo viajes de Makand</div>
+      </div>
+      <div class="comp-ritmo-veredicto" [style.color]="colorEstadoRitmo(pctRitmo(r))">
+        <i class="bi" [ngClass]="iconoEstadoRitmo(pctRitmo(r))"></i> {{ textoEstadoRitmo(pctRitmo(r)) }}
+      </div>
+    </div>
+
+    <ng-container *ngIf="r.previstosHoy > 0; else ritmoSinPrevistos">
+      <div class="comp-ritmo-cuerpo">
+        <div class="comp-ritmo-pct" [style.color]="colorEstadoRitmo(pctRitmo(r))">{{ pctRitmo(r) }}%</div>
+        <div class="comp-ritmo-detalle">
+          Se cumplieron <strong>{{ cumplidosRitmo(r) }}</strong> de los <strong>{{ r.previstosHoy }}</strong>
+          viajes de Makand previstos hasta hoy.
+        </div>
+      </div>
+
+      <div class="comp-cumpl-barra-contenedor">
+        <div class="comp-cumpl-barra"
+             [style.width.%]="pctRitmo(r)"
+             [style.background]="colorEstadoRitmo(pctRitmo(r))">
+        </div>
+      </div>
+
+      <div class="comp-ritmo-desglose">
+        Previstos hasta hoy = {{ r.cumplidosAuto }} salieron con Makand + {{ r.canceladas }} cancelados
+        + {{ r.pasadasATerceros }} pasados a terceros.
+        <span *ngIf="r.faltantes > 0">Faltan {{ r.faltantes }} viajes por delante este mes.</span><br>
+        Verde desde 90%, ámbar de 70 a 89%, rojo por debajo de 70%.
+      </div>
+
+      <div class="comp-ritmo-corregir">
+        <div class="comp-ritmo-corregir-titulo"><i class="bi bi-pencil-square"></i> ¿El número de arriba no es correcto?</div>
+        <div class="comp-ritmo-corregir-fila">
+          <label>Corregir cumplidos de hoy:</label>
+          <input type="number" min="0" [max]="r.previstosHoy"
+                 [ngModel]="ritmoEsManual(r) ? cumplidosRitmo(r) : null"
+                 (ngModelChange)="actualizarRitmoManual(r, $event)"
+                 [placeholder]="'' + r.cumplidosAuto">
+          <button class="comp-ritmo-restablecer" *ngIf="ritmoEsManual(r)" (click)="restablecerRitmoAutomatico(r)">
+            Volver al automático
+          </button>
+        </div>
+        <span>{{ ritmoEsManual(r) ? 'Corregido a mano (vale solo por hoy).' : 'No has corregido nada — el número de arriba es 100% automático, no hace falta tocar esto.' }}</span>
+      </div>
+    </ng-container>
+
+    <ng-template #ritmoSinPrevistos>
+      <div class="comp-ritmo-detalle">Todavía no hay viajes de Makand previstos hasta hoy.</div>
+    </ng-template>
+  </div>
+
+  <!-- ===================== MODO: COMPARAR 2 MESES ===================== -->
+  <div *ngIf="modoVista === 'dos'">
+
+    <div class="comp-selectores">
+      <div class="comp-selector-grupo">
+        <label>Mes A</label>
+        <div class="comp-selector-fila">
+          <select [(ngModel)]="mesIndexA" (ngModelChange)="recalcularDosMeses()">
+            <option *ngFor="let m of nombresMes; let i = index" [value]="i">{{ m }}</option>
+          </select>
+          <select [(ngModel)]="anioA" (ngModelChange)="recalcularDosMeses()">
+            <option *ngFor="let a of aniosDisponibles" [value]="a">{{ a }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="comp-vs">vs.</div>
+
+      <div class="comp-selector-grupo">
+        <label>Mes B</label>
+        <div class="comp-selector-fila">
+          <select [(ngModel)]="mesIndexB" (ngModelChange)="recalcularDosMeses()">
+            <option *ngFor="let m of nombresMes; let i = index" [value]="i">{{ m }}</option>
+          </select>
+          <select [(ngModel)]="anioB" (ngModelChange)="recalcularDosMeses()">
+            <option *ngFor="let a of aniosDisponibles" [value]="a">{{ a }}</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <label class="comp-corte" *ngIf="mesActualEnSelectores">
+      <input type="checkbox" [(ngModel)]="soloHastaHoy" (ngModelChange)="recalcularDosMeses()">
+      Contar solo hasta el día {{ diaHoy }} en ambos meses (para comparar igual contra igual)
+    </label>
+
+    <div class="comp-tarjetas-dos" *ngIf="resumenA && resumenB">
+
+      <div class="comp-tarjeta-mes">
+        <div class="comp-tarjeta-titulo">{{ resumenA.etiqueta }}</div>
+        <div class="comp-tarjeta-total">{{ resumenA.total }}</div>
+        <div class="comp-tarjeta-sub">viajes Makand<span *ngIf="resumenA.hastaDia"> hasta el día {{ resumenA.hastaDia }}</span></div>
+      </div>
+
+      <div class="comp-tarjeta-diferencia">
+        <div class="comp-dif-titulo">Diferencia</div>
+        <div class="comp-dif-valor" [ngClass]="claseDiferencia(resumenA.total, resumenB.total)">
+          {{ diferenciaTexto(resumenA.total, resumenB.total) }}
+        </div>
+        <div class="comp-dif-sub">{{ resumenB.total - resumenA.total >= 0 ? '+' : '' }}{{ resumenB.total - resumenA.total }} viajes</div>
+      </div>
+
+      <div class="comp-tarjeta-mes">
+        <div class="comp-tarjeta-titulo">{{ resumenB.etiqueta }}</div>
+        <div class="comp-tarjeta-total">{{ resumenB.total }}</div>
+        <div class="comp-tarjeta-sub">viajes Makand<span *ngIf="resumenB.hastaDia"> hasta el día {{ resumenB.hastaDia }}</span></div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ===================== MODO: ÚLTIMOS 6 MESES ===================== -->
+  <div *ngIf="modoVista === 'seis'">
+
+    <div class="comp-stitle">Viajes Makand por mes (últimos 6)</div>
+
+    <div class="comp-seis-lista">
+      <div class="comp-seis-fila" *ngFor="let r of resumenesSeisMeses">
+        <div class="comp-seis-etiqueta">{{ r.etiqueta }}<span class="comp-parcial" *ngIf="r.enCurso">mes en curso</span></div>
+        <div class="comp-seis-barra-contenedor">
+          <div class="comp-seis-barra" [style.width]="anchoBarraSeisMeses(r.total)" [style.background]="colorTransportadora('Makand')">
+          </div>
+        </div>
+        <div class="comp-seis-total">{{ r.total }}</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== CUMPLIMIENTO (siempre visible, últimos 6 meses) ===================== -->
+  <div class="comp-cumplimiento">
+    <div class="comp-stitle">Cumplimiento — viajes cumplidos vs. lo destinado por el Rutograma</div>
+    <div class="comp-cumpl-lista">
+      <div class="comp-cumpl-fila" *ngFor="let r of resumenesSeisMeses">
+        <div class="comp-seis-etiqueta">{{ r.etiqueta }}</div>
+
+        <div class="comp-cumpl-input-grupo">
+          <span>Se cumplieron</span>
+          <input type="number" min="0" [max]="r.total"
+                 [ngModel]="valorCumplidoManual(r)"
+                 (ngModelChange)="actualizarCumplidoManual(r, $event)"
+                 placeholder="0">
+          <span>de los {{ r.total }} destinados por el Rutograma</span>
+        </div>
+
+        <div class="comp-cumpl-barra-contenedor" *ngIf="valorCumplidoManual(r) !== null">
+          <div class="comp-cumpl-barra"
+               [style.width.%]="pctCumplidoManual(r)"
+               [style.background]="colorCumplimiento(pctCumplidoManual(r))">
+          </div>
+        </div>
+        <div class="comp-cumpl-pct" *ngIf="valorCumplidoManual(r) !== null" [style.color]="colorCumplimiento(pctCumplidoManual(r))">
+          {{ pctCumplidoManual(r) }}%
+        </div>
+      </div>
+    </div>
+    <div class="comp-cumpl-nota">Estos números los escribes tú — no se calculan solos ni afectan ningún otro número de la app.</div>
+  </div>
+
+</div>

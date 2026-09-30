@@ -1,0 +1,232 @@
+<div class="admin-container">
+  <h1>Panel de Administrador</h1>
+
+  <div class="admin-tabs">
+    <button class="admin-tab" [class.activa]="pestaniaActiva === 'cuentas'" (click)="cambiarPestania('cuentas')">
+      Cuentas
+    </button>
+    <button class="admin-tab" [class.activa]="pestaniaActiva === 'auditoria'" (click)="cambiarPestania('auditoria')">
+      Auditoría
+    </button>
+    <button class="admin-tab" [class.activa]="pestaniaActiva === 'dispositivos'" (click)="cambiarPestania('dispositivos')">
+      Dispositivos
+    </button>
+  </div>
+
+  <!-- ===================== CUENTAS ===================== -->
+  <ng-container *ngIf="pestaniaActiva === 'cuentas'">
+    <p *ngIf="cargando" class="admin-msg">Cargando cuentas...</p>
+    <p *ngIf="!cargando && usuarios.length === 0" class="admin-msg">
+      No hay cuentas registradas actualmente.
+    </p>
+
+    <div class="tabla-scroll">
+    <table class="user-table" *ngIf="!cargando && usuarios.length > 0">
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Departamento</th>
+          <th>Estado</th>
+          <th>Rol</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let u of usuarios">
+          <td>{{ u.email }}</td>
+          <td>{{ u.departamento || '—' }}</td>
+          <td>
+            <span class="estado"
+                  [class.estado-aprobado]="u.estado === 'APPROVED'"
+                  [class.estado-pendiente]="u.estado === 'PENDING'"
+                  [class.estado-rechazado]="u.estado === 'REJECTED'">
+              {{ u.estado }}
+            </span>
+          </td>
+          <td>
+            <span class="rol-badge" [class.rol-lector]="u.rol === 'lector'">
+              {{ u.rol === 'lector' ? 'Solo lectura' : 'Editor' }}
+            </span>
+          </td>
+          <td class="acciones">
+            <button *ngIf="u.estado !== 'APPROVED'" class="btn-aprobar" (click)="aprobarUsuario(u)">
+              Aprobar
+            </button>
+            <button *ngIf="u.estado !== 'REJECTED'" class="btn-rechazar" (click)="rechazarUsuario(u)">
+              Rechazar
+            </button>
+            <button *ngIf="u.rol !== 'lector'" class="btn-rol" (click)="cambiarRol(u, 'lector')">
+              Volver solo lectura
+            </button>
+            <button *ngIf="u.rol === 'lector'" class="btn-rol" (click)="cambiarRol(u, 'editor')">
+              Dar acceso completo
+            </button>
+            <button *ngIf="u.estado === 'APPROVED'" class="btn-rol" (click)="abrirResetClave(u)">
+              Restablecer contraseña
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </ng-container>
+
+  <!-- ===================== AUDITORÍA ===================== -->
+  <ng-container *ngIf="pestaniaActiva === 'auditoria'">
+    <div class="admin-head-row">
+      <p class="admin-subtexto">Últimos 200 cambios registrados</p>
+      <button class="btn-refrescar" (click)="cargarAuditoria()"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+    </div>
+
+    <div *ngIf="!cargandoAuditoria && eventos.length > 0"
+         style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin: 4px 0 14px 0;">
+      <div>
+        <label style="display:block; font-size:11px; opacity:0.7; margin-bottom:3px;">Usuario</label>
+        <select [(ngModel)]="filtroUsuario"
+                style="background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:6px; padding:5px 8px; font-size:12px;">
+          <option value="">Todos</option>
+          <option *ngFor="let u of usuariosDisponibles" [value]="u">{{ u }}</option>
+        </select>
+      </div>
+      <div>
+        <label style="display:block; font-size:11px; opacity:0.7; margin-bottom:3px;">Acción</label>
+        <select [(ngModel)]="filtroAccion"
+                style="background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:6px; padding:5px 8px; font-size:12px;">
+          <option value="">Todas</option>
+          <option *ngFor="let a of accionesDisponibles" [value]="a">{{ a }}</option>
+        </select>
+      </div>
+      <div>
+        <label style="display:block; font-size:11px; opacity:0.7; margin-bottom:3px;">Desde</label>
+        <input type="date" [(ngModel)]="filtroFechaDesde"
+               style="background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:6px; padding:4px 8px; font-size:12px;">
+      </div>
+      <div>
+        <label style="display:block; font-size:11px; opacity:0.7; margin-bottom:3px;">Hasta</label>
+        <input type="date" [(ngModel)]="filtroFechaHasta"
+               style="background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:6px; padding:4px 8px; font-size:12px;">
+      </div>
+      <button *ngIf="hayFiltrosAuditoriaActivos" class="btn-refrescar" (click)="limpiarFiltrosAuditoria()"><i class="bi bi-x-lg"></i> Limpiar filtros</button>
+      <span *ngIf="hayFiltrosAuditoriaActivos" style="font-size:12px; opacity:0.6;">
+        {{ eventosFiltrados.length }} de {{ eventos.length }} eventos
+      </span>
+    </div>
+
+    <p *ngIf="cargandoAuditoria" class="admin-msg">Cargando auditoría...</p>
+    <p *ngIf="!cargandoAuditoria && eventos.length === 0" class="admin-msg">
+      Todavía no hay eventos registrados.
+    </p>
+    <p *ngIf="!cargandoAuditoria && eventos.length > 0 && eventosFiltrados.length === 0" class="admin-msg">
+      Ningún evento coincide con estos filtros.
+    </p>
+
+    <div class="tabla-scroll">
+    <table class="user-table" *ngIf="!cargandoAuditoria && eventosFiltrados.length > 0">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Usuario</th>
+          <th>Modo</th>
+          <th>Qué cambió</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let e of eventosFiltrados">
+          <td>{{ e.fecha | date:'short' }}</td>
+          <td>{{ e.usuario || 'desconocido' }}</td>
+          <td>
+            <span [style.background]="e.modo === 'pruebas' ? '#78350f' : '#1e3a8a'"
+                  [style.color]="e.modo === 'pruebas' ? '#fde68a' : '#bfdbfe'"
+                  style="padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;">
+              {{ e.modo === 'pruebas' ? 'PRUEBA' : 'REAL' }}
+            </span>
+          </td>
+          <td>
+            {{ descripcionEvento(e) }}
+            <div style="font-size: 11px; opacity: 0.5; margin-top: 2px;">{{ e.metodo }} {{ e.ruta }}</div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </ng-container>
+</div>
+
+<!-- ===================== DISPOSITIVOS BLOQUEADOS ===================== -->
+  <ng-container *ngIf="pestaniaActiva === 'dispositivos'">
+    <p *ngIf="cargandoDispositivos" class="admin-msg">Cargando dispositivos...</p>
+    <p *ngIf="!cargandoDispositivos && dispositivosBloqueados.length === 0" class="admin-msg">
+      No hay dispositivos bloqueados en este momento.
+    </p>
+    <table class="user-table" *ngIf="!cargandoDispositivos && dispositivosBloqueados.length > 0">
+      <thead>
+        <tr>
+          <th>Cuenta</th>
+          <th>Dispositivo</th>
+          <th>IP</th>
+          <th>Bloqueado el</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let d of dispositivosBloqueados">
+          <td>{{ d.email }}</td>
+          <td>{{ d.dispositivo }}</td>
+          <td>{{ d.ip }}</td>
+          <td>{{ d.bloqueadoEn | date:'short' }}</td>
+          <td>
+            <button class="btn-aprobar" (click)="desbloquear(d)">Desbloquear</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </ng-container>
+
+<!-- Modal de confirmación propio — reemplaza el confirm() nativo del
+     navegador. Mismo patrón ya usado en el resto de la app. -->
+<div class="mbg" [class.hide]="!confirmDialogAbierto">
+  <div class="modal" style="width:420px">
+    <p style="font-size: 14px; color: #e2e8f0; line-height: 1.5; margin: 0 0 18px 0; white-space: pre-line;">{{ confirmDialogMensaje }}</p>
+    <div class="mfoot">
+      <button class="btn" (click)="confirmDialogElegir(false)">{{ confirmDialogBtnCancelar }}</button>
+      <button class="btn pri" (click)="confirmDialogElegir(true)">{{ confirmDialogBtnAceptar }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal del motivo de rechazo — la persona rechazada lo ve en la
+     pantalla Pending. -->
+<div class="mbg" [class.hide]="!isModalMotivoRechazoOpen">
+  <div class="modal" style="width:420px">
+    <p style="font-size: 14px; color: #e2e8f0; line-height: 1.5; margin: 0 0 10px 0;">
+      ¿Por qué se rechaza esta cuenta? (opcional — se le muestra a la persona)
+    </p>
+    <textarea [(ngModel)]="motivoRechazoTexto" rows="3" placeholder="Ej: correo corporativo no válido, ya existe una cuenta a tu nombre..."
+              style="width:100%; background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:6px; padding:8px 10px; font-size:13px; resize:vertical;"></textarea>
+    <div class="mfoot">
+      <button class="btn" (click)="cancelarRechazo()">Cancelar</button>
+      <button class="btn pri" (click)="confirmarRechazoConMotivo()">Rechazar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de restablecer contraseña -->
+<div class="mbg" [class.hide]="!isModalResetClaveOpen">
+  <div class="modal" style="width:420px">
+    <p style="font-size: 14px; color: #e2e8f0; line-height: 1.5; margin: 0 0 10px 0;">
+      Nueva contraseña para <strong>{{ usuarioAResetear?.email }}</strong> (mínimo 6 caracteres):
+    </p>
+    <div style="display:flex; gap:8px;">
+      <input [(ngModel)]="nuevaClaveTexto" type="text" placeholder="Nueva contraseña"
+             style="flex:1; background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:6px; padding:8px 10px; font-size:13px;">
+      <button class="btn" (click)="generarClaveAleatoria()" title="Generar una contraseña al azar"><i class="bi bi-shuffle"></i> Generar</button>
+    </div>
+    <p style="font-size: 12px; color: #94a3b8; margin: 10px 0 0 0;">
+      Después de guardar, comparte esta contraseña con la persona por otro medio (no viaja por correo, por seguridad).
+    </p>
+    <div class="mfoot">
+      <button class="btn" (click)="cancelarResetClave()">Cancelar</button>
+      <button class="btn pri" (click)="confirmarResetClave()">Restablecer</button>
+    </div>
+  </div>
+</div>

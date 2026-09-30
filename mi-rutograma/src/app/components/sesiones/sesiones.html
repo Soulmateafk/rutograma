@@ -1,0 +1,36 @@
+<div class="ses-page">
+  <div class="ses-head">
+    <div>
+      <h2>Sesiones activas</h2>
+      <p>Equipos desde los que se ha iniciado sesión. Cierra los que no reconozcas.</p>
+    </div>
+    <div class="ses-actions">
+      <button *ngIf="esAdmin" class="ses-btn" (click)="alternarTodas()">
+        {{ verTodas ? 'Ver solo las mías' : 'Ver todas las cuentas' }}
+      </button>
+      <button *ngIf="hayOtras && !verTodas" class="ses-btn ses-btn-danger" (click)="cerrarOtras()">
+        Cerrar las demás
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="cargando" class="ses-empty">Cargando…</div>
+  <div *ngIf="!cargando && sesiones.length === 0" class="ses-empty">No hay sesiones registradas.</div>
+
+  <div class="ses-list">
+    <div class="ses-item" *ngFor="let s of sesiones" [class.ses-actual]="s.actual">
+      <div class="ses-info">
+        <div class="ses-device">
+          {{ s.dispositivo }}
+          <span *ngIf="s.actual" class="ses-tag">Esta sesión</span>
+        </div>
+        <div class="ses-meta" *ngIf="verTodas">{{ s.email }}</div>
+        <div class="ses-meta">IP: {{ s.ip }}</div>
+        <div class="ses-meta">Inició: {{ fecha(s.creada) }} · Última actividad: {{ fecha(s.ultima) }}</div>
+      </div>
+      <button class="ses-btn ses-btn-danger" (click)="cerrar(s)">
+        {{ s.actual ? 'Cerrar sesión' : 'Sacar' }}
+      </button>
+    </div>
+  </div>
+</div>

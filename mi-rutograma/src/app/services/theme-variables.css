@@ -1,0 +1,81 @@
+/*
+ * VARIABLES DE COLOR — Modo Oscuro / Modo Claro
+ * =============================================
+ * Este archivo define los "nombres" de color que el resto de la app debe
+ * usar en vez de valores fijos (ej. usar var(--color-texto) en vez de
+ * escribir "#fff" directamente). Así, cambiar de tema es tan simple como
+ * agregar o quitar la clase "tema-claro" en el <body> (lo hace
+ * ThemeService automáticamente) — cada variable cambia de valor sola.
+ *
+ * CÓMO INTEGRARLO: agrega esta línea al inicio de tu styles.css global
+ * (o impórtalo con @import si prefieres mantenerlo aparte):
+ *   @import './theme-variables.css';
+ *
+ * IMPORTANTE: definir estas variables NO cambia nada todavía por sí solo
+ * — cada archivo .html/.css de cada página tiene que ir reemplazando sus
+ * colores fijos por estas variables, uno por uno. Esa es la parte grande
+ * del trabajo que falta (ver notas en /areas/rutograma-makand.md).
+ */
+
+:root {
+  /* ---- MODO OSCURO (valores por defecto — como se ve la app hoy) ---- */
+  --color-fondo-pagina: #0b1220;
+  --color-fondo-tarjeta: rgba(255, 255, 255, 0.03);
+  --color-fondo-tarjeta-hover: rgba(255, 255, 255, 0.06);
+  --color-fondo-input: #0f172a;
+  --color-fondo-modal: #1e1e2e;
+  --color-borde: rgba(255, 255, 255, 0.1);
+  --color-borde-suave: rgba(255, 255, 255, 0.05);
+
+  --color-texto-principal: #ffffff;
+  --color-texto-secundario: rgba(255, 255, 255, 0.7);
+  --color-texto-apagado: rgba(255, 255, 255, 0.4);
+
+  /* Colores de acento — se mantienen prácticamente iguales en ambos
+     temas (con ligeros ajustes de tono para que se sigan viendo bien
+     sobre fondo claro), ya que son colores "de marca"/estado, no de
+     fondo o texto. */
+  --color-exito: #34d399;
+  --color-exito-fondo: rgba(16, 185, 129, 0.15);
+  --color-peligro: #f87171;
+  --color-peligro-fondo: rgba(239, 68, 68, 0.1);
+  --color-advertencia: #fbbf24;
+  --color-advertencia-fondo: rgba(245, 158, 11, 0.15);
+  --color-info: #60a5fa;
+  --color-info-fondo: rgba(59, 130, 246, 0.15);
+}
+
+/*
+ * MODO CLARO — se activa agregando la clase "tema-claro" al <body>
+ * (lo hace ThemeService.alternarTema() automáticamente).
+ */
+body.tema-claro {
+  --color-fondo-pagina: #f1f5f9;
+  --color-fondo-tarjeta: #ffffff;
+  --color-fondo-tarjeta-hover: #f8fafc;
+  --color-fondo-input: #ffffff;
+  --color-fondo-modal: #ffffff;
+  --color-borde: rgba(15, 23, 42, 0.12);
+  --color-borde-suave: rgba(15, 23, 42, 0.06);
+
+  --color-texto-principal: #0f172a;
+  --color-texto-secundario: rgba(15, 23, 42, 0.75);
+  --color-texto-apagado: rgba(15, 23, 42, 0.45);
+
+  /* Los acentos se oscurecen un poco respecto al modo oscuro, para que
+     sigan teniendo suficiente contraste sobre fondo blanco/claro. */
+  --color-exito: #059669;
+  --color-exito-fondo: rgba(5, 150, 105, 0.12);
+  --color-peligro: #dc2626;
+  --color-peligro-fondo: rgba(220, 38, 38, 0.1);
+  --color-advertencia: #d97706;
+  --color-advertencia-fondo: rgba(217, 119, 6, 0.12);
+  --color-info: #2563eb;
+  --color-info-fondo: rgba(37, 99, 235, 0.12);
+}
+
+body {
+  background-color: var(--color-fondo-pagina);
+  color: var(--color-texto-principal);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}

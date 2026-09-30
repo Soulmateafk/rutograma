@@ -1,0 +1,993 @@
+<div class="rutas-dashboard" style="padding: 20px;">
+  
+  <div class="frow" style="justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2>Gestión de Rutas Logísticas</h2>
+    <div style="display: flex; gap: 10px;">
+      <button class="btn" (click)="mostrarHistorial = !mostrarHistorial"> Ver histórico</button>
+      <button class="btn pri" *ngIf="auth.puedeEditar" (click)="abrirModalRuta(-1)">+ Crear Nueva Ruta</button>
+      <button class="btn" *ngIf="auth.puedeEditar" (click)="modal.abrir('m-cupo')">Confirmar Cupo Externo</button>
+    </div>
+  </div>
+
+  <input type="text" placeholder="Buscar por código o destino..." [(ngModel)]="busquedaRutas"
+         style="background: var(--color-fondo-input); border: 1px solid var(--color-borde); color: var(--color-texto-principal); padding: 8px 12px; border-radius: 6px; font-size: 13px; width: 100%; max-width: 360px; margin-bottom: 14px;">
+
+  <div *ngIf="mostrarHistorial" style="background: var(--color-fondo-tarjeta); border-radius: 8px; border: 1px solid var(--color-borde); padding: 16px; margin-bottom: 20px;">
+    <div style="display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;">
+      <div class="fg" style="margin:0;">
+        <label>Mes</label>
+        <select [(ngModel)]="historialMes">
+          <option *ngFor="let m of meses" [value]="m">{{ m }}</option>
+        </select>
+      </div>
+
+      <div class="fg" style="margin:0;">
+        <label>Año</label>
+        <input type="number" [(ngModel)]="historialAnio">
+      </div>
+
+      <button class="btn pri" (click)="verHistorialMes()">Ver</button>
+      <button class="btn" (click)="cerrarHistorial()">Cerrar</button>
+    </div>
+
+    <div *ngIf="cargandoHistorial" style="margin-top:12px; color: var(--color-texto-apagado);">
+      Cargando...
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; margin-top:12px;" *ngIf="!cargandoHistorial && rutasHistorial !== null">
+      <thead>
+        <tr style="background: var(--color-fondo-tarjeta); color: var(--color-texto-secundario); border-bottom: 1px solid var(--color-borde);">
+          <th style="padding: 10px 12px; font-weight: 500;">Código</th>
+          <th style="padding: 10px 12px; font-weight: 500;">Destino</th>
+          <th style="padding: 10px 12px; font-weight: 500;">Tipo</th>
+          <th style="padding: 10px 12px; font-weight: 500; text-align: center;">Días entrega / Hora</th>
+          <th style="padding: 10px 12px; font-weight: 500;">Tarifas</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr *ngFor="let r of rutasHistorial" style="border-bottom: 1px solid var(--color-borde-suave);">
+          <td style="padding: 10px 12px; color: var(--color-texto-principal);">
+            <b>{{ r.cod || r.codigo }}</b>
+          </td>
+
+          <td style="padding: 10px 12px; color: var(--color-texto-principal);">
+            {{ r.dest || r.destino }}
+          </td>
+
+          <td style="padding: 10px 12px; color: var(--color-texto-secundario);">
+            {{ r.tipo || 'media' }} — {{ r.km || 0 }}km
+          </td>
+
+          <td style="padding: 10px 12px; text-align: center;">
+            <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+              <div *ngFor="let dia of obtenerDiasActivosHistorial(r)"
+                   style="border-radius: 6px; padding: 3px 7px; border: 1px solid rgba(56,189,248,0.15); background: var(--color-fondo-input);">
+                <div style="font-size: 10px; font-weight: bold; color:#38bdf8;">
+                  {{ dia.label }}
+                </div>
+                <div style="font-size: 9px; color: #fb923c;">
+                  {{ dia.hora }}
+                </div>
+              </div>
+
+              <span *ngIf="obtenerDiasActivosHistorial(r).length === 0"
+                    style="color: var(--color-texto-apagado); font-size: 12px; font-style: italic;">
+                Variable
+              </span>
+            </div>
+          </td>
+
+          <td style="padding: 10px 12px; font-family: monospace; font-size: 11px;">
+            <div style="color: var(--color-texto-apagado);">
+              MKD {{ formatearMillon(r.tarifaMakand) }}
+            </div>
+            <div style="color: var(--color-texto-apagado);">
+              ARS {{ formatearMillon(r.tarifaArsitrans) }}
+            </div>
+            <div style="color: var(--color-texto-apagado);">
+              POL {{ formatearMillon(r.tarifaPolar) }}
+            </div>
+          </td>
+        </tr>
+
+        <tr *ngIf="!rutasHistorial.length">
+          <td colspan="5"
+              style="text-align: center; padding: 20px; color: var(--color-texto-apagado); font-style: italic;">
+            No hay una foto guardada de {{ historialMes }} {{ historialAnio }} — se guardara automáticamente al generar la matriz del mes.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tabla-contenedor"
+       style="background: var(--color-fondo-tarjeta); border-radius: 8px; border: 1px solid var(--color-borde); overflow: hidden;">
+
+    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+
+      <thead>
+        <tr style="background: var(--color-fondo-tarjeta); color: var(--color-texto-secundario); border-bottom: 1px solid var(--color-borde);">
+          <th style="padding: 14px 12px; font-weight: 500;">Codigo</th>
+          <th style="padding: 14px 12px; font-weight: 500;">Destino</th>
+          <th style="padding: 14px 12px; font-weight: 500;">Tipo</th>
+          <th style="padding: 14px 12px; font-weight: 500;">Almacen / Cliente</th>
+          <th style="padding: 14px 12px; font-weight: 500; text-align: center;">Dias entrega / Hora</th>
+          <th style="padding: 14px 12px; font-weight: 500;">Proxima entrega</th>
+          <th style="padding: 14px 12px; font-weight: 500;">Tarifas</th>
+          <th style="padding: 14px 12px; font-weight: 500; text-align: center;">Accion</th>
+        </tr>
+      </thead>
+
+      <tbody>
+
+        <tr *ngFor="let r of getRutasFiltradas()"
+            style="border-bottom: 1px solid var(--color-borde-suave); transition: background 0.2s; vertical-align: middle;"
+            onmouseover="this.style.background='rgba(255,255,255,0.01)'"
+            onmouseout="this.style.background='transparent'">
+
+          <td style="padding: 14px 12px; color: var(--color-texto-principal);">
+            <b>{{ r.cod || r.codigo }}</b>
+            <div style="margin-top: 3px;">
+              <span *ngIf="r.activa === false"
+                    style="background:#7f1d1d; color:#fecaca; padding:2px 7px; border-radius:10px; font-size:10px; font-weight:600;">
+                CANCELADA
+              </span>
+              <span *ngIf="r.activa !== false && r.vigenteDesde"
+                    style="background:#1e3a8a; color:#bfdbfe; padding:2px 7px; border-radius:10px; font-size:10px; font-weight:600;">
+                Desde {{ r.vigenteDesde }}
+              </span>
+            </div>
+          </td>
+
+          <td style="padding: 14px 12px; color: var(--color-texto-principal);">
+            {{ r.dest || r.destino }}
+          </td>
+
+          <td style="padding: 14px 12px;">
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+
+              <span [style.background]="(r.tipo?.toLowerCase() === 'larga') ? '#991b1b' : (r.tipo?.toLowerCase() === 'corta' ? '#065f46' : '#9a3412')"
+                    style="color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; width: fit-content; text-transform: lowercase;">
+                {{ r.tipo || 'media' }}
+              </span>
+
+              <span style="font-size: 11px; color: var(--color-texto-apagado);">
+                {{ r.km || 0 }}km {{ r.diasTrans || 1 }}d
+              </span>
+
+            </div>
+          </td>
+
+          <td style="padding: 14px 12px; color: var(--color-texto-secundario);">
+            <div style="white-space: pre-line; line-height: 1.3;">
+              {{ r.clientes || 'Sin clientes fijos' }}
+            </div>
+          </td>
+
+          <td style="padding: 14px 12px; text-align: center;">
+            <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+
+              <div *ngFor="let dia of obtenerDiasActivos(r)"
+                   [style.background]="dia.esFestivo ? '#2a2615' : 'var(--color-fondo-input)'"
+                   [style.border-color]="dia.esFestivo ? 'rgba(234,179,8,0.2)' : 'rgba(56,189,248,0.15)'"
+                   style="border-radius: 6px; padding: 4px 8px; min-width: 44px; text-align: center; border: 1px solid;">
+
+                <div style="font-size: 11px; font-weight: bold;"
+                     [style.color]="dia.esFestivo ? '#eab308' : '#38bdf8'">
+                  {{ dia.label }}
+                </div>
+
+                <div style="font-size: 10px; color: #fb923c; font-weight: 600; margin-top: 1px;">
+                  {{ dia.hora }}
+                </div>
+
+              </div>
+
+              <span *ngIf="obtenerDiasActivos(r).length === 0"
+                    style="color: var(--color-texto-apagado); font-size: 12px; font-style: italic;">
+                Variable
+              </span>
+
+            </div>
+          </td>
+
+          <td style="padding: 14px 12px;">
+            <span [style.color]="obtenerDiasActivos(r).length > 0 ? '#22c55e' : 'rgba(255,255,255,0.4)'"
+                  style="font-weight: 500;">
+              {{ calcularProximaEntrega(r) }}
+            </span>
+          </td>
+
+          <td style="padding: 14px 12px; font-family: monospace; font-size: 12px; line-height: 1.4;">
+            <div style="color: var(--color-texto-apagado);">
+              <span style="color: var(--color-texto-principal)">MKD</span>
+              {{ formatearMillon(r.tarifaMakand) }}
+            </div>
+
+            <div style="color: var(--color-texto-apagado);">
+              <span style="color: var(--color-texto-principal)">ARS</span>
+              {{ formatearMillon(r.tarifaArsitrans) }}
+            </div>
+
+            <div style="color: var(--color-texto-apagado);">
+              <span style="color: var(--color-texto-principal)">POL</span>
+              {{ formatearMillon(r.tarifaPolar) }}
+            </div>
+          </td>
+
+          <td style="padding: 14px 12px; text-align: center;">
+            <div style="display: flex; gap: 6px; justify-content: center; align-items: center;" *ngIf="auth.puedeEditar">
+
+              <button class="btn"
+                      style="padding: 5px 12px; font-size: 12px; background: var(--color-fondo-tarjeta-hover); color: var(--color-texto-principal); border: 1px solid var(--color-borde);"
+                      (click)="abrirModalRuta(r._idx)">
+                Editar
+              </button>
+
+              <button class="btn"
+                      [style.background]="r.activa === false ? '#166534' : '#78350f'"
+                      style="padding: 5px 10px; font-size: 12px; color: white; border: none; font-weight: bold;"
+                      [title]="r.activa === false ? 'Reactivar ruta' : 'Cancelar ruta (deja de generar viajes, sin borrar nada)'"
+                      (click)="alternarEstadoRuta(r._idx)">
+                <i class="bi" [ngClass]="r.activa === false ? 'bi-play-fill' : 'bi-pause-fill'"></i>
+              </button>
+
+              <button class="btn"
+                      style="padding: 5px 10px; font-size: 12px; background: #ef4444; color: white; border: none; font-weight: bold;"
+                      (click)="eliminarRuta(r._idx)">
+                <i class="bi bi-x"></i>
+              </button>
+
+            </div>
+          </td>
+
+        </tr>
+
+        <tr *ngIf="getRutas().length === 0">
+          <td colspan="8"
+              style="text-align: center; padding: 32px; color: var(--color-texto-apagado); font-style: italic;">
+            No hay rutas registradas en el sistema logístico.
+          </td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+
+  <!-- ========================================================= -->
+  <!-- CHECK DE RUTAS                                            -->
+  <!-- ========================================================= -->
+
+  <div style="display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap; align-items: flex-start;">
+
+    <!-- ======================================================= -->
+    <!-- CHECK DE RUTAS — DESPACHO                               -->
+    <!-- ======================================================= -->
+
+    <div class="card ruta-check-card"
+         style="flex: 1;">
+
+      <div class="stitle"
+           style="text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; margin-bottom: 16px; text-align: center;">
+        Check de Rutas — Despacho
+      </div>
+
+      <div style="overflow-x: auto;">
+
+        <table class="ruta-check-table" style="width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px; color: var(--color-texto-principal);">
+
+          <thead>
+            <tr style="background: var(--color-fondo-tarjeta-hover); border-bottom: 2px solid var(--color-borde);">
+
+              <th style="padding: 12px 10px; text-align: left; width: 13%;">
+                Ruta
+              </th>
+
+              <th style="padding: 12px 10px; text-align: left; width: 17%;">
+                Destino
+              </th>
+
+              <th *ngFor="let d of diasSemanaCedis"
+                  style="padding: 12px 10px; text-align: center;">
+                {{ d.label }}
+              </th>
+
+            </tr>
+          </thead>
+
+          <tbody>
+
+            <tr *ngFor="let r of tablaRutasPorDiaSemana()"
+                style="border-bottom: 1px solid var(--color-borde-suave);">
+
+              <td style="padding: 10px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; height: 44px; box-sizing: border-box; vertical-align: middle;">
+                {{ r.cod }}
+              </td>
+
+              <td style="padding: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; height: 44px; box-sizing: border-box; vertical-align: middle;">
+                {{ r.destino }}
+              </td>
+
+              <td *ngFor="let d of diasSemanaCedis"
+                  style="padding: 5px 10px; text-align: center; height: 44px; box-sizing: border-box; vertical-align: middle;"
+                  [style.background]="r.dias[d.clave] ? 'rgba(16,185,129,0.15)' : 'transparent'">
+
+                <div style="height: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1;">
+
+                  <span *ngIf="r.dias[d.clave]"
+                        style="color: #34d399; font-weight: bold; font-size: 16px; line-height: 16px;">
+                    <i class="bi bi-check-lg"></i>
+                  </span>
+
+                  <!-- Espacio reservado. No se muestra. -->
+                  <div *ngIf="r.dias[d.clave]"
+                       style="height: 13px; line-height: 13px; margin-top: 2px; visibility: hidden;">
+                    Sale 00:00
+                  </div>
+
+                </div>
+
+              </td>
+
+            </tr>
+
+            <tr *ngIf="tablaRutasPorDiaSemana().length === 0">
+
+              <td [attr.colspan]="2 + diasSemanaCedis.length"
+                  style="text-align: center; color: var(--color-texto-apagado); font-style: italic; padding: 16px 0;">
+                No hay rutas configuradas todavía.
+              </td>
+
+            </tr>
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+    </div>
+
+
+    <!-- ======================================================= -->
+    <!-- CHECK DE RUTAS — ENTREGA                                -->
+    <!-- ======================================================= -->
+
+    <div class="card ruta-check-card"
+         style="flex: 1;">
+
+      <div class="stitle"
+           style="text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; margin-bottom: 16px; text-align: center;">
+        Check de Rutas — Entrega
+      </div>
+
+      <div style="overflow-x: auto;">
+
+        <table class="ruta-check-table" style="width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px; color: var(--color-texto-principal);">
+
+          <thead>
+            <tr style="background: var(--color-fondo-tarjeta-hover); border-bottom: 2px solid var(--color-borde);">
+
+              <th style="padding: 12px 10px; text-align: left; width: 13%;">
+                Ruta
+              </th>
+
+              <th style="padding: 12px 10px; text-align: left; width: 17%;">
+                Destino
+              </th>
+
+              <th *ngFor="let d of diasSemanaCedis"
+                  style="padding: 12px 10px; text-align: center;">
+                {{ d.label }}
+              </th>
+
+            </tr>
+          </thead>
+
+          <tbody>
+
+            <tr *ngFor="let r of tablaRutasPorDiaSemanaEntrega()"
+                style="border-bottom: 1px solid var(--color-borde-suave);">
+
+              <td style="padding: 10px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; height: 44px; box-sizing: border-box; vertical-align: middle;">
+                {{ r.cod }}
+              </td>
+
+              <td style="padding: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; height: 44px; box-sizing: border-box; vertical-align: middle;">
+                {{ r.destino }}
+              </td>
+
+              <td *ngFor="let d of diasSemanaCedis"
+                  style="padding: 5px 10px; text-align: center; height: 44px; box-sizing: border-box; vertical-align: middle;"
+                  [style.background]="r.dias[d.clave] ? 'rgba(52,211,153,0.15)' : 'transparent'">
+
+                <div style="height: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1;">
+
+                  <span *ngIf="r.dias[d.clave]"
+                        style="color: #6ee7b7; font-weight: bold; font-size: 14px; line-height: 16px;">
+                    <i class="bi bi-check-lg"></i>
+                  </span>
+
+                  <div *ngIf="r.dias[d.clave]"
+                       style="color: var(--color-texto-secundario); font-size: 11px; margin-top: 2px; line-height: 13px; white-space: nowrap;">
+                    Sale {{ r.dias[d.clave] }}
+                  </div>
+
+                </div>
+
+              </td>
+
+            </tr>
+
+            <tr *ngIf="tablaRutasPorDiaSemanaEntrega().length === 0">
+
+              <td [attr.colspan]="2 + diasSemanaCedis.length"
+                  style="text-align: center; color: var(--color-texto-apagado); font-style: italic; padding: 16px 0;">
+                No hay rutas configuradas todavía.
+              </td>
+
+            </tr>
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- ========================================================= -->
+  <!-- PRIORIDADES DE HORARIO                                   -->
+  <!-- ========================================================= -->
+
+  <div class="card" style="margin-top: 20px;">
+
+    <div class="stitle"
+         style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 6px; text-align: center;">
+      Prioridades de Horario — Makand (por día de la semana)
+    </div>
+
+    <p style="font-size: 11px; color: var(--color-texto-apagado); text-align: center; margin: 0 0 16px 0;">
+      Manten clic y arrastra (o usa las flechas ▲▼) — la ruta que quede primero conserva su hora, las demás quedan a partir de cada 30 minutos a partir de ahí.
+    </p>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
+
+      <div *ngFor="let d of diasSemanaCedis">
+
+        <div style="font-size: 12px; font-weight: 700; color: var(--color-texto-secundario); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--color-borde);">
+          {{ d.label }}
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+
+          <div *ngFor="let r of listaRutasPorDiaPrioridad(d.clave); let i = index"
+               draggable="true"
+               (dragstart)="onDragStartPrioridad(r.cod, d.clave)"
+               (dragover)="onDragOverPrioridad($event, r.cod, d.clave)"
+               (dragleave)="onDragLeavePrioridad()"
+               (drop)="onDropPrioridad(r.cod, d.clave)"
+               (dragend)="onDragEndPrioridad()"
+               [style.border-color]="dragOverCodPrioridad === r.cod ? '#3b82f6' : 'var(--color-borde)'"
+               [style.opacity]="draggedCodPrioridad === r.cod ? 0.4 : 1"
+               style="display: flex; align-items: center; gap: 10px; background: var(--color-fondo-input); border: 1px solid var(--color-borde); border-radius: 6px; padding: 6px 10px; cursor: grab;">
+
+            <div style="color: var(--color-texto-apagado); font-size: 14px; user-select: none;">
+              ⠿
+            </div>
+
+            <div style="font-size: 11px; font-weight: 700; color: var(--color-texto-apagado); min-width: 16px; text-align: center;">
+              {{ i + 1 }}
+            </div>
+
+            <div style="font-size: 12px; font-weight: 700; color: #fb923c; min-width: 44px;">
+              {{ r.hora }}
+            </div>
+
+            <div style="flex: 1; min-width: 0;">
+
+              <div style="font-size: 12px; font-weight: 700; color: var(--color-texto-principal);">
+                {{ r.cod }}
+              </div>
+
+              <div style="font-size: 10px; color: var(--color-texto-secundario); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                {{ r.destino }}
+              </div>
+
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+
+              <button style="background: var(--color-fondo-modal);border: 1px solid var(--color-borde);color: var(--color-texto-secundario);width:20px;height:16px;border-radius:4px;cursor:pointer;font-size:9px;padding:0;"
+                      [disabled]="i === 0"
+                      (click)="moverRutaPrioridadArriba(d.clave, i)">
+                ▲
+              </button>
+
+              <button style="background: var(--color-fondo-modal);border: 1px solid var(--color-borde);color: var(--color-texto-secundario);width:20px;height:16px;border-radius:4px;cursor:pointer;font-size:9px;padding:0;"
+                      [disabled]="i === (listaRutasPorDiaPrioridad(d.clave).length - 1)"
+                      (click)="moverRutaPrioridadAbajo(d.clave, i)">
+                ▼
+              </button>
+
+            </div>
+
+          </div>
+
+          <div *ngIf="listaRutasPorDiaPrioridad(d.clave).length === 0"
+               style="font-size: 11px; color: var(--color-texto-apagado); font-style: italic; text-align: center; padding: 10px 0;">
+            Sin rutas este día.
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- ============================================================= -->
+<!-- MODAL CUPO EXTERNO                                             -->
+<!-- ============================================================= -->
+
+<div class="mbg hide" id="m-cupo">
+
+  <div class="modal" style="width:480px">
+
+    <h3>Confirmar Cupo Externo</h3>
+
+    <div class="frow">
+
+      <div class="fg">
+        <label>Transportadora</label>
+
+        <select [(ngModel)]="cupo.transp">
+          <option value="arsi">Arsitrans</option>
+          <option value="polar">Polar</option>
+        </select>
+      </div>
+
+      <div class="fg">
+        <label>Día del viaje</label>
+        <input type="date" [(ngModel)]="cupo.fecha">
+      </div>
+
+    </div>
+
+    <div class="frow">
+
+      <div class="fg">
+        <label>Placa confirmada</label>
+        <input [(ngModel)]="cupo.placa" placeholder="Placa que confirman">
+      </div>
+
+      <div class="fg">
+        <label>Conductor</label>
+        <input [(ngModel)]="cupo.cond" placeholder="Nombre conductor">
+      </div>
+
+    </div>
+
+    <div class="frow">
+
+      <div class="fg">
+        <label>Ruta</label>
+
+        <select [(ngModel)]="cupo.ruta" (change)="infoCupoRuta()">
+          <option *ngFor="let r of getRutas()" [value]="r.cod || r.codigo">
+            {{ r.cod || r.codigo }}
+          </option>
+        </select>
+      </div>
+
+      <div class="fg">
+        <label>Cajas</label>
+        <input type="number" [(ngModel)]="cupo.cajas" min="1">
+      </div>
+
+    </div>
+
+    <div class="frow">
+
+      <div class="fg">
+        <label>Cliente</label>
+        <input [(ngModel)]="cupo.cli" placeholder="Almacen / cadena">
+      </div>
+
+      <div class="fg">
+        <label>2do cliente</label>
+        <input [(ngModel)]="cupo.cli2" placeholder="Opcional">
+      </div>
+
+    </div>
+
+    <div class="frow">
+
+      <div class="fg">
+        <label>Prioridad</label>
+
+        <select [(ngModel)]="cupo.prior">
+          <option value="normal">Normal</option>
+          <option value="urgente">Urgente</option>
+        </select>
+      </div>
+
+      <div class="fg">
+        <label>Manifiesto</label>
+        <input [(ngModel)]="cupo.manif" placeholder="Opcional">
+      </div>
+
+    </div>
+
+    <div *ngIf="rutaSeleccionadaInfo"
+         style="background: var(--color-fondo-tarjeta-hover); border-left: 3px solid #3b82f6; border-radius: 6px; padding: 9px 12px; font-size: 11px; margin-bottom: 8px; color: var(--color-texto-secundario);">
+
+      Destino:
+      <b>{{ rutaSeleccionadaInfo.dest || rutaSeleccionadaInfo.destino }}</b>
+      |
+      Tarifa:
+      <b>{{ (rutaSeleccionadaInfo.tarifa || rutaSeleccionadaInfo.tarifaArsitrans || 0) | currency:'COP':'symbol':'1.0-0' }}</b>
+
+    </div>
+
+    <div *ngIf="cupoError"
+         style="background: rgba(239,68,68,0.1); border: 1px solid #ef4444; border-radius: 6px; padding: 8px 12px; font-size: 12px; color: #fca5a5; margin-bottom: 8px;">
+      {{ cupoError }}
+    </div>
+
+    <div class="mfoot">
+
+      <button class="btn"
+              (click)="cerrarModal('m-cupo')">
+        Cerrar
+      </button>
+
+      <button class="btn pri"
+              (click)="guardarCupo()">
+        Confirmar Cupo
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- ============================================================= -->
+<!-- MODAL RUTA                                                     -->
+<!-- ============================================================= -->
+
+<div class="mbg hide" id="m-ruta">
+
+  <div class="modal" style="width: 550px; max-height: 90vh; overflow-y: auto;">
+
+    <h3>{{ idxRuta > -1 ? 'Editar Ruta Logística' : 'Nueva Ruta' }}</h3>
+
+    <div class="frow">
+
+      <div class="fg">
+        <label>Código</label>
+        <input [(ngModel)]="datosRuta.cod" placeholder="Ej: BOG-BAQ">
+      </div>
+
+      <div class="fg">
+        <label>Destino principal</label>
+        <input [(ngModel)]="datosRuta.dest" placeholder="Barranquilla">
+      </div>
+
+    </div>
+
+    <div class="frow">
+
+      <div class="fg">
+        <label>2do destino (opcional)</label>
+        <input [(ngModel)]="datosRuta.dest2" placeholder="Cartagena">
+      </div>
+
+      <div class="fg">
+        <label>Tipo de ruta</label>
+
+        <select [(ngModel)]="datosRuta.tipo">
+          <option value="Corta">Corta</option>
+          <option value="Media">Media</option>
+          <option value="Larga">Larga</option>
+        </select>
+      </div>
+
+    </div>
+
+    <div class="frow">
+
+      <div class="fg">
+        <label>Km</label>
+        <input type="number" [(ngModel)]="datosRuta.km" placeholder="Ej: 1000">
+      </div>
+
+      <div class="fg">
+        <label>Días en tránsito</label>
+        <input type="number" [(ngModel)]="datosRuta.diasTrans" min="1">
+      </div>
+
+    </div>
+
+    <div class="frow">
+
+      <div class="fg">
+        <label>Días de retorno (extra, además del tránsito — dejar en 0 si no aplica)</label>
+        <input type="number" [(ngModel)]="datosRuta.diasDesc" min="0">
+      </div>
+
+      <div class="fg">
+        <label>Cajas mínimas</label>
+        <input type="number" [(ngModel)]="datosRuta.cajasMin" min="1">
+      </div>
+
+    </div>
+
+    <div class="frow">
+
+      <div class="fg">
+        <label>Tarifa Makand ($)</label>
+        <input type="number" [(ngModel)]="datosRuta.tarifaMakand" placeholder="0">
+      </div>
+
+      <div class="fg">
+        <label>Tarifa Arsitrans ($)</label>
+        <input type="number" [(ngModel)]="datosRuta.tarifaArsitrans" placeholder="0">
+      </div>
+
+    </div>
+
+    <div class="frow">
+
+      <div class="fg">
+        <label>Tarifa Polar ($)</label>
+        <input type="number" [(ngModel)]="datosRuta.tarifaPolar" placeholder="0">
+      </div>
+
+    </div>
+
+    <div class="frow">
+
+      <div class="fg">
+        <label>Vigente desde (opcional — vacío = siempre)</label>
+        <input type="date" [(ngModel)]="datosRuta.vigenteDesde">
+      </div>
+
+      <div class="fg" style="display:flex; align-items:flex-end;">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" [(ngModel)]="datosRuta.activa">
+          Ruta activa (genera viajes en "Generar Matriz")
+        </label>
+      </div>
+
+    </div>
+
+    <div style="margin-top: 15px; margin-bottom: 15px;">
+
+      <label style="font-weight: bold; font-size: 12px; display: block; margin-bottom: 8px; color: var(--color-texto-principal);">
+        Días de entrega con hora (dejar vacío si es variable)
+      </label>
+
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;" *ngIf="datosRuta.dias">
+
+        <div style="background: var(--color-fondo-tarjeta); border: 1px solid var(--color-borde); padding: 8px; border-radius: 6px; text-align: center;">
+          <label style="display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; margin-bottom: 4px;">
+            <input type="checkbox" [(ngModel)]="datosRuta.dias.dom.checked">
+            Domingo
+          </label>
+          <input type="time"
+                 [(ngModel)]="datosRuta.dias.dom.hora"
+                 style="width: 100%; padding: 2px; font-size: 11px; text-align: center;"
+                 [disabled]="!datosRuta.dias.dom.checked">
+        </div>
+
+        <div style="background: var(--color-fondo-tarjeta); border: 1px solid var(--color-borde); padding: 8px; border-radius: 6px; text-align: center;">
+          <label style="display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; margin-bottom: 4px;">
+            <input type="checkbox" [(ngModel)]="datosRuta.dias.lun.checked">
+            Lunes
+          </label>
+          <input type="time"
+                 [(ngModel)]="datosRuta.dias.lun.hora"
+                 style="width: 100%; padding: 2px; font-size: 11px; text-align: center;"
+                 [disabled]="!datosRuta.dias.lun.checked">
+        </div>
+
+        <div style="background: var(--color-fondo-tarjeta); border: 1px solid var(--color-borde); padding: 8px; border-radius: 6px; text-align: center;">
+          <label style="display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; margin-bottom: 4px;">
+            <input type="checkbox" [(ngModel)]="datosRuta.dias.mar.checked">
+            Martes
+          </label>
+          <input type="time"
+                 [(ngModel)]="datosRuta.dias.mar.hora"
+                 style="width: 100%; padding: 2px; font-size: 11px; text-align: center;"
+                 [disabled]="!datosRuta.dias.mar.checked">
+        </div>
+
+        <div style="background: var(--color-fondo-tarjeta); border: 1px solid var(--color-borde); padding: 8px; border-radius: 6px; text-align: center;">
+          <label style="display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; margin-bottom: 4px;">
+            <input type="checkbox" [(ngModel)]="datosRuta.dias.mie.checked">
+            Miércoles
+          </label>
+          <input type="time"
+                 [(ngModel)]="datosRuta.dias.mie.hora"
+                 style="width: 100%; padding: 2px; font-size: 11px; text-align: center;"
+                 [disabled]="!datosRuta.dias.mie.checked">
+        </div>
+
+        <div style="background: var(--color-fondo-tarjeta); border: 1px solid var(--color-borde); padding: 8px; border-radius: 6px; text-align: center;">
+          <label style="display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; margin-bottom: 4px;">
+            <input type="checkbox" [(ngModel)]="datosRuta.dias.jue.checked">
+            Jueves
+          </label>
+          <input type="time"
+                 [(ngModel)]="datosRuta.dias.jue.hora"
+                 style="width: 100%; padding: 2px; font-size: 11px; text-align: center;"
+                 [disabled]="!datosRuta.dias.jue.checked">
+        </div>
+
+        <div style="background: var(--color-fondo-tarjeta); border: 1px solid var(--color-borde); padding: 8px; border-radius: 6px; text-align: center;">
+          <label style="display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; margin-bottom: 4px;">
+            <input type="checkbox" [(ngModel)]="datosRuta.dias.vie.checked">
+            Viernes
+          </label>
+          <input type="time"
+                 [(ngModel)]="datosRuta.dias.vie.hora"
+                 style="width: 100%; padding: 2px; font-size: 11px; text-align: center;"
+                 [disabled]="!datosRuta.dias.vie.checked">
+        </div>
+
+        <div style="background: var(--color-fondo-tarjeta); border: 1px solid var(--color-borde); padding: 8px; border-radius: 6px; text-align: center;">
+          <label style="display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; margin-bottom: 4px;">
+            <input type="checkbox" [(ngModel)]="datosRuta.dias.sab.checked">
+            Sábado
+          </label>
+          <input type="time"
+                 [(ngModel)]="datosRuta.dias.sab.hora"
+                 style="width: 100%; padding: 2px; font-size: 11px; text-align: center;"
+                 [disabled]="!datosRuta.dias.sab.checked">
+        </div>
+
+        <div style="background: var(--color-fondo-tarjeta); border: 1px solid var(--color-borde); padding: 8px; border-radius: 6px; text-align: center;">
+          <label style="display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; margin-bottom: 4px; color: #eab308;">
+            <input type="checkbox" [(ngModel)]="datosRuta.dias.fes.checked">
+            L.Festivo
+          </label>
+          <input type="time"
+                 [(ngModel)]="datosRuta.dias.fes.hora"
+                 style="width: 100%; padding: 2px; font-size: 11px; text-align: center;"
+                 [disabled]="!datosRuta.dias.fes.checked">
+        </div>
+
+      </div>
+    </div>
+
+    <div style="margin-top: 15px; margin-bottom: 15px;" *ngIf="datosRuta.entregaManual">
+
+      <label style="font-weight: bold; font-size: 12px; display: block; margin-bottom: 4px; color: var(--color-texto-principal);">
+        Corrección manual del día de entrega (opcional)
+      </label>
+
+      <p style="font-size: 10px; color: var(--color-texto-apagado); margin: 0 0 8px 0;">
+        Por defecto se calcula solo (salida + días de tránsito). Solo actívalo si hay un caso puntual que corregir — el cálculo automático sigue igual para todo lo demás.
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+
+        <ng-container *ngFor="let d of diasSemanaOrden">
+
+          <div *ngIf="datosRuta.dias?.[d.clave]?.checked"
+               style="background: var(--color-fondo-tarjeta); border: 1px solid var(--color-borde); border-radius: 6px; padding: 8px 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+
+            <label style="display: flex; align-items: center; gap: 5px; font-size: 11px; min-width: 130px;">
+              <input type="checkbox" [(ngModel)]="datosRuta.entregaManual[d.clave].activo">
+              Sale {{ d.label }}
+            </label>
+
+            <span *ngIf="!datosRuta.entregaManual[d.clave].activo"
+                  style="font-size: 10px; color: var(--color-texto-apagado); font-style: italic;">
+              Automático: entrega {{ entregaCalculadaParaSalida(d.clave).label }} — {{ entregaCalculadaParaSalida(d.clave).hora }}
+            </span>
+
+            <ng-container *ngIf="datosRuta.entregaManual[d.clave].activo">
+
+              <select [(ngModel)]="datosRuta.entregaManual[d.clave].diaEntrega"
+                      style="background: var(--color-fondo-modal); color: var(--color-texto-principal); padding: 4px 6px; border: 1px solid var(--color-borde); border-radius: 4px; font-size: 11px;">
+                <option value="" disabled>Día de entrega</option>
+                <option *ngFor="let de of diasSemanaOrden" [value]="de.clave">
+                  {{ de.label }}
+                </option>
+              </select>
+
+              <input type="time"
+                     [(ngModel)]="datosRuta.entregaManual[d.clave].hora"
+                     style="padding: 3px 6px; font-size: 11px; border-radius: 4px;">
+
+            </ng-container>
+
+          </div>
+
+        </ng-container>
+
+      </div>
+    </div>
+
+    <div class="frow">
+
+      <div class="fg">
+
+        <label>
+          Clientes fijos en esta ruta (uno por línea, ej: D1 Valledupar)
+        </label>
+
+        <textarea [(ngModel)]="datosRuta.clientes"
+                  rows="4"
+                  placeholder="D1 Valledupar&#10;Ara Valledupar&#10;Exito Valledupar"
+                  style="width: 100%; background: var(--color-fondo-input); color: var(--color-texto-principal); border: 1px solid var(--color-borde); border-radius: 6px; padding: 8px; font-family: monospace; resize: vertical;">
+        </textarea>
+
+      </div>
+
+    </div>
+
+    <div class="mfoot" style="margin-top: 20px;">
+
+      <button class="btn"
+              (click)="cerrarModal('m-ruta')">
+        Cancelar
+      </button>
+
+      <button class="btn pri"
+              (click)="guardarRuta()">
+        Guardar
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- ============================================================= -->
+<!-- MODAL DE CONFIRMACIÓN PROPIO — reemplaza el confirm() nativo    -->
+<!-- del navegador (feo/genérico) por uno con el mismo estilo del    -->
+<!-- resto de la app. Mismo patrón ya usado en rutograma.ts/         -->
+<!-- vehiculos.ts/navbar.ts/configuracion.ts.                        -->
+<!-- ============================================================= -->
+
+<div class="mbg" [class.hide]="!confirmDialogAbierto">
+
+  <div class="modal" style="width:420px">
+
+    <p style="font-size: 14px; color: var(--color-texto-principal); line-height: 1.5; margin: 0 0 18px 0; white-space: pre-line;">
+      {{ confirmDialogMensaje }}
+    </p>
+
+    <div class="mfoot">
+
+      <button class="btn"
+              (click)="confirmDialogElegir(false)">
+        {{ confirmDialogBtnCancelar }}
+      </button>
+
+      <button class="btn pri"
+              (click)="confirmDialogElegir(true)">
+        {{ confirmDialogBtnAceptar }}
+      </button>
+
+    </div>
+
+  </div>
+
+</div>

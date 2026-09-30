@@ -1,0 +1,1510 @@
+/* --- Variables de Color ---
+   OJO — bug real encontrado y corregido aquí: este bloque tenía --blue,
+   --red, --green, --amber, --border y --text3 con el MISMO NOMBRE que
+   las variables globales de styles.css, pero con valores FIJOS (sin
+   modo claro). Como este archivo se carga en la página de Rutograma,
+   esas definiciones PISABAN a las globales — bloqueando el cambio de
+   tema para todo lo que las usara, sin importar qué dijera el
+   interruptor. Se quitaron esos nombres de aquí (ahora los toma
+   directo de styles.css, que sí cambia con el tema); solo se dejan los
+   nombres que son ÚNICOS de este archivo, como alias hacia las
+   variables reales. */
+:root {
+  --bg-card: var(--bg2);
+  --bg-body: var(--bg);
+  --text-main: var(--text);
+  /* Colores Transportadoras — con significado propio, se quedan fijos
+     en ambos temas a propósito. */
+  --arsi: #064e3b;
+  --arsi-text: #6ee7b7;
+  --polar: #0c4a6e;
+  --polar-text: #7dd3fc;
+  --makand: #1e3a8a;
+  --makand-text: #bfdbfe;
+}
+
+/* --- Contenedor Principal --- */
+.rutograma-container, .pg { 
+  padding: 20px; 
+  background: var(--bg-body); 
+  color: var(--text-main);
+  overflow-x: auto;
+}
+
+/* --- Estructura de la Tabla --- */
+.rtbl {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--bg-card);
+  font-size: 11px;
+  border: 1px solid var(--border);
+}
+
+.rtbl th, .rtbl td {
+  padding: 6px;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+/* --- Capas (Sticky Headers) --- */
+.rtbl thead th { 
+  position: sticky; top: 0; background: var(--bg-card); z-index: 30; 
+}
+
+.vname {
+  position: sticky; left: 0; background: var(--bg-card); z-index: 20;
+  font-weight: 600; text-align: left; min-width: 120px;
+}
+
+.v-prox {
+  position: sticky; left: 120px; background: #18212e; z-index: 20; color: var(--text3);
+}
+
+/* --- Resaltado del Día de Hoy --- */
+.choy { 
+  background: rgba(245, 158, 11, 0.15) !important; 
+  border-left: 3px solid var(--amber) !important;
+  border-right: 3px solid var(--amber) !important;
+}
+
+/* --- Tarjeta de Viaje (tc) --- */
+.tc {
+  padding: 6px; border-radius: 4px; margin-bottom: 4px;
+  cursor: pointer; transition: transform 0.1s;
+  min-width: 90px; color: white; font-weight: 600;
+  border-left: 4px solid rgba(0,0,0,0.2);
+}
+.tc:hover { transform: scale(1.05); filter: brightness(1.2); }
+
+/* Colores Dinámicos (Inyectados por JS) */
+.arsi   { background-color: var(--arsi); color: var(--arsi-text); }
+.polar  { background-color: var(--polar); color: var(--polar-text); }
+.makand { background-color: var(--makand); color: var(--makand-text); }
+.extra  { background-color: #78350f; color: #fcd34d; }
+
+/* Estados (Opacidad) */
+.PROG { opacity: 1; }
+.FINALIZADO { opacity: 0.4; text-decoration: line-through; }
+.urg-ring { box-shadow: 0 0 0 2px var(--red); }
+
+/* --- Elementos UI --- */
+.btn { 
+  padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; 
+  background: var(--bg4); color: var(--text); margin-left: 10px;
+}
+.btn:hover { background: var(--bg4); }
+
+/* --- Modales --- */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.8); z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-content {
+  background: var(--bg-card); padding: 25px; border-radius: 8px;
+  max-width: 500px; width: 90%;
+}
+/* Reduce el padding de las celdas para que no ocupen tanto espacio */
+.rutograma-table td, .rutograma-table th {
+  padding: 4px 8px !important; /* Ajusta estos valores a tu gusto */
+  font-size: 12px;
+}
+
+/* Reduce el tamaño de las tarjetas de los viajes dentro de la tabla */
+.viaje-card {
+  padding: 2px 5px !important;
+  font-size: 11px !important;
+  min-height: 30px;
+}
+
+/* Opcional: Reduce el tamaño de los títulos de las columnas */
+.rutograma-header {
+  font-size: 12px;
+  padding: 5px;
+}
+
+
+/* --- Scrollbar --- */
+.rutograma-container::-webkit-scrollbar, .pg::-webkit-scrollbar { height: 8px; }
+.rutograma-container::-webkit-scrollbar-track, .pg::-webkit-scrollbar-track { background: var(--bg3); }
+.rutograma-container::-webkit-scrollbar-thumb, .pg::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+/* --- BANNER DE DIAGNÓSTICO --- */
+.ruto-debug-banner {
+  background: var(--bg2);
+  color: var(--text-main);
+  padding: 12px;
+  margin: 15px;
+  border-radius: 8px;
+  border-left: 5px solid var(--blue);
+  font-family: monospace;
+  font-size: 12px;
+  display: block !important;
+}
+
+.ruto-debug-title {
+  font-weight: bold;
+  font-size: 13px;
+  color: var(--blue);
+  margin-bottom: 4px;
+}
+
+.ruto-debug-badge {
+  background: var(--bg4);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* --- CONTENEDOR PRINCIPAL --- */
+.ruto-container {
+  padding: 20px;
+  background: var(--bg3);
+  color: var(--text-main);
+  display: block !important;
+  min-height: 100vh;
+}
+
+/* --- ENCABEZADO Y CONTROLES --- */
+.ruto-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ruto-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ruto-subtitle {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 3px;
+}
+
+.ruto-controls-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* --- LEYENDA --- */
+.ruto-legend {
+  display: flex;
+  gap: 10px;
+  margin-right: 10px;
+  font-size: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.ruto-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Los 3 ítems de transportadora son clickeables para filtrar la
+   cuadrícula — el resto de la leyenda (Extra, estados) se queda solo
+   informativa, ya que esos son atributos por VIAJE, no por vehículo. */
+.ruto-legend-clickeable {
+  cursor: pointer;
+  padding: 3px 7px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: opacity .15s, border-color .15s, background .15s;
+}
+.ruto-legend-clickeable:hover {
+  background: var(--color-fondo-tarjeta-hover, rgba(255,255,255,0.06));
+}
+.ruto-legend-activo {
+  border-color: currentColor;
+  background: var(--color-fondo-tarjeta-hover, rgba(255,255,255,0.08));
+  font-weight: 700;
+}
+.ruto-legend-atenuado {
+  opacity: 0.35;
+}
+
+.ruto-legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+/* Colores de la Leyenda */
+.dot-makand          { background: #1e3a8a; }
+.dot-arsitrans       { background: #064e3b; }
+.dot-polar           { background: #0c4a6e; }
+.dot-extra           { background: #d97706; }
+.dot-sin-conductor   { background: #991b1b; }
+.dot-entregado       { background: #10b981; }
+.dot-en-ruta         { background: #f59e0b; }
+.dot-pendiente       { background: #ef4444; }
+
+/* --- BOTONES BASE --- */
+.ruto-file-input {
+  display: none;
+}
+
+.btn-import {
+  background: #1e3a8a;
+  border: 1px solid var(--blue);
+  color: #dbeafe;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn-export {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn-zoom {
+  background: var(--bg4);
+  color: var(--text);
+  border: none;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.ruto-zoom-text {
+  font-size: 12px;
+  color: var(--text2);
+  min-width: 35px;
+  text-align: center;
+}
+
+/* --- TABLA MATRIZ --- */
+.ruto-table-responsive {
+  background: var(--bg2);
+  padding: 8px;
+  border-radius: 8px;
+  overflow-x: auto;
+  border: 1px solid var(--border2);
+}
+
+.ruto-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+  color: var(--text-main);
+  transform-origin: top left;
+  transition: transform 0.2s ease;
+}
+
+.ruto-thead-tr {
+  background: var(--bg3);
+}
+
+.ruto-th-vehicle {
+  min-width: 100px;
+  padding: 6px 8px;
+  border: 1px solid var(--border2);
+  text-align: left;
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--bg3);
+}
+
+.ruto-th-delivery {
+  min-width: 85px;
+  padding: 6px 8px;
+  border: 1px solid var(--border2);
+  text-align: left;
+  font-size: 10px;
+  position: sticky;
+  left: 100px;
+  z-index: 3;
+  background: var(--bg3);
+}
+
+.ruto-th-day {
+  padding: 3px 2px;
+  border: 1px solid var(--border2);
+  text-align: center;
+  font-size: 10px;
+  min-width: 38px;
+}
+
+.ruto-day-name {
+  color: var(--text3);
+  font-size: 10px;
+}
+
+.ruto-festivo-icon {
+  font-size: 9px;
+  display: block;
+  margin-top: 2px;
+}
+
+/* --- CUERPO DE LA TABLA --- */
+.ruto-td-empty {
+  text-align: center;
+  padding: 35px;
+  color: var(--text2);
+  font-size: 13px;
+  background: var(--bg2);
+}
+
+.ruto-tr-separador-terceros td {
+  background: #1e1b4b;
+  color: #c4b5fd;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .6px;
+  text-align: left;
+  padding: 8px 12px;
+  border-top: 2px solid #6d28d9;
+  border-bottom: 1px solid #6d28d9;
+}
+
+/* Encabezado de color por transportadora ("ARSITRANS - Cupos confirmados
+   el mismo día" / "POLAR..."), estilo tomado del Rutograma de referencia.
+   El color de fondo lo pone [style.background]="te.col" desde el HTML —
+   aquí solo va la tipografía/espaciado/el botón. */
+.ruto-tr-cupo-header td {
+  padding: 0;
+  border: none;
+}
+
+.ruto-cupo-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .3px;
+}
+
+.ruto-btn-confirmar-cupo {
+  background: var(--bg3);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--text);
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+}
+
+.ruto-btn-confirmar-cupo:hover {
+  opacity: 0.85;
+}
+
+.ruto-tr-vehicle {
+  border-bottom: 1px solid var(--border2);
+}
+
+.ruto-td-vehicle-info {
+  padding: 5px 8px;
+  border: 1px solid var(--border2);
+  background: var(--bg2);
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+.ruto-vehicle-plate {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.ruto-vehicle-desc {
+  font-size: 9px;
+  color: var(--text3);
+}
+
+/* Celda de placa coloreada con el color de la transportadora (cupos
+   ARSITRANS/POLAR) — el texto secundario necesita más contraste que el
+   gris original, que se ve apagado sobre fondo verde/azul. */
+.ruto-td-vehicle-info-cupo .ruto-vehicle-desc {
+  color: var(--text);
+  opacity: .8;
+}
+
+.ruto-td-next-delivery {
+  padding: 5px 8px;
+  border: 1px solid var(--border2);
+  font-size: 10px;
+  background: var(--bg2);
+  position: sticky;
+  left: 100px;
+  z-index: 2;
+}
+
+.ruto-td-day-cell {
+  border: 1px solid var(--border2);
+  padding: 2px;
+  vertical-align: top;
+  min-width: 58px;
+}
+
+/* Tarjetas de Viaje Individuales */
+.ruto-card-viaje {
+  cursor: pointer;
+  padding: 3px 4px;
+  margin: 2px 1px;
+  min-height: 44px;
+  border-radius: 4px;
+  border-left: 3px solid #60a5fa;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.ruto-card-route {
+  font-weight: 700;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.ruto-card-transport {
+  font-size: 9px;
+  color: var(--text2);
+  margin-top: 1px;
+  text-transform: uppercase;
+}
+
+.ruto-card-driver {
+  color: #86efac;
+  font-size: 9px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ruto-card-meta {
+  font-size: 8px;
+  color: var(--text);
+  opacity: .85;
+  margin-top: 1px;
+}
+
+.ruto-card-cajas {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--text);
+  margin-top: 1px;
+}
+
+/* Resalta la columna del día real de hoy en la matriz — antes era
+   un tinte de apenas 12% de opacidad, muy fácil de perder de vista en
+   una cuadrícula con muchos días. Ahora el encabezado tiene fondo
+   sólido y las celdas tienen un borde marcado a los lados, formando
+   una franja vertical fácil de ubicar de un vistazo. */
+.ruto-th-day.hoy {
+  background: #f59e0b;
+  color: #1c1300;
+  font-weight: 800;
+}
+.ruto-td-day-cell.hoy {
+  background: rgba(245, 158, 11, 0.16);
+  box-shadow: inset 2px 0 0 #f59e0b, inset -2px 0 0 #f59e0b;
+}
+
+/* --- Buscador de vehículo dentro del Rutograma (resalta la fila) --- */
+.ruto-buscar-vehiculo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-fondo-input);
+  border: 1px solid var(--color-borde);
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: var(--color-texto-apagado);
+  font-size: 12px;
+}
+.ruto-buscar-vehiculo input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-texto-principal);
+  font-size: 12px;
+  width: 110px;
+  font-family: inherit;
+}
+.ruto-buscar-limpiar {
+  cursor: pointer;
+}
+.ruto-buscar-limpiar:hover {
+  color: var(--color-texto-principal);
+}
+
+/* La fila resaltada usa un borde marcado arriba/abajo de cada celda
+   (en vez de solo el fondo del <tr>) porque cada celda de viaje ya
+   tiene su propio color de fondo (Makand/Arsitrans/Polar/etc.) que
+   taparía cualquier fondo puesto solo en la fila. */
+tr.ruto-fila-resaltada > td {
+  box-shadow: inset 0 2px 0 #fbbf24, inset 0 -2px 0 #fbbf24;
+}
+tr.ruto-fila-resaltada > .ruto-td-vehicle-info {
+  background: rgba(251, 191, 36, 0.22);
+}
+
+/* Filas Transportadoras Externas */
+.ruto-tr-ext {
+  background: var(--bg2);
+}
+
+.ruto-td-ext-name {
+  padding: 6px 8px;
+  border: 1px solid var(--border2);
+  font-weight: bold;
+  color: var(--text);
+  font-size: 11px;
+}
+
+.ruto-td-ext-slots {
+  padding: 6px 8px;
+  border: 1px solid var(--border2);
+  font-size: 10px;
+  color: var(--text2);
+}
+
+.ruto-td-ext-action {
+  border: 1px solid var(--border2);
+  padding: 6px;
+  text-align: center;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 11px;
+  transition: opacity 0.2s;
+}
+
+.ruto-td-ext-action:hover {
+  opacity: 0.85;
+}
+
+.ruto-td-ext-action-text {
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* --- MODAL (BACKDROP & GENERALES) --- */
+.ruto-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.ruto-modal-content {
+  background: var(--bg2);
+  padding: 25px;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 550px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 2px solid var(--border2);
+  color: var(--text);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+  font-family: sans-serif;
+}
+
+.ruto-modal-header {
+  margin-bottom: 20px;
+}
+
+.ruto-modal-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* --- REJILLA INTERNA DEL MODAL --- */
+.ruto-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  row-gap: 14px;
+  font-size: 14px;
+  margin-bottom: 25px;
+  border-bottom: 1px solid var(--border2);
+  padding-bottom: 20px;
+}
+
+.ruto-grid-label {
+  color: var(--text2);
+}
+
+.ruto-grid-value {
+  color: var(--text);
+  margin-left: 6px;
+}
+
+.ruto-grid-value-bold {
+  color: var(--text);
+  margin-left: 6px;
+}
+
+.ruto-grid-colspan-2 {
+  grid-column: span 2;
+}
+
+/* Inputs de la Rejilla */
+.ruto-grid-input {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  margin-left: 6px;
+}
+
+/* Modificadores de Ancho de inputs */
+.ruto-w-130 { width: 130px; }
+.ruto-w-120 { width: 120px; }
+.ruto-w-80  { width: 80px; }
+.ruto-font-bold { font-weight: bold; }
+
+/* --- BADGES (ETIQUETAS) DEL MODAL --- */
+.ruto-badge-tr {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 6px;
+  text-transform: capitalize;
+}
+
+.ruto-badge-type {
+  background: #064e3b;
+  color: #6ee7b7;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+.ruto-badge-client {
+  background: var(--bg2);
+  color: #f59e0b;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: bold;
+  margin-left: 6px;
+  border: 1px solid var(--border2);
+}
+
+.ruto-badge-status {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 6px;
+  color: var(--text);
+}
+
+/* --- SECCIONES DE FORMULARIO DENTRO DEL MODAL --- */
+.ruto-modal-section {
+  background: #162238;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border2);
+  margin-bottom: 20px;
+}
+
+/* Modificador de Padding específico */
+.ruto-p-14 {
+  padding: 14px;
+}
+
+.ruto-section-title {
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: #f59e0b;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ruto-section-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ruto-form-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text2);
+  margin-bottom: 4px;
+}
+
+.ruto-form-select {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 6px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.ruto-form-input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 5px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+/* Sección Conductor Temporal */
+.ruto-section-label-alt {
+  display: block;
+  font-size: 12px;
+  color: var(--text2);
+  margin-bottom: 6px;
+}
+
+.ruto-flex-gap-10 {
+  display: flex;
+  gap: 10px;
+}
+
+.ruto-input-flex {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 6px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.btn-apply {
+  background: var(--blue);
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ruto-form-help {
+  color: var(--text2);
+  font-size: 11px;
+  display: block;
+  margin-top: 5px;
+}
+
+/* --- ACCIONES DEL PIE DEL MODAL --- */
+.ruto-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-delete {
+  background: #991b1b;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.btn-novedad {
+  background: var(--bg3);
+  color: var(--text2);
+  border: 1px solid var(--border2);
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.btn-save {
+  background: var(--blue);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.btn-close {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.celda-viaje {
+  background-color: #3498db; /* Azul para rutas */
+  color: white;
+}
+
+.celda-descanso {
+  background: var(--bg2);
+  border: 1px dashed var(--border2);
+  color: var(--text3);
+  opacity: 1;
+  height: 44px;
+  border-radius: 4px;
+  margin: 2px 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.bg-en-ruta {
+    background-color: #f59e0b !important; /* Un color naranja/ámbar para destacar */
+    color: white;
+    border: 2px solid #b45309;
+}
+/* --- Transportadora por defecto (cuando no hay hoy/entregado/extra/conflicto) --- */
+.bg-makand {
+  background-color: #1e3a8a !important;
+  color: white;
+  border-left: 3px solid var(--blue);
+}
+.bg-arsitrans {
+  background-color: #064e3b !important;
+  color: white;
+  border-left: 3px solid #10b981;
+}
+.bg-polar {
+  background-color: #0c4a6e !important;
+  color: white;
+  border-left: 3px solid #38bdf8;
+}
+/* --- Ya entregado / el día del viaje ya pasó --- */
+.bg-entregado {
+  background-color: #10b981 !important;
+  color: white;
+  border-left: 3px solid #059669;
+}
+/* --- Viaje extra (creado desde "+ Viaje Extra") — ámbar más oscuro que "hoy" --- */
+.bg-extra {
+  background-color: #92400e !important;
+  color: var(--text);
+  border-left: 3px solid #78350f;
+}
+/* --- Conflicto de disponibilidad --- */
+.bg-conflicto {
+  background-color: #7f1d1d !important;
+  color: white;
+  border: 2px dashed #ef4444 !important;
+}
+/* --- Clase para Mantenimiento (Prioridad Alta) --- */
+.bg-mantenimiento {
+  background-color: #374151 !important; /* Gris oscuro profesional — fijo en ambos temas */
+  border-left: 4px solid #fbbf24 !important;
+  color: #fbbf24 !important;
+  cursor: not-allowed !important;
+  opacity: 0.9;
+}
+.bg-mantenimiento:hover {
+  filter: brightness(1.1) !important;
+}
+.bg-mantenimiento .ruto-card-route,
+.bg-mantenimiento .ruto-card-transport {
+  color: #fbbf24 !important;
+}
+/* --- Clase para Varado (avería puntual, un solo día) --- */
+.bg-varado {
+  background-color: #581c87 !important; /* Morado — no se parece a ningún otro color de la app */
+  border-left: 4px solid #a855f7 !important;
+  color: #f3e8ff !important;
+  cursor: not-allowed !important;
+  opacity: 0.9;
+}
+.bg-varado:hover {
+  filter: brightness(1.15) !important;
+}
+.bg-varado .ruto-card-route,
+.bg-varado .ruto-card-transport {
+  color: #f3e8ff !important;
+}
+.bg-cancelado {
+  background-color: #450a0a !important;
+  border-left: 4px solid #ef4444 !important;
+  color: #fecaca !important;
+  opacity: 0.85;
+}
+.bg-cancelado:hover {
+  filter: brightness(1.15) !important;
+}
+.bg-cancelado .ruto-card-route {
+  color: #fca5a5 !important;
+  font-weight: 800;
+}
+.bg-estuvo-mantenimiento {
+  background-color: #1e1315 !important;
+  border-left: 4px solid #b91c1c !important;
+  color: #f3a5a5 !important;
+  opacity: 0.75;
+}
+.bg-estuvo-mantenimiento:hover {
+  filter: brightness(1.15) !important;
+}
+.bg-estuvo-mantenimiento .ruto-card-route,
+.bg-estuvo-mantenimiento .ruto-card-transport {
+  color: #f3a5a5 !important;
+}
+/* --- Resumen semanal interactivo (pestañas + tarjetas + buscador) --- */
+.ruto-resumen-dias {
+  margin-top: 24px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: 16px;
+}
+.ruto-resumen-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.ruto-resumen-titulo {
+  color: var(--text);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.2px;
+}
+
+.ruto-resumen-contadores-globales {
+  display: flex;
+  gap: 18px;
+  font-size: 13px;
+  color: var(--text2);
+}
+
+.ruto-resumen-contadores-globales b {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* --- Desglose Makand vs Terceros del mes (pulido visual) --- */
+.ruto-resumen-split-mes {
+  margin-bottom: 14px;
+}
+
+.ruto-resumen-split-barra {
+  display: flex;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg3);
+  margin-bottom: 6px;
+}
+
+.ruto-resumen-split-makand {
+  background: #1e3a8a;
+  transition: width 0.3s ease;
+}
+
+.ruto-resumen-split-polar {
+  background: #0c4a6e;
+  transition: width 0.3s ease;
+}
+
+.ruto-resumen-split-arsitrans {
+  background: #064e3b;
+  transition: width 0.3s ease;
+}
+
+.ruto-resumen-split-texto {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text2);
+}
+
+.ruto-resumen-split-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ruto-resumen-split-item .ruto-legend-dot {
+  width: 10px;
+  height: 10px;
+}
+
+.ruto-resumen-split-total {
+  color: var(--text2);
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.ruto-resumen-buscador {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+}
+.ruto-resumen-buscador::placeholder {
+  color: var(--text3);
+}
+.ruto-resumen-buscador:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.ruto-resumen-semanas-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin-bottom: 10px;
+  padding-bottom: 4px;
+}
+.ruto-resumen-semana-tab {
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--text3);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.ruto-resumen-semana-tab:hover {
+  border-color: var(--text3);
+  color: var(--text2);
+}
+.ruto-resumen-semana-tab.activo {
+  background: var(--bg4);
+  border-color: var(--text3);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.ruto-resumen-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+}
+.ruto-resumen-tab {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.ruto-resumen-tab:hover {
+  border-color: var(--blue);
+  color: var(--text);
+}
+.ruto-resumen-tab.activo {
+  background: #1d4ed8;
+  border-color: var(--blue);
+  color: white;
+  font-weight: 600;
+}
+.ruto-resumen-tab-count {
+  background: rgba(255,255,255,0.15);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.ruto-resumen-dia-stats {
+  color: var(--text3);
+  font-size: 11px;
+  margin-bottom: 12px;
+}
+
+.ruto-resumen-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border2);
+}
+.ruto-resumen-lista-fila {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg3);
+  padding: 8px 12px;
+  flex-wrap: wrap;
+}
+.ruto-resumen-lista-fila:nth-child(odd) {
+  background: var(--bg3);
+}
+.ruto-resumen-lista-veh {
+  display: flex;
+  flex-direction: column;
+  min-width: 90px;
+  flex-shrink: 0;
+}
+.ruto-resumen-veh-placa {
+  color: var(--text);
+  font-weight: 700;
+  font-size: 13px;
+}
+.ruto-resumen-veh-tr {
+  color: var(--text3);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+.ruto-resumen-lista-paradas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.ruto-resumen-parada {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text);
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+.ruto-resumen-parada:hover {
+  background: rgba(255,255,255,0.08);
+}
+.ruto-resumen-flecha {
+  color: var(--text3);
+  font-size: 12px;
+}
+.ruto-resumen-punto {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.ruto-resumen-vacio {
+  color: var(--text3);
+  font-size: 12px;
+  padding: 20px 0;
+  text-align: center;
+  grid-column: 1 / -1;
+}
+
+.ruto-resumen-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border2);
+}
+.ruto-resumen-leyenda-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text2);
+}
+
+/* --- Punto 3: total de viajes por vehículo en el mes --- */
+.ruto-resumen-totales {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 6px;
+}
+.ruto-resumen-total-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.ruto-resumen-total-num {
+  color: #38bdf8;
+  font-weight: 700;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.ruto-resumen-total-general {
+  background: #1e3a8a !important;
+  border-color: var(--blue) !important;
+}
+.ruto-resumen-total-general .ruto-resumen-veh-placa,
+.ruto-resumen-total-general .ruto-resumen-veh-tr {
+  color: #dbeafe !important;
+}
+.ruto-resumen-total-general .ruto-resumen-total-num {
+  color: var(--text) !important;
+  font-size: 15px;
+}
+/* --- Tooltip flotante de viaje (pulido visual) --- */
+.ruto-hover-tooltip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 1;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-width: 190px;
+  max-width: 260px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* BUG REAL encontrado y corregido: este tooltip sigue la posición del
+   cursor — funciona bien en PC porque hay espacio y un mouse real,
+   pero en celular el mismo evento se dispara con el toque y la
+   tarjeta flotante termina encima de otras tarjetas sin ningún
+   control de límites de pantalla. Como tocar un viaje en celular ya
+   abre el detalle completo (verDetalle), este tooltip es redundante
+   ahí — se oculta solo en pantallas chicas, sin tocar nada de PC. */
+@media (max-width: 900px) {
+  .ruto-hover-tooltip {
+    display: none !important;
+  }
+}
+
+.ruto-hover-tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border2);
+}
+
+.ruto-hover-tooltip-placa {
+  color: var(--text);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.ruto-hover-tooltip-tr {
+  color: var(--text2);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ruto-hover-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.ruto-hover-tooltip-row span {
+  color: var(--text2);
+}
+
+.ruto-hover-tooltip-row b {
+  color: var(--text);
+  font-weight: 600;
+  text-align: right;
+}
+
+/* --- Selector de mes (portado y rediseñado desde el Dashboard) --- */
+.ruto-mes-selector {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  background: linear-gradient(135deg, var(--bg-card), #263041);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ruto-mes-selector:hover {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.ruto-mes-selector:focus-visible {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+.ruto-mes-icono {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.ruto-mes-texto {
+  text-transform: capitalize;
+}
+
+.ruto-mes-caret {
+  color: var(--text3);
+  font-size: 11px;
+  transition: transform 0.15s ease;
+}
+
+.ruto-mes-caret.abierto {
+  transform: rotate(180deg);
+}
+
+.ruto-mini-calendario {
+  position: fixed;
+  z-index: 9999;
+  opacity: 1;
+  width: 230px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5);
+  cursor: default;
+  font-weight: normal;
+  text-align: left;
+}
+
+.ruto-mc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.ruto-mc-titulo {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.ruto-mc-nav {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ruto-mc-nav:hover {
+  background: var(--blue);
+  color: white;
+  border-color: var(--blue);
+}
+
+.ruto-mc-meses-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.ruto-mc-mes-item {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 9px 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  text-transform: capitalize;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.ruto-mc-mes-item:hover {
+  border-color: var(--blue);
+}
+
+.ruto-mc-mes-item.ruto-mc-seleccionado {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: white;
+}
+
+/* Línea "Última edición: quién y cuándo" al pie del detalle de un viaje. */
+.ruto-ultima-edicion {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border2);
+  font-size: 11px;
+  color: var(--text3);
+}

@@ -1,0 +1,109 @@
+/* ============================================================
+   PENDING — mismo lenguaje visual que Login/Registro (tarjeta con
+   acento de color, camión animado), pero a diferencia de esas dos
+   pantallas (que mantienen su marca fija a propósito), esta SÍ
+   responde al interruptor Claro/Oscuro — usa las variables
+   compartidas de toda la app en vez de colores fijos.
+   ============================================================ */
+
+.pending-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: var(--color-fondo-pagina, var(--bg));
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.pending-card {
+  position: relative;
+  background: var(--color-fondo-tarjeta, var(--bg2));
+  border: 1px solid var(--color-borde, var(--border2));
+  padding: 40px 32px 32px;
+  border-radius: 16px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.25);
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+  color: var(--color-texto-principal, var(--text));
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Misma barra de acento que Login/Registro (azul → naranja) — un
+   detalle de marca, no de legibilidad, así que se queda vivo en
+   ambos temas a propósito. */
+.pending-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6, #fb923c);
+}
+
+.pending-card h1 {
+  margin: 0 0 10px;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--color-texto-principal, var(--text));
+}
+
+.pending-card p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-texto-secundario, var(--text2));
+}
+
+.icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  color: #3b82f6;
+}
+
+.btn-logout {
+  margin-top: 22px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #fff;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  font-family: inherit;
+  width: 100%;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+  transition: transform .12s ease, filter .12s ease;
+}
+.btn-logout:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+.btn-logout:active {
+  transform: translateY(0);
+}
+
+.reloj-animado {
+  display: inline-block;
+  animation: relojArena 3s ease-in-out infinite;
+}
+
+@keyframes relojArena {
+  0%   { transform: rotate(0deg); }
+  50%  { transform: rotate(180deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 420px) {
+  .pending-card {
+    padding: 32px 22px 26px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reloj-animado {
+    animation: none;
+  }
+}

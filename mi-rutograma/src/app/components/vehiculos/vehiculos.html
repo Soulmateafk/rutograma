@@ -1,0 +1,325 @@
+<div class="page-container">
+  
+  <div class="header-actions">
+    <h2>Flota de Vehículos</h2>
+    <button class="btn-add" (click)="mostrarHistorial = !mostrarHistorial"><i class="bi bi-calendar-week" style="color: var(--blue);"></i> Ver histórico</button>
+    <button class="btn-add" *ngIf="auth.puedeEditar" (click)="abrirModalVehiculo()">+ Nuevo Vehículo</button>
+  </div>
+
+  <input type="text" placeholder="Buscar por placa, conductor o transportadora..." [(ngModel)]="busquedaVehiculos"
+         style="background: var(--color-fondo-input); border: 1px solid var(--color-borde); color: var(--color-texto-principal); padding: 8px 12px; border-radius: 6px; font-size: 13px; width: 100%; max-width: 360px; margin-bottom: 14px;">
+
+  <div class="card" *ngIf="mostrarHistorial" style="margin-bottom:16px;">
+    <div style="display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;">
+      <div class="input-group" style="margin:0;">
+        <label>Mes</label>
+        <select [(ngModel)]="historialMes">
+          <option *ngFor="let m of meses" [value]="m">{{ m }}</option>
+        </select>
+      </div>
+      <div class="input-group" style="margin:0;">
+        <label>Año</label>
+        <input type="number" [(ngModel)]="historialAnio">
+      </div>
+      <button class="btn-add" (click)="verHistorialMes()">Ver</button>
+      <button class="btn-cancel" (click)="cerrarHistorial()">Cerrar</button>
+    </div>
+
+    <div *ngIf="cargandoHistorial" style="margin-top:12px; color: var(--text2);">Cargando...</div>
+
+    <div class="tabla-scroll">
+    <table class="main-table" style="margin-top:12px;" *ngIf="!cargandoHistorial && vehiculosHistorial !== null">
+      <thead>
+        <tr>
+          <th>Placa</th>
+          <th>Tipo</th>
+          <th>Capacidad</th>
+          <th>Conductor</th>
+          <th>Transportadora</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let v of vehiculosHistorial">
+          <td><strong>{{ v.p || v.placa }}</strong></td>
+          <td>{{ v.t || v.tipo }}</td>
+          <td>{{ v.cap || v.cajas }} cajas</td>
+          <td>{{ v.cond || v.conductor }}</td>
+          <td><span class="badge">{{ v.tr || v.transportadora }}</span></td>
+          <td>{{ v.est || v.estado }}</td>
+        </tr>
+        <tr *ngIf="!vehiculosHistorial.length">
+          <td colspan="6" style="text-align:center; color: var(--text3);">
+            No hay una foto guardada de {{ historialMes }} {{ historialAnio }} — se guarda automáticamente al generar la matriz de ese mes.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tabla-scroll">
+    <table class="main-table">
+      <thead>
+        <tr>
+          <th>Placa</th>
+          <th>Tipo</th>
+          <th>Capacidad</th>
+          <th>Conductor</th>
+          <th>Transportadora</th>
+          <th>Categoría</th>
+          <th>Estado</th>
+          <th>Mantenimiento actual</th>
+          <th>Documentos</th>
+          <th>Viajes</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let v of vehiculosFiltrados">
+          <td><strong>{{ v.placa }}</strong></td>
+          <td>{{ v.tipo }}</td>
+          <td>
+            <div class="cap-text">{{ v.capCajas }} cajas</div>
+            <div class="cap-sub">{{ v.maxKg }}kg · {{ v.maxM3 }}m³</div>
+          </td>
+          <td>{{ v.conductorPrincipal }}</td>
+          <td><span class="badge">{{ v.transportadora }}</span></td>
+          <td>
+            <span class="badge" [style.background]="v.categoria === 'Urbano' ? '#6d28d9' : (v.categoria === 'Tercero' ? '#064e3b' : '#1e3a8a')"
+                  [style.color]="v.categoria === 'Urbano' ? '#f3e8ff' : (v.categoria === 'Tercero' ? '#a7f3d0' : '#bfdbfe')">
+              {{ v.categoria }}
+            </span>
+          </td>
+          <td><span class="status-dot"></span> {{ v.estado | titlecase }}</td>
+          <td>
+            <span class="mant-badge" [ngClass]="claseMantenimientoActual(v)">
+              {{ textoMantenimientoActual(v) }}
+            </span>
+          </td>
+          <td>
+            <div><span class="mant-badge" [ngClass]="claseDocumento(v.soatVence)" style="font-size:9px;">SOAT: {{ textoDocumento(v.soatVence) }}</span></div>
+            <div style="margin-top:3px;"><span class="mant-badge" [ngClass]="claseDocumento(v.tecnoVence)" style="font-size:9px;">Tecno: {{ textoDocumento(v.tecnoVence) }}</span></div>
+          </td>
+          <td class="text-center">{{ v.viajesCount }}</td>
+          <td class="actions-cell">
+          <ng-container *ngIf="auth.puedeEditar">
+            <button class="btn-action edit" (click)="editarVehiculo(v.index)">Editar</button>
+            <button class="btn-action mant" (click)="abrirMantenimiento(v.index)">Mant.</button>
+            <button class="btn-action del" (click)="eliminarVehiculo(v.index)">X</button>
+          </ng-container>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top: 20px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+      <h2 style="margin: 0;">Viajes por vehículo Makand</h2>
+      <span style="font-size: 12px; color: var(--text2);">Mes activo: {{ meses[ds.S.mes] }} {{ ds.S.anio }}</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;">
+      <div *ngFor="let vm of vehiculosMakandConViajes()"
+           style="background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 12px;">
+
+        <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px;">
+          <strong style="font-size: 13px; color: var(--text);">{{ vm.placa }}</strong>
+          <span style="font-size: 11px; color: #93c5fd; background: rgba(30,58,138,0.4); padding: 1px 8px; border-radius: 10px;">
+            {{ vm.viajes.length }} viaje{{ vm.viajes.length === 1 ? '' : 's' }}
+          </span>
+        </div>
+
+        <div *ngIf="vm.viajes.length === 0" style="font-size: 11px; color: var(--text3); font-style: italic;">
+          Sin viajes este mes
+        </div>
+
+        <div *ngFor="let vj of vm.viajes" style="font-size: 11px; color: var(--text2); padding: 2px 0; border-top: 1px solid var(--border);">
+          <span style="color: var(--amber); font-weight: 600;">Día {{ vj.dia }}</span> —
+          {{ vj.ruta }} <span style="color: var(--text3);">({{ vj.destino }})</span>
+        </div>
+      </div>
+
+      <div *ngIf="vehiculosMakandConViajes().length === 0" style="grid-column: 1 / -1; text-align: center; color: var(--text3); font-style: italic; padding: 16px 0;">
+        No hay vehículos Makand registrados.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" *ngIf="isModalVehiculoOpen">
+  <div class="modal-card">
+    <h3>{{ vhIdx === -1 ? 'Nuevo Vehículo' : 'Editar Vehículo' }}</h3>
+    
+    <div class="modal-grid">
+      <div class="input-group">
+        <label>Placa</label>
+        <input type="text" [(ngModel)]="datosVehiculo.placa">
+      </div>
+      <div class="input-group">
+        <label>Tipo</label>
+        <select [(ngModel)]="datosVehiculo.tipo">
+          <option>Furgon refrigerado</option>
+          <option>Tractomula</option>
+          <option>Camion sencillo</option>
+        </select>
+      </div>
+
+      <div class="input-group">
+        <label>Cajas maximas</label>
+        <input type="number" [(ngModel)]="datosVehiculo.capCajas">
+      </div>
+      <div class="input-group">
+        <label>Peso maximo (kg)</label>
+        <input type="number" [(ngModel)]="datosVehiculo.maxKg">
+      </div>
+
+      <div class="input-group">
+        <label>Volumen maximo (m3)</label>
+        <input type="number" [(ngModel)]="datosVehiculo.maxM3">
+      </div>
+      <div class="input-group">
+        <label>Conductor principal</label>
+        <input type="text" [(ngModel)]="datosVehiculo.conductorPrincipal">
+      </div>
+
+      <div class="input-group">
+        <label>Categoría</label>
+        <select [(ngModel)]="datosVehiculo.categoria" (ngModelChange)="onCategoriaVehiculoChange()">
+          <option value="Urbano">Urbano</option>
+          <option value="Viajero">Viajero</option>
+          <option value="Tercero">Tercero</option>
+        </select>
+      </div>
+
+      <div class="input-group" *ngIf="datosVehiculo.categoria === 'Tercero'">
+        <label>Transportadora (tercero)</label>
+        <input type="text" list="lista-terceros-existentes" [(ngModel)]="datosVehiculo.transportadora" placeholder="Escribe o elige uno existente">
+        <datalist id="lista-terceros-existentes">
+          <option *ngFor="let t of transportadorasTercerosExistentes()" [value]="t"></option>
+        </datalist>
+      </div>
+      <div class="input-group" *ngIf="datosVehiculo.categoria !== 'Tercero'">
+        <label>Transportadora base</label>
+        <select [(ngModel)]="datosVehiculo.transportadora">
+          <option value="Makand">Makand</option>
+          <option value="Arsitrans">Arsitrans</option>
+          <option value="Polar">Polar</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>Estado</label>
+        <select [(ngModel)]="datosVehiculo.estado">
+          <option value="Disponible">Disponible</option>
+          <option value="Mantenimiento">Mantenimiento</option>
+        </select>
+      </div>
+
+      <div class="input-group" style="grid-column: span 2;">
+        <label>Última fecha de mantenimiento</label>
+        <input type="date" [(ngModel)]="datosVehiculo.ultimoMantenimiento">
+      </div>
+
+      <div class="input-group">
+        <label>Vence SOAT</label>
+        <input type="date" [(ngModel)]="datosVehiculo.soatVence">
+      </div>
+      <div class="input-group">
+        <label>Vence Tecnomecánica</label>
+        <input type="date" [(ngModel)]="datosVehiculo.tecnoVence">
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" (click)="isModalVehiculoOpen = false">Cancelar</button>
+      <button class="btn-save" (click)="guardarVehiculo()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" *ngIf="isModalMantOpen">
+  <div class="modal-card">
+    <h3>Mantenimiento — {{ vehMantPlaca }}</h3>
+
+    <div class="modal-grid">
+      <div class="input-group" style="grid-column: span 2;">
+        <label>Fecha de inicio</label>
+        <input type="date" [(ngModel)]="mantForm.inicio">
+      </div>
+      <div class="input-group" style="grid-column: span 2;">
+        <label>Fecha de fin</label>
+        <input type="date" [(ngModel)]="mantForm.fin">
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-action del" *ngIf="auth.puedeEditar && ds.S.vehiculos[vehMantIdx]?.est === 'Mantenimiento'" [disabled]="procesandoMantenimiento" (click)="quitarMantenimiento()">Quitar mantenimiento</button>
+      <button class="btn-action del" *ngIf="auth.puedeEditar && ds.S.vehiculos[vehMantIdx]?.est === 'Mantenimiento'" [disabled]="procesandoMantenimiento" title="Úsalo solo si este mantenimiento se registró por error — no queda en el historial" (click)="eliminarMantenimientoActivo()">Eliminar (fue un error)</button>
+      <button class="btn-cancel" [disabled]="procesandoMantenimiento" (click)="cerrarModalMant()">Cancelar</button>
+      <button class="btn-save" [disabled]="procesandoMantenimiento" (click)="guardarMantenimiento()">{{ procesandoMantenimiento ? 'Guardando...' : 'Guardar' }}</button>
+    </div>
+
+    <div class="historial-mant-bloque" *ngIf="ds.S.vehiculos[vehMantIdx]?.historialMantenimiento?.length">
+      <h4>Historial de mantenimientos cerrados</h4>
+
+      <div class="historial-mant-fila" *ngFor="let h of ds.S.vehiculos[vehMantIdx].historialMantenimiento; let i = index">
+        <div class="input-group">
+          <label>Inicio</label>
+          <input type="date" [(ngModel)]="h.inicio">
+        </div>
+        <div class="input-group">
+          <label>Fin</label>
+          <input type="date" [(ngModel)]="h.fin">
+        </div>
+        <button class="btn-action del historial-mant-borrar" *ngIf="auth.puedeEditar" [disabled]="procesandoMantenimiento"
+                title="Eliminar este mantenimiento del historial y restaurar los viajes que quedaron cancelados en ese rango"
+                (click)="eliminarEntradaHistorialMant(i)">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+
+      <div class="modal-actions historial-mant-guardar">
+        <button class="btn-save" *ngIf="auth.puedeEditar" [disabled]="procesandoMantenimiento" (click)="guardarEdicionHistorialMant()">
+          Guardar cambios de fechas del historial
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Modal de confirmación propio — reemplaza el confirm() nativo del
+     navegador (feo/genérico) por uno con el mismo estilo del resto de
+     la app. Mismo patrón ya usado en Rutograma y navbar. -->
+<div class="modal-overlay" *ngIf="confirmDialogAbierto" style="z-index: 10002;">
+  <div class="modal-card" style="max-width: 420px;">
+    <p style="font-size: 14px; color: var(--text); line-height: 1.5; margin: 0 0 18px 0; white-space: pre-line;">{{ confirmDialogMensaje }}</p>
+    <div class="modal-actions">
+      <button class="btn-cancel" (click)="confirmDialogElegir(false)">{{ confirmDialogBtnCancelar }}</button>
+      <button class="btn-save" (click)="confirmDialogElegir(true)">{{ confirmDialogBtnAceptar }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de selección de opciones — FALTABA por completo. Sin esto, el
+     guardado de mantenimiento se quedaba en "Guardando..." para siempre
+     cuando había varios viajes de terceros para elegir ese día: el
+     código pedía la elección, pero no había nada en pantalla que
+     mostrarla ni que el usuario pudiera clickear. -->
+<div class="modal-overlay" *ngIf="isModalSeleccionOpen">
+  <div class="modal-card" style="max-width: 460px;">
+    <p style="font-size: 14px; color: var(--text); line-height: 1.5; margin: 0 0 16px 0; white-space: pre-line;">{{ seleccionMensaje }}</p>
+    <div style="display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto;">
+      <button *ngFor="let op of seleccionOpciones"
+              class="btn-cancel"
+              style="text-align: left; width: 100%;"
+              (click)="seleccionElegir(op.valor)">
+        {{ op.etiqueta }}
+      </button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" (click)="seleccionElegir(null)">Cancelar</button>
+    </div>
+  </div>
+</div>
