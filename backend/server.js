@@ -12,6 +12,7 @@ const bcrypt = require('bcryptjs');
 
 // ⚠️ Ajusta esta ruta si tu carpeta se llama distinto a "migracion"
 // (la carpeta donde pusiste esquema.sql/db.js/migrar.js).
+const { rangosMantenimiento, diasOcupadoViaje, mantenimientoQueChoca, agregarSesionConTope } = require('./reglas');
 const { leerDB, guardarEnDB, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, importarAuditoriaJSONLSiHaceFalta } = require('./migracion/db.js');
 
 // Lee las credenciales de correo desde un archivo .env (nunca escritas
@@ -301,23 +302,15 @@ const crearSesion = (email, req, dispositivoId) => {
         ultima: ahora.toISOString(),
         expira: new Date(ahora.getTime() + TOKEN_DIAS * 86400000).toISOString()
     };
-    // Volver a entrar desde el MISMO dispositivo reemplaza su sesión
-    // anterior — si no, cada nuevo inicio de sesión en el mismo equipo
-    // gastaría uno de los cupos de la cuenta.
-    if (sesion.dispositivoId) {
-        sesionesActivas = sesionesActivas.filter(x => !(x.email === sesion.email && x.dispositivoId === sesion.dispositivoId));
-    }
-    sesionesActivas.push(sesion);
-    // Tope por cuenta (MAX_SESIONES_POR_CUENTA): si se pasa, se cierran
-    // las que llevan más tiempo sin usarse, nunca la que acaba de entrar.
-    const deLaCuenta = sesionesActivas
-        .filter(x => x.email === sesion.email && x.id !== sesion.id)
-        .sort((a, b) => Date.parse(a.ultima || a.creada) - Date.parse(b.ultima || b.creada));
-    const sobranCuantas = deLaCuenta.length + 1 - MAX_SESIONES_POR_CUENTA;
-    if (sobranCuantas > 0) {
-        const sobran = new Set(deLaCuenta.slice(0, sobranCuantas).map(x => x.id));
-        sesionesActivas = sesionesActivas.filter(x => !sobran.has(x.id));
-        console.log(`🔒 ${sesion.email} llegó al máximo de ${MAX_SESIONES_POR_CUENTA} sesiones — se cerraron ${sobran.size} sin usar.`);
+    // Mismo dispositivo = reemplaza su sesión anterior; y si la cuenta
+    // se pasa de MAX_SESIONES_POR_CUENTA, se cierran las que llevan más
+    // tiempo sin usarse (ver agregarSesionConTope en reglas.js).
+    const resultadoTope = agregarSesionConTope(sesionesActivas, sesion, MAX_SESIONES_POR_CUENTA);
+    sesionesActivas = resultadoTope.sesiones;
+    if (resultadoTope.cerradasPorTope > 0) {
+        // Para avisarle a quien acaba de entrar (ver /api/auth/login).
+        if (req) req.sesionesCerradasPorTope = resultadoTope.cerradasPorTope;
+        console.log(`🔒 ${sesion.email} llegó al máximo de ${MAX_SESIONES_POR_CUENTA} sesiones — se cerraron ${resultadoTope.cerradasPorTope} sin usar.`);
     }
     guardarSesiones();
     return sesion.id;
@@ -853,52 +846,6 @@ const MESES_MAP = { 'Enero':1,'Febrero':2,'Marzo':3,'Abril':4,'Mayo':5,'Junio':6
 // cualquier reporte, sin esperar a la próxima vez que se regenere la
 // matriz del mes. Nunca toca viajes "En ruta", "Entregado" o ya
 // "Cancelado" — solo los que todavía no habían pasado.
-// ------------------------------------------------------------
-// MANTENIMIENTO vs VIAJES — una sola regla para todo el servidor
-// (Generar Matriz, guardar un viaje y la cancelación automática):
-// un vehículo en mantenimiento NO puede tener ningún viaje que lo
-// ocupe en esos días. La única excepción es un viaje que SALGA el
-// último día del mantenimiento (ese día ya vuelve del taller).
-// Antes solo se revisaba el día de SALIDA: un viaje que salía el 16
-// y volvía el 18 quedaba encima de un mantenimiento del 17 al 19.
-// ------------------------------------------------------------
-function sumarDiasFecha(fecha, dias) {
-    const d = new Date(fecha + 'T00:00:00');
-    d.setDate(d.getDate() + dias);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-// Mantenimiento activo + los ya cerrados (historialMantenimiento).
-function rangosMantenimiento(vehiculo) {
-    const rangos = [];
-    if (!vehiculo) return rangos;
-    if (vehiculo.mantInicio && vehiculo.mantFin) rangos.push({ inicio: vehiculo.mantInicio, fin: vehiculo.mantFin });
-    let historial = vehiculo.historialMantenimiento;
-    if (typeof historial === 'string') {
-        try { historial = JSON.parse(historial); } catch { historial = []; }
-    }
-    if (Array.isArray(historial)) {
-        historial.forEach(m => { if (m && m.inicio && m.fin) rangos.push({ inicio: m.inicio, fin: m.fin }); });
-    }
-    return rangos;
-}
-
-// Días que el vehículo queda ocupado por un viaje (de la salida hasta
-// el día en que ya está libre otra vez, "retorno").
-function diasOcupadoViaje(viaje) {
-    const salida = Number(viaje.salida || viaje.dia || 0);
-    const retorno = Number(viaje.retorno || 0);
-    return retorno > salida ? retorno - salida : 1;
-}
-
-// Devuelve el mantenimiento con el que choca el viaje, o null.
-// fechaSalida: 'YYYY-MM-DD'; dias: días que el vehículo queda ocupado.
-function mantenimientoQueChoca(rangos, fechaSalida, dias) {
-    if (!fechaSalida) return null;
-    const fechaLibre = sumarDiasFecha(fechaSalida, Math.max(1, dias));
-    return rangos.find(r => fechaSalida < r.fin && fechaLibre > r.inicio) || null;
-}
-
 function cancelarViajesEnConflicto(data, placa, motivo, coincide) {
     // BUG encontrado y corregido: esto comparaba contra 'Programado',
     // pero Generar Matriz deja los viajes nuevos en 'Planificado' (y
@@ -2509,7 +2456,7 @@ app.get('/api/sesiones', (req, res) => {
         .filter(x => verTodas || x.email === yo)
         .map(x => datosPublicosSesion(x, req.sesionId))
         .sort((a, b) => Date.parse(b.ultima) - Date.parse(a.ultima));
-    res.json({ ok: true, esAdmin, sesiones: lista });
+    res.json({ ok: true, esAdmin, sesiones: lista, maxSesiones: MAX_SESIONES_POR_CUENTA });
 });
 
 app.post('/api/sesiones/cerrar', (req, res) => {
@@ -2654,7 +2601,11 @@ app.post('/api/auth/login', async (req, res) => {
             // aún está pendiente): el pase solo prueba QUIÉN eres — lo que
             // puedes hacer lo decide el estado de la cuenta en cada petición.
             token: crearPase(usuario, crearSesion(usuario.email, req, dispositivoId)),
-            motivoRechazo: estado === 'REJECTED' ? (usuario.motivoRechazo || '') : undefined
+            motivoRechazo: estado === 'REJECTED' ? (usuario.motivoRechazo || '') : undefined,
+            // Cuántas sesiones viejas se cerraron por el tope de
+            // MAX_SESIONES_POR_CUENTA al entrar ahora (0 casi siempre).
+            sesionesCerradas: req.sesionesCerradasPorTope || 0,
+            maxSesiones: MAX_SESIONES_POR_CUENTA
         });
     } catch (error) {
         console.error('🚨 Error en /api/auth/login:', error);

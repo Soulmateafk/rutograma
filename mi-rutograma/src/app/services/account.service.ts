@@ -215,6 +215,10 @@ export class AccountService {
    * contraseña es correcta devuelve el estado; si es incorrecta, lanza
    * error (el backend responde 401).
    */
+  /** Sesiones viejas que el servidor cerró al entrar por el tope por cuenta. */
+  public sesionesCerradasAlEntrar = 0;
+  public maxSesiones = 5;
+
   async login(email: string, pass: string): Promise<{ estado: UserStatus; esAdmin: boolean; rol: string }> {
     const correo = (email || '').toLowerCase().trim();
     const res: any = await firstValueFrom(
@@ -226,6 +230,8 @@ export class AccountService {
     this.esAdmin = !!res.esAdmin;
     this.rol = res.esAdmin ? 'admin' : (res.rol === 'lector' ? 'lector' : 'editor');
     this.motivoRechazo = res.motivoRechazo || '';
+    this.sesionesCerradasAlEntrar = Number(res.sesionesCerradas) || 0;
+    if (Number(res.maxSesiones) > 0) this.maxSesiones = Number(res.maxSesiones);
     return { estado: res.estado, esAdmin: !!res.esAdmin, rol: this.rol };
   }
 

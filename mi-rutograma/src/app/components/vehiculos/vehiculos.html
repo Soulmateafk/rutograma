@@ -9,6 +9,50 @@
   <input type="text" placeholder="Buscar por placa, conductor o transportadora..." [(ngModel)]="busquedaVehiculos"
          style="background: var(--color-fondo-input); border: 1px solid var(--color-borde); color: var(--color-texto-principal); padding: 8px 12px; border-radius: 6px; font-size: 13px; width: 100%; max-width: 360px; margin-bottom: 14px;">
 
+  <!-- Viajes que ya existían encima de un mantenimiento -->
+  <div class="card conflicto-mant" *ngIf="viajesEnMantenimiento.length > 0">
+    <div class="conflicto-mant-titulo">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      {{ viajesEnMantenimiento.length }} viaje(s) quedan encima de un mantenimiento
+    </div>
+    <p class="conflicto-mant-texto">
+      Se crearon antes de registrar el mantenimiento o antes de que existiera esta regla. Cancélalos o muévelos a otro vehículo desde el Rutograma.
+    </p>
+    <div class="tabla-scroll">
+      <table class="main-table">
+        <thead>
+          <tr>
+            <th>Placa</th>
+            <th>Ruta</th>
+            <th>Sale</th>
+            <th>Mantenimiento</th>
+            <th>Estado</th>
+            <th *ngIf="auth.puedeEditar"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of viajesEnMantenimiento">
+            <td><strong>{{ item.placa }}</strong></td>
+            <td>{{ item.viaje.ruta || item.viaje.codigo }}</td>
+            <td>{{ item.viaje.fecha }}</td>
+            <td>{{ item.mantenimiento.inicio }} al {{ item.mantenimiento.fin }}</td>
+            <td>{{ item.viaje.estado || 'Planificado' }}</td>
+            <td *ngIf="auth.puedeEditar">
+              <button class="btn-cancel"
+                      [disabled]="cancelandoViajeId !== null"
+                      (click)="cancelarViajeEnMantenimiento(item)">
+                {{ cancelandoViajeId === item.viaje.id ? 'Cancelando...' : 'Cancelar viaje' }}
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="conflicto-mant-nota" *ngIf="entregadosEnMantenimiento > 0" style="margin-top:8px;">
+      Además, {{ entregadosEnMantenimiento }} viaje(s) ya entregados se cruzan con un mantenimiento registrado después; esos no se tocan.
+    </p>
+  </div>
+
   <div class="card" *ngIf="mostrarHistorial" style="margin-bottom:16px;">
     <div style="display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;">
       <div class="input-group" style="margin:0;">

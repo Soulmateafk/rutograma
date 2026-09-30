@@ -36,6 +36,7 @@ export class SesionesComponent implements OnInit {
   sesiones: Sesion[] = [];
   cargando = true;
   esAdmin = false;
+  maxSesiones = 5;
   verTodas = false;
 
   ngOnInit() {
@@ -52,6 +53,7 @@ export class SesionesComponent implements OnInit {
       if (data.ok) {
         this.sesiones = data.sesiones;
         this.esAdmin = !!data.esAdmin;
+        if (Number(data.maxSesiones) > 0) this.maxSesiones = Number(data.maxSesiones);
       } else {
         this.ui.mostrarToast(data.msg || 'No se pudieron cargar las sesiones.', 'err');
       }

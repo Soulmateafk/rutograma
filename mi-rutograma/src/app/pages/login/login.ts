@@ -71,7 +71,13 @@ export class LoginComponent implements OnInit {
 
     if (estado === 'APPROVED') {
       this.auth.marcarSesion(this.recordarme);
-      this.ui.mostrarToast(this.mensajeBienvenida(), 'ok');
+      // Si al entrar se pasó del máximo de sesiones, el servidor cerró la
+      // que llevaba más tiempo sin usarse — se avisa para que no sorprenda.
+      const cerradas = this.auth.sesionesCerradasAlEntrar;
+      const avisoTope = cerradas > 0
+        ? `<br>Tu cuenta llegó al máximo de ${this.auth.maxSesiones} sesiones: se cerró ${cerradas === 1 ? 'la que llevaba' : cerradas + ' que llevaban'} más tiempo sin usarse.`
+        : '';
+      this.ui.mostrarToast(this.mensajeBienvenida() + avisoTope, 'ok');
       this.router.navigate(['/resumen']);
 
     } else if (estado === 'PENDING') {

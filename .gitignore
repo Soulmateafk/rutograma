@@ -1,0 +1,21 @@
+# ============================================================
+# Archivos que NUNCA deben subirse a GitHub (el repositorio es
+# público). Siguen existiendo en tu computador; Git solo los ignora.
+# ============================================================
+
+# Claves y contraseñas
+backend/.env
+backend/data/secreto-sesion.key
+backend/certs/
+
+# Datos reales de la operación (base de datos, usuarios, sesiones,
+# auditoría) — se quedan solo en el computador del servidor.
+backend/data/
+backend/migracion/data/
+
+# Dependencias: se instalan con "npm install"
+node_modules/
+
+# Archivos del sistema / editores
+.DS_Store
+Thumbs.db

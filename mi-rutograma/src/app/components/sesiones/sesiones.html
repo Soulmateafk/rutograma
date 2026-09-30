@@ -3,6 +3,10 @@
     <div>
       <h2>Sesiones activas</h2>
       <p>Equipos desde los que se ha iniciado sesión. Cierra los que no reconozcas.</p>
+      <p *ngIf="!cargando && !verTodas" class="ses-cupo" [class.ses-cupo-lleno]="sesiones.length >= maxSesiones">
+        {{ sesiones.length }} de {{ maxSesiones }} sesiones usadas.
+        <span *ngIf="sesiones.length >= maxSesiones">Si entras desde otro equipo, se cerrará la que lleva más tiempo sin usarse.</span>
+      </p>
     </div>
     <div class="ses-actions">
       <button *ngIf="esAdmin" class="ses-btn" (click)="alternarTodas()">

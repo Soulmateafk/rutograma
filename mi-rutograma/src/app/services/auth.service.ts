@@ -66,6 +66,10 @@ export class AuthService {
    * propias llamadas al servidor con fetch() en vez de usar HttpClient —
    * las de HttpClient ya llevan la sesión por el interceptor.
    */
+  /** Ver AccountService.sesionesCerradasAlEntrar / maxSesiones. */
+  public get sesionesCerradasAlEntrar(): number { return this.account.sesionesCerradasAlEntrar; }
+  public get maxSesiones(): number { return this.account.maxSesiones; }
+
   public fetchAutenticado(url: string, init?: RequestInit): Promise<Response> {
     return this.account.fetchAutenticado(url, init);
   }
