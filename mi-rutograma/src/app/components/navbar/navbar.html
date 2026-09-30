@@ -28,9 +28,11 @@
          style="position: absolute; top: calc(100% + 4px); left: 0; width: 280px; background: var(--color-fondo-tarjeta); border: 1px solid var(--color-borde); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); z-index: 9999; overflow: hidden;">
       <div *ngFor="let r of resultadosBusqueda"
            (mousedown)="irAResultadoBusqueda(r)"
-           style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--color-borde-suave);">
+           [style.cursor]="r.actual ? 'default' : 'pointer'"
+           [style.opacity]="r.actual ? 0.7 : 1"
+           style="padding: 8px 12px; border-bottom: 1px solid var(--color-borde-suave);">
         <div style="font-size: 12px; font-weight: 600; color: var(--color-texto-principal);">{{ r.etiqueta }}</div>
-        <div style="font-size: 11px; color: var(--color-texto-apagado);">{{ r.tipo }} — {{ r.subtitulo }}</div>
+        <div style="font-size: 11px;" [style.color]="r.actual ? 'var(--green)' : 'var(--color-texto-apagado)'">{{ r.actual ? ('✓ ' + r.subtitulo) : (r.tipo + ' — ' + r.subtitulo) }}</div>
       </div>
     </div>
 

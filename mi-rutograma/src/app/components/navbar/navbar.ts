@@ -477,7 +477,7 @@ export class NavbarComponent {
   // ruta desde cualquier pantalla, y te lleva directo a donde vive.
   // ============================================================
   public busquedaGlobal: string = '';
-  public resultadosBusqueda: Array<{ tipo: string; etiqueta: string; subtitulo: string; ruta: string; queryParams?: any }> = [];
+  public resultadosBusqueda: Array<{ tipo: string; etiqueta: string; subtitulo: string; ruta: string; queryParams?: any; actual?: boolean }> = [];
   public mostrandoResultadosBusqueda: boolean = false;
 
   // Pantallas de la app que se pueden encontrar escribiendo su nombre
@@ -541,7 +541,7 @@ export class NavbarComponent {
     }
 
     const S = this.dataService.S;
-    const resultados: Array<{ tipo: string; etiqueta: string; subtitulo: string; ruta: string; queryParams?: any }> = [];
+    const resultados: Array<{ tipo: string; etiqueta: string; subtitulo: string; ruta: string; queryParams?: any; actual?: boolean }> = [];
 
     (S.vehiculos || []).forEach((v: any) => {
       const placa = String(v.p || v.placa || '');
@@ -601,9 +601,24 @@ export class NavbarComponent {
 
     // Páginas de la app — para saltar directo escribiendo el nombre de
     // la pantalla (ej. "config" encuentra Configuración).
+    // Sin tildes, para que "vehiculos" también encuentre "Vehículos".
+    // Si ya estás en esa pantalla, se muestra "Ya estás aquí" en vez de
+    // ofrecer ir a donde ya estás.
+    const sinTildes = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const qSinTildes = sinTildes(q);
+    const rutaActual = this.router.url.split(/[?#]/)[0];
     this.paginasBuscables
-      .filter(p => p.nombre.toLowerCase().includes(q))
-      .forEach(p => resultados.push({ tipo: 'Página', etiqueta: p.nombre, subtitulo: 'Ir a la pantalla', ruta: p.ruta }));
+      .filter(p => sinTildes(p.nombre).includes(qSinTildes))
+      .forEach(p => {
+        const actual = rutaActual === p.ruta || rutaActual.startsWith(p.ruta + '/');
+        resultados.push({
+          tipo: 'Página',
+          etiqueta: p.nombre,
+          subtitulo: actual ? 'Ya estás aquí' : 'Ir a la pantalla',
+          ruta: p.ruta,
+          actual
+        });
+      });
 
     // Máximo 8 resultados — una lista más larga que eso deja de ser
     // "un vistazo rápido" y empieza a estorbar.
@@ -611,8 +626,11 @@ export class NavbarComponent {
     this.mostrandoResultadosBusqueda = true;
   }
 
-  public irAResultadoBusqueda(resultado: { ruta: string; queryParams?: any }): void {
-    this.router.navigate([resultado.ruta], resultado.queryParams ? { queryParams: resultado.queryParams } : {});
+  public irAResultadoBusqueda(resultado: { ruta: string; queryParams?: any; actual?: boolean }): void {
+    // Ya estás en esa pantalla: solo se cierra el buscador.
+    if (!resultado.actual) {
+      this.router.navigate([resultado.ruta], resultado.queryParams ? { queryParams: resultado.queryParams } : {});
+    }
     this.busquedaGlobal = '';
     this.resultadosBusqueda = [];
     this.mostrandoResultadosBusqueda = false;
