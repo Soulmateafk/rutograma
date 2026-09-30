@@ -53,10 +53,10 @@ export class AuthService {
     // contraseña cambiada por el administrador, cuenta eliminada...), se
     // avisa y se manda al login. AccountService no puede hacerlo solo porque
     // no puede inyectar a este servicio (este ya lo inyecta a él).
-    this.account.alExpirarSesion = () => {
+    this.account.alExpirarSesion = (mensaje?: string) => {
       this.currentUser = null;
       this.currentUserStatus = null;
-      this.ui.mostrarToast('Tu sesión expiró. Inicia sesión de nuevo.', 'err');
+      this.ui.mostrarToast(mensaje || 'Tu sesión expiró. Inicia sesión de nuevo.', 'err');
       this.router.navigate(['/login']);
     };
   }
@@ -66,6 +66,10 @@ export class AuthService {
    * propias llamadas al servidor con fetch() en vez de usar HttpClient —
    * las de HttpClient ya llevan la sesión por el interceptor.
    */
+  /** Ver AccountService.sesionesCerradasAlEntrar / maxSesiones. */
+  public get sesionesCerradasAlEntrar(): number { return this.account.sesionesCerradasAlEntrar; }
+  public get maxSesiones(): number { return this.account.maxSesiones; }
+
   public fetchAutenticado(url: string, init?: RequestInit): Promise<Response> {
     return this.account.fetchAutenticado(url, init);
   }

@@ -7,6 +7,7 @@ import { DataService } from '../../services/data';
 import { ModalService } from '../../services/modal';
 import { AuthService } from '../../services/auth.service';
 import { UiService } from '../../services/ui.service';
+import { viajesEnMantenimiento, ViajeEnMantenimiento } from '../../services/mantenimiento';
 import { reprogramarViajesDesde, buscarViajesTercerosRobables, tomarViajeTerceroParaVehiculo, obtenerViajesEnConflicto, reprogramarViajeConflictivo, buscarVehiculosDisponiblesParaVarado, transferirViajeAOtroVehiculo } from '../rutograma/rutograma.utils.js';
 
 @Component({
@@ -111,6 +112,49 @@ export class VehiculosComponent implements OnInit, OnDestroy {
   // (los índices de "Editar"/"Mant."/"X" siguen apuntando al vehículo
   // real gracias a "v.index", que ya venía guardado en cada fila).
   public busquedaVehiculos: string = '';
+
+  // ============================================================
+  // VIAJES ENCIMA DE UN MANTENIMIENTO — los que ya existían antes de
+  // que se aplicara la regla (o de registrar el mantenimiento). Se
+  // muestran para que alguien decida qué hacer; los nuevos ya no se
+  // pueden crear así (lo bloquea el servidor).
+  // ============================================================
+  private get todosEnMantenimiento(): ViajeEnMantenimiento[] {
+    return viajesEnMantenimiento(this.ds.S?.vehiculos || [], this.ds.S?.viajes || []);
+  }
+  /** Los que todavía se pueden cancelar. */
+  public get viajesEnMantenimiento(): ViajeEnMantenimiento[] {
+    return this.todosEnMantenimiento.filter(x => x.viaje.estado !== 'Entregado');
+  }
+  /** Ya entregados: solo se informan (el mantenimiento se registró después). */
+  public get entregadosEnMantenimiento(): number {
+    return this.todosEnMantenimiento.filter(x => x.viaje.estado === 'Entregado').length;
+  }
+
+  public cancelandoViajeId: any = null;
+
+  public async cancelarViajeEnMantenimiento(item: ViajeEnMantenimiento): Promise<void> {
+    if (this.cancelandoViajeId !== null) return;
+    const vj = item.viaje;
+    const confirmado = await this.mostrarConfirmPersonalizado(
+      `¿Cancelar el viaje ${vj.ruta || vj.codigo || ''} de ${item.placa} del ${vj.fecha}?\n\n` +
+      `Ese vehículo está en mantenimiento del ${item.mantenimiento.inicio} al ${item.mantenimiento.fin}.`,
+      'Cancelar viaje',
+      'Volver'
+    );
+    if (!confirmado) return;
+    this.cancelandoViajeId = vj.id;
+    try {
+      await this.ds.guardarViaje({
+        ...vj,
+        estado: 'Cancelado',
+        motivoCancelacion: `Vehículo en mantenimiento (${item.mantenimiento.inicio} a ${item.mantenimiento.fin})`
+      });
+    } finally {
+      this.cancelandoViajeId = null;
+      this.cdr.detectChanges();
+    }
+  }
 
   public get vehiculosFiltrados(): any[] {
     const q = this.busquedaVehiculos.trim().toLowerCase();
