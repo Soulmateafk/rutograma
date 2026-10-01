@@ -162,3 +162,23 @@
   gap: 10px;
   margin-top: 20px;
 }
+
+/* ===== Importar viajes reales: vista previa ===== */
+.import-resumen { margin-top: 16px; }
+.import-cabecera { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.import-archivo { font-size: 13px; color: var(--color-texto-principal); font-weight: 600; }
+.import-acciones { display: flex; gap: 8px; flex-wrap: wrap; }
+.import-cifras { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 16px; }
+.import-cifra { background: var(--color-fondo-input); border: 1px solid var(--color-borde); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.import-cifra strong { font-size: 16px; color: var(--color-texto-principal); }
+.import-cifra span { font-size: 11px; color: var(--color-texto-secundario); }
+.import-cifra.aviso { border-color: rgba(245, 158, 11, 0.5); }
+.import-grupos { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.import-grupo { border: 1px solid var(--color-borde); border-radius: 8px; padding: 10px 12px; }
+.import-grupo.alerta { border-color: rgba(245, 158, 11, 0.5); }
+.import-grupo h4 { margin: 0 0 6px; font-size: 12px; color: var(--color-texto-principal); display: flex; gap: 6px; align-items: center; }
+.import-grupo ul { margin: 0; padding-left: 18px; font-size: 12px; color: var(--color-texto-secundario); line-height: 1.6; max-height: 220px; overflow-y: auto; }
+.import-grupo li.nada { list-style: none; margin-left: -18px; font-style: italic; color: var(--color-texto-apagado); }
+.import-grupo em { color: var(--color-texto-apagado); font-style: normal; }
+.import-nota { font-size: 11px; color: var(--color-texto-apagado); margin: 0 0 6px; }
+.import-check { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--color-texto-principal); margin-bottom: 6px; cursor: pointer; }

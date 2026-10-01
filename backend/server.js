@@ -13,6 +13,7 @@ const bcrypt = require('bcryptjs');
 // ⚠️ Ajusta esta ruta si tu carpeta se llama distinto a "migracion"
 // (la carpeta donde pusiste esquema.sql/db.js/migrar.js).
 const { rangosMantenimiento, diasOcupadoViaje, mantenimientoQueChoca, agregarSesionConTope, compararParaVariedad, anotarDestino } = require('./reglas');
+const { leerLibroViajeros, armarImportacion, aplicarImportacion } = require('./importacion');
 const { leerDB, guardarEnDB, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, importarAuditoriaJSONLSiHaceFalta } = require('./migracion/db.js');
 
 // Lee las credenciales de correo desde un archivo .env (nunca escritas
@@ -46,6 +47,9 @@ function rutaPermitidaParaVehiculo(placa, ruta) {
 }
 
 app.use(cors());
+// La importación de viajes reales manda el Excel completo (en base64):
+// necesita un límite más alto que el resto de la API.
+app.use('/api/importar', express.json({ limit: '30mb' }));
 app.use(express.json());
 
 // ============================================================================
@@ -77,7 +81,8 @@ const registrarAuditoria = (usuario, metodo, ruta, cuerpo, modo) => {
             // dejaba la contraseña en TEXTO PLANO dentro del registro de
             // auditoría (y de ahí, en los respaldos). Se listan aquí todos
             // los nombres posibles para que no vuelva a pasar con otro.
-            ['pass', 'passHash', 'nuevaClave', 'password', 'clave', 'contrasena', 'token']
+            // "archivo": el Excel completo de la importación (megas de texto).
+            ['pass', 'passHash', 'nuevaClave', 'password', 'clave', 'contrasena', 'token', 'archivo']
                 .forEach(campo => delete resumen[campo]);
         }
 
@@ -2697,6 +2702,66 @@ app.post('/api/auth/register', async (req, res) => {
 // =================================================================
 // --- MOTOR LOGÍSTICO DE MATRIZ ---
 // =================================================================
+// ============================================================
+// IMPORTAR VIAJES REALES (Excel de operación: "DT VIAJEROS." + "CONF")
+// - previsualizar:true -> solo devuelve el resumen (qué entra, qué se
+//   corrigió, qué no se pudo leer, qué cambiaría en las rutas).
+// - previsualizar:false -> los viajes del archivo REEMPLAZAN a los que
+//   había entre su primera y su última fecha (respaldo automático antes
+//   de guardar, como cualquier escritura).
+// La lógica está en importacion.js (con pruebas).
+// ============================================================
+app.post('/api/importar/viajes-reales', (req, res) => {
+    try {
+        const { archivo, previsualizar, aplicarRutas } = req.body || {};
+        if (!archivo || typeof archivo !== 'string') {
+            return res.status(400).json({ ok: false, msg: 'No llegó ningún archivo.' });
+        }
+
+        let libro;
+        try {
+            libro = leerLibroViajeros(Buffer.from(archivo, 'base64'));
+        } catch (e) {
+            return res.status(400).json({ ok: false, msg: `No se pudo leer el Excel: ${e.message}` });
+        }
+
+        const data = leerExcel();
+        const hoy = new Date();
+        const importacion = armarImportacion({
+            filas: libro.filas,
+            tiempos: libro.tiempos,
+            rutas: data.rutas || [],
+            vehiculos: data.vehiculos || [],
+            fecha1904: libro.fecha1904,
+            hoy: `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`
+        });
+        const { resumen } = importacion;
+        if (!resumen.total) {
+            return res.status(400).json({ ok: false, msg: 'El archivo no tiene viajes que se puedan importar.', resumen });
+        }
+
+        // Cuántos viajes que ya hay en la app se reemplazarían.
+        resumen.reemplazaria = (data.viajes || []).filter(v => v.fecha && v.fecha >= resumen.desde && v.fecha <= resumen.hasta).length;
+
+        if (previsualizar) {
+            return res.status(200).json({ ok: true, previsualizacion: true, resumen });
+        }
+
+        const copia = JSON.parse(JSON.stringify(data));
+        const resultado = aplicarImportacion(copia, importacion, { aplicarRutas: !!aplicarRutas });
+        guardarEnExcel(copia);
+        res.locals.auditoriaExtra = {
+            importados: resumen.total, desde: resumen.desde, hasta: resumen.hasta,
+            reemplazados: resultado.reemplazados, rutasCambiadas: resultado.rutasCambiadas
+        };
+        console.log(`📥 Importados ${resumen.total} viajes reales (${resumen.desde} a ${resumen.hasta}); reemplazados ${resultado.reemplazados}.`);
+        return res.status(200).json({ ok: true, resumen, ...resultado });
+    } catch (error) {
+        console.error('🚨 Error en /api/importar/viajes-reales:', error);
+        return res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
 app.post('/api/configuracion/generar-matriz', async (req, res) => {
     try {
         const { mes, anio, festivos, previsualizar } = req.body; 
@@ -2755,6 +2820,10 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
         const mesIndexLimpieza = { 'Enero':0,'Febrero':1,'Marzo':2,'Abril':3,'Mayo':4,'Junio':5,'Julio':6,'Agosto':7,'Septiembre':8,'Octubre':9,'Noviembre':10,'Diciembre':11 }[mes];
         const totalViajesAntesDeLimpiar = (data.viajes || []).length;
         data.viajes = (data.viajes || []).filter(v => {
+            // Los viajes REALES (importados del Excel de operación) nunca
+            // se borran: son lo que de verdad pasó, y la generación sigue
+            // a partir de ellos (ver viajesRealesDelMes más abajo).
+            if (v.tipo === 'real') return true;
             const coincidePorEtiqueta = v.mes === mes && String(v.anio) === String(anio);
             let coincidePorFecha = false;
             if (v.fecha) {
@@ -2766,6 +2835,20 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
             return !(coincidePorEtiqueta || coincidePorFecha);
         });
         const viajesReemplazados = totalViajesAntesDeLimpiar - data.viajes.length;
+
+        // Viajes reales de ESTE mes: ya pasaron, así que solo se generan los
+        // días posteriores al último día con datos reales.
+        const viajesRealesDelMes = data.viajes.filter(v => {
+            if (v.tipo !== 'real' || !v.fecha) return false;
+            const f = new Date(v.fecha + 'T00:00:00');
+            return f.getFullYear() === Number(anio) && f.getMonth() === mesIndexLimpieza;
+        }).sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
+        const ultimoDiaReal = viajesRealesDelMes.reduce((max, v) => Math.max(max, Number(v.dia || v.salida || 0)), 0);
+        // Filas de cupo (ARSITRANS n / POLAR n) que usan los viajes reales
+        // que se conservan — no se borran en la limpieza de cupos.
+        const cuposConViajeReal = new Set(
+            data.viajes.filter(v => v.tipo === 'real').map(v => String(v.p || v.placa || '').toUpperCase().trim())
+        );
 
         listaVehiculos.forEach(v => {
             v.viajes = 0;
@@ -2802,7 +2885,7 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
             const placaV = String(v.p || v.placa || '').toUpperCase().trim();
             const esOrigenAuto = v.origenAuto === true || v.origenAuto === 'true' || v.origenAuto === 'TRUE' || v.origenAuto === 1;
             const esCupoNumerado = patronCupoNumerado.test(placaV);
-            if (esOrigenAuto || esCupoNumerado) {
+            if ((esOrigenAuto || esCupoNumerado) && !cuposConViajeReal.has(placaV)) {
                 listaVehiculos.splice(i, 1);
             }
         }
@@ -2848,15 +2931,36 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
             }
         });
 
+        // Los viajes reales de este mes también ocupan al vehículo: queda
+        // libre cuando vuelve del último.
+        viajesRealesDelMes.forEach(v => {
+            const placaV = String(v.p || v.placa || '').toUpperCase().trim();
+            const salidaV = Number(v.dia || v.salida || 0);
+            const diasV = Math.max(1, Number(v.retorno || salidaV) - salidaV);
+            const liberacion = new Date(v.fecha + 'T00:00:00');
+            liberacion.setDate(liberacion.getDate() + diasV);
+            if (!ultimaLiberacionPorPlaca[placaV] || liberacion.getTime() > ultimaLiberacionPorPlaca[placaV]) {
+                ultimaLiberacionPorPlaca[placaV] = liberacion.getTime();
+            }
+        });
+
         const controlDisponibilidad = {};
         listaVehiculos.forEach(v => {
             const placaStr = String(v.p || v.placa || '').toUpperCase().trim();
             if (placaStr) controlDisponibilidad[placaStr] = ultimaLiberacionPorPlaca[placaStr] || 0;
+            // Los viajes reales de este mes cuentan para repartir la carga.
+            v.viajes = viajesRealesDelMes.filter(x => String(x.p || x.placa || '').toUpperCase().trim() === placaStr).length;
         });
 
         const totalDiasMes = new Date(anio, mesIndex + 1, 0).getDate();
         // Adónde ha ido cada vehículo en esta corrida (para la variedad).
         const historialDestinos = {};
+        viajesRealesDelMes.forEach(v => {
+            if (String(v.tr || v.transportadora || '').toLowerCase().includes('makand')) {
+                anotarDestino(historialDestinos, String(v.p || v.placa || '').toUpperCase().trim(),
+                    normalizarTexto(v.destino || v.dest || v.ruta || ''));
+            }
+        });
         let viajesEstructurados = 0;
         let viajesMakand = 0; // Solo flota propia — para el desglose Makand vs terceros en la respuesta
         let cuposNuevosCreados = 0; // Cupos Arsitrans/Polar nuevos (no reutilizados) — para la vista previa
@@ -2873,7 +2977,8 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
         const cupoVehiculosArsitrans = []; // { placa, disponibleDesde }
         const cupoVehiculosPolar = [];
 
-        for (let dia = 1; dia <= totalDiasMes; dia++) {
+        // Con viajes reales importados, se arranca el día siguiente al último real.
+        for (let dia = ultimoDiaReal + 1; dia <= totalDiasMes; dia++) {
             const fechaActual = new Date(anio, mesIndex, dia);
             const yyyy = fechaActual.getFullYear();
             const mm = String(fechaActual.getMonth() + 1).padStart(2, '0');
