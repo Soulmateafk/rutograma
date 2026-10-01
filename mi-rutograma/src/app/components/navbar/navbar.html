@@ -1,18 +1,29 @@
 <nav>
   <div class="logo">MAKA<span>ND</span></div>
 
-  <div class="tabs">
+  <!-- Pestañas. Las de paginasMenuMas pasan al menú "Más" cuando no
+       caben en la fila (ver ajustarPestanas en navbar.ts); en celular
+       se ven todas. -->
+  <div class="tabs" #contenedorPestanas>
     <button class="tab" routerLink="/dashboard" routerLinkActive="on">Dashboard</button>
     <button class="tab" routerLink="/rutograma" routerLinkActive="on">Rutograma</button>
     <button class="tab" routerLink="/vehiculos" routerLinkActive="on">Vehículos</button>
     <button class="tab" routerLink="/rutas" routerLinkActive="on">Rutas</button>
-    <button class="tab" routerLink="/conductores" routerLinkActive="on">Conductores</button>
-    <button class="tab" routerLink="/configuracion" routerLinkActive="on">Configuración</button>
-    <button class="tab" routerLink="/historico" routerLinkActive="on">Histórico</button>
-    <button class="tab" routerLink="/comparativo" routerLinkActive="on">Comparativo</button>
-    <button class="tab" routerLink="/sesiones" routerLinkActive="on">Sesiones</button>
+    <button *ngFor="let p of paginasMenuMas" class="tab" [class.oculta]="rutasEnMenuMas.has(p.ruta)"
+            [routerLink]="p.ruta" routerLinkActive="on">{{ p.nombre }}</button>
+  </div>
 
-    <button class="tab" routerLink="/admin" routerLinkActive="on">Administrador</button>
+  <div class="tab-mas" *ngIf="rutasEnMenuMas.size > 0">
+    <button class="tab" [class.on]="masActivo()" (click)="alternarMenuMas()"
+            [attr.aria-expanded]="menuMasAbierto">
+      Más <i class="bi" [ngClass]="menuMasAbierto ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+    </button>
+    <div class="menu-mas" *ngIf="menuMasAbierto">
+      <ng-container *ngFor="let p of paginasMenuMas">
+        <button *ngIf="rutasEnMenuMas.has(p.ruta)" class="menu-mas-item"
+                [routerLink]="p.ruta" routerLinkActive="on" (click)="menuMasAbierto = false">{{ p.nombre }}</button>
+      </ng-container>
+    </div>
   </div>
 
   <div class="nav-search">
@@ -42,8 +53,8 @@
     </div>
   </div>
 
-  <div class="nav-r">
-    <span class="badge" id="bdg-mes">{{ fechaHoy }}</span>
+  <div class="nav-r" #accionesNav>
+    <span class="badge fecha-nav" id="bdg-mes" [class.oculta]="ocultarFecha">{{ fechaHoy }}</span>
 
     <!-- Deshacer/Rehacer — historial LOCAL de esta computadora (hasta 3
          cambios), separado por Modo Real/Prueba. Deshabilitados cuando
@@ -53,18 +64,18 @@
             [disabled]="!dataService.descripcionProximoDeshacer"
             [title]="dataService.descripcionProximoDeshacer ? ('Deshacer: ' + dataService.descripcionProximoDeshacer) : 'No hay ningún cambio reciente para deshacer'"
             (click)="deshacerUltimoCambio()">
-      <i class="bi bi-arrow-counterclockwise"></i> Deshacer
+      <i class="bi bi-arrow-counterclockwise"></i><span class="btn-txt"> Deshacer</span>
     </button>
     <button class="btn sm" *ngIf="authService.puedeEditar"
             [disabled]="!dataService.descripcionProximoRehacer"
             [title]="dataService.descripcionProximoRehacer ? ('Rehacer: ' + dataService.descripcionProximoRehacer) : 'No hay ningún cambio para rehacer'"
             (click)="rehacerUltimoCambio()">
-      <i class="bi bi-arrow-clockwise"></i> Rehacer
+      <i class="bi bi-arrow-clockwise"></i><span class="btn-txt"> Rehacer</span>
     </button>
 
-    <button class="btn grn sm" (click)="descargarDiario()">Descargar Diario</button>
-    <button class="btn pri sm" *ngIf="authService.puedeEditar" (click)="abrirModal('m-viaje')">Viaje Extra</button>
-    <button class="btn sm" *ngIf="authService.puedeEditar" (click)="abrirModal('m-novedad')">Novedad</button>
+    <button class="btn grn sm" title="Descargar Diario" (click)="descargarDiario()"><i class="bi bi-download"></i><span class="btn-txt2"> <span class="btn-txt">Descargar </span>Diario</span></button>
+    <button class="btn pri sm" *ngIf="authService.puedeEditar" title="Viaje Extra" (click)="abrirModal('m-viaje')"><i class="bi bi-plus-lg"></i><span class="btn-txt2"> Viaje Extra</span></button>
+    <button class="btn sm" *ngIf="authService.puedeEditar" title="Novedad" (click)="abrirModal('m-novedad')"><i class="bi bi-lightning-charge"></i><span class="btn-txt2"> Novedad</span></button>
   </div>
 </nav>
 

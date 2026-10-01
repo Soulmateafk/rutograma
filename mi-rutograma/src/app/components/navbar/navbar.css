@@ -99,45 +99,48 @@
 }
 
 /* === Navbar en pantallas normales (más de 900px) ===
-   Con 10 pestañas + buscador + 6 botones no cabe todo en una fila de
-   54px fijos: el buscador y los botones se encimaban sobre las
-   pestañas. Ahora son dos filas: arriba logo + buscador + botones,
-   abajo las pestañas. Si aun así no cabe, la barra crece en vez de
-   sobreponer los botones. En celular (900px o menos) sigue mandando
-   el @media de styles.css. */
+   Todo en UNA sola fila de 54px: logo, pestañas, buscador y botones.
+   Para que quepa sin encimarse:
+   - Los botones de la derecha son compactos (Deshacer/Rehacer quedan
+     solo con su ícono cuando falta espacio; el nombre sale al pasar
+     el mouse, en el "title").
+   - Si aun así las pestañas no caben, se deslizan de lado dentro de su
+     espacio (rueda del mouse o arrastrando) en vez de bajar a otra fila
+     o montarse sobre los botones.
+   En celular (900px o menos) sigue mandando el @media de styles.css. */
 @media (min-width: 901px) {
   nav {
-    height: auto;
-    min-height: 54px;
-    flex-wrap: wrap;
-    row-gap: 8px;
-    column-gap: 12px;
-    padding-top: 8px;
-    padding-bottom: 8px;
+    flex-wrap: nowrap;
+    column-gap: 14px;
   }
 
   .logo {
     flex-shrink: 0;
     white-space: nowrap;
-    margin-right: 8px;
+    margin-right: 4px;
   }
 
   .tabs {
-    order: 3;                  /* las pestañas van en su propia fila */
-    flex-basis: 100%;
-    flex-wrap: wrap;
+    flex: 0 1 auto;            /* no crece: "Más" queda pegado a la última pestaña */
     min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;     /* sin barra visible (Firefox) */
+  }
+  .tabs::-webkit-scrollbar {
+    display: none;             /* sin barra visible (Chrome/Edge) */
   }
 
   .tab {
     flex-shrink: 0;
     white-space: nowrap;
+    padding: 7px 12px;
   }
 
   .nav-search {
-    flex: 0 1 220px;
-    min-width: 150px;
-    margin-left: auto;
+    flex: 0 1 200px;
+    min-width: 130px;
+    margin-left: auto;         /* buscador y botones, a la derecha */
   }
 
   .nav-search input {
@@ -146,8 +149,9 @@
   }
 
   .nav-r {
-    flex-wrap: wrap;
     flex-shrink: 0;
+    flex-wrap: nowrap;
+    gap: 6px;
   }
 
   .nav-r .btn,
@@ -156,8 +160,67 @@
   }
 }
 
-@media (min-width: 901px) and (max-width: 1100px) {
-  .tab {
-    padding: 6px 10px;
-  }
+/* Menú "Más": oculto en celular y en pantallas anchas. */
+.tab-mas {
+  display: none;
+  position: relative;
+  flex-shrink: 0;
+}
+.tab-mas .bi {
+  font-size: 10px;
+  margin-left: 2px;
+}
+.menu-mas {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 180px;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  padding: 6px;
+  z-index: 10001;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.menu-mas-item {
+  display: block;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text2);
+  font-size: 13px;
+  font-family: inherit;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.menu-mas-item:hover {
+  background: var(--bg3);
+  color: var(--text);
+}
+.menu-mas-item.on {
+  background: var(--blue2);
+  color: #fff;
+}
+
+/* Lo que no cabe (lo decide ajustarPestanas en navbar.ts). */
+@media (min-width: 901px) {
+  .tab-mas { display: block; }
+  .tab.oculta,
+  .fecha-nav.oculta { display: none; }
+}
+@media (min-width: 901px) and (max-width: 1500px) {
+  .nav-r .btn-txt { display: none; }
+  .tab { padding: 6px 9px; }
+}
+
+/* Laptop con zoom (pantalla angosta): botones de la derecha solo con
+   ícono (el nombre sale al pasar el mouse) y buscador más angosto. */
+@media (min-width: 901px) and (max-width: 1150px) {
+  .nav-r .btn-txt2 { display: none; }
+  .nav-search { flex-basis: 170px; min-width: 110px; }
+  nav { column-gap: 10px; }
 }
