@@ -12,7 +12,7 @@ const bcrypt = require('bcryptjs');
 
 // ⚠️ Ajusta esta ruta si tu carpeta se llama distinto a "migracion"
 // (la carpeta donde pusiste esquema.sql/db.js/migrar.js).
-const { rangosMantenimiento, diasOcupadoViaje, mantenimientoQueChoca, agregarSesionConTope } = require('./reglas');
+const { rangosMantenimiento, diasOcupadoViaje, mantenimientoQueChoca, agregarSesionConTope, compararParaVariedad, anotarDestino } = require('./reglas');
 const { leerDB, guardarEnDB, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, importarAuditoriaJSONLSiHaceFalta } = require('./migracion/db.js');
 
 // Lee las credenciales de correo desde un archivo .env (nunca escritas
@@ -2855,6 +2855,8 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
         });
 
         const totalDiasMes = new Date(anio, mesIndex + 1, 0).getDate();
+        // Adónde ha ido cada vehículo en esta corrida (para la variedad).
+        const historialDestinos = {};
         let viajesEstructurados = 0;
         let viajesMakand = 0; // Solo flota propia — para el desglose Makand vs terceros en la respuesta
         let cuposNuevosCreados = 0; // Cupos Arsitrans/Polar nuevos (no reutilizados) — para la vista previa
@@ -2918,6 +2920,7 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
 
             for (const ruta of rutasDelDia) {
                 const timestampActual = fechaActual.getTime();
+                const destinoVariedad = normalizarTexto(ruta.dest || ruta.destino || ruta.cod || '');
 
                 const vehiculosDisponibles = listaVehiculos
                     .filter(v => {
@@ -2979,15 +2982,23 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
                         // relleno automático de Arsitrans/Polar.
                         return rutaPermitidaParaVehiculo(p, ruta);
                     })
-                    .sort((a, b) => {
-                        const pA = String(a.p || a.placa || '').toUpperCase().trim();
-                        const pB = String(b.p || b.placa || '').toUpperCase().trim();
-                        
-                        if (controlDisponibilidad[pA] !== controlDisponibilidad[pB]) {
-                            return controlDisponibilidad[pA] - controlDisponibilidad[pB];
-                        }
-                        return (a.viajes || 0) - (b.viajes || 0);
-                    });
+                    // Para que cada vehículo haga rutas variadas en el mes (y no
+                    // siempre la misma porque vuelve en el mismo ciclo), se
+                    // prefiere al que no viene de este destino y menos veces
+                    // ha ido — ver compararParaVariedad en reglas.js. Los de
+                    // rutina fija (LUN 428) quedan igual que antes.
+                    .map(v => {
+                        const placa = String(v.p || v.placa || '').toUpperCase().trim();
+                        return {
+                            v,
+                            placa,
+                            libreDesde: controlDisponibilidad[placa],
+                            viajes: v.viajes || 0,
+                            restringido: !!RESTRICCIONES_VEHICULOS[placa.replace(/\s/g, '')]
+                        };
+                    })
+                    .sort((a, b) => compararParaVariedad(a, b, destinoVariedad, historialDestinos))
+                    .map(c => c.v);
 
                 if (vehiculosDisponibles.length > 0) {
                     const vehiculoAsignado = vehiculosDisponibles[0];
@@ -3017,6 +3028,7 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
                     fechaLiberacion.setDate(fechaLiberacion.getDate() + diasBloqueado + diasRetornoExtra);
                     
                     controlDisponibilidad[placaAsignada] = fechaLiberacion.getTime();
+                    anotarDestino(historialDestinos, placaAsignada, destinoVariedad);
 
                     let tarifaFinal = Number(ruta.tarifa || 0);
                     const empresa = String(vehiculoAsignado.transportadora || '').trim().toLowerCase();
