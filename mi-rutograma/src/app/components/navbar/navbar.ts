@@ -1,4 +1,4 @@
-import { Component, inject, NgZone, ChangeDetectorRef, HostListener, ViewChild, ElementRef } from '@angular/core';
+import { Component, inject, NgZone, ChangeDetectorRef, HostListener, ViewChild, ElementRef, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
@@ -18,7 +18,7 @@ import { obtenerDiasViaje, obtenerViajesEnConflicto, reprogramarViajeConflictivo
   templateUrl: './navbar.html',
   styleUrls: ['./navbar.css']
 })
-export class NavbarComponent {
+export class NavbarComponent implements AfterViewInit, OnDestroy {
 
   public authService = inject(AuthService);
   public dataService = inject(DataService);
@@ -496,6 +496,113 @@ export class NavbarComponent {
   // Referencia al <input> real, para poder enfocarlo con el atajo de
   // teclado sin importar en qué parte de la pantalla esté el usuario.
   @ViewChild('inputBusquedaGlobal') inputBusquedaGlobal?: ElementRef<HTMLInputElement>;
+
+  // ============================================================
+  // MENÚ "MÁS" — para que el navbar quepa en UNA fila. Se MIDE cuánto
+  // cabe (no hay anchos fijos: la letra cambia entre Windows, Mac y el
+  // zoom del navegador) y las pestañas que no caben pasan a "Más",
+  // empezando por la última de esta lista. En celular no aplica: ahí
+  // las pestañas se deslizan de lado (styles.css).
+  // ============================================================
+  public readonly paginasMenuMas: Array<{ nombre: string; ruta: string }> = [
+    { nombre: 'Conductores', ruta: '/conductores' },
+    { nombre: 'Configuración', ruta: '/configuracion' },
+    { nombre: 'Histórico', ruta: '/historico' },
+    { nombre: 'Comparativo', ruta: '/comparativo' },
+    { nombre: 'Sesiones', ruta: '/sesiones' },
+    { nombre: 'Administrador', ruta: '/admin' }
+  ];
+  public rutasEnMenuMas = new Set<string>();
+  public ocultarFecha = false;
+  public menuMasAbierto = false;
+
+  @ViewChild('contenedorPestanas') contenedorPestanas?: ElementRef<HTMLElement>;
+  @ViewChild('accionesNav') accionesNav?: ElementRef<HTMLElement>;
+  private observadorTamano?: ResizeObserver;
+  private ajustePendiente = 0;
+
+  ngAfterViewInit(): void {
+    if (typeof window === 'undefined' || typeof ResizeObserver === 'undefined') return;
+    // Se vuelve a medir si cambia el ancho de la ventana/zoom o el de los
+    // botones de la derecha (por ejemplo, al cambiar la fecha o el rol).
+    this.observadorTamano = new ResizeObserver(() => this.programarAjuste());
+    const nav = this.contenedorPestanas?.nativeElement.parentElement;
+    if (nav) this.observadorTamano.observe(nav);
+    if (this.accionesNav) this.observadorTamano.observe(this.accionesNav.nativeElement);
+    (document as any).fonts?.ready?.then(() => this.programarAjuste());
+    this.programarAjuste();
+  }
+
+  ngOnDestroy(): void {
+    this.observadorTamano?.disconnect();
+    if (this.ajustePendiente) cancelAnimationFrame(this.ajustePendiente);
+  }
+
+  private programarAjuste(): void {
+    if (this.ajustePendiente) return;
+    this.ajustePendiente = requestAnimationFrame(() => {
+      this.ajustePendiente = 0;
+      this.ajustarPestanas();
+    });
+  }
+
+  /** Mueve a "Más" (de la última hacia atrás) las pestañas que no caben. */
+  private ajustarPestanas(): void {
+    const cont = this.contenedorPestanas?.nativeElement;
+    if (!cont) return;
+    const antes = [...this.rutasEnMenuMas].join() + this.ocultarFecha;
+
+    const pestanas = Array.from(cont.querySelectorAll<HTMLElement>('.tab')).slice(-this.paginasMenuMas.length);
+    const fecha = this.accionesNav?.nativeElement.querySelector<HTMLElement>('.fecha-nav');
+    pestanas.forEach(t => t.classList.remove('oculta'));
+    fecha?.classList.remove('oculta');
+    const ocultas = new Set<string>();
+
+    if (window.innerWidth > 900) {
+      // Espacio que tendrían las pestañas SIN el botón "Más" (si ya se
+      // está mostrando, se suma lo que ocupa), y lo que ocupa "Más".
+      const nav = cont.parentElement as HTMLElement;
+      const separacion = parseFloat(getComputedStyle(nav).columnGap) || 0;
+      const botonMas = nav.querySelector<HTMLElement>('.tab-mas');
+      const anchoMas = (botonMas ? botonMas.getBoundingClientRect().width : 64) + separacion;
+      const libre = () => cont.clientWidth + (botonMas ? anchoMas : 0) - (ocultas.size > 0 ? anchoMas : 0);
+      const sobra = () => cont.scrollWidth > libre() + 1;
+
+      for (let i = pestanas.length - 1; i >= 0 && sobra(); i--) {
+        pestanas[i].classList.add('oculta');
+        ocultas.add(this.paginasMenuMas[i].ruta);
+      }
+      // Si aun con todas en "Más" no cabe, se esconde la fecha.
+      if (fecha && sobra()) fecha.classList.add('oculta');
+    }
+
+    // Si "Más" aparece o desaparece ahora, su ancho real recién se conoce
+    // cuando Angular lo dibuje: se vuelve a medir en el siguiente cuadro.
+    const habiaMas = !!cont.parentElement?.querySelector('.tab-mas');
+    this.rutasEnMenuMas = ocultas;
+    this.ocultarFecha = !!fecha?.classList.contains('oculta');
+    if (!ocultas.size) this.menuMasAbierto = false;
+    if (antes !== [...ocultas].join() + this.ocultarFecha) this.cdr.markForCheck();
+    if (habiaMas !== ocultas.size > 0) this.programarAjuste();
+  }
+
+  public alternarMenuMas(): void {
+    this.menuMasAbierto = !this.menuMasAbierto;
+  }
+
+  /** "Más" se marca activo si la página actual está escondida dentro de él. */
+  public masActivo(): boolean {
+    const ruta = this.router.url.split(/[?#]/)[0];
+    return [...this.rutasEnMenuMas].some(r => ruta === r || ruta.startsWith(r + '/'));
+  }
+
+  // Cierra el menú al hacer clic en cualquier otra parte.
+  @HostListener('document:click', ['$event'])
+  public cerrarMenuMasAfuera(evento: MouseEvent): void {
+    if (!this.menuMasAbierto) return;
+    const dentro = (evento.target as HTMLElement | null)?.closest?.('.tab-mas');
+    if (!dentro) this.menuMasAbierto = false;
+  }
 
   @HostListener('window:keydown', ['$event'])
   public atajoBusquedaGlobal(evento: KeyboardEvent): void {
