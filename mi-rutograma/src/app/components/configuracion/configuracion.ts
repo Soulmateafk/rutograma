@@ -660,4 +660,109 @@ export class Configuracion implements OnInit {
       });
     }
   }
+
+  // ============================================================
+  // IMPORTAR VIAJES REALES (Excel de operación: "DT VIAJEROS." + "CONF")
+  // Paso 1: se elige el archivo y el servidor devuelve un resumen sin
+  // guardar nada. Paso 2: si está bien, se confirma y se aplica.
+  // ============================================================
+  public importNombreArchivo = '';
+  public importResumen: any = null;
+  public importando = false;
+  public importAplicarRutas = true;
+  private importArchivoBase64 = '';
+
+  private repintar(): void {
+    this.zone.run(() => this.cdr.detectChanges());
+  }
+
+  public async elegirArchivoImport(evento: Event): Promise<void> {
+    const input = evento.target as HTMLInputElement;
+    const archivo = input.files?.[0];
+    input.value = ''; // permite volver a elegir el mismo archivo
+    if (!archivo) return;
+
+    this.importNombreArchivo = archivo.name;
+    this.importResumen = null;
+    this.importando = true;
+    this.repintar();
+    try {
+      const bytes = new Uint8Array(await archivo.arrayBuffer());
+      let binario = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) {
+        binario += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      }
+      this.importArchivoBase64 = btoa(binario);
+      const res = await this.llamarImportacion(true);
+      if (res?.ok) {
+        this.importResumen = res.resumen;
+      } else {
+        this.ui.mostrarToast(res?.msg || 'No se pudo leer el archivo.', 'err');
+      }
+    } catch (e) {
+      console.error('Error leyendo el archivo de viajes:', e);
+      this.ui.mostrarToast('No se pudo leer el archivo — revisa que sea el Excel de viajes (.xlsx).', 'err');
+    } finally {
+      this.importando = false;
+      this.repintar();
+    }
+  }
+
+  public async confirmarImportacion(): Promise<void> {
+    if (!this.importResumen || this.importando) return;
+    const r = this.importResumen;
+    const confirmado = await this.mostrarConfirmPersonalizado(
+      `Se importarán ${r.total} viajes reales del ${r.desde} al ${r.hasta}.\n\n` +
+      `Los ${r.reemplazaria} viajes que hay hoy en la app entre esas fechas se reemplazan por los del archivo.` +
+      (this.importAplicarRutas && r.cambiosRutas?.length ? `\n\nTambién se actualizarán ${r.cambiosRutas.length} ruta(s) según lo real.` : '') +
+      `\n\nAntes de guardar se crea un respaldo automático.`,
+      'Importar',
+      'Cancelar'
+    );
+    if (!confirmado) return;
+
+    this.importando = true;
+    this.loading.mostrarGrande('Importando viajes reales...');
+    this.repintar();
+    try {
+      const res = await this.llamarImportacion(false);
+      if (res?.ok) {
+        await this.ds.inicializarApp(true);
+        this.ui.mostrarToast(
+          `<i class="bi bi-check-circle-fill"></i> Importados ${r.total} viajes reales` +
+          (res.rutasCambiadas ? ` y actualizadas ${res.rutasCambiadas} ruta(s)` : '') + '.',
+          'ok'
+        );
+        this.cancelarImportacion();
+      } else {
+        this.ui.mostrarToast(res?.msg || 'No se pudo importar el archivo.', 'err');
+      }
+    } catch (e) {
+      console.error('Error importando viajes reales:', e);
+      this.ui.mostrarToast('No se pudo comunicar con el servidor para importar.', 'err');
+    } finally {
+      this.loading.ocultarGrande();
+      this.importando = false;
+      this.repintar();
+    }
+  }
+
+  public cancelarImportacion(): void {
+    this.importResumen = null;
+    this.importArchivoBase64 = '';
+    this.importNombreArchivo = '';
+  }
+
+  public entradas(obj: any): Array<{ k: string; v: any }> {
+    return Object.entries(obj || {}).map(([k, v]) => ({ k, v }));
+  }
+
+  private async llamarImportacion(previsualizar: boolean): Promise<any> {
+    const respuesta = await this.auth.fetchAutenticado(`${this.API_URL}/importar/viajes-reales`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-email': this.account.correoSesionActiva },
+      body: JSON.stringify({ archivo: this.importArchivoBase64, previsualizar, aplicarRutas: this.importAplicarRutas })
+    });
+    return respuesta.json();
+  }
 }

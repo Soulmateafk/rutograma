@@ -136,6 +136,19 @@
       </p>
     </div>
 
+    <div class="card" *ngIf="auth.puedeEditar">
+      <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Importar viajes reales</div>
+      <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0; line-height: 1.5;">
+        Sube el Excel de operación (hoja "DT VIAJEROS." y "CONF"). Antes de guardar verás qué entra, qué se corrigió y qué no se pudo leer. Los viajes del archivo reemplazan a los de la app en esas fechas, y Generar Matriz continúa desde ahí.
+      </p>
+      <label class="btn" style="background:var(--color-fondo-tarjeta-hover); color: var(--color-texto-principal); font-weight:bold; display:inline-flex; align-items:center; gap:6px; cursor:pointer;"
+             [style.opacity]="importando ? 0.6 : 1">
+        <i class="bi" [ngClass]="importando ? 'bi-hourglass-split' : 'bi-file-earmark-arrow-up'"></i>
+        {{ importando ? 'Leyendo archivo...' : 'Elegir archivo Excel' }}
+        <input type="file" accept=".xlsx,.xls" hidden [disabled]="importando" (change)="elegirArchivoImport($event)">
+      </label>
+    </div>
+
     <div class="card" *ngIf="auth.isAdmin">
       <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Resumen de vencimientos</div>
       <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0; line-height: 1.5;">
@@ -147,6 +160,80 @@
       </button>
     </div>
 
+  </div>
+
+  <!-- Resumen de la importación (antes de confirmar) -->
+  <div class="card import-resumen" *ngIf="importResumen as r">
+    <div class="import-cabecera">
+      <div>
+        <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 4px;">Vista previa de la importación</div>
+        <div class="import-archivo"><i class="bi bi-file-earmark-excel"></i> {{ importNombreArchivo }}</div>
+      </div>
+      <div class="import-acciones">
+        <button class="btn" (click)="cancelarImportacion()" [disabled]="importando">Cancelar</button>
+        <button class="btn pri" (click)="confirmarImportacion()" [disabled]="importando">
+          <i class="bi bi-check2-circle"></i> Importar {{ r.total }} viajes
+        </button>
+      </div>
+    </div>
+
+    <div class="import-cifras">
+      <div class="import-cifra"><strong>{{ r.total }}</strong><span>viajes</span></div>
+      <div class="import-cifra"><strong>{{ r.desde }}</strong><span>desde</span></div>
+      <div class="import-cifra"><strong>{{ r.hasta }}</strong><span>hasta</span></div>
+      <div class="import-cifra" *ngFor="let t of entradas(r.porTransportadora)"><strong>{{ t.v }}</strong><span>{{ t.k }}</span></div>
+      <div class="import-cifra"><strong>{{ r.enRuta }}</strong><span>todavía en ruta</span></div>
+      <div class="import-cifra aviso"><strong>{{ r.reemplazaria }}</strong><span>viajes de la app se reemplazan</span></div>
+    </div>
+
+    <div class="import-grupos">
+      <div class="import-grupo">
+        <h4><i class="bi bi-magic"></i> Corregido automáticamente</h4>
+        <ul>
+          <li *ngIf="r.correcciones.placas">{{ r.correcciones.placas }} placa(s) con espacios o caracteres de más</li>
+          <li *ngFor="let c of r.correcciones.sucursales">{{ c.texto }} <em>({{ c.veces }})</em></li>
+          <li *ngFor="let c of r.correcciones.almacenes">{{ c.texto }} <em>({{ c.veces }})</em></li>
+          <li *ngIf="!r.correcciones.placas && !r.correcciones.sucursales.length && !r.correcciones.almacenes.length" class="nada">Nada que corregir.</li>
+        </ul>
+      </div>
+
+      <div class="import-grupo" [class.alerta]="r.errores.length">
+        <h4><i class="bi bi-x-octagon"></i> Filas que no se pudieron leer ({{ r.errores.length }})</h4>
+        <ul>
+          <li *ngFor="let e of r.errores.slice(0, 15)">Fila {{ e.fila }}: {{ e.motivo }}</li>
+          <li *ngIf="r.errores.length > 15" class="nada">…y {{ r.errores.length - 15 }} más.</li>
+          <li *ngIf="!r.errores.length" class="nada">Todas las filas se leyeron bien.</li>
+        </ul>
+      </div>
+
+      <div class="import-grupo" [class.alerta]="r.sinRuta.length">
+        <h4><i class="bi bi-signpost-split"></i> Sin ruta en la app</h4>
+        <p class="import-nota" *ngIf="r.sinRuta.length">Se importan igual, pero conviene crear estas rutas en Rutas para que Generar Matriz las tenga en cuenta.</p>
+        <ul>
+          <li *ngFor="let x of r.sinRuta">{{ x.texto }} <em>({{ x.veces }} viajes)</em></li>
+          <li *ngIf="!r.sinRuta.length" class="nada">Todos los viajes tienen su ruta.</li>
+        </ul>
+      </div>
+
+      <div class="import-grupo" *ngIf="r.placasMakandDesconocidas.length || r.cuposNuevos.length">
+        <h4><i class="bi bi-truck"></i> Vehículos</h4>
+        <ul>
+          <li *ngIf="r.placasMakandDesconocidas.length">Placas de Makand que no están en Vehículos (sus viajes no se verán hasta crearlas): {{ r.placasMakandDesconocidas.join(', ') }}</li>
+          <li *ngIf="r.cuposNuevos.length">Se crearán las filas de cupo: {{ r.cuposNuevos.join(', ') }}</li>
+        </ul>
+      </div>
+
+      <div class="import-grupo">
+        <h4><i class="bi bi-arrow-repeat"></i> Rutas según lo real</h4>
+        <label class="import-check" *ngIf="r.cambiosRutas.length">
+          <input type="checkbox" [(ngModel)]="importAplicarRutas"> Actualizar estas rutas al importar
+        </label>
+        <ul>
+          <li *ngFor="let c of r.cambiosRutas"><strong>{{ c.cod }}</strong>: {{ c.cambios.join(' · ') }}</li>
+          <li *ngIf="!r.cambiosRutas.length" class="nada">Las rutas ya coinciden con lo real.</li>
+        </ul>
+      </div>
+    </div>
   </div>
 
   <div class="card" style="margin-top: 16px;" *ngIf="ds.S?.cuposExt?.length > 0">
