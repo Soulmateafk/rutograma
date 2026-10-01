@@ -107,3 +107,52 @@ test('el tope es por cuenta: las sesiones de otras cuentas no cuentan', () => {
     assert.equal(r.cerradasPorTope, 0);
     assert.equal(r.sesiones.length, 6);
 });
+
+// ------------------------------------------------------------
+// Variedad de rutas en Generar Matriz
+// ------------------------------------------------------------
+const { compararParaVariedad, anotarDestino } = require('../reglas');
+const ordenar = (candidatos, destino, historial) =>
+    [...candidatos].sort((a, b) => compararParaVariedad(a, b, destino, historial)).map(c => c.placa);
+
+test('no repite el mismo destino seguido si hay otro vehículo libre', () => {
+    const historial = {};
+    anotarDestino(historial, 'AAA', 'cali');
+    const candidatos = [
+        { placa: 'AAA', libreDesde: 1, viajes: 1 },   // libre primero, pero viene de Cali
+        { placa: 'BBB', libreDesde: 5, viajes: 1 }
+    ];
+    assert.deepEqual(ordenar(candidatos, 'cali', historial), ['BBB', 'AAA']);
+});
+
+test('prefiere al que menos veces ha ido a ese destino en el mes', () => {
+    const historial = {};
+    anotarDestino(historial, 'AAA', 'cali');
+    anotarDestino(historial, 'AAA', 'medellin');
+    anotarDestino(historial, 'BBB', 'tunja');
+    const candidatos = [
+        { placa: 'AAA', libreDesde: 1, viajes: 2 },
+        { placa: 'BBB', libreDesde: 9, viajes: 1 }
+    ];
+    assert.deepEqual(ordenar(candidatos, 'cali', historial), ['BBB', 'AAA']);
+});
+
+test('si empatan en variedad, manda el que quedó libre primero y luego el de menos viajes', () => {
+    const candidatos = [
+        { placa: 'AAA', libreDesde: 5, viajes: 1 },
+        { placa: 'BBB', libreDesde: 2, viajes: 3 },
+        { placa: 'CCC', libreDesde: 2, viajes: 1 }
+    ];
+    assert.deepEqual(ordenar(candidatos, 'cali', {}), ['CCC', 'BBB', 'AAA']);
+});
+
+test('un vehículo de rutina fija (LUN 428) no se castiga por repetir destino', () => {
+    const historial = {};
+    anotarDestino(historial, 'LUN 428', 'barranquilla');
+    anotarDestino(historial, 'LUN 428', 'barranquilla');
+    const candidatos = [
+        { placa: 'LUN 428', libreDesde: 1, viajes: 2, restringido: true },
+        { placa: 'BBB', libreDesde: 3, viajes: 1 }
+    ];
+    assert.deepEqual(ordenar(candidatos, 'barranquilla', historial), ['LUN 428', 'BBB']);
+});

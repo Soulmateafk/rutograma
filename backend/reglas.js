@@ -74,7 +74,41 @@ function agregarSesionConTope(sesiones, nueva, max) {
     return { sesiones: lista.filter(x => !sobran.has(x.id)), cerradasPorTope: sobran.size };
 }
 
+// ------------------------------------------------------------
+// VARIEDAD DE RUTAS EN GENERAR MATRIZ
+// Entre los vehículos libres para una ruta, se prefiere (en orden):
+//  1. uno cuyo ÚLTIMO viaje no fue a este mismo destino (no repetir seguido),
+//  2. el que menos veces ha ido a este destino en el mes,
+//  3. el que quedó libre primero,
+//  4. el que lleva menos viajes.
+// Los vehículos con rutina fija (restringidos, como LUN 428) no entran en
+// la regla de variedad: para ellos solo cuentan 3 y 4, como antes.
+// "historial" es { [placa]: { ultimo: destino, conteo: { [destino]: n } } }.
+// ------------------------------------------------------------
+function compararParaVariedad(a, b, destino, historial) {
+    const puntaje = (c) => {
+        if (c.restringido) return [0, 0];
+        const h = historial[c.placa];
+        if (!h) return [0, 0];
+        return [h.ultimo === destino ? 1 : 0, h.conteo[destino] || 0];
+    };
+    const [repiteA, vecesA] = puntaje(a);
+    const [repiteB, vecesB] = puntaje(b);
+    if (repiteA !== repiteB) return repiteA - repiteB;
+    if (vecesA !== vecesB) return vecesA - vecesB;
+    if (a.libreDesde !== b.libreDesde) return a.libreDesde - b.libreDesde;
+    return (a.viajes || 0) - (b.viajes || 0);
+}
+
+function anotarDestino(historial, placa, destino) {
+    const h = historial[placa] || (historial[placa] = { ultimo: null, conteo: {} });
+    h.ultimo = destino;
+    h.conteo[destino] = (h.conteo[destino] || 0) + 1;
+}
+
 module.exports = {
+    compararParaVariedad,
+    anotarDestino,
     sumarDiasFecha,
     rangosMantenimiento,
     diasOcupadoViaje,
