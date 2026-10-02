@@ -12,7 +12,7 @@ const bcrypt = require('bcryptjs');
 
 // ⚠️ Ajusta esta ruta si tu carpeta se llama distinto a "migracion"
 // (la carpeta donde pusiste esquema.sql/db.js/migrar.js).
-const { rangosMantenimiento, diasOcupadoViaje, mantenimientoQueChoca, agregarSesionConTope, compararParaVariedad, anotarDestino } = require('./reglas');
+const { rangosMantenimiento, diasOcupadoViaje, mantenimientoQueChoca, agregarSesionConTope, colapsarSesionesDuplicadas, compararParaVariedad, anotarDestino } = require('./reglas');
 const { leerLibroViajeros, armarImportacion, aplicarImportacion } = require('./importacion');
 const { leerDB, guardarEnDB, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, importarAuditoriaJSONLSiHaceFalta } = require('./migracion/db.js');
 
@@ -264,6 +264,16 @@ const purgarSesionesVencidas = () => {
     if (sesionesActivas.length !== antes) guardarSesiones();
 };
 purgarSesionesVencidas();
+// Duplicados de un mismo equipo que quedaron de antes (ver mismoEquipo en
+// reglas.js): se deja solo la sesión usada más recientemente.
+(() => {
+    const antes = sesionesActivas.length;
+    sesionesActivas = colapsarSesionesDuplicadas(sesionesActivas);
+    if (sesionesActivas.length !== antes) {
+        console.log(`🧹 Se juntaron ${antes - sesionesActivas.length} sesión(es) duplicadas del mismo equipo.`);
+        guardarSesiones();
+    }
+})();
 setInterval(purgarSesionesVencidas, 60 * 60 * 1000).unref();
 
 const ipDeLaPeticion = (req) => {
