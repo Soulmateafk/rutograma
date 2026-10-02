@@ -174,13 +174,14 @@ export class DataService {
   // ============================================================
   // DESHACER / REHACER — historial LOCAL de esta computadora (nunca se
   // comparte con otras, cada una tiene el suyo propio, guardado en
-  // localStorage). Guarda los últimos 3 cambios (viajes, rutas,
+  // localStorage). Guarda los últimos MAX_DESHACER cambios (viajes, rutas,
   // vehículos, conductores) con su estado ANTES y DESPUÉS, para poder
   // revertir o reaplicar cada uno individualmente sin afectar nada más
   // que haya pasado — no es un "deshacer todo el Excel", es por cambio
   // específico.
   // ============================================================
-  private readonly MAX_DESHACER = 3;
+  // Antes eran solo 3 — se quedaba corto. Aplica igual a Deshacer y a Rehacer.
+  public readonly MAX_DESHACER = 30;
   public pilaDeshacer: { tipo: string; clave: string; antes: any | null; despues?: any | null; descripcion: string; timestamp: number }[] = [];
   public pilaRehacer: { tipo: string; clave: string; antes: any | null; despues?: any | null; descripcion: string; timestamp: number }[] = [];
 
@@ -215,10 +216,19 @@ export class DataService {
   }
 
   private guardarPilaDeshacerLocal(): void {
-    try {
-      localStorage.setItem(`rutograma_pila_deshacer_${this.modoActual}`, JSON.stringify(this.pilaDeshacer));
-      localStorage.setItem(`rutograma_pila_rehacer_${this.modoActual}`, JSON.stringify(this.pilaRehacer));
-    } catch { /* no crítico si falla — el deshacer solo se pierde, nada más */ }
+    // Si el navegador se queda sin espacio (cambios muy grandes), se van
+    // descartando los más viejos hasta que quepa, en vez de perder todo.
+    for (let intento = 0; intento < 6; intento++) {
+      try {
+        localStorage.setItem(`rutograma_pila_deshacer_${this.modoActual}`, JSON.stringify(this.pilaDeshacer));
+        localStorage.setItem(`rutograma_pila_rehacer_${this.modoActual}`, JSON.stringify(this.pilaRehacer));
+        return;
+      } catch {
+        if (this.pilaDeshacer.length <= 1 && this.pilaRehacer.length <= 1) return;
+        this.pilaDeshacer = this.pilaDeshacer.slice(Math.ceil(this.pilaDeshacer.length / 2));
+        this.pilaRehacer = this.pilaRehacer.slice(Math.ceil(this.pilaRehacer.length / 2));
+      }
+    }
   }
 
   public cargarPilaDeshacerLocal(): void {
@@ -227,6 +237,8 @@ export class DataService {
       this.pilaDeshacer = rawDeshacer ? JSON.parse(rawDeshacer) : [];
       const rawRehacer = localStorage.getItem(`rutograma_pila_rehacer_${this.modoActual}`);
       this.pilaRehacer = rawRehacer ? JSON.parse(rawRehacer) : [];
+      this.pilaDeshacer = this.pilaDeshacer.slice(-this.MAX_DESHACER);
+      this.pilaRehacer = this.pilaRehacer.slice(-this.MAX_DESHACER);
     } catch {
       // Se queda vacía si el dato guardado está corrupto.
       this.pilaDeshacer = [];
