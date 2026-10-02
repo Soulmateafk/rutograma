@@ -292,7 +292,7 @@ export class AccountService {
    */
   /** Sesiones viejas que el servidor cerró al entrar por el tope por cuenta. */
   public sesionesCerradasAlEntrar = 0;
-  public maxSesiones = 5;
+  public maxSesiones = 15;
 
   async login(email: string, pass: string): Promise<{ estado: UserStatus; esAdmin: boolean; rol: string }> {
     const correo = (email || '').toLowerCase().trim();
