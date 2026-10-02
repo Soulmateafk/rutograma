@@ -216,7 +216,7 @@ const verificarPase = (pase) => {
 // que venzan, pero no aparecen en la lista.
 const ARCHIVO_SESIONES = path.join(CARPETA_DATOS, 'sesiones-activas.json');
 // Máximo de sesiones abiertas a la vez por cuenta.
-const MAX_SESIONES_POR_CUENTA = 5;
+const MAX_SESIONES_POR_CUENTA = 15;
 let sesionesActivas = (() => {
     try {
         if (fs.existsSync(ARCHIVO_SESIONES)) {
@@ -266,6 +266,22 @@ process.on('SIGINT', () => { volcarSesionesAlSalir(); process.exit(0); });
 process.on('SIGTERM', () => { volcarSesionesAlSalir(); process.exit(0); });
 process.on('exit', volcarSesionesAlSalir);
 
+// El computador donde corre el servidor puede entrar por localhost, por su
+// IP de la red o por la de Tailscale: son el MISMO equipo. Sin esto, cada
+// dirección contaba como una sesión distinta de la misma cuenta.
+const ETIQUETA_ESTE_EQUIPO = 'Este mismo equipo (localhost)';
+const esDireccionDeEsteEquipo = (ip) => {
+    const limpia = String(ip || '').replace(/^::ffff:/, '');
+    if (!limpia) return false;
+    if (limpia === '::1' || limpia === '127.0.0.1' || limpia === ETIQUETA_ESTE_EQUIPO) return true;
+    try {
+        return Object.values(require('os').networkInterfaces()).flat()
+            .some(i => i && String(i.address).replace(/^::ffff:/, '') === limpia);
+    } catch {
+        return false;
+    }
+};
+
 const purgarSesionesVencidas = () => {
     const ahora = Date.now();
     const antes = sesionesActivas.length;
@@ -274,9 +290,12 @@ const purgarSesionesVencidas = () => {
 };
 purgarSesionesVencidas();
 // Duplicados de un mismo equipo que quedaron de antes (ver mismoEquipo en
-// reglas.js): se deja solo la sesión usada más recientemente.
+// reglas.js): se deja solo la sesión usada más recientemente. Las sesiones
+// abiertas en el propio computador del servidor por otra dirección (IP de
+// la red, Tailscale) cuentan como "este mismo equipo".
 (() => {
     const antes = sesionesActivas.length;
+    sesionesActivas = sesionesActivas.map(x => esDireccionDeEsteEquipo(x.ip) ? { ...x, ip: ETIQUETA_ESTE_EQUIPO } : x);
     sesionesActivas = colapsarSesionesDuplicadas(sesionesActivas);
     if (sesionesActivas.length !== antes) {
         console.log(`🧹 Se juntaron ${antes - sesionesActivas.length} sesión(es) duplicadas del mismo equipo.`);
@@ -289,7 +308,7 @@ const ipDeLaPeticion = (req) => {
     const reenviada = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
     let ip = reenviada || req.socket?.remoteAddress || '';
     ip = ip.replace(/^::ffff:/, '');
-    if (ip === '::1' || ip === '127.0.0.1') return 'Este mismo equipo (localhost)';
+    if (esDireccionDeEsteEquipo(ip)) return ETIQUETA_ESTE_EQUIPO;
     return ip || 'Desconocida';
 };
 
@@ -674,9 +693,8 @@ const transportadorCorreo = nodemailer.createTransport({
 });
 
 // ¿A qué correos se permite enviar? (EMAIL_DESTINOS_PERMITIDOS en .env)
-//   vacío  → como siempre: solo cuentas de Makand en Outlook (contienen
-//            "makand" y son @outlook.), para no escribirle a correos de prueba.
-//   *      → a cualquier correo.
+//   vacío o * → a cualquier correo (antes, vacío dejaba solo cuentas de
+//               Makand en Outlook; esa regla se quitó).
 //   lista  → separada por comas: dominios ("@gmail.com", "@makand.com")
 //            o correos completos ("pepe@gmail.com").
 const reglaDestinosCorreo = () => String(process.env.EMAIL_DESTINOS_PERMITIDOS || '').trim().toLowerCase();
@@ -685,16 +703,14 @@ const destinoCorreoPermitido = (correo) => {
     const c = String(correo || '').toLowerCase().trim();
     if (!c.includes('@')) return false;
     const regla = reglaDestinosCorreo();
-    if (!regla) return c.includes('makand') && c.includes('@outlook.');
-    if (regla === '*') return true;
+    if (!regla || regla === '*') return true;
     return regla.split(',').map(x => x.trim()).filter(Boolean)
         .some(x => x.startsWith('@') ? c.endsWith(x) : c === x);
 };
 
 const describirReglaDestinos = () => {
     const regla = reglaDestinosCorreo();
-    if (!regla) return 'Solo cuentas de Makand en Outlook (valor por defecto)';
-    if (regla === '*') return 'Cualquier correo';
+    if (!regla || regla === '*') return 'Cualquier correo';
     return `Solo: ${regla}`;
 };
 

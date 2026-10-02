@@ -40,7 +40,7 @@ export class SesionesComponent implements OnInit, OnDestroy {
   sesiones: Sesion[] = [];
   cargando = true;
   esAdmin = false;
-  maxSesiones = 5;
+  maxSesiones = 15;
   verTodas = false;
 
   ngOnInit() {
