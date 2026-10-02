@@ -1354,6 +1354,76 @@ export class RutogramaComponent implements OnInit, OnDestroy {
       });
   }
 
+  // ============================================================
+  // REACOMODAR CUPOS (Arsitrans / Polar) del mes que se está viendo — el
+  // servidor junta sus viajes en los menos cupos posibles (un cupo solo se
+  // ocupa el día de salida). Primero muestra qué cambiaría; no toca flota
+  // propia, fechas, rutas ni placas reales. Se puede deshacer.
+  // ============================================================
+  public reacomodandoCupos = false;
+
+  public async reacomodarCupos(tr: 'Arsitrans' | 'Polar'): Promise<void> {
+    if (this.reacomodandoCupos) return;
+    const apiUrl = `${window.location.protocol}//${window.location.hostname}:5000/api/cupos/reacomodar`;
+    const cuerpo = { tr, anio: this.ds.S.anio, mes: this.ds.S.mes };
+    const nombreMes = this.meses[this.ds.S.mes];
+    const pedir = async (previsualizar: boolean) => {
+      const res = await this.auth.fetchAutenticado(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...cuerpo, previsualizar })
+      });
+      return res.json();
+    };
+
+    this.reacomodandoCupos = true;
+    this.cdr.detectChanges();
+    try {
+      const plan = await pedir(true);
+      if (!plan?.ok) {
+        this.ui.mostrarToast(plan?.msg || 'No se pudo revisar los cupos.', 'err');
+        return;
+      }
+      if (!plan.cambios.length && !plan.vehiculosSobrantes.length) {
+        this.ui.mostrarToast(`Los cupos de ${tr} en ${nombreMes} ya están acomodados (${plan.cuposDespues} cupo(s)).`, 'ok');
+        return;
+      }
+      const ejemplos = plan.cambios.slice(0, 5)
+        .map((c: any) => `• Día ${Number(String(c.fecha).slice(8))}: ${c.ruta} — ${c.de} → ${c.a}`).join('\n');
+      const confirmado = await this.mostrarConfirmPersonalizado(
+        `Reacomodar ${tr} de ${nombreMes}:\n\n` +
+        `Cupos: ${plan.cuposAntes} → ${plan.cuposDespues}\n` +
+        `Viajes que cambian de cupo: ${plan.cambios.length}\n` +
+        (plan.vehiculosSobrantes.length ? `Filas vacías que se quitan: ${plan.vehiculosSobrantes.join(', ')}\n` : '') +
+        (ejemplos ? `\n${ejemplos}${plan.cambios.length > 5 ? '\n…' : ''}\n` : '') +
+        `\nNo se tocan fechas, rutas, la flota propia ni las placas reales. Se puede deshacer.`,
+        'Reacomodar',
+        'Cancelar'
+      );
+      if (!confirmado) return;
+
+      const r = await pedir(false);
+      if (r?.pendiente) return; // cuenta que necesita aprobación: ya se avisó
+      if (!r?.ok) {
+        this.ui.mostrarToast(r?.msg || 'No se pudo reacomodar.', 'err');
+        return;
+      }
+      if (r.respaldoAntes) {
+        this.ds.registrarCambio({
+          tipo: 'respaldo', clave: r.respaldoAntes, antes: r.respaldoAntes, despues: null,
+          descripcion: `Reacomodar ${tr} de ${nombreMes}`
+        });
+      }
+      await this.ds.inicializarApp(true);
+      this.ui.mostrarToast(`${tr} reacomodado: ${r.cuposAntes} → ${r.cuposDespues} cupos, ${r.cambios.length} viaje(s) movidos.`, 'ok');
+    } catch {
+      this.ui.mostrarToast('No se pudo comunicar con el servidor.', 'err');
+    } finally {
+      this.reacomodandoCupos = false;
+      this.zone.run(() => this.cdr.detectChanges());
+    }
+  }
+
   public dispararGenerarMatriz() {
     const nombreMesActivo = this.meses[this.ds.S.mes];
     const anioActivo = this.ds.S.anio || new Date().getFullYear();

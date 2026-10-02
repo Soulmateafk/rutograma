@@ -14,6 +14,7 @@ const bcrypt = require('bcryptjs');
 // (la carpeta donde pusiste esquema.sql/db.js/migrar.js).
 const { rangosMantenimiento, diasOcupadoViaje, mantenimientoQueChoca, agregarSesionConTope, colapsarSesionesDuplicadas, compararParaVariedad, anotarDestino } = require('./reglas');
 const { leerLibroViajeros, armarImportacion, aplicarImportacion } = require('./importacion');
+const { planReacomodoCupos } = require('./cupos');
 const { ROLES_VALIDOS, rolDeCuenta, requiereAprobacion, describirCambio, solicitudPublica, permisosDeCuenta, normalizarPermisos, necesitaAprobacion } = require('./aprobaciones');
 
 // Marca secreta (cambia en cada arranque) para que el propio servidor
@@ -1938,6 +1939,74 @@ app.post('/api/limpiar-historial', async (req, res) => {
         res.json({ ok: true, borrados, respaldoAntes });
     } catch (error) {
         console.error('🚨 Error en /api/limpiar-historial:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// ============================================================
+// REACOMODAR CUPOS (Arsitrans / Polar) de un mes — solo mueve viajes de
+// tercero entre sus cupos numerados (ver cupos.js). No toca fechas, rutas,
+// flota propia ni placas reales escritas a mano.
+// body: { tr: 'Arsitrans'|'Polar', anio, mes (0-11), previsualizar }
+// ============================================================
+app.post('/api/cupos/reacomodar', async (req, res) => {
+    try {
+        const tr = String(req.body?.tr || '').toLowerCase().startsWith('polar') ? 'Polar' : 'Arsitrans';
+        const anio = Number(req.body?.anio), mes = Number(req.body?.mes);
+        if (!Number.isInteger(anio) || !Number.isInteger(mes) || mes < 0 || mes > 11) {
+            return res.status(400).json({ ok: false, msg: 'Mes o año inválido.' });
+        }
+        const data = leerExcel();
+        const plan = planReacomodoCupos(data.viajes || [], data.vehiculos || [], { tr, anio, mes });
+
+        if (req.body?.previsualizar) {
+            res.locals.auditoriaOmitir = true;
+            return res.json({ ok: true, previsualizacion: true, ...plan });
+        }
+        if (!plan.cambios.length && !plan.vehiculosSobrantes.length) {
+            res.locals.auditoriaOmitir = true;
+            return res.json({ ok: true, ...plan, msg: `Los cupos de ${tr} ya estaban acomodados.` });
+        }
+
+        const respaldoAntes = await respaldoAntesDeAccion(`antes-reacomodar-${tr.toLowerCase()}`, req.headers['x-user-email']);
+        const solicitante = normalizarEmail(req.headers['x-user-email']);
+        const ahora = new Date().toISOString();
+        const porId = new Map(plan.cambios.map(c => [c.id, c]));
+        data.viajes = (data.viajes || []).map(v => {
+            const c = porId.get(v.id);
+            if (!c) return v;
+            return { ...v, p: c.a, placa: c.a, retorno: c.retorno, version: (Number(v.version) || 1) + 1, editadoPor: solicitante, editadoEn: ahora };
+        });
+
+        // Que exista la fila de cada cupo que se usa, y fuera los automáticos vacíos.
+        const placasVeh = new Set((data.vehiculos || []).map(v => String(v.p || v.placa || '').toUpperCase().trim()));
+        for (let n = 1; n <= plan.cuposDespues; n++) {
+            const placa = `${tr.toUpperCase()} ${n}`;
+            if (placasVeh.has(placa)) continue;
+            data.vehiculos.push({
+                p: placa, placa, veh: placa,
+                t: 'Furgon refrigerado', tipo: 'Furgon refrigerado',
+                cap: 600, kg: 12000, m3: 45,
+                cond: 'Sin asignar', conductor: 'Sin asignar',
+                tr, transportadora: tr,
+                est: 'Disponible', estado: 'Disponible',
+                viajes: 0, dc: 0, dm: 1, dl: 2,
+                mantInicio: null, mantFin: null, um: '',
+                origenAuto: true
+            });
+        }
+        const sobrantes = new Set(plan.vehiculosSobrantes);
+        data.vehiculos = (data.vehiculos || []).filter(v => !sobrantes.has(String(v.p || v.placa || '').toUpperCase().trim()));
+
+        guardarEnExcel(data);
+        res.locals.auditoriaResumen = {
+            tr, mes: `${MESES_NOMBRE[mes]} de ${anio}`, viajesMovidos: plan.cambios.length,
+            cuposAntes: plan.cuposAntes, cuposDespues: plan.cuposDespues, cuposBorrados: plan.vehiculosSobrantes.length
+        };
+        console.log(`🔀 ${solicitante} reacomodó ${tr} de ${MESES_NOMBRE[mes]} ${anio}: ${plan.cambios.length} viaje(s), ${plan.cuposAntes} → ${plan.cuposDespues} cupos`);
+        res.json({ ok: true, ...plan, respaldoAntes });
+    } catch (error) {
+        console.error('🚨 Error en /api/cupos/reacomodar:', error);
         res.status(500).json({ ok: false, msg: error.message });
     }
 });

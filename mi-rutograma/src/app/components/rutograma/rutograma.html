@@ -220,7 +220,14 @@
             <td [attr.colspan]="diasMes.length + 2">
               <div class="ruto-cupo-header-inner">
                 <span>{{ te.nombre }} - Cupos confirmados el mismo día</span>
-                <button class="ruto-btn-confirmar-cupo" (click)="abrirCupo(te.clave)">+ Confirmar cupo</button>
+                <div class="ruto-cupo-header-botones">
+                  <button *ngIf="auth.puedeEditar" class="ruto-btn-confirmar-cupo ruto-btn-reacomodar" [disabled]="reacomodandoCupos"
+                          (click)="reacomodarCupos(te.clave === 'arsi' ? 'Arsitrans' : 'Polar')"
+                          title="Junta los viajes de este mes en los menos cupos posibles (solo se ocupa el día de salida). No toca nada más.">
+                    <i class="bi bi-arrow-repeat"></i> {{ reacomodandoCupos ? 'Revisando…' : 'Reacomodar' }}
+                  </button>
+                  <button class="ruto-btn-confirmar-cupo" (click)="abrirCupo(te.clave)">+ Confirmar cupo</button>
+                </div>
               </div>
             </td>
           </tr>
@@ -750,9 +757,7 @@
      exactamente la acción. Reusable para cualquier decisión parecida. -->
 <div *ngIf="confirmDialogAbierto" class="ruto-modal-backdrop" style="z-index: 10002;">
   <div class="ruto-modal-content" style="max-width: 440px;">
-    <p style="font-size: 14px; color: var(--color-texto-principal); line-height: 1.5; margin: 0 0 18px 0;">
-      {{ confirmDialogMensaje }}
-    </p>
+    <p style="font-size: 14px; color: var(--color-texto-principal); line-height: 1.5; margin: 0 0 18px 0; white-space: pre-line;">{{ confirmDialogMensaje }}</p>
     <div class="ruto-modal-footer">
       <button class="btn-close" (click)="confirmDialogElegir(false)">{{ confirmDialogBtnCancelar }}</button>
       <button class="btn-save" style="background:#10b981;color: white;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" (click)="confirmDialogElegir(true)">{{ confirmDialogBtnAceptar }}</button>

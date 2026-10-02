@@ -1508,3 +1508,7 @@ tr.ruto-fila-resaltada > .ruto-td-vehicle-info {
   font-size: 11px;
   color: var(--text3);
 }
+/* Botones del encabezado de Arsitrans/Polar (Reacomodar + Confirmar cupo). */
+.ruto-cupo-header-botones { display: flex; gap: 8px; align-items: center; }
+.ruto-btn-reacomodar { background: transparent; }
+.ruto-btn-reacomodar:disabled { opacity: 0.6; cursor: default; }
