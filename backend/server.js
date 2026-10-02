@@ -683,14 +683,83 @@ const ADMIN_EMAIL = 'adminMak@makand.com';
 // correos simplemente falla en silencio (se ve un aviso en la consola
 // del servidor), sin tumbar el registro de la cuenta.
 // ============================================================
-const SERVICIOS_CORREO_VALIDOS = { gmail: 'gmail', outlook: 'hotmail', office365: 'Office365' };
-const transportadorCorreo = nodemailer.createTransport({
-    service: SERVICIOS_CORREO_VALIDOS[String(process.env.EMAIL_SERVICE || 'gmail').toLowerCase()] || 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+// Formas de conectarse a cada servicio, en orden. Si la primera se corta
+// (antivirus, firewall o red que bloquea ese puerto: ECONNRESET, ETIMEDOUT...)
+// se prueba la siguiente. EMAIL_HOST/EMAIL_PORT en .env fuerzan una sola.
+const SERVIDORES_CORREO = {
+    gmail: [
+        { host: 'smtp.gmail.com', port: 465, secure: true },
+        { host: 'smtp.gmail.com', port: 587, secure: false, requireTLS: true }
+    ],
+    outlook: [{ host: 'smtp-mail.outlook.com', port: 587, secure: false, requireTLS: true }],
+    office365: [{ host: 'smtp.office365.com', port: 587, secure: false, requireTLS: true }]
+};
+const ERRORES_DE_CONEXION = ['ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'ESOCKET', 'ECONNECTION', 'EPIPE', 'EHOSTUNREACH'];
+
+function opcionesConexionCorreo() {
+    if (process.env.EMAIL_HOST) {
+        const port = Number(process.env.EMAIL_PORT) || 587;
+        return [{ host: process.env.EMAIL_HOST, port, secure: port === 465, requireTLS: port !== 465 }];
     }
-});
+    const servicio = String(process.env.EMAIL_SERVICE || 'gmail').toLowerCase();
+    return SERVIDORES_CORREO[servicio] || SERVIDORES_CORREO.gmail;
+}
+
+function crearTransportadorCorreo(conexion) {
+    return nodemailer.createTransport({
+        ...conexion,
+        auth: {
+            user: String(process.env.EMAIL_USER || '').trim(),
+            // Google muestra la clave de aplicación en grupos de 4 con espacios.
+            pass: String(process.env.EMAIL_PASS || '').replace(/\s+/g, '')
+        },
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 30000,
+        // Algunos antivirus revisan los correos salientes poniendo su propio
+        // certificado; con EMAIL_IGNORAR_CERTIFICADO=true se acepta igual.
+        tls: String(process.env.EMAIL_IGNORAR_CERTIFICADO || '').toLowerCase() === 'true'
+            ? { rejectUnauthorized: false } : undefined
+    });
+}
+
+// Forma de conectarse que funcionó la última vez (se prueba primero).
+let indiceConexionCorreo = 0;
+
+async function enviarConReintento(mensaje) {
+    const opciones = opcionesConexionCorreo();
+    let ultimoError;
+    for (let intento = 0; intento < opciones.length; intento++) {
+        const i = (indiceConexionCorreo + intento) % opciones.length;
+        try {
+            await crearTransportadorCorreo(opciones[i]).sendMail(mensaje);
+            if (i !== indiceConexionCorreo) console.log(`✉️ Correo: se usará ${opciones[i].host}:${opciones[i].port} (el otro puerto estaba bloqueado).`);
+            indiceConexionCorreo = i;
+            return;
+        } catch (err) {
+            ultimoError = err;
+            const esDeConexion = ERRORES_DE_CONEXION.includes(err.code) || /ECONNRESET|ETIMEDOUT|socket|Greeting never received|Connection closed/i.test(String(err.message));
+            if (!esDeConexion) throw err;
+            console.error(`⚠️ Correo: no se pudo conectar por ${opciones[i].host}:${opciones[i].port} (${err.code || err.message}).`);
+        }
+    }
+    throw ultimoError;
+}
+
+/** Explica en español los errores más comunes del correo. */
+function explicarErrorCorreo(err) {
+    const texto = String(err?.message || err);
+    if (err?.code === 'EAUTH' || /Invalid login|Username and Password not accepted|Authentication unsuccessful|535/i.test(texto)) {
+        return `El servicio de correo rechazó el usuario o la clave (${texto}). En Gmail se usa una "contraseña de aplicación" de 16 letras, no la contraseña normal. Revisa EMAIL_USER y EMAIL_PASS en el .env.`;
+    }
+    if (ERRORES_DE_CONEXION.includes(err?.code) || /ECONNRESET|ETIMEDOUT|socket|Greeting never received|Connection closed/i.test(texto)) {
+        return `No se pudo conectar con el servidor de correo (${err?.code || texto}), ni por el puerto 465 ni por el 587. Casi siempre es el antivirus (escudo de correo) o el firewall del computador o de la red bloqueando la salida. Prueba desactivar el "escudo de correo" del antivirus o permitir node.exe en el firewall.`;
+    }
+    if (/self[- ]signed|certificate/i.test(texto)) {
+        return `El antivirus o la red está interceptando la conexión segura (${texto}). Pon EMAIL_IGNORAR_CERTIFICADO=true en el .env y reinicia el servidor.`;
+    }
+    return `El servidor de correo rechazó el envío: ${texto}`;
+}
 
 // ¿A qué correos se permite enviar? (EMAIL_DESTINOS_PERMITIDOS en .env)
 //   vacío o * → a cualquier correo (antes, vacío dejaba solo cuentas de
@@ -728,7 +797,7 @@ const enviarCorreo = async (destinatario, asunto, cuerpoHtml) => {
         return { enviado: false, motivo: 'Falta configurar EMAIL_USER/EMAIL_PASS en el archivo .env del servidor.' };
     }
     try {
-        await transportadorCorreo.sendMail({
+        await enviarConReintento({
             from: `"${process.env.EMAIL_FROM_NOMBRE || 'Makand Rutograma'}" <${process.env.EMAIL_USER}>`,
             to: destinatario,
             subject: asunto,
@@ -740,7 +809,7 @@ const enviarCorreo = async (destinatario, asunto, cuerpoHtml) => {
         // Un correo que falla NUNCA debe tumbar la petición real (el
         // registro de la cuenta ya se guardó bien en el Excel).
         console.error(`⚠️ No se pudo enviar el correo a ${destinatario}:`, err.message);
-        return { enviado: false, motivo: `El servidor de correo rechazó el envío: ${err.message}` };
+        return { enviado: false, motivo: explicarErrorCorreo(err) };
     }
 };
 
