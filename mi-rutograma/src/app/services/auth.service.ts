@@ -323,7 +323,7 @@ public get isConfigured(): boolean { return true;
    * Úsalo en los *ngIf de botones de agregar/editar/eliminar en toda la app.
    */
   public get puedeEditar(): boolean {
-    return this.account.rol !== 'lector';
+    return this.account.permisos.editar;
   }
 
   /** Jefe: edita todo y aprueba los cambios de los auxiliares. */
@@ -331,13 +331,32 @@ public get isConfigured(): boolean { return true;
     return this.account.rol === 'jefe';
   }
 
-  /** Auxiliar: sus cambios quedan pendientes hasta que un jefe los apruebe. */
+  /** Rol auxiliar (para la bienvenida). Lo que puede hacer lo dicen los permisos. */
   public get esAuxiliar(): boolean {
     return this.account.rol === 'auxiliar';
   }
 
-  /** Admin o jefe: aprueban cambios y entran a Administración (el jefe, solo a ver). */
+  /** Sus cambios quedan pendientes hasta que alguien los apruebe. */
+  public get necesitaAprobacion(): boolean {
+    return this.account.permisos.editar && !this.account.permisos.sinAprobacion;
+  }
+
+  /** Aprueba o rechaza los cambios pendientes de otros. */
   public get puedeAprobar(): boolean {
-    return this.account.esAdmin || this.account.rol === 'jefe';
+    return this.account.permisos.aprobarCambios;
+  }
+
+  /** Entra a Administración (sin ser admin, solo a mirar). */
+  public get puedeVerAdministracion(): boolean {
+    return this.account.permisos.verAdministracion;
+  }
+
+  /** Acepta o rechaza cuentas nuevas. */
+  public get puedeGestionarCuentas(): boolean {
+    return this.account.permisos.gestionarCuentas;
+  }
+
+  public get puedeEditarHistorico(): boolean {
+    return this.account.permisos.editarHistorico;
   }
 }

@@ -2,8 +2,8 @@
   <div class="apr-head">
     <div>
       <h2>{{ puedeAprobar ? 'Aprobaciones' : 'Mis solicitudes' }}</h2>
-      <p *ngIf="puedeAprobar">Cambios que pidieron los auxiliares. Al aprobar, el cambio se aplica tal cual; al rechazar, no se aplica y el auxiliar ve el motivo.</p>
-      <p *ngIf="!puedeAprobar">Tus cambios se aplican cuando un jefe los aprueba. Aquí ves en qué quedó cada uno.</p>
+      <p *ngIf="puedeAprobar">Cambios que esperan aprobación. Al aprobar, el cambio se aplica tal cual; al rechazar, no se aplica y quien lo pidió ve el motivo.</p>
+      <p *ngIf="!puedeAprobar">Tus cambios se aplican cuando alguien con permiso de aprobar los acepta. Aquí ves en qué quedó cada uno.</p>
     </div>
     <div class="apr-vistas">
       <button class="apr-vista" [class.activa]="vista === 'pendientes'" (click)="vista = 'pendientes'">

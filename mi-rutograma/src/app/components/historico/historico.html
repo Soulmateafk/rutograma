@@ -2,9 +2,9 @@
   <div class="historico-header">
     <h2>Historico de Meses</h2>
     <div class="button-group">
-      <button class="btn-primary" *ngIf="auth.puedeEditar && !auth.esJefe" (click)="cerrarMes()">Cerrar mes y guardar</button>
+      <button class="btn-primary" *ngIf="auth.puedeEditarHistorico" (click)="cerrarMes()">Cerrar mes y guardar</button>
       <button class="btn-success" (click)="exportarHistorico()">Exportar todo a Excel</button>
-      <button class="btn-danger" *ngIf="auth.puedeEditar && !auth.esJefe" (click)="limpiarHistorico()">Limpiar historico</button>
+      <button class="btn-danger" *ngIf="auth.puedeEditarHistorico" (click)="limpiarHistorico()">Limpiar historico</button>
     </div>
   </div>
 

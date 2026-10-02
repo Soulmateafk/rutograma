@@ -141,7 +141,8 @@ CREATE TABLE IF NOT EXISTS usuarios (
   solicitado_en       TEXT,
   actualizado_por     TEXT,
   actualizado_en      TEXT,
-  motivo_rechazo      TEXT
+  motivo_rechazo      TEXT,
+  permisos            TEXT   -- JSON con permisos personalizados; NULL = los de su rol
 );
 
 CREATE TABLE IF NOT EXISTS auditoria (

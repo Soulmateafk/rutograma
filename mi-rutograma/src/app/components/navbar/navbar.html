@@ -60,13 +60,13 @@
          cambios), separado por Modo Real/Prueba. Deshabilitados cuando
          no hay nada que deshacer/rehacer. El title muestra qué cambio
          se va a revertir/reaplicar, sin tener que adivinar. -->
-    <button class="btn sm" *ngIf="authService.puedeEditar && !authService.esAuxiliar"
+    <button class="btn sm" *ngIf="authService.puedeEditar && !authService.necesitaAprobacion"
             [disabled]="!dataService.descripcionProximoDeshacer"
             [title]="dataService.descripcionProximoDeshacer ? ('Deshacer: ' + dataService.descripcionProximoDeshacer) : 'No hay ningún cambio reciente para deshacer'"
             (click)="deshacerUltimoCambio()">
       <i class="bi bi-arrow-counterclockwise"></i><span class="btn-txt"> Deshacer</span>
     </button>
-    <button class="btn sm" *ngIf="authService.puedeEditar && !authService.esAuxiliar"
+    <button class="btn sm" *ngIf="authService.puedeEditar && !authService.necesitaAprobacion"
             [disabled]="!dataService.descripcionProximoRehacer"
             [title]="dataService.descripcionProximoRehacer ? ('Rehacer: ' + dataService.descripcionProximoRehacer) : 'No hay ningún cambio para rehacer'"
             (click)="rehacerUltimoCambio()">

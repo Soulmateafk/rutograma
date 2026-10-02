@@ -3,7 +3,7 @@ import { Subscription } from 'rxjs';
 import { DataService } from '../../services/data';
 import { CommonModule } from '@angular/common'; // Necesario para el *ngFor
 import { FormsModule } from '@angular/forms'; // Necesario para los [(ngModel)] de los filtros de auditoría
-import { AccountService, CuentaUsuario } from '../../services/account.service';
+import { AccountService, CuentaUsuario, Permisos, PERMISOS_INFO, permisosDeRol, normalizarPermisos, mismosPermisos } from '../../services/account.service';
 import { UiService } from '../../services/ui.service';
 import { AuthService } from '../../services/auth.service';
 
@@ -28,6 +28,96 @@ export class Admin implements OnInit, OnDestroy {
 
   public nombreRol(rol?: string): string {
     return this.rolesDisponibles.find(r => r.valor === (rol || 'editor'))?.nombre || 'Editor';
+  }
+
+  // ============================================================
+  // PERMISOS A MEDIDA — el rol trae unos por defecto; el admin puede
+  // marcar/desmarcar cada uno para una cuenta. Si quedan iguales a los
+  // del rol, se guarda "sin personalizar" (siguen al rol).
+  // ============================================================
+  public readonly permisosInfo = PERMISOS_INFO;
+  public modalPermisos: { usuario: CuentaUsuario; modo: 'aprobar' | 'editar'; rol: 'editor' | 'lector' | 'jefe' | 'auxiliar'; permisos: Permisos } | null = null;
+
+  public permisosDe(u: CuentaUsuario): Permisos {
+    return u.permisos ? normalizarPermisos(u.permisos) : permisosDeRol(u.rol || 'editor');
+  }
+
+  public resumenPermisos(u: CuentaUsuario): string {
+    const p = this.permisosDe(u);
+    return PERMISOS_INFO.filter(i => p[i.clave]).map(i => i.nombre).join('\n') || 'Solo ver y exportar';
+  }
+
+  public abrirPermisos(u: CuentaUsuario, modo: 'aprobar' | 'editar'): void {
+    const rol = (u.rol && u.rol !== 'admin' ? u.rol : 'editor') as 'editor' | 'lector' | 'jefe' | 'auxiliar';
+    this.modalPermisos = { usuario: u, modo, rol, permisos: modo === 'aprobar' ? permisosDeRol(rol) : this.permisosDe(u) };
+  }
+
+  public cambiarRolModal(rol: 'editor' | 'lector' | 'jefe' | 'auxiliar'): void {
+    if (!this.modalPermisos) return;
+    this.modalPermisos.rol = rol;
+    this.modalPermisos.permisos = permisosDeRol(rol);
+  }
+
+  public alternarPermiso(clave: keyof Permisos): void {
+    if (!this.modalPermisos) return;
+    const p = { ...this.modalPermisos.permisos, [clave]: !this.modalPermisos.permisos[clave] };
+    // Activar algo que depende de "Hacer cambios" lo activa también.
+    if ((clave === 'sinAprobacion' || clave === 'editarHistorico') && p[clave]) p.editar = true;
+    this.modalPermisos.permisos = normalizarPermisos(p);
+  }
+
+  public get modalPersonalizado(): boolean {
+    return !!this.modalPermisos && !mismosPermisos(this.modalPermisos.permisos, permisosDeRol(this.modalPermisos.rol));
+  }
+
+  public cerrarPermisos(): void {
+    this.modalPermisos = null;
+  }
+
+  public async guardarPermisos(): Promise<void> {
+    const m = this.modalPermisos;
+    if (!m) return;
+    this.modalPermisos = null;
+    const permisos = this.modalPersonalizadoDe(m) ? m.permisos : null;
+    const u = m.usuario;
+    try {
+      if (m.modo === 'aprobar') {
+        const estadoAntes = { estado: u.estado, motivo: (u as any).motivoRechazo || '' };
+        await this.account.aprobar(u.email, m.rol, permisos);
+        this.ds.registrarCambio({
+          tipo: 'usuario-estado', clave: u.email,
+          antes: estadoAntes, despues: { estado: 'APPROVED', motivo: '' },
+          descripcion: `Aprobación de ${u.email}`
+        });
+        this.ui.mostrarToast(`Cuenta de ${u.email} aprobada como ${this.nombreRol(m.rol)}${permisos ? ' (permisos personalizados)' : ''}.`, 'ok');
+        await this.cargarUsuarios();
+      } else {
+        await this.guardarRolYPermisos(u, m.rol, permisos);
+        this.ui.mostrarToast(`Permisos de ${u.email} guardados.`, 'ok');
+      }
+    } catch (error) {
+      console.error('Error al guardar permisos:', error);
+      this.ui.mostrarToast('No se pudieron guardar los permisos.', 'err');
+    }
+  }
+
+  private modalPersonalizadoDe(m: { rol: string; permisos: Permisos }): boolean {
+    return !mismosPermisos(m.permisos, permisosDeRol(m.rol));
+  }
+
+  private async guardarRolYPermisos(usuario: CuentaUsuario, rol: 'editor' | 'lector' | 'jefe' | 'auxiliar', permisos: Permisos | null): Promise<void> {
+    const antes = { rol: usuario.rol || 'editor', permisos: usuario.permisos || null };
+    await this.account.cambiarRol(usuario.email, rol, permisos);
+    const despues = { rol, permisos };
+    if (JSON.stringify(antes) !== JSON.stringify(despues)) {
+      this.ds.registrarCambio({
+        tipo: 'usuario-rol', clave: usuario.email, antes, despues,
+        descripcion: `Rol/permisos de ${usuario.email}: ${this.nombreRol(antes.rol)} → ${this.nombreRol(rol)}${permisos ? ' (personalizado)' : ''}`
+      });
+    }
+    usuario.rol = rol; // actualización inmediata en la tabla, sin esperar recarga
+    usuario.permisos = permisos;
+    this.zone.run(() => this.cdr.detectChanges());
   }
 
   usuarios: CuentaUsuario[] = [];
@@ -328,6 +418,11 @@ export class Admin implements OnInit, OnDestroy {
   }
 
   async aprobarUsuario(usuario: CuentaUsuario) {
+    // El admin elige rol y permisos al aprobar.
+    if (this.auth.isAdmin) {
+      this.abrirPermisos(usuario, 'aprobar');
+      return;
+    }
     const confirmado = await this.mostrarConfirmPersonalizado(
       `¿Estás seguro de aprobar a ${usuario.email}?`,
       'Aprobar',
@@ -391,18 +486,10 @@ export class Admin implements OnInit, OnDestroy {
     }
   }
 
+  /** Cambiar el rol desde la tabla: vuelve a los permisos de ese rol. */
   async cambiarRol(usuario: any, rol: 'editor' | 'lector' | 'jefe' | 'auxiliar') {
     try {
-      const rolAntes = usuario.rol || 'editor';
-      await this.account.cambiarRol(usuario.email, rol);
-      if (rolAntes !== rol) {
-        this.ds.registrarCambio({
-          tipo: 'usuario-rol', clave: usuario.email, antes: rolAntes, despues: rol,
-          descripcion: `Rol de ${usuario.email}: ${rolAntes} → ${rol}`
-        });
-      }
-      usuario.rol = rol; // actualización inmediata en la tabla, sin esperar recarga
-      this.zone.run(() => this.cdr.detectChanges());
+      await this.guardarRolYPermisos(usuario, rol, null);
     } catch (error) {
       console.error("Error al cambiar el rol:", error);
       this.ui.mostrarToast('No se pudo cambiar el rol.', 'err');

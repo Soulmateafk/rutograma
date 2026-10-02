@@ -7,12 +7,61 @@ export type UserStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'NOT_FOUND';
 
 export type RolCuenta = 'admin' | 'editor' | 'lector' | 'jefe' | 'auxiliar';
 
+/** Lo que puede hacer una cuenta. Misma lista y reglas que backend/aprobaciones.js. */
+export interface Permisos {
+  editar: boolean;
+  sinAprobacion: boolean;
+  aprobarCambios: boolean;
+  verAdministracion: boolean;
+  gestionarCuentas: boolean;
+  editarHistorico: boolean;
+}
+
+export const PERMISOS_INFO: Array<{ clave: keyof Permisos; nombre: string; ayuda: string }> = [
+  { clave: 'editar', nombre: 'Hacer cambios', ayuda: 'Sin esto, la cuenta solo puede ver y exportar.' },
+  { clave: 'sinAprobacion', nombre: 'Sus cambios se aplican sin esperar aprobación', ayuda: 'Sin esto, cada cambio espera a que alguien lo apruebe.' },
+  { clave: 'aprobarCambios', nombre: 'Aprobar o rechazar cambios de otros', ayuda: 'Ve la pestaña Aprobaciones con los pendientes.' },
+  { clave: 'verAdministracion', nombre: 'Ver cuentas y auditoría', ayuda: 'Entra a Administración solo a mirar.' },
+  { clave: 'gestionarCuentas', nombre: 'Aceptar o rechazar cuentas nuevas', ayuda: 'Las cuentas que acepte quedan con rol Editor. Roles y contraseñas siguen siendo del administrador.' },
+  { clave: 'editarHistorico', nombre: 'Cerrar mes y limpiar el histórico', ayuda: '' }
+];
+
+const PERMISOS_POR_ROL: Record<string, Partial<Permisos>> = {
+  editor: { editar: true, sinAprobacion: true, editarHistorico: true },
+  lector: {},
+  jefe: { editar: true, sinAprobacion: true, aprobarCambios: true, verAdministracion: true },
+  auxiliar: { editar: true }
+};
+
+export function normalizarPermisos(entrada: Partial<Permisos> | null | undefined): Permisos {
+  const p = {} as Permisos;
+  PERMISOS_INFO.forEach(({ clave }) => { p[clave] = !!entrada?.[clave]; });
+  if (!p.editar) { p.sinAprobacion = false; p.editarHistorico = false; }
+  if (p.gestionarCuentas) p.verAdministracion = true;
+  return p;
+}
+
+export function permisosDeRol(rol: string): Permisos {
+  if (rol === 'admin') {
+    const todos = {} as Permisos;
+    PERMISOS_INFO.forEach(({ clave }) => { todos[clave] = true; });
+    return todos;
+  }
+  return normalizarPermisos(PERMISOS_POR_ROL[rol] || PERMISOS_POR_ROL['editor']);
+}
+
+export function mismosPermisos(a: Permisos, b: Permisos): boolean {
+  return PERMISOS_INFO.every(({ clave }) => a[clave] === b[clave]);
+}
+
 export interface CuentaUsuario {
   email: string;
   nombre: string;
   estado: UserStatus;
   departamento?: string;
   rol?: RolCuenta;
+  /** Personalizados por el admin; null/ausente = los de su rol. */
+  permisos?: Permisos | null;
   solicitadoEn?: string;
   actualizadoPor?: string;
   actualizadoEn?: string;
@@ -41,6 +90,12 @@ export class AccountService {
   public esAdmin = false;
   /** 'admin' | 'editor' (acceso completo) | 'lector' (solo lectura) */
   public rol: RolCuenta = 'lector';
+  /** Lo que puede hacer la cuenta con sesión abierta (lo manda el servidor). */
+  public permisos: Permisos = permisosDeRol('lector');
+
+  private tomarPermisos(res: any): void {
+    this.permisos = res?.permisos ? normalizarPermisos(res.permisos) : permisosDeRol(this.rol);
+  }
 
   /** El servidor dejó un cambio pendiente de aprobación (cuenta auxiliar). */
   public alCambioPendiente = new Subject<string>();
@@ -186,6 +241,7 @@ export class AccountService {
     this.guardarToken('');
     this.esAdmin = false;
     this.rol = 'lector';
+    this.permisos = permisosDeRol('lector');
     this.motivoRechazo = '';
   }
 
@@ -248,6 +304,7 @@ export class AccountService {
     this.guardarToken(res.token || '');
     this.esAdmin = !!res.esAdmin;
     this.rol = AccountService.normalizarRol(res.rol, !!res.esAdmin);
+    this.tomarPermisos(res);
     this.motivoRechazo = res.motivoRechazo || '';
     this.sesionesCerradasAlEntrar = Number(res.sesionesCerradas) || 0;
     if (Number(res.maxSesiones) > 0) this.maxSesiones = Number(res.maxSesiones);
@@ -278,6 +335,7 @@ export class AccountService {
       );
       this.esAdmin = !!res.esAdmin;
       this.rol = AccountService.normalizarRol(res.rol, !!res.esAdmin);
+      this.tomarPermisos(res);
       this.motivoRechazo = res.motivoRechazo || '';
       return { estado: res.estado, esAdmin: !!res.esAdmin, rol: this.rol };
     } catch {
@@ -301,10 +359,10 @@ export class AccountService {
     } catch { /* ignore */ }
   }
 
-  /** Cambia el rol de una cuenta ('editor' = acceso completo, 'lector' = solo lectura). Solo admin. */
-  async cambiarRol(email: string, rol: 'editor' | 'lector' | 'jefe' | 'auxiliar'): Promise<void> {
+  /** Cambia el rol de una cuenta y, opcionalmente, le pone permisos a medida (null = los del rol). Solo admin. */
+  async cambiarRol(email: string, rol: 'editor' | 'lector' | 'jefe' | 'auxiliar', permisos: Permisos | null = null): Promise<void> {
     const url = `${this.API_URL}/auth/rol`;
-    const body = { email, rol };
+    const body = { email, rol, permisos };
     try {
       await firstValueFrom(
         this.http.post(url, body, { headers: { 'x-user-email': this.emailActivo } })
@@ -361,9 +419,12 @@ export class AccountService {
     return res.eventos || [];
   }
 
-  async aprobar(email: string): Promise<void> {
+  /** Aprueba una cuenta. El admin puede elegir rol y permisos en el mismo paso. */
+  async aprobar(email: string, rol?: string, permisos: Permisos | null = null): Promise<void> {
+    const body: any = { email, accion: 'APPROVED' };
+    if (rol) { body.rol = rol; body.permisos = permisos; }
     await firstValueFrom(
-      this.http.post(`${this.API_URL}/auth/decidir`, { email, accion: 'APPROVED' }, {
+      this.http.post(`${this.API_URL}/auth/decidir`, body, {
         headers: { 'x-user-email': this.emailActivo }
       })
     );

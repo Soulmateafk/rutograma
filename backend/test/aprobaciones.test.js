@@ -40,3 +40,26 @@ test('al mostrar una solicitud no se manda el Excel de una importación', () => 
     const s = solicitudPublica({ id: 'x', cuerpo: { archivo: 'UEsDB...', aplicarRutas: true } });
     assert.deepEqual(s.cuerpo, { aplicarRutas: true });
 });
+
+const { permisosDeCuenta, permisosDeRol, normalizarPermisos, necesitaAprobacion } = require('../aprobaciones');
+
+test('permisos: por rol, personalizados y del admin', () => {
+    assert.equal(necesitaAprobacion(permisosDeRol('auxiliar')), true);
+    assert.equal(necesitaAprobacion(permisosDeRol('jefe')), false);
+    assert.equal(permisosDeRol('jefe').gestionarCuentas, false);
+    assert.equal(permisosDeRol('lector').editar, false);
+    assert.equal(permisosDeCuenta({}, false).editar, true); // sin rol = editor
+
+    // Auxiliar que puede cambiar sin esperar aprobación pero no acepta cuentas.
+    const aux = { rol: 'auxiliar', permisos: JSON.stringify({ editar: true, sinAprobacion: true }) };
+    assert.equal(necesitaAprobacion(permisosDeCuenta(aux, false)), false);
+    assert.equal(permisosDeCuenta(aux, false).gestionarCuentas, false);
+
+    assert.equal(Object.values(permisosDeCuenta({ rol: 'lector' }, true)).every(Boolean), true);
+
+    // Combinaciones sin sentido se corrigen.
+    const raro = normalizarPermisos({ sinAprobacion: true, gestionarCuentas: true, inventado: true });
+    assert.equal(raro.sinAprobacion, false);
+    assert.equal(raro.verAdministracion, true);
+    assert.equal('inventado' in raro, false);
+});

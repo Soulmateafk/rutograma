@@ -119,6 +119,8 @@ function conectar(modo = 'real') {
   agregarColumnaSiFalta('viajes', 'editado_por', 'TEXT');
   agregarColumnaSiFalta('viajes', 'editado_en', 'TEXT');
   agregarColumnaSiFalta('usuarios', 'motivo_rechazo', 'TEXT');
+  // Permisos personalizados (JSON). NULL = los de su rol.
+  agregarColumnaSiFalta('usuarios', 'permisos', 'TEXT');
 
   conexiones[modo] = db;
   return db;
@@ -237,7 +239,8 @@ function leerDB(modo = 'real') {
     email: u.email, nombre: u.nombre, passHash: u.pass_hash,
     departamento: u.departamento, estado: u.estado, rol: u.rol,
     solicitadoEn: u.solicitado_en, actualizadoPor: u.actualizado_por,
-    actualizadoEn: u.actualizado_en, motivoRechazo: u.motivo_rechazo
+    actualizadoEn: u.actualizado_en, motivoRechazo: u.motivo_rechazo,
+    permisos: aJSON(u.permisos, null)
   }));
 
   const novedades = db.prepare('SELECT * FROM novedades').all().map(n => ({
@@ -410,8 +413,8 @@ function guardarEnDB(data, modo = 'real') {
     if (data.usuarios) {
       db.prepare('DELETE FROM usuarios').run();
       const ins = db.prepare(`INSERT INTO usuarios
-        (email, nombre, pass_hash, departamento, estado, rol, solicitado_en, actualizado_por, actualizado_en, motivo_rechazo)
-        VALUES (@email, @nombre, @pass_hash, @departamento, @estado, @rol, @solicitado_en, @actualizado_por, @actualizado_en, @motivo_rechazo)`);
+        (email, nombre, pass_hash, departamento, estado, rol, solicitado_en, actualizado_por, actualizado_en, motivo_rechazo, permisos)
+        VALUES (@email, @nombre, @pass_hash, @departamento, @estado, @rol, @solicitado_en, @actualizado_por, @actualizado_en, @motivo_rechazo, @permisos)`);
       for (const u of data.usuarios) {
         ins.run({
           email: String(u.email || '').toLowerCase().trim(),
@@ -423,7 +426,8 @@ function guardarEnDB(data, modo = 'real') {
           solicitado_en: u.solicitadoEn || null,
           actualizado_por: u.actualizadoPor || null,
           actualizado_en: u.actualizadoEn || null,
-          motivo_rechazo: u.motivoRechazo || null
+          motivo_rechazo: u.motivoRechazo || null,
+          permisos: u.permisos && typeof u.permisos === 'object' ? JSON.stringify(u.permisos) : null
         });
       }
     }

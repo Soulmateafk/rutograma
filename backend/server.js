@@ -14,7 +14,7 @@ const bcrypt = require('bcryptjs');
 // (la carpeta donde pusiste esquema.sql/db.js/migrar.js).
 const { rangosMantenimiento, diasOcupadoViaje, mantenimientoQueChoca, agregarSesionConTope, colapsarSesionesDuplicadas, compararParaVariedad, anotarDestino } = require('./reglas');
 const { leerLibroViajeros, armarImportacion, aplicarImportacion } = require('./importacion');
-const { ROLES_VALIDOS, rolDeCuenta, puedeAprobar, requiereAprobacion, describirCambio, solicitudPublica } = require('./aprobaciones');
+const { ROLES_VALIDOS, rolDeCuenta, requiereAprobacion, describirCambio, solicitudPublica, permisosDeCuenta, normalizarPermisos, necesitaAprobacion } = require('./aprobaciones');
 
 // Marca secreta (cambia en cada arranque) para que el propio servidor
 // vuelva a ejecutar la petición de un auxiliar cuando un jefe la aprueba.
@@ -926,12 +926,15 @@ const RUTAS_SIN_RESTRICCION_DE_ROL = [
     '/api/sesiones/cerrar-otras',
     '/api/sesiones/cerrar-actual'
 ];
+const RUTAS_CON_PERMISO_PROPIO = ['/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/aprobaciones/decidir'];
 
 app.use((req, res, next) => {
     if (!req.path.startsWith('/api/') || req.method === 'GET') return next();
     // Estas rutas tienen que funcionar ANTES de que exista una sesión —
     // no tiene sentido (ni es posible) revisar el rol todavía.
     if (RUTAS_SIN_RESTRICCION_DE_ROL.includes(req.path)) return next();
+    // Cuentas y aprobaciones: cada endpoint revisa su propio permiso.
+    if (RUTAS_CON_PERMISO_PROPIO.includes(req.path)) return next();
     // Ya aprobado por un jefe: se aplica tal cual.
     if (req.esReplayAprobado) return next();
 
@@ -949,13 +952,15 @@ app.use((req, res, next) => {
         // deja pasar tal cual estaba antes de este cambio, para no
         // bloquear por error algo que ya funcionaba. El rol solo
         // bloquea cuando SÍ sabemos con certeza que es "lector".
-        if (cuenta && cuenta.rol === 'lector') {
+        const permisos = cuenta ? permisosDeCuenta(cuenta, false) : null;
+        if (permisos && !permisos.editar) {
             return res.status(403).json({ ok: false, msg: 'Tu cuenta es de solo lectura — no puedes hacer cambios.' });
         }
 
-        // Auxiliar: el cambio NO se aplica; queda pendiente hasta que un
-        // jefe (o el admin) lo apruebe en Aprobaciones.
-        if (cuenta && rolDeCuenta(cuenta, false) === 'auxiliar' && requiereAprobacion(req.method, req.path, req.body)) {
+        // Cuenta que necesita aprobación (auxiliar, o permisos así): el
+        // cambio NO se aplica; queda pendiente hasta que alguien con
+        // permiso de aprobar lo apruebe en Aprobaciones.
+        if (permisos && necesitaAprobacion(permisos) && requiereAprobacion(req.method, req.path, req.body)) {
             const solicitud = {
                 id: crypto.randomBytes(8).toString('hex'),
                 estado: 'PENDIENTE',
@@ -1022,21 +1027,21 @@ function guardarSolicitudesAprobacion() {
     }
 }
 
-/** Rol efectivo de quien hace la petición ('admin', 'jefe', 'editor', 'lector', 'auxiliar'). */
-function rolDelSolicitante(req) {
+/** Permisos efectivos de quien hace la petición (null = sin sesión / sin cuenta). */
+function permisosDelSolicitante(req) {
     const email = normalizarEmail(req.headers['x-user-email']);
     if (!email) return null;
-    if (email === normalizarEmail(ADMIN_EMAIL)) return 'admin';
+    if (email === normalizarEmail(ADMIN_EMAIL)) return permisosDeCuenta(null, true);
     const cuenta = (leerExcel().usuarios || []).find(u => normalizarEmail(u.email) === email);
-    return cuenta ? rolDeCuenta(cuenta, false) : null;
+    return cuenta ? permisosDeCuenta(cuenta, false) : null;
 }
 
 // Jefe/admin: todas (pendientes primero). Auxiliar: solo las suyas.
 app.get('/api/aprobaciones', (req, res) => {
     const email = normalizarEmail(req.headers['x-user-email']);
-    const rol = rolDelSolicitante(req);
-    if (!rol) return res.status(401).json({ ok: false, msg: 'Debes iniciar sesión.' });
-    const visibles = puedeAprobar(rol)
+    const permisos = permisosDelSolicitante(req);
+    if (!permisos) return res.status(401).json({ ok: false, msg: 'Debes iniciar sesión.' });
+    const visibles = permisos.aprobarCambios
         ? solicitudesAprobacion
         : solicitudesAprobacion.filter(s => s.solicitante === email);
     const lista = [...visibles]
@@ -1046,7 +1051,7 @@ app.get('/api/aprobaciones', (req, res) => {
         .map(solicitudPublica);
     res.json({
         ok: true,
-        puedeAprobar: puedeAprobar(rol),
+        puedeAprobar: permisos.aprobarCambios,
         pendientes: visibles.filter(s => s.estado === 'PENDIENTE').length,
         solicitudes: lista
     });
@@ -1091,8 +1096,8 @@ app.post('/api/aprobaciones/decidir', async (req, res) => {
         // Solo las decisiones que de verdad se aplican van a la auditoría
         // (no los intentos rechazados ni las solicitudes ya decididas).
         res.locals.auditoriaOmitir = true;
-        if (!puedeAprobar(rolDelSolicitante(req))) {
-            return res.status(403).json({ ok: false, msg: 'Solo un jefe o el administrador puede aprobar cambios.' });
+        if (!permisosDelSolicitante(req)?.aprobarCambios) {
+            return res.status(403).json({ ok: false, msg: 'Tu cuenta no tiene permiso para aprobar cambios.' });
         }
         const { id, accion, motivo } = req.body || {};
         const solicitud = solicitudesAprobacion.find(s => s.id === id);
@@ -1113,6 +1118,10 @@ app.post('/api/aprobaciones/decidir', async (req, res) => {
             return res.json({ ok: true, solicitud: solicitudPublica(solicitud) });
         }
         if (accion !== 'APROBAR') return res.status(400).json({ ok: false, msg: "Acción inválida (usa 'APROBAR' o 'RECHAZAR')." });
+        // Nadie aprueba su propio cambio (sí puede retirarlo rechazándolo).
+        if (solicitud.solicitante === aprobador && aprobador !== normalizarEmail(ADMIN_EMAIL)) {
+            return res.status(403).json({ ok: false, msg: 'No puedes aprobar tu propio cambio: debe aprobarlo otra persona.' });
+        }
 
         if (solicitud.modo !== modoActual) {
             return res.status(409).json({
@@ -1199,7 +1208,7 @@ app.get('/api/auth/estado', (req, res) => {
         if (!email) return res.status(400).json({ ok: false, msg: 'Falta el correo' });
 
         if (email === normalizarEmail(ADMIN_EMAIL)) {
-            return res.json({ ok: true, estado: 'APPROVED', esAdmin: true, rol: 'admin' });
+            return res.json({ ok: true, estado: 'APPROVED', esAdmin: true, rol: 'admin', permisos: permisosDeCuenta(null, true) });
         }
 
         const usuario = (data.usuarios || []).find(u => normalizarEmail(u.email) === email);
@@ -1209,7 +1218,8 @@ app.get('/api/auth/estado', (req, res) => {
             ok: true,
             estado: usuario.estado,
             esAdmin: false,
-            rol: usuario.rol === 'lector' ? 'lector' : 'editor',
+            rol: rolDeCuenta(usuario, false),
+            permisos: permisosDeCuenta(usuario, false),
             motivoRechazo: usuario.estado === 'REJECTED' ? (usuario.motivoRechazo || '') : undefined
         });
     } catch (error) {
@@ -1223,9 +1233,9 @@ app.get('/api/auth/pendientes', (req, res) => {
     try {
         // El frontend manda el correo del que pregunta en la cabecera
         const solicitante = normalizarEmail(req.headers['x-user-email']);
-        // El jefe también la ve (solo lectura: aprobar o cambiar roles sigue siendo del admin).
-        if (!puedeAprobar(rolDelSolicitante(req))) {
-            return res.status(403).json({ ok: false, msg: 'Solo el administrador o un jefe pueden ver esta lista' });
+        // Con permiso "Ver cuentas y auditoría" (el jefe, por defecto).
+        if (!permisosDelSolicitante(req)?.verAdministracion) {
+            return res.status(403).json({ ok: false, msg: 'Tu cuenta no tiene permiso para ver esta lista' });
         }
 
         const data = leerExcel();
@@ -1242,9 +1252,9 @@ app.get('/api/auth/pendientes', (req, res) => {
 app.get('/api/auth/usuarios', (req, res) => {
     try {
         const solicitante = normalizarEmail(req.headers['x-user-email']);
-        // El jefe también la ve (solo lectura: aprobar o cambiar roles sigue siendo del admin).
-        if (!puedeAprobar(rolDelSolicitante(req))) {
-            return res.status(403).json({ ok: false, msg: 'Solo el administrador o un jefe pueden ver esta lista' });
+        // Con permiso "Ver cuentas y auditoría" (el jefe, por defecto).
+        if (!permisosDelSolicitante(req)?.verAdministracion) {
+            return res.status(403).json({ ok: false, msg: 'Tu cuenta no tiene permiso para ver esta lista' });
         }
         const data = leerExcel();
         // Ni siquiera al admin hace falta mandarle el hash de las
@@ -1257,13 +1267,17 @@ app.get('/api/auth/usuarios', (req, res) => {
     }
 });
 
-// --- Aprobar o rechazar una cuenta (solo admin) ---
-// body: { email: 'x@y.com', accion: 'APPROVED' | 'REJECTED' }
+// --- Aprobar o rechazar una cuenta (admin, o con permiso "Aceptar o
+// rechazar cuentas nuevas") ---
+// body: { email: 'x@y.com', accion: 'APPROVED' | 'REJECTED', rol?, permisos? }
+// rol/permisos solo los toma del admin; quien no es admin solo decide
+// cuentas que estén pendientes, y quedan con el rol por defecto.
 app.post('/api/auth/decidir', (req, res) => {
     try {
         const solicitante = normalizarEmail(req.headers['x-user-email']);
-        if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
-            return res.status(403).json({ ok: false, msg: 'Solo el administrador puede aprobar o rechazar' });
+        const esAdmin = solicitante === normalizarEmail(ADMIN_EMAIL);
+        if (!esAdmin && !permisosDelSolicitante(req)?.gestionarCuentas) {
+            return res.status(403).json({ ok: false, msg: 'Tu cuenta no tiene permiso para aceptar o rechazar cuentas' });
         }
 
         const data = leerExcel();
@@ -1281,6 +1295,9 @@ app.post('/api/auth/decidir', (req, res) => {
 
         const usuario = data.usuarios.find(u => normalizarEmail(u.email) === email);
         if (!usuario) return res.status(404).json({ ok: false, msg: 'Cuenta no encontrada' });
+        if (!esAdmin && (usuario.estado !== 'PENDING' || accion === 'PENDING')) {
+            return res.status(403).json({ ok: false, msg: 'Solo puedes aceptar o rechazar cuentas nuevas (pendientes). Lo demás lo hace el administrador.' });
+        }
 
         usuario.estado = accion;
         // El motivo solo tiene sentido para un rechazo — si se aprueba
@@ -1290,6 +1307,15 @@ app.post('/api/auth/decidir', (req, res) => {
         // (acceso completo) por defecto — el admin puede bajarlo a 'lector' después.
         if (accion === 'APPROVED' && !usuario.rol) {
             usuario.rol = 'editor';
+        }
+        // El admin puede elegir al aprobar el rol y, si quiere, permisos a medida.
+        if (accion === 'APPROVED' && esAdmin && req.body.rol !== undefined) {
+            const rol = String(req.body.rol || '').toLowerCase();
+            if (!ROLES_VALIDOS.includes(rol)) {
+                return res.status(400).json({ ok: false, msg: `Rol inválido (usa ${ROLES_VALIDOS.join(', ')})` });
+            }
+            usuario.rol = rol;
+            usuario.permisos = req.body.permisos ? normalizarPermisos(req.body.permisos) : null;
         }
         usuario.actualizadoPor = solicitante;
         usuario.actualizadoEn = new Date().toISOString();
@@ -1318,14 +1344,14 @@ app.post('/api/auth/decidir', (req, res) => {
             );
         }
 
-        res.json({ ok: true, email, estado: accion });
+        res.json({ ok: true, email, estado: accion, rol: usuario.rol, permisos: usuario.permisos || null });
     } catch (error) {
         console.error("🚨 Error en /api/auth/decidir:", error);
         res.status(500).json({ ok: false, msg: error.message });
     }
 });
 
-// --- Asignar rol a una cuenta (solo admin): 'editor' (acceso completo) o 'lector' (solo lectura) ---
+// --- Asignar rol (y opcionalmente permisos personalizados) a una cuenta (solo admin) ---
 app.post('/api/auth/rol', (req, res) => {
     try {
         const solicitante = normalizarEmail(req.headers['x-user-email']);
@@ -1348,13 +1374,15 @@ app.post('/api/auth/rol', (req, res) => {
         if (!usuario) return res.status(404).json({ ok: false, msg: 'Cuenta no encontrada' });
 
         usuario.rol = rol;
+        // Sin "permisos" (o null) = los de su rol; con objeto = personalizados.
+        usuario.permisos = req.body.permisos ? normalizarPermisos(req.body.permisos) : null;
         usuario.actualizadoPor = solicitante;
         usuario.actualizadoEn = new Date().toISOString();
 
         guardarEnExcel(data);
-        console.log(`🔑 Rol de ${email} => ${rol} (por ${solicitante})`);
+        console.log(`🔑 Rol de ${email} => ${rol}${usuario.permisos ? ' (permisos personalizados)' : ''} (por ${solicitante})`);
 
-        res.json({ ok: true, email, rol });
+        res.json({ ok: true, email, rol, permisos: usuario.permisos });
     } catch (error) {
         console.error("🚨 Error en /api/auth/rol:", error);
         res.status(500).json({ ok: false, msg: error.message });
@@ -2238,8 +2266,8 @@ app.post('/api/cache/refrescar', (req, res) => {
 app.get('/api/auditoria', (req, res) => {
     try {
         const solicitante = normalizarEmail(req.headers['x-user-email']);
-        if (!puedeAprobar(rolDelSolicitante(req))) {
-            return res.status(403).json({ ok: false, msg: 'Solo el administrador o un jefe pueden ver la auditoría' });
+        if (!permisosDelSolicitante(req)?.verAdministracion) {
+            return res.status(403).json({ ok: false, msg: 'Tu cuenta no tiene permiso para ver la auditoría' });
         }
 
         const limite = Math.min(Number(req.query.limite) || 200, 1000);
@@ -2847,7 +2875,7 @@ app.post('/api/auth/login', async (req, res) => {
         // Contraseña correcta: ahora sí miramos el estado de aprobación
         const esAdmin = (email === normalizarEmail(ADMIN_EMAIL));
         const estado = esAdmin ? 'APPROVED' : usuario.estado;
-        const rol = esAdmin ? 'admin' : (usuario.rol || 'editor');
+        const rol = rolDeCuenta(usuario, esAdmin);
 
         // Dispositivo bloqueado (alguien lo "Sacó" antes) — aunque la
         // contraseña sea correcta, este computador en particular no entra
@@ -2869,6 +2897,7 @@ app.post('/api/auth/login', async (req, res) => {
             estado: estado,
             esAdmin: esAdmin,
             rol: rol,
+            permisos: permisosDeCuenta(usuario, esAdmin),
             // El "pase" que el navegador debe mandar en cada petición. Se
             // entrega con cualquier contraseña correcta (incluso si la cuenta
             // aún está pendiente): el pase solo prueba QUIÉN eres — lo que
