@@ -1,6 +1,8 @@
 <div class="admin-container">
   <h1>{{ auth.isAdmin ? 'Panel de Administrador' : 'Administración' }}</h1>
-  <p *ngIf="!auth.isAdmin" class="admin-subtexto">Solo lectura: puedes ver las cuentas y la auditoría. Aprobar cuentas y cambiar roles lo hace el administrador.</p>
+  <p *ngIf="!auth.isAdmin" class="admin-subtexto">
+    Puedes ver las cuentas y la auditoría{{ auth.puedeGestionarCuentas ? ', y aceptar o rechazar cuentas nuevas' : '' }}. Roles, permisos y contraseñas los cambia el administrador.
+  </p>
 
   <div class="admin-tabs">
     <button class="admin-tab" [class.activa]="pestaniaActiva === 'cuentas'" (click)="cambiarPestania('cuentas')">
@@ -29,7 +31,7 @@
           <th>Departamento</th>
           <th>Estado</th>
           <th>Rol</th>
-          <th *ngIf="auth.isAdmin">Acciones</th>
+          <th *ngIf="auth.isAdmin || auth.puedeGestionarCuentas">Acciones</th>
         </tr>
       </thead>
       <tbody>
@@ -52,15 +54,19 @@
             <span *ngIf="!auth.isAdmin" class="rol-badge" [class.rol-lector]="u.rol === 'lector'">
               {{ nombreRol(u.rol) }}
             </span>
+            <span *ngIf="u.permisos" class="permisos-tag" [title]="resumenPermisos(u)">personalizado</span>
           </td>
-          <td class="acciones" *ngIf="auth.isAdmin">
-            <button *ngIf="u.estado !== 'APPROVED'" class="btn-aprobar" (click)="aprobarUsuario(u)">
+          <td class="acciones" *ngIf="auth.isAdmin || auth.puedeGestionarCuentas">
+            <button *ngIf="u.estado !== 'APPROVED' && (auth.isAdmin || u.estado === 'PENDING')" class="btn-aprobar" (click)="aprobarUsuario(u)">
               Aprobar
             </button>
-            <button *ngIf="u.estado !== 'REJECTED'" class="btn-rechazar" (click)="rechazarUsuario(u)">
+            <button *ngIf="u.estado !== 'REJECTED' && (auth.isAdmin || u.estado === 'PENDING')" class="btn-rechazar" (click)="rechazarUsuario(u)">
               Rechazar
             </button>
-            <button *ngIf="u.estado === 'APPROVED'" class="btn-rol" (click)="abrirResetClave(u)">
+            <button *ngIf="auth.isAdmin && u.estado === 'APPROVED'" class="btn-rol" (click)="abrirPermisos(u, 'editar')" [title]="resumenPermisos(u)">
+              Permisos
+            </button>
+            <button *ngIf="auth.isAdmin && u.estado === 'APPROVED'" class="btn-rol" (click)="abrirResetClave(u)">
               Restablecer contraseña
             </button>
           </td>
@@ -228,6 +234,39 @@
     <div class="mfoot">
       <button class="btn" (click)="cancelarResetClave()">Cancelar</button>
       <button class="btn pri" (click)="confirmarResetClave()">Restablecer</button>
+    </div>
+  </div>
+</div>
+<!-- Rol y permisos de una cuenta (al aprobarla o después) — solo admin. -->
+<div class="mbg" *ngIf="modalPermisos">
+  <div class="modal" style="width:480px">
+    <h3 class="permisos-titulo">{{ modalPermisos.modo === 'aprobar' ? 'Aprobar cuenta' : 'Permisos de la cuenta' }}</h3>
+    <p class="permisos-correo">{{ modalPermisos.usuario.nombre || '' }} &lt;{{ modalPermisos.usuario.email }}&gt;</p>
+
+    <label class="permisos-label">Rol</label>
+    <select class="rol-select permisos-rol" [ngModel]="modalPermisos.rol" (ngModelChange)="cambiarRolModal($event)">
+      <option *ngFor="let r of rolesDisponibles" [value]="r.valor">{{ r.nombre }}</option>
+    </select>
+    <p class="permisos-ayuda">El rol marca los permisos por defecto. Puedes ajustarlos uno por uno.</p>
+
+    <div class="permisos-lista">
+      <label class="permiso" *ngFor="let p of permisosInfo">
+        <input type="checkbox" [checked]="modalPermisos.permisos[p.clave]" (change)="alternarPermiso(p.clave)">
+        <span>
+          <strong>{{ p.nombre }}</strong>
+          <small *ngIf="p.ayuda">{{ p.ayuda }}</small>
+        </span>
+      </label>
+    </div>
+
+    <p class="permisos-estado" [class.personalizado]="modalPersonalizado">
+      {{ modalPersonalizado ? 'Permisos personalizados para esta cuenta.' : 'Usa los permisos por defecto de ' + nombreRol(modalPermisos.rol) + '.' }}
+      <a *ngIf="modalPersonalizado" href="javascript:void(0)" (click)="cambiarRolModal(modalPermisos.rol)">Volver a los del rol</a>
+    </p>
+
+    <div class="mfoot">
+      <button class="btn" (click)="cerrarPermisos()">Cancelar</button>
+      <button class="btn pri" (click)="guardarPermisos()">{{ modalPermisos.modo === 'aprobar' ? 'Aprobar' : 'Guardar' }}</button>
     </div>
   </div>
 </div>

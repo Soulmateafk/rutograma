@@ -17,13 +17,67 @@ function rolDeCuenta(cuenta, esAdmin) {
 
 const puedeAprobar = (rol) => rol === 'admin' || rol === 'jefe';
 
+// ============================================================
+// PERMISOS — cada rol trae unos por defecto; el admin puede
+// personalizarlos cuenta por cuenta (columna "permisos" de usuarios).
+// Cambiar roles/permisos y restablecer contraseñas es SOLO del admin.
+// ============================================================
+const PERMISOS = [
+    { clave: 'editar', nombre: 'Hacer cambios' },
+    { clave: 'sinAprobacion', nombre: 'Sus cambios se aplican sin esperar aprobación' },
+    { clave: 'aprobarCambios', nombre: 'Aprobar o rechazar cambios de otros' },
+    { clave: 'verAdministracion', nombre: 'Ver cuentas y auditoría' },
+    { clave: 'gestionarCuentas', nombre: 'Aceptar o rechazar cuentas nuevas' },
+    { clave: 'editarHistorico', nombre: 'Cerrar mes y limpiar el histórico' }
+];
+const CLAVES_PERMISOS = PERMISOS.map(p => p.clave);
+
+const PERMISOS_POR_ROL = {
+    editor: { editar: true, sinAprobacion: true, editarHistorico: true },
+    lector: {},
+    jefe: { editar: true, sinAprobacion: true, aprobarCambios: true, verAdministracion: true },
+    auxiliar: { editar: true }
+};
+
+/** Deja solo claves conocidas en true/false y quita combinaciones sin sentido. */
+function normalizarPermisos(entrada) {
+    const p = {};
+    CLAVES_PERMISOS.forEach(c => { p[c] = !!(entrada && entrada[c]); });
+    if (!p.editar) { p.sinAprobacion = false; p.editarHistorico = false; }
+    if (p.gestionarCuentas) p.verAdministracion = true; // para aceptar cuentas hay que verlas
+    return p;
+}
+
+const permisosDeRol = (rol) => normalizarPermisos(PERMISOS_POR_ROL[rol] || PERMISOS_POR_ROL.editor);
+
+/** Permisos efectivos: admin = todos; si la cuenta tiene personalizados, esos; si no, los de su rol. */
+function permisosDeCuenta(cuenta, esAdmin) {
+    if (esAdmin) {
+        const todos = {};
+        CLAVES_PERMISOS.forEach(c => { todos[c] = true; });
+        return todos;
+    }
+    let propios = cuenta?.permisos;
+    if (typeof propios === 'string') {
+        try { propios = JSON.parse(propios); } catch { propios = null; }
+    }
+    return propios && typeof propios === 'object'
+        ? normalizarPermisos(propios)
+        : permisosDeRol(rolDeCuenta(cuenta, false));
+}
+
+/** ¿Los cambios de esta cuenta esperan aprobación? */
+const necesitaAprobacion = (permisos) => !!permisos.editar && !permisos.sinAprobacion;
+
 // Peticiones de un auxiliar que NO pasan por aprobación: no cambian datos
-// del negocio (sesión, vista previa) o son de la propia cola.
+// del negocio (sesión, vista previa), son de la propia cola, o de cuentas
+// (cada una revisa su propio permiso).
 const RUTAS_SIN_APROBACION = [
     '/api/auth/check', '/api/auth/login', '/api/auth/register',
     '/api/sesiones/cerrar', '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual',
     '/api/cache/refrescar',
-    '/api/aprobaciones/decidir'
+    '/api/aprobaciones/decidir',
+    '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave'
 ];
 
 /** ¿Esta petición de un auxiliar debe quedar pendiente de aprobación? */
@@ -78,6 +132,11 @@ module.exports = {
     ROLES_VALIDOS,
     rolDeCuenta,
     puedeAprobar,
+    PERMISOS,
+    normalizarPermisos,
+    permisosDeRol,
+    permisosDeCuenta,
+    necesitaAprobacion,
     requiereAprobacion,
     describirCambio,
     solicitudPublica

@@ -277,7 +277,10 @@ export class DataService {
         return true;
       }
       case 'usuario-rol': {
-        await this.postApi('/auth/rol', { email: entry.clave, rol: deshacer ? entry.antes : entry.despues });
+        // antes/despues: { rol, permisos } (o solo el rol, en entradas viejas).
+        const valor = deshacer ? entry.antes : entry.despues;
+        const { rol, permisos } = typeof valor === 'string' ? { rol: valor, permisos: null } : valor;
+        await this.postApi('/auth/rol', { email: entry.clave, rol, permisos: permisos || null });
         return true;
       }
       case 'usuario-estado': {
@@ -313,7 +316,7 @@ export class DataService {
   private registrarUndo(entry: { tipo: string; clave: string; antes: any | null; despues?: any | null; descripcion: string }): void {
     // Los cambios de un auxiliar no se aplican hasta que un jefe los
     // apruebe — no hay nada que deshacer todavía.
-    if (this.cuenta.rol === 'auxiliar') return;
+    if (this.cuenta.permisos.editar && !this.cuenta.permisos.sinAprobacion) return;
     this.pilaDeshacer.push({ ...entry, timestamp: Date.now() });
     if (this.pilaDeshacer.length > this.MAX_DESHACER) this.pilaDeshacer.shift();
     // Cualquier cambio NUEVO borra lo que se pudiera "rehacer" — una vez

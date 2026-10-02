@@ -535,16 +535,16 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
   ];
   private cachePaginas: { clave: string; lista: Array<{ nombre: string; ruta: string }> } = { clave: '', lista: [] };
 
-  /** ¿La cuenta actual puede abrir esta pantalla? (Administrador: admin y jefe; Aprobaciones: además el auxiliar). */
+  /** ¿La cuenta actual puede abrir esta pantalla? (según sus permisos). */
   private paginaPermitida(ruta: string): boolean {
-    if (ruta === '/admin') return this.authService.puedeAprobar;
-    if (ruta === '/aprobaciones') return this.authService.puedeAprobar || this.authService.esAuxiliar;
+    if (ruta === '/admin') return this.authService.puedeVerAdministracion;
+    if (ruta === '/aprobaciones') return this.authService.puedeAprobar || this.authService.necesitaAprobacion;
     return true;
   }
 
   /** Pestañas de la derecha según el rol (misma lista mientras el rol no cambie). */
   public get paginasMenuMas(): Array<{ nombre: string; ruta: string }> {
-    const clave = `${this.authService.puedeAprobar}-${this.authService.esAuxiliar}`;
+    const clave = `${this.authService.puedeVerAdministracion}-${this.authService.puedeAprobar}-${this.authService.necesitaAprobacion}`;
     if (this.cachePaginas.clave !== clave) {
       this.cachePaginas = { clave, lista: this.todasPaginasMenuMas.filter(p => this.paginaPermitida(p.ruta)) };
       this.programarAjuste();
@@ -557,7 +557,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
   private intervaloPendientes: ReturnType<typeof setInterval> | null = null;
 
   private async contarPendientesAprobacion(): Promise<void> {
-    if (!this.authService.puedeAprobar && !this.authService.esAuxiliar) {
+    if (!this.authService.puedeAprobar && !this.authService.necesitaAprobacion) {
       if (this.pendientesAprobacion) { this.pendientesAprobacion = 0; this.cdr.markForCheck(); }
       return;
     }
