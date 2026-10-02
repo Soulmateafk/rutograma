@@ -242,10 +242,22 @@ export class VehiculosComponent implements OnInit, OnDestroy {
 
     const { vehiculos = [], viajes = [], conductores = [] } = this.ds.S;
 
-    const viajesCount = viajes.reduce((acc: any, vj: any) => {
-      acc[vj.placa] = (acc[vj.placa] || 0) + 1;
-      return acc;
-    }, {});
+    // "Viajes" cuenta lo mismo que muestra el Rutograma: los del mes que se
+    // está viendo, sin cancelados (antes sumaba todos los meses). El total
+    // de todos los meses se usa solo para avisar al eliminar un vehículo.
+    const prefijoMes = `${this.ds.S.anio}-${String(Number(this.ds.S.mes) + 1).padStart(2, '0')}`;
+    const mesTextoVisible = this.meses[this.ds.S.mes];
+    const esDelMesVisible = (vj: any) => vj.fecha
+      ? String(vj.fecha).startsWith(prefijoMes)
+      : vj.mes === mesTextoVisible && Number(vj.anio) === Number(this.ds.S.anio);
+    const placaDeViaje = (vj: any) => String(vj.p || vj.placa || '').toUpperCase().trim();
+    const viajesCount: Record<string, number> = {};
+    const viajesTotal: Record<string, number> = {};
+    viajes.forEach((vj: any) => {
+      const placa = placaDeViaje(vj);
+      viajesTotal[placa] = (viajesTotal[placa] || 0) + 1;
+      if (vj.estado !== 'Cancelado' && esDelMesVisible(vj)) viajesCount[placa] = (viajesCount[placa] || 0) + 1;
+    });
 
     const conductoresPorVeh = conductores.reduce((acc: any, c: any) => {
       if (!acc[c.veh]) acc[c.veh] = [];
@@ -277,6 +289,7 @@ export class VehiculosComponent implements OnInit, OnDestroy {
         descansoLarga: v.dl !== undefined ? v.dl : 2,
         
         viajesCount: viajesCount[placaLimpia] || 0,
+        viajesTotal: viajesTotal[placaLimpia] || 0,
         conductores: conductoresPorVeh[placaLimpia] || [],
         isMantenimiento: estadoMinusc === 'mantenimiento',
         dotClass: estadoMinusc === 'mantenimiento' ? 'r' : (estadoMinusc === 'disponible' ? 'g' : 'a'),
@@ -897,8 +910,8 @@ export class VehiculosComponent implements OnInit, OnDestroy {
     const v = this.vehiculosEnriquecidos[index];
     if (!v) return;
 
-    const msg = v.viajesCount > 0 
-      ? `¿Eliminar "${v.placa}"? Tiene ${v.viajesCount} viaje(s) asignado(s).` 
+    const msg = v.viajesTotal > 0
+      ? `¿Eliminar "${v.placa}"? Tiene ${v.viajesTotal} viaje(s) asignado(s) en total.` 
       : `¿Eliminar el vehículo "${v.placa}"?`;
 
     const confirmado = await this.mostrarConfirmPersonalizado(msg, 'Eliminar', 'Cancelar');
