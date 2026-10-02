@@ -71,6 +71,8 @@ export class Historico implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Los meses cerrados viven en el servidor (los ven todos los equipos).
+    this.ds.cargarHistorico();
     // Sin esto, esta pantalla se queda mostrando los datos de cuando se
     // abrió para siempre, sin enterarse de la sincronización automática
     // de cada 20s (mismo bug ya encontrado y corregido en otras pantallas).
@@ -155,20 +157,23 @@ export class Historico implements OnInit, OnDestroy {
   }
 
   public async cerrarMes(): Promise<void> {
-    if (!this.ds.S.viajes || this.ds.S.viajes.length === 0) { 
-      this.ui.mostrarToast('No hay viajes en el mes actual para cerrar', 'err');
+    const nombreMes = new Date(this.ds.S.anio, this.ds.S.mes, 1).toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+    const viajes = this.ds.viajesDelMesVisible().filter((v: any) => v.estado !== 'Cancelado').length;
+    if (!viajes) {
+      this.ui.mostrarToast(`No hay viajes en ${nombreMes} para cerrar.`, 'err');
       return;
     }
-    
+    const yaCerrado = this.historial.some((h: any) => h.mes === this.ds.S.mes && h.anio === this.ds.S.anio);
     const confirmado = await this.mostrarConfirmPersonalizado(
-      '¿Estás seguro de cerrar el mes y enviarlo al histórico en la BD?',
+      `¿Cerrar ${nombreMes} (${viajes} viajes) y guardarlo en el histórico?\n\n` +
+      (yaCerrado ? 'Este mes ya estaba cerrado: se reemplaza con lo que hay ahora.\n' : '') +
+      'Los viajes no se borran. Para cerrar otro mes, cámbialo arriba antes.',
       'Cerrar mes'
     );
-    if (confirmado) {
-      // Llamamos al método que crearemos en DataService
-      this.ds.cerrarMesActual(); 
-      this.ui.mostrarToast('Mes cerrado correctamente en el servidor', 'ok');
-    }
+    if (!confirmado) return;
+    const r = await this.ds.cerrarMesActual();
+    if (r.msg) this.ui.mostrarToast(r.msg, r.ok ? 'ok' : 'err');
+    this.zone.run(() => this.cdr.detectChanges());
   }
 
   public getKeys(obj: any): string[] {
@@ -245,16 +250,15 @@ export class Historico implements OnInit, OnDestroy {
 
   public async limpiarHistorico(): Promise<void> {
     const confirmado = await this.mostrarConfirmPersonalizado(
-      '¿BORRAR TODO EL HISTÓRICO? Esta acción afectará la base de datos.',
+      '¿Borrar todo el histórico? Se guarda un respaldo antes, y se puede deshacer.',
       'Borrar todo'
     );
     if (!confirmado) return;
-    
-    // Llamamos al nuevo método en DataService
-    this.ds.limpiarHistorial(); 
-    this.detalle = null;
-    this.ui.mostrarToast('Histórico borrado', 'ok');
+    const r = await this.ds.limpiarHistorial();
+    if (r.msg) this.ui.mostrarToast(r.msg, r.ok ? 'ok' : 'err');
+    this.zone.run(() => this.cdr.detectChanges());
   }
+
 
   private descargarArchivo(blob: Blob, nombre: string): void {
     const a = document.createElement('a');

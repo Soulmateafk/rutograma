@@ -187,3 +187,12 @@ CREATE TABLE IF NOT EXISTS historial_conductores (
   anio                INTEGER,
   datos_json          TEXT NOT NULL DEFAULT '[]'
 );
+-- Meses cerrados desde la pantalla Histórico (una fila por mes/año).
+CREATE TABLE IF NOT EXISTS historico_meses (
+  anio                INTEGER NOT NULL,
+  mes                 INTEGER NOT NULL,   -- 0 = enero (como Date.getMonth)
+  datos_json          TEXT NOT NULL,      -- el resumen completo del mes
+  cerrado_por         TEXT,
+  cerrado_en          TEXT,
+  PRIMARY KEY (anio, mes)
+);

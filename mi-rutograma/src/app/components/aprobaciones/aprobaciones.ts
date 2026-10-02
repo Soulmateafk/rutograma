@@ -55,6 +55,11 @@ export class AprobacionesComponent implements OnInit, OnDestroy {
   rechazando: Solicitud | null = null;
   motivoRechazo = '';
 
+  // Selección para aprobar/rechazar varios de una vez.
+  seleccion = new Set<string>();
+  rechazandoVarios = false;
+  progreso = '';
+
   private intervalo: ReturnType<typeof setInterval> | null = null;
 
   ngOnInit() {
@@ -99,6 +104,69 @@ export class AprobacionesComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  alternarSeleccion(s: Solicitud) {
+    if (this.seleccion.has(s.id)) this.seleccion.delete(s.id); else this.seleccion.add(s.id);
+  }
+
+  get todosSeleccionados(): boolean {
+    return this.pendientes.length > 0 && this.pendientes.every(s => this.seleccion.has(s.id));
+  }
+
+  alternarTodos() {
+    if (this.todosSeleccionados) this.seleccion.clear();
+    else this.pendientes.forEach(s => this.seleccion.add(s.id));
+  }
+
+  private get seleccionadas(): Solicitud[] {
+    // En el orden en que se pidieron: un cambio puede depender de uno anterior.
+    return this.pendientes.filter(s => this.seleccion.has(s.id))
+      .sort((a, b) => a.creada.localeCompare(b.creada));
+  }
+
+  async aprobarSeleccionadas() {
+    await this.decidirVarias('APROBAR');
+  }
+
+  pedirMotivoVarias() {
+    this.rechazandoVarios = true;
+    this.motivoRechazo = '';
+  }
+
+  private async decidirVarias(accion: 'APROBAR' | 'RECHAZAR', motivo = '') {
+    const lista = this.seleccionadas;
+    if (!lista.length || this.procesandoId) return;
+    let bien = 0;
+    const errores: string[] = [];
+    for (let i = 0; i < lista.length; i++) {
+      const s = lista[i];
+      this.procesandoId = s.id;
+      this.progreso = `${accion === 'APROBAR' ? 'Aprobando' : 'Rechazando'} ${i + 1} de ${lista.length}…`;
+      this.cdr.markForCheck();
+      try {
+        const res = await this.auth.fetchAutenticado(`${API_URL}/aprobaciones/decidir`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: s.id, accion, motivo })
+        });
+        const data = await res.json();
+        if (data.ok) bien++; else errores.push(`${s.descripcion}: ${data.msg}`);
+      } catch {
+        errores.push(`${s.descripcion}: sin conexión`);
+      }
+    }
+    this.procesandoId = null;
+    this.progreso = '';
+    this.seleccion.clear();
+    const verbo = accion === 'APROBAR' ? 'aprobados' : 'rechazados';
+    if (errores.length) {
+      this.ui.mostrarToast(`${bien} ${verbo}. No se pudieron ${errores.length}: ${errores.slice(0, 3).join(' · ')}`, 'err');
+    } else {
+      this.ui.mostrarToast(`${bien} cambio(s) ${verbo}.`, 'ok');
+    }
+    if (accion === 'APROBAR' && bien) await this.ds.inicializarApp(true);
+    await this.cargar(true);
+  }
+
   alternarDetalle(s: Solicitud) {
     this.abiertaId = this.abiertaId === s.id ? null : s.id;
   }
@@ -114,9 +182,15 @@ export class AprobacionesComponent implements OnInit, OnDestroy {
 
   cancelarRechazo() {
     this.rechazando = null;
+    this.rechazandoVarios = false;
   }
 
   async confirmarRechazo() {
+    if (this.rechazandoVarios) {
+      this.rechazandoVarios = false;
+      await this.decidirVarias('RECHAZAR', this.motivoRechazo.trim());
+      return;
+    }
     if (!this.rechazando) return;
     const s = this.rechazando;
     this.rechazando = null;

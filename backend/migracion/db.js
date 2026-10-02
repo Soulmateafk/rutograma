@@ -600,7 +600,36 @@ function restaurarRespaldoDB(nombreArchivo, modo = 'real') {
   conectar(modo); // reabre con el archivo restaurado
 }
 
+// ============================================================
+// HISTÓRICO DE MESES CERRADOS (pantalla Histórico). Cerrar otra vez el
+// mismo mes reemplaza la foto anterior.
+// ============================================================
+function listarHistoricoMesesDB(modo = 'real') {
+  const db = conectar(modo);
+  return db.prepare('SELECT * FROM historico_meses ORDER BY anio, mes').all().map(f => ({
+    ...aJSON(f.datos_json, {}),
+    mes: f.mes, anio: f.anio, cerradoPor: f.cerrado_por, cerradoEn: f.cerrado_en
+  }));
+}
+
+function guardarHistoricoMesDB(modo, registro) {
+  const db = conectar(modo);
+  db.prepare(`INSERT OR REPLACE INTO historico_meses (anio, mes, datos_json, cerrado_por, cerrado_en)
+    VALUES (@anio, @mes, @datos_json, @cerrado_por, @cerrado_en)`).run({
+    anio: registro.anio,
+    mes: registro.mes,
+    datos_json: JSON.stringify(registro.datos || {}),
+    cerrado_por: registro.cerradoPor || null,
+    cerrado_en: registro.cerradoEn || new Date().toISOString()
+  });
+}
+
+function limpiarHistoricoMesesDB(modo = 'real') {
+  return conectar(modo).prepare('DELETE FROM historico_meses').run().changes;
+}
+
 module.exports = {
+  listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB,
   leerDB, guardarEnDB, conectar, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB,
   registrarAuditoriaDB, listarAuditoriaDB, importarAuditoriaJSONLSiHaceFalta
 };

@@ -18,9 +18,20 @@
     {{ vista === 'pendientes' ? 'No hay cambios pendientes.' : 'Todavía no hay solicitudes decididas.' }}
   </div>
 
+  <div class="apr-barra" *ngIf="puedeAprobar && vista === 'pendientes' && pendientes.length > 1">
+    <label class="apr-check"><input type="checkbox" [checked]="todosSeleccionados" (change)="alternarTodos()"> Seleccionar todos</label>
+    <ng-container *ngIf="seleccion.size">
+      <button class="apr-btn apr-btn-no" [disabled]="procesandoId" (click)="pedirMotivoVarias()">Rechazar {{ seleccion.size }}</button>
+      <button class="apr-btn apr-btn-ok" [disabled]="procesandoId" (click)="aprobarSeleccionadas()">Aprobar {{ seleccion.size }}</button>
+    </ng-container>
+    <span class="apr-progreso" *ngIf="progreso">{{ progreso }}</span>
+  </div>
+
   <div class="apr-lista">
     <div class="apr-item" *ngFor="let s of visibles" [class.apr-rechazada]="s.estado === 'RECHAZADA'" [class.apr-aprobada]="s.estado === 'APROBADA'">
       <div class="apr-fila">
+        <input *ngIf="puedeAprobar && s.estado === 'PENDIENTE' && pendientes.length > 1" type="checkbox" class="apr-sel"
+               [checked]="seleccion.has(s.id)" (change)="alternarSeleccion(s)" [disabled]="procesandoId">
         <div class="apr-info">
           <div class="apr-desc">{{ s.descripcion }}</div>
           <div class="apr-meta">
@@ -49,11 +60,11 @@
     </div>
   </div>
 
-  <div class="apr-modal-fondo" *ngIf="rechazando">
+  <div class="apr-modal-fondo" *ngIf="rechazando || rechazandoVarios">
     <div class="apr-modal">
-      <h3>Rechazar cambio</h3>
-      <p>{{ rechazando.descripcion }}</p>
-      <label>Motivo (lo verá {{ rechazando.nombreSolicitante || rechazando.solicitante }})</label>
+      <h3>{{ rechazandoVarios ? 'Rechazar ' + seleccion.size + ' cambios' : 'Rechazar cambio' }}</h3>
+      <p *ngIf="rechazando && !rechazandoVarios">{{ rechazando.descripcion }}</p>
+      <label>Motivo (lo verá quien pidió {{ rechazandoVarios ? 'cada cambio' : 'el cambio' }})</label>
       <textarea rows="3" [(ngModel)]="motivoRechazo" placeholder="Ej: esa ruta sigue activa"></textarea>
       <div class="apr-modal-acciones">
         <button class="apr-btn" (click)="cancelarRechazo()">Cancelar</button>
