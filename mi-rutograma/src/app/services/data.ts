@@ -205,6 +205,109 @@ export class DataService {
     this.cargarPilaDeshacerLocal();
   }
 
+  /** Para que otras pantallas (Administrador, Configuración...) agreguen
+   *  sus cambios al mismo historial de Deshacer/Rehacer. */
+  public registrarCambio(entry: { tipo: string; clave: string; antes: any | null; despues?: any | null; descripcion: string }): void {
+    this.registrarUndo(entry);
+  }
+
+  /** Avisa qué tipo de cambio se acaba de deshacer o rehacer — así una
+   *  pantalla abierta (ej. Administrador) puede recargar su lista. */
+  public cambioRevertido = new Subject<string>();
+
+  private async postApi(ruta: string, body: any): Promise<any> {
+    return firstValueFrom(this.http.post(`${this.API_URL}${ruta}`, body, this.headersAuditoria()));
+  }
+
+  /**
+   * Tipos de cambio que no son viaje/ruta/vehículo/conductor. Devuelve
+   * true si lo manejó. "sentido" = 'deshacer' (volver a "antes") o
+   * 'rehacer' (volver a "despues").
+   */
+  private async aplicarCambioExtendido(entry: any, sentido: 'deshacer' | 'rehacer'): Promise<boolean> {
+    const deshacer = sentido === 'deshacer';
+    switch (entry.tipo) {
+      case 'eliminar-ruta': {
+        if (deshacer) {
+          await this.guardarRuta({ ...entry.antes }, undefined, true);
+        } else {
+          const idx = (this.S.rutas || []).findIndex((r: any) => String(r.cod || r.codigo || '') === entry.clave);
+          if (idx !== -1) await this.eliminarRuta(idx, true);
+        }
+        return true;
+      }
+      case 'eliminar-vehiculo': {
+        if (deshacer) {
+          await this.guardarVehiculo({ ...entry.antes }, -1, true);
+        } else {
+          await firstValueFrom(this.eliminarVehiculoBD(entry.clave));
+          this.S.vehiculos = (this.S.vehiculos || []).filter((v: any) => String(v.p || v.placa || '') !== entry.clave);
+          await this.autoSave();
+        }
+        return true;
+      }
+      case 'eliminar-conductor': {
+        if (deshacer) {
+          await this.guardarConductorValidado({ ...entry.antes }, -1, true);
+        } else {
+          const idx = (this.S.conductores || []).findIndex((c: any) => String(c.ced || c.cedula || c.cc || '') === entry.clave);
+          if (idx !== -1) await this.eliminarConductor(idx, true);
+        }
+        return true;
+      }
+      case 'novedad': {
+        if (deshacer) {
+          await this.postApi('/novedades/eliminar', { id: entry.despues.id });
+          this.S.novedades = (this.S.novedades || []).filter((n: any) => String(n.id) !== String(entry.despues.id));
+        } else {
+          await this.postApi('/novedades', entry.despues);
+          if (!this.S.novedades) this.S.novedades = [];
+          this.S.novedades.push({ ...entry.despues });
+        }
+        await this.autoSave();
+        return true;
+      }
+      case 'novedad-resuelta': {
+        await this.postApi('/novedades/resolver', { id: entry.antes.id, resuelta: !deshacer });
+        const nov = (this.S.novedades || []).find((n: any) => String(n.id) === String(entry.antes.id));
+        if (nov) nov.resuelta = !deshacer;
+        await this.autoSave();
+        return true;
+      }
+      case 'usuario-rol': {
+        await this.postApi('/auth/rol', { email: entry.clave, rol: deshacer ? entry.antes : entry.despues });
+        return true;
+      }
+      case 'usuario-estado': {
+        const estado = deshacer ? entry.antes : entry.despues;
+        await this.postApi('/auth/decidir', { email: entry.clave, accion: estado.estado, motivo: estado.motivo || '' });
+        return true;
+      }
+      case 'dispositivo-desbloqueado': {
+        await this.postApi(deshacer ? '/dispositivos/bloquear' : '/dispositivos/desbloquear', entry.antes);
+        return true;
+      }
+      case 'config': {
+        // Configuración guardada en este equipo (transportadoras, cupos...).
+        this.S[entry.clave] = JSON.parse(JSON.stringify(deshacer ? entry.antes : entry.despues));
+        await this.autoSave();
+        return true;
+      }
+      case 'respaldo': {
+        // Acción masiva (Generar Matriz, Importar, Restaurar): se vuelve al
+        // respaldo tomado justo antes; al deshacer, el servidor respalda el
+        // estado actual y ese es el que usa Rehacer.
+        const nombre = deshacer ? entry.antes : entry.despues;
+        if (!nombre) throw new Error('No hay respaldo para este cambio.');
+        const res: any = await this.postApi('/respaldos/restaurar', { nombre });
+        if (deshacer && res?.respaldoAntes) entry.despues = res.respaldoAntes;
+        await this.inicializarApp(true);
+        return true;
+      }
+    }
+    return false;
+  }
+
   private registrarUndo(entry: { tipo: string; clave: string; antes: any | null; despues?: any | null; descripcion: string }): void {
     this.pilaDeshacer.push({ ...entry, timestamp: Date.now() });
     if (this.pilaDeshacer.length > this.MAX_DESHACER) this.pilaDeshacer.shift();
@@ -305,7 +408,10 @@ export class DataService {
         } else {
           await this.guardarConductorValidado({ ...entry.antes }, idx, true);
         }
+      } else {
+        await this.aplicarCambioExtendido(entry, 'deshacer');
       }
+      this.cambioRevertido.next(entry.tipo);
 
       // Lo que se acaba de deshacer pasa a la pila de "rehacer" — así se
       // puede volver a avanzar sin perder el cambio que se revirtió.
@@ -319,7 +425,7 @@ export class DataService {
       // Si algo falla al aplicar, regresamos la entrada a la pila para no perderla.
       this.pilaDeshacer.push(entry);
       this.guardarPilaDeshacerLocal();
-      return { ok: false, mensaje: 'No se pudo deshacer el cambio.' };
+      return { ok: false, mensaje: `No se pudo deshacer el cambio: ${this.ui.mensajeErrorHttp(e, 'deshacer el cambio')}` };
     }
   }
 
@@ -351,7 +457,10 @@ export class DataService {
       } else if (entry.tipo === 'conductor') {
         const idx = (this.S.conductores || []).findIndex((c: any) => String(c.ced || c.cedula || c.cc || '') === entry.clave);
         await this.guardarConductorValidado({ ...entry.despues }, idx, true);
+      } else {
+        await this.aplicarCambioExtendido(entry, 'rehacer');
       }
+      this.cambioRevertido.next(entry.tipo);
 
       // Lo que se acaba de rehacer vuelve a la pila de "deshacer" — para
       // poder revertirlo de nuevo si hace falta.
@@ -364,7 +473,7 @@ export class DataService {
       console.error('Error al rehacer:', e);
       this.pilaRehacer.push(entry);
       this.guardarPilaDeshacerLocal();
-      return { ok: false, mensaje: 'No se pudo rehacer el cambio.' };
+      return { ok: false, mensaje: `No se pudo rehacer el cambio: ${this.ui.mensajeErrorHttp(e, 'rehacer el cambio')}` };
     }
   }
 
@@ -1060,7 +1169,7 @@ export class DataService {
     }
   }
 
-  public async eliminarConductor(index: number): Promise<void> {
+  public async eliminarConductor(index: number, sinRegistrar: boolean = false): Promise<void> {
     const conductorEliminado = this.S.conductores[index];
     if (!conductorEliminado) return;
 
@@ -1077,6 +1186,15 @@ export class DataService {
       const res: any = await firstValueFrom(this.http.post(url, body, this.headersAuditoria()));
       if (res && res.ok) {
         this.S.conductores.splice(index, 1);
+        if (!sinRegistrar) {
+          this.registrarUndo({
+            tipo: 'eliminar-conductor',
+            clave: String(conductorEliminado.ced || conductorEliminado.cedula || conductorEliminado.cc || ''),
+            antes: { ...conductorEliminado },
+            despues: null,
+            descripcion: `Eliminación del conductor ${nombreDesc}`
+          });
+        }
         this.ui.mostrarToast('Conductor eliminado correctamente', 'ok');
         await this.autoSave();
       }
@@ -1093,7 +1211,7 @@ export class DataService {
     }
   }
 
-  public async eliminarRuta(index: number): Promise<void> {
+  public async eliminarRuta(index: number, sinRegistrar: boolean = false): Promise<void> {
     const rutaEliminada = this.S.rutas[index];
     if (!rutaEliminada) return;
 
@@ -1106,6 +1224,15 @@ export class DataService {
       const res: any = await firstValueFrom(this.http.post(url, body, this.headersAuditoria()));
       if (res && res.ok) {
         this.S.rutas.splice(index, 1);
+        if (!sinRegistrar) {
+          this.registrarUndo({
+            tipo: 'eliminar-ruta',
+            clave: String(rutaEliminada.cod || rutaEliminada.codigo || ''),
+            antes: JSON.parse(JSON.stringify(rutaEliminada)),
+            despues: null,
+            descripcion: `Eliminación de la ruta ${rutaEliminada.cod || 'sin código'}`
+          });
+        }
         this.ui.mostrarToast('Ruta eliminada correctamente', 'ok');
         await this.autoSave();
       }
@@ -1124,7 +1251,13 @@ export class DataService {
 
   public guardarTransportadora(data: any): string | null {
     if (this.S.transportadoras.find((t: any) => t.clave === data.clave)) return 'Ya existe esa clave.';
+    const antes = JSON.parse(JSON.stringify(this.S.transportadoras));
     this.S.transportadoras.push(data);
+    this.registrarUndo({
+      tipo: 'config', clave: 'transportadoras', antes,
+      despues: JSON.parse(JSON.stringify(this.S.transportadoras)),
+      descripcion: `Nueva transportadora ${data.nombre || data.clave}`
+    });
     this.autoSave();
     return null;
   }
@@ -1161,6 +1294,10 @@ export class DataService {
       await firstValueFrom(this.http.post(url, nuevaNovedad, this.headersAuditoria()));
       if (!this.S.novedades) this.S.novedades = [];
       this.S.novedades.push(nuevaNovedad);
+      this.registrarUndo({
+        tipo: 'novedad', clave: String(nuevaNovedad.id), antes: null,
+        despues: { ...nuevaNovedad }, descripcion: `Novedad "${titulo}"`
+      });
       console.log('Novedad respaldada en BD.');
       await this.autoSave();
     } catch (e: any) {
@@ -1186,6 +1323,10 @@ export class DataService {
       await firstValueFrom(this.http.post(url, body, this.headersAuditoria()));
       const nov = (this.S.novedades || []).find((n: any) => n.id === id);
       if (nov) nov.resuelta = true;
+      this.registrarUndo({
+        tipo: 'novedad-resuelta', clave: String(id), antes: { id }, despues: { id },
+        descripcion: `Novedad resuelta "${nov?.titulo || ''}"`
+      });
       await this.autoSave();
       this.ui.mostrarToast('Novedad marcada como resuelta', 'ok');
     } catch (e: any) {
