@@ -156,3 +156,37 @@ test('un vehículo de rutina fija (LUN 428) no se castiga por repetir destino', 
     ];
     assert.deepEqual(ordenar(candidatos, 'barranquilla', historial), ['LUN 428', 'BBB']);
 });
+
+// ------------------------------------------------------------
+// Mismo equipo por IP + navegador (dispositivoId distinto)
+// ------------------------------------------------------------
+const { colapsarSesionesDuplicadas } = require('../reglas');
+const sesionEquipo = (id, dispositivoId, ip, dispositivo, ultima, email = 'a@x.com') =>
+    ({ id, email, dispositivoId, ip, dispositivo, creada: ultima, ultima });
+
+test('la misma laptop entrando por otra dirección no abre otra sesión', () => {
+    let lista = [sesionEquipo('s1', 'idA', '192.168.100.10', 'Chrome en Windows', '2026-10-01T13:16:00Z')];
+    const r = agregarSesionConTope(lista, sesionEquipo('s2', 'idB', '192.168.100.10', 'Chrome en Windows', '2026-10-01T23:43:00Z'), 5);
+    assert.deepEqual(r.sesiones.map(s => s.id), ['s2']);
+});
+
+test('otro equipo u otro navegador sí cuentan como sesión aparte', () => {
+    const lista = [sesionEquipo('s1', 'idA', '192.168.100.10', 'Chrome en Windows', '2026-10-01T13:16:00Z')];
+    const otroEquipo = agregarSesionConTope(lista, sesionEquipo('s2', 'idB', '192.168.100.60', 'Chrome en Windows', '2026-10-01T14:00:00Z'), 5);
+    assert.equal(otroEquipo.sesiones.length, 2);
+    const otroNavegador = agregarSesionConTope(lista, sesionEquipo('s3', 'idC', '192.168.100.10', 'Edge en Windows', '2026-10-01T14:00:00Z'), 5);
+    assert.equal(otroNavegador.sesiones.length, 2);
+    const otraCuenta = agregarSesionConTope(lista, sesionEquipo('s4', 'idD', '192.168.100.10', 'Chrome en Windows', '2026-10-01T14:00:00Z', 'b@x.com'), 5);
+    assert.equal(otraCuenta.sesiones.length, 2);
+});
+
+test('al arrancar se juntan los duplicados y queda la usada más reciente', () => {
+    const lista = [
+        sesionEquipo('actual', 'idZ', '192.168.100.60', 'Chrome en Windows', '2026-10-02T09:38:00Z'),
+        sesionEquipo('lap1', 'id1', '192.168.100.10', 'Chrome en Windows', '2026-10-02T09:38:00Z'),
+        sesionEquipo('lap2', 'id2', '192.168.100.10', 'Chrome en Windows', '2026-10-01T23:19:00Z'),
+        sesionEquipo('lap3', 'id3', '192.168.100.10', 'Chrome en Windows', '2026-10-01T13:16:00Z'),
+        sesionEquipo('lap4', 'id4', '192.168.100.10', 'Chrome en Windows', '2026-10-01T13:16:00Z')
+    ];
+    assert.deepEqual(colapsarSesionesDuplicadas(lista).map(s => s.id), ['actual', 'lap1']);
+});

@@ -59,11 +59,23 @@ function mantenimientoQueChoca(rangos, fechaSalida, dias) {
 //    llevan más tiempo sin usarse — nunca la que acaba de entrar.
 // Devuelve la lista nueva y cuántas se cerraron por el tope.
 // ------------------------------------------------------------
+// Dos sesiones son del MISMO equipo si son de la misma cuenta y:
+//  - tienen el mismo id de navegador (dispositivoId), o
+//  - vienen de la misma IP con el mismo navegador/sistema ("Chrome en
+//    Windows"). Esto cubre el caso en que el mismo computador abre la app
+//    por otra dirección (otro puerto, "localhost", el nombre del equipo):
+//    el navegador guarda un dispositivoId distinto por cada dirección y
+//    cada inicio de sesión se contaba como un equipo nuevo.
+function mismoEquipo(a, b) {
+    if (a.email !== b.email) return false;
+    if (a.dispositivoId && a.dispositivoId === b.dispositivoId) return true;
+    return !!a.ip && a.ip !== 'Desconocida' && a.ip === b.ip &&
+        !!a.dispositivo && a.dispositivo === b.dispositivo;
+}
+
 function agregarSesionConTope(sesiones, nueva, max) {
-    let lista = sesiones;
-    if (nueva.dispositivoId) {
-        lista = lista.filter(x => !(x.email === nueva.email && x.dispositivoId === nueva.dispositivoId));
-    }
+    // Volver a entrar desde el mismo equipo reemplaza su sesión anterior.
+    let lista = sesiones.filter(x => !mismoEquipo(x, nueva));
     lista = [...lista, nueva];
     const deLaCuenta = lista
         .filter(x => x.email === nueva.email && x.id !== nueva.id)
@@ -106,7 +118,23 @@ function anotarDestino(historial, placa, destino) {
     h.conteo[destino] = (h.conteo[destino] || 0) + 1;
 }
 
+/**
+ * Deja una sola sesión por equipo (la usada más recientemente). Se usa al
+ * arrancar el servidor para limpiar duplicados que quedaron de antes.
+ */
+function colapsarSesionesDuplicadas(sesiones) {
+    const ordenadas = [...sesiones].sort((a, b) =>
+        Date.parse(b.ultima || b.creada) - Date.parse(a.ultima || a.creada));
+    const quedan = [];
+    ordenadas.forEach(s => {
+        if (!quedan.some(q => mismoEquipo(q, s))) quedan.push(s);
+    });
+    return sesiones.filter(s => quedan.includes(s));
+}
+
 module.exports = {
+    mismoEquipo,
+    colapsarSesionesDuplicadas,
     compararParaVariedad,
     anotarDestino,
     sumarDiasFecha,
