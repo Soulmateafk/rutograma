@@ -544,7 +544,10 @@
         <span *ngIf="!editandoViaje" class="ruto-grid-value">
           {{ selectedViaje.cond || conductoresMap[selectedViaje.veh] || 'Sin Conductor' }}
         </span>
-        <input *ngIf="editandoViaje" type="text" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.cond">
+        <select *ngIf="editandoViaje" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;"
+                [ngModel]="selectedViaje.cond || 'Sin asignar'" (ngModelChange)="elegirConductorViaje($event)">
+          <option *ngFor="let c of opcionesConductorViaje; trackBy: trackConductorOpcion" [value]="c.nombre">{{ c.etiqueta }}</option>
+        </select>
       </div>
 
       <div>

@@ -379,6 +379,24 @@ export class ConductoresComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // ¿La placa ya la tiene otro conductor? Se ofrece pasársela a este
+    // (antes solo salía "El vehículo ya está asignado").
+    const placaPedida = String(this.nuevoConductor.veh || '').trim();
+    if (placaPedida) {
+      const otro = this.dataService.conductorConPlaca(placaPedida, nombreValidable);
+      if (otro) {
+        const pasar = await this.mostrarConfirmPersonalizado(
+          `La placa ${placaPedida.toUpperCase()} la tiene ${otro.nom || otro.nombre}.\n\n` +
+          `¿Pasársela a ${nombreValidable}? ${otro.nom || otro.nombre} queda sin placa, y los viajes de ${placaPedida.toUpperCase()} desde mañana pasan a ${nombreValidable}.`,
+          'Pasar la placa',
+          'Cancelar'
+        );
+        if (!pasar) return;
+        const iOtro = this.dataService.S.conductores.indexOf(otro);
+        await this.dataService.guardarConductorValidado({ ...otro, veh: '', placa: '', p: '' }, iOtro, true);
+      }
+    }
+
     if (ConductoresUtils?.clonarConductorJS) {
       const conductorAEnviar = ConductoresUtils.clonarConductorJS(this.nuevoConductor);
       // Solo se manda la versión cuando se está editando uno que ya existía
@@ -420,14 +438,13 @@ export class ConductoresComponent implements OnInit, OnDestroy {
 
       this.syncConductores();
 
-      // Los viajes de HOY en adelante de esta placa toman el nombre de
-      // este conductor — los ya pasados se quedan tal cual (ver
-      // actualizarConductorDesdeHoy en data.ts). Es seguro llamarlo
-      // siempre que haya una placa asignada, aunque no haya cambiado
-      // nada realmente.
+      // El vehículo queda con este conductor principal y los viajes de esa
+      // placa desde mañana pasan a su nombre (ver asignarConductorAPlaca).
       const placaAsignada = String(this.nuevoConductor.veh || this.nuevoConductor.placa || '').trim();
       if (placaAsignada) {
-        this.dataService.actualizarConductorDesdeHoy(placaAsignada, nombreValidable);
+        this.dataService.asignarConductorAPlaca(placaAsignada, nombreValidable, 'conductor').then(n => {
+          if (n) this.ui.mostrarToast(`${n} viaje(s) de ${placaAsignada.toUpperCase()} desde mañana quedaron con ${nombreValidable}.`, 'ok');
+        });
       }
 
       if (this.dataService.autoSave) {

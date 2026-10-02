@@ -894,60 +894,111 @@ export class DataService {
     }
   }
 
-  // Cuando se reasigna qué conductor maneja una placa (desde Conductores
-  // o desde Vehículos), los viajes de HOY en adelante toman el nombre
-  // nuevo — pero los viajes ya PASADOS de este mismo mes se quedan tal
-  // cual, con quien de verdad los manejó. "Hoy en adelante" se compara
-  // contra la fecha real del calendario, no contra el mes que se esté
-  // viendo en Rutograma.
-  public async actualizarConductorDesdeHoy(placa: string, nuevoConductor: string): Promise<void> {
-    const placaLimpia = String(placa || '').toUpperCase().trim();
-    if (!placaLimpia || !this.S?.viajes) return;
+  // ============================================================
+  // CONDUCTOR DE UNA PLACA — quién maneja una placa vive en dos lugares
+  // (la placa del conductor en Conductores y el "conductor principal" del
+  // vehículo). Al asignar desde cualquiera de las dos pantallas se dejan
+  // ambos de acuerdo, y los viajes de esa placa desde MAÑANA pasan al
+  // conductor nuevo (los de hoy y los ya hechos quedan con quien los hizo).
+  // ============================================================
+  private static mismaPlaca(a: any, b: any): boolean {
+    return String(a || '').toUpperCase().trim() === String(b || '').toUpperCase().trim() && String(a || '').trim() !== '';
+  }
 
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const hoyISO = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+  private static mismoNombre(a: any, b: any): boolean {
+    return String(a || '').trim().toUpperCase() === String(b || '').trim().toUpperCase();
+  }
+
+  /** Conductor (de la lista de Conductores) que tiene asignada esta placa, distinto de `excepto`. */
+  public conductorConPlaca(placa: string, excepto: string = ''): any | null {
+    return (this.S.conductores || []).find((c: any) =>
+      DataService.mismaPlaca(c.veh || c.placa || c.p, placa) && !DataService.mismoNombre(c.nom || c.nombre, excepto)
+    ) || null;
+  }
+
+  /**
+   * Deja a `nombre` como conductor de `placa` en Conductores y Vehículos y
+   * pasa los viajes desde mañana. `origen` es la pantalla donde ya se
+   * guardó el cambio (esa parte no se vuelve a guardar).
+   * Devuelve cuántos viajes cambiaron de conductor.
+   */
+  public async asignarConductorAPlaca(placa: string, nombre: string, origen: 'conductor' | 'vehiculo'): Promise<number> {
+    const placaL = String(placa || '').toUpperCase().trim();
+    const nombreL = String(nombre || '').trim();
+    if (!placaL || !nombreL) return 0;
+
+    // 1. Lista de Conductores: quien tenía la placa la suelta y el nuevo la toma.
+    if (origen === 'vehiculo') {
+      const anterior = this.conductorConPlaca(placaL, nombreL);
+      if (anterior) {
+        const i = this.S.conductores.indexOf(anterior);
+        await this.guardarConductorValidado({ ...anterior, veh: '', placa: '', p: '' }, i, true);
+      }
+      const nuevo = (this.S.conductores || []).find((c: any) => DataService.mismoNombre(c.nom || c.nombre, nombreL));
+      if (nuevo && !DataService.mismaPlaca(nuevo.veh || nuevo.placa, placaL)) {
+        const i = this.S.conductores.indexOf(nuevo);
+        await this.guardarConductorValidado({ ...nuevo, veh: placaL, placa: placaL, p: placaL }, i, true);
+      }
+    }
+
+    // 2. Vehículos: el conductor principal de la placa es el nuevo, y si
+    // venía de otra placa, esa queda sin conductor principal.
+    if (origen === 'conductor') {
+      const vehiculos = this.S.vehiculos || [];
+      for (let i = 0; i < vehiculos.length; i++) {
+        const v = vehiculos[i];
+        const esLaPlaca = DataService.mismaPlaca(v.p || v.placa, placaL);
+        const loLlevaba = DataService.mismoNombre(v.cond || v.conductor, nombreL);
+        if (esLaPlaca && !loLlevaba) {
+          await this.guardarVehiculo({ ...v, cond: nombreL, conductor: nombreL }, i, true);
+        } else if (!esLaPlaca && loLlevaba) {
+          await this.guardarVehiculo({ ...v, cond: '', conductor: '' }, i, true);
+        }
+      }
+    }
+
+    // 3. Viajes desde mañana.
+    return this.actualizarConductorDesdeManana(placaL, nombreL);
+  }
+
+  // Los viajes que salen desde MAÑANA (fecha real del calendario, no el mes
+  // que se esté viendo) toman el conductor nuevo. Los de hoy y los pasados
+  // quedan con quien los hizo. No se tocan los que tienen un conductor de
+  // respaldo puesto a propósito ese día (condTemporal), los cancelados, ni
+  // los que ya tienen ese mismo nombre.
+  public async actualizarConductorDesdeManana(placa: string, nuevoConductor: string): Promise<number> {
+    const placaLimpia = String(placa || '').toUpperCase().trim();
+    if (!placaLimpia || !this.S?.viajes) return 0;
+
+    const manana = new Date();
+    manana.setHours(0, 0, 0, 0);
+    manana.setDate(manana.getDate() + 1);
+    const mananaISO = `${manana.getFullYear()}-${String(manana.getMonth() + 1).padStart(2, '0')}-${String(manana.getDate()).padStart(2, '0')}`;
     const mesesTexto = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
     const afectados = this.S.viajes.filter((vj: any) => {
-      const placaViaje = String(vj.p || vj.placa || '').toUpperCase().trim();
-      if (placaViaje !== placaLimpia) return false;
+      if (!DataService.mismaPlaca(vj.p || vj.placa, placaLimpia)) return false;
       if (vj.estado === 'Cancelado') return false;
-
-      // Si a este viaje puntual ya se le asignó un conductor de RESPALDO
-      // a propósito (por descanso del titular ese día — ver
-      // elegirRespaldoConductor en rutograma.ts, que marca condTemporal
-      // igual a cond), NO se pisa aquí — quien haya elegido ese
-      // respaldo lo hizo específicamente para ese viaje, y reasignar el
-      // conductor titular de la placa en general no debe deshacerlo en
-      // silencio.
+      if (DataService.mismoNombre(vj.cond, nuevoConductor)) return false;
       if (vj.condTemporal && String(vj.condTemporal).trim() === String(vj.cond || '').trim() && String(vj.condTemporal).trim() !== '') {
         return false;
       }
+      if (vj.fecha) return vj.fecha >= mananaISO;
 
-      // Si el viaje trae fecha real guardada ("YYYY-MM-DD"), es la
-      // comparación más confiable.
-      if (vj.fecha) return vj.fecha >= hoyISO;
-
-      // Respaldo para viajes viejos sin fecha: comparar mes/año real
-      // contra el mes/año del viaje.
+      // Viajes viejos sin fecha: se arma con mes/año/día del viaje.
+      const idxMes = mesesTexto.indexOf(vj.mes);
       const anioViaje = Number(vj.anio);
-      if (isNaN(anioViaje)) return false;
-      if (anioViaje > hoy.getFullYear()) return true;
-      if (anioViaje < hoy.getFullYear()) return false;
-
-      const idxMesViaje = mesesTexto.indexOf(vj.mes);
-      const idxMesReal = hoy.getMonth();
-      if (idxMesViaje === -1) return false;
-      if (idxMesViaje > idxMesReal) return true;
-      if (idxMesViaje < idxMesReal) return false;
-      return Number(vj.dia ?? vj.salida) >= hoy.getDate();
+      if (idxMes === -1 || isNaN(anioViaje)) return false;
+      const d = new Date(anioViaje, idxMes, Number(vj.dia ?? vj.salida) || 1);
+      return d.getTime() >= manana.getTime();
     });
 
     for (const vj of afectados) {
       vj.cond = nuevoConductor;
       await this.guardarViaje({ ...vj });
     }
+    if (afectados.length) this.dataChanged.next();
+    return afectados.length;
   }
 
   // ============================================================

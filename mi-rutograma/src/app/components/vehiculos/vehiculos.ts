@@ -1049,13 +1049,14 @@ export class VehiculosComponent implements OnInit, OnDestroy {
       }
     });
 
-    // Los viajes de HOY en adelante de esta placa toman el nombre de
-    // este conductor — los ya pasados se quedan tal cual (ver
-    // actualizarConductorDesdeHoy en data.ts). Seguro de llamar siempre
-    // que haya un conductor puesto, aunque no haya cambiado nada.
+    // La lista de Conductores queda de acuerdo (quien tenía la placa la
+    // suelta) y los viajes de esta placa desde mañana pasan al conductor
+    // nuevo (ver asignarConductorAPlaca en data.ts).
     const conductorAsignado = String(vehiculoEstructurado.cond || '').trim();
     if (conductorAsignado) {
-      this.ds.actualizarConductorDesdeHoy(vehiculoEstructurado.p, conductorAsignado);
+      this.ds.asignarConductorAPlaca(vehiculoEstructurado.p, conductorAsignado, 'vehiculo').then(n => {
+        if (n) this.ui.mostrarToast(`${n} viaje(s) de ${vehiculoEstructurado.p} desde mañana quedaron con ${conductorAsignado}.`, 'ok');
+      });
     }
 
     this.ds.autoSave();

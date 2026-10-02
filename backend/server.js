@@ -3275,6 +3275,11 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
         });
         const listaVehiculos = data.vehiculos || [];
         const listaConductores = data.conductores || [];
+        const conductorDePlacaMatriz = (placa, vehiculo) => {
+            const c = listaConductores.find(x => String(x.veh || x.placa || '').toUpperCase().trim() === String(placa).toUpperCase().trim());
+            const nombre = (c && (c.nom || c.nombre)) || vehiculo?.cond || vehiculo?.conductor || '';
+            return ['', 'SIN ASIGNAR', 'ASIGNADO'].includes(String(nombre).trim().toUpperCase()) ? 'Sin asignar' : String(nombre).trim();
+        };
 
         if (!listaRutas.length) return res.status(400).json({ ok: false, msg: 'La pestaÃ±a de Rutas estÃ¡ vacÃ­a.' });
         if (!listaVehiculos.length) return res.status(400).json({ ok: false, msg: 'La pestaÃ±a de VehÃ­culos estÃ¡ vacÃ­a.' });
@@ -3627,6 +3632,9 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
                         anio: Number(anio),
                         tarifa: tarifaFinal,
                         costo: tarifaFinal,
+                        // Conductor de la placa al generar: queda guardado en el viaje
+                        // para que un cambio de conductor después no reescriba los ya hechos.
+                        cond: conductorDePlacaMatriz(placaAsignada, vehiculoAsignado),
                         estado: 'Planificado'
                     };
 

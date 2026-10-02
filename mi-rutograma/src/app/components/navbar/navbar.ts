@@ -395,6 +395,8 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
           viejo.placa = placaCupo;
           viejo.tr = nombreTrFallback;
           viejo.transportadora = nombreTrFallback;
+          // Tercero: solo ocupa el día de salida.
+          viejo.retorno = Number(viejo.salida) + 1;
 
           const okReasignado = await this.dataService.guardarViaje({ ...viejo });
           if (!okReasignado) {
