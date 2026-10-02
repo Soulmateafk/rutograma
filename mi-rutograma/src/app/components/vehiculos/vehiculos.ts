@@ -1054,7 +1054,9 @@ export class VehiculosComponent implements OnInit, OnDestroy {
     // nuevo (ver asignarConductorAPlaca en data.ts).
     const conductorAsignado = String(vehiculoEstructurado.cond || '').trim();
     if (conductorAsignado) {
-      this.ds.asignarConductorAPlaca(vehiculoEstructurado.p, conductorAsignado, 'vehiculo').then(n => {
+      this.ds.asignarConductorAPlaca(vehiculoEstructurado.p, conductorAsignado, 'vehiculo', {
+        nombre: String(this.vehiculoOriginalEdicion?.cond || this.vehiculoOriginalEdicion?.conductor || '')
+      }).then(n => {
         if (n) this.ui.mostrarToast(`${n} viaje(s) de ${vehiculoEstructurado.p} desde mañana quedaron con ${conductorAsignado}.`, 'ok');
       });
     }

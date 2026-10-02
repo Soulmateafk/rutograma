@@ -922,14 +922,22 @@ export class DataService {
    * guardó el cambio (esa parte no se vuelve a guardar).
    * Devuelve cuántos viajes cambiaron de conductor.
    */
-  public async asignarConductorAPlaca(placa: string, nombre: string, origen: 'conductor' | 'vehiculo'): Promise<number> {
+  public async asignarConductorAPlaca(
+    placa: string,
+    nombre: string,
+    origen: 'conductor' | 'vehiculo',
+    antes: { nombre?: string; placaDelNuevo?: string } = {}
+  ): Promise<number> {
     const placaL = String(placa || '').toUpperCase().trim();
     const nombreL = String(nombre || '').trim();
     if (!placaL || !nombreL) return 0;
+    let nombreAnterior = String(antes.nombre || '').trim();
 
     // 1. Lista de Conductores: quien tenía la placa la suelta y el nuevo la toma.
     if (origen === 'vehiculo') {
       const anterior = this.conductorConPlaca(placaL, nombreL);
+      // El que tenía la placa en Conductores es el que se veía en el Rutograma.
+      if (anterior) nombreAnterior = String(anterior.nom || anterior.nombre || '').trim();
       if (anterior) {
         const i = this.S.conductores.indexOf(anterior);
         await this.guardarConductorValidado({ ...anterior, veh: '', placa: '', p: '' }, i, true);
@@ -941,24 +949,51 @@ export class DataService {
       }
     }
 
-    // 2. Vehículos: el conductor principal de la placa es el nuevo, y si
-    // venía de otra placa, esa queda sin conductor principal.
+    // 2. Vehículos: el conductor principal de la placa es el nuevo, y la
+    // placa que traía antes ese conductor queda sin conductor principal.
+    // Se guarda SIEMPRE: la pantalla de Conductores ya cambió el vehículo en
+    // memoria (sincronizarVehiculosJS) sin guardarlo en el servidor.
     if (origen === 'conductor') {
       const vehiculos = this.S.vehiculos || [];
       for (let i = 0; i < vehiculos.length; i++) {
         const v = vehiculos[i];
-        const esLaPlaca = DataService.mismaPlaca(v.p || v.placa, placaL);
-        const loLlevaba = DataService.mismoNombre(v.cond || v.conductor, nombreL);
-        if (esLaPlaca && !loLlevaba) {
+        if (DataService.mismaPlaca(v.p || v.placa, placaL)) {
           await this.guardarVehiculo({ ...v, cond: nombreL, conductor: nombreL }, i, true);
-        } else if (!esLaPlaca && loLlevaba) {
+        } else if (antes.placaDelNuevo && DataService.mismaPlaca(v.p || v.placa, antes.placaDelNuevo)) {
           await this.guardarVehiculo({ ...v, cond: '', conductor: '' }, i, true);
         }
       }
     }
 
-    // 3. Viajes desde mañana.
+    // 3. Viajes: desde mañana el nuevo; los anteriores sin conductor
+    // guardado quedan con el que los hizo (si no, se verían con el nuevo).
+    const anteriorEsGenerico = ['', 'SIN ASIGNAR', 'ASIGNADO', 'SIN CONDUCTOR'].includes(nombreAnterior.toUpperCase());
+    if (!anteriorEsGenerico && !DataService.mismoNombre(nombreAnterior, nombreL)) {
+      await this.fijarConductorEnViajesAnteriores(placaL, nombreAnterior);
+    }
     return this.actualizarConductorDesdeManana(placaL, nombreL);
+  }
+
+  /** Viajes de la placa ANTES de mañana (este mes y el anterior) que no
+   *  tienen conductor guardado: se les guarda el que tenía la placa. */
+  private async fijarConductorEnViajesAnteriores(placa: string, nombre: string): Promise<void> {
+    const hoy = new Date();
+    const mananaISO = this.fechaISO(new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + 1));
+    const desdeISO = this.fechaISO(new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1));
+    const genericos = ['', 'SIN ASIGNAR', 'ASIGNADO', 'SIN CONDUCTOR'];
+    const viajes = (this.S.viajes || []).filter((vj: any) =>
+      DataService.mismaPlaca(vj.p || vj.placa, placa) &&
+      vj.fecha && vj.fecha >= desdeISO && vj.fecha < mananaISO &&
+      genericos.includes(String(vj.cond || '').trim().toUpperCase())
+    );
+    for (const vj of viajes) {
+      vj.cond = nombre;
+      await this.guardarViaje({ ...vj });
+    }
+  }
+
+  private fechaISO(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
   // Los viajes que salen desde MAÑANA (fecha real del calendario, no el mes

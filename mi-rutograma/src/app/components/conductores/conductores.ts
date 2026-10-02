@@ -382,6 +382,10 @@ export class ConductoresComponent implements OnInit, OnDestroy {
     // ¿La placa ya la tiene otro conductor? Se ofrece pasársela a este
     // (antes solo salía "El vehículo ya está asignado").
     const placaPedida = String(this.nuevoConductor.veh || '').trim();
+    // Para que los viajes anteriores conserven a quien los hizo y la placa
+    // que traía este conductor quede libre.
+    const placaQueTraia = String(this.conductorOriginalEdicion?.veh || this.conductorOriginalEdicion?.placa || '').trim();
+    let nombreQueTeniaLaPlaca = '';
     if (placaPedida) {
       const otro = this.dataService.conductorConPlaca(placaPedida, nombreValidable);
       if (otro) {
@@ -394,6 +398,7 @@ export class ConductoresComponent implements OnInit, OnDestroy {
         if (!pasar) return;
         const iOtro = this.dataService.S.conductores.indexOf(otro);
         await this.dataService.guardarConductorValidado({ ...otro, veh: '', placa: '', p: '' }, iOtro, true);
+        nombreQueTeniaLaPlaca = String(otro.nom || otro.nombre || '');
       }
     }
 
@@ -442,7 +447,8 @@ export class ConductoresComponent implements OnInit, OnDestroy {
       // placa desde mañana pasan a su nombre (ver asignarConductorAPlaca).
       const placaAsignada = String(this.nuevoConductor.veh || this.nuevoConductor.placa || '').trim();
       if (placaAsignada) {
-        this.dataService.asignarConductorAPlaca(placaAsignada, nombreValidable, 'conductor').then(n => {
+        const placaDelNuevo = placaQueTraia.toUpperCase() !== placaAsignada.toUpperCase() ? placaQueTraia : '';
+        this.dataService.asignarConductorAPlaca(placaAsignada, nombreValidable, 'conductor', { nombre: nombreQueTeniaLaPlaca, placaDelNuevo }).then(n => {
           if (n) this.ui.mostrarToast(`${n} viaje(s) de ${placaAsignada.toUpperCase()} desde mañana quedaron con ${nombreValidable}.`, 'ok');
         });
       }
