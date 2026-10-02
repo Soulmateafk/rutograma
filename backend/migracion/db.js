@@ -628,7 +628,24 @@ function limpiarHistoricoMesesDB(modo = 'real') {
   return conectar(modo).prepare('DELETE FROM historico_meses').run().changes;
 }
 
+// ============================================================
+// CONFIGURACIÓN COMPARTIDA (transportadoras, cupos de Configuración,
+// festivos) — antes se guardaba solo en el navegador de cada equipo.
+// ============================================================
+function leerConfigCompartidaDB(modo = 'real') {
+  const filas = conectar(modo).prepare('SELECT clave, valor_json FROM configuracion_compartida').all();
+  const config = {};
+  filas.forEach(f => { config[f.clave] = aJSON(f.valor_json, null); });
+  return config;
+}
+
+function guardarConfigCompartidaDB(modo, clave, valor, editadoPor) {
+  conectar(modo).prepare(`INSERT OR REPLACE INTO configuracion_compartida (clave, valor_json, editado_por, editado_en)
+    VALUES (?, ?, ?, ?)`).run(clave, JSON.stringify(valor), editadoPor || null, new Date().toISOString());
+}
+
 module.exports = {
+  leerConfigCompartidaDB, guardarConfigCompartidaDB,
   listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB,
   leerDB, guardarEnDB, conectar, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB,
   registrarAuditoriaDB, listarAuditoriaDB, importarAuditoriaJSONLSiHaceFalta

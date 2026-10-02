@@ -296,6 +296,7 @@ export class DataService {
         // Configuración guardada en este equipo (transportadoras, cupos...).
         this.S[entry.clave] = JSON.parse(JSON.stringify(deshacer ? entry.antes : entry.despues));
         await this.autoSave();
+        if (DataService.CLAVES_CONFIG_COMPARTIDA.includes(entry.clave)) await this.guardarConfigCompartida(entry.clave);
         return true;
       }
       case 'respaldo': {
@@ -673,8 +674,15 @@ export class DataService {
           }
         }
 
+        // Configuración que este equipo tenía guardada solo en su navegador
+        // y que el servidor todavía no tiene (primera vez con esta versión):
+        // se sube, para que el resto de equipos la vea.
+        const sinSubir = DataService.CLAVES_CONFIG_COMPARTIDA.filter(c =>
+          datosServidor[c] === undefined && Array.isArray(this.S[c]) && this.S[c].length > 0);
+
         Object.assign(this.S, datosServidor);
         await this.autoSave();
+        for (const clave of sinSubir) await this.guardarConfigCompartida(clave);
 
         this.ui.syncFechas();
         this.ui.renderDash();
@@ -1368,6 +1376,29 @@ export class DataService {
     }
   }
 
+  // ============================================================
+  // CONFIGURACIÓN COMPARTIDA — transportadoras, cupos de Configuración y
+  // festivos. Antes vivían solo en el navegador de cada equipo (lo que se
+  // cambiaba en otro computador nunca llegaba al principal). Ahora se
+  // guardan en el servidor y llegan a todos con la sincronización.
+  // ============================================================
+  public static readonly CLAVES_CONFIG_COMPARTIDA = ['transportadoras', 'cuposExt', 'festivos'];
+
+  public async guardarConfigCompartida(clave: string): Promise<void> {
+    const url = `${this.API_URL}/configuracion/compartida`;
+    const body = { clave, valor: this.S[clave] || [] };
+    try {
+      await firstValueFrom(this.http.post(url, body, this.headersAuditoria()));
+    } catch (e: any) {
+      if (e?.status === 0) {
+        this.encolarCambioPendiente(url, body, `Configuración: ${clave}`);
+        return;
+      }
+      console.error(`Error guardando ${clave} en el servidor:`, e);
+      this.ui.mostrarErrorHttp(e, 'guardar la configuración');
+    }
+  }
+
   public guardarTransportadora(data: any): string | null {
     if (this.S.transportadoras.find((t: any) => t.clave === data.clave)) return 'Ya existe esa clave.';
     const antes = JSON.parse(JSON.stringify(this.S.transportadoras));
@@ -1378,6 +1409,7 @@ export class DataService {
       descripcion: `Nueva transportadora ${data.nombre || data.clave}`
     });
     this.autoSave();
+    this.guardarConfigCompartida('transportadoras');
     return null;
   }
 

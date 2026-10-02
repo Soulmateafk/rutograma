@@ -21,7 +21,7 @@ const { ROLES_VALIDOS, rolDeCuenta, requiereAprobacion, describirCambio, solicit
 // vuelva a ejecutar la petición de un auxiliar cuando un jefe la aprueba.
 // Solo vive en memoria: nadie de afuera puede conocerla.
 const TOKEN_REPLAY_APROBACION = crypto.randomBytes(32).toString('hex');
-const { leerDB, guardarEnDB, listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, importarAuditoriaJSONLSiHaceFalta } = require('./migracion/db.js');
+const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, importarAuditoriaJSONLSiHaceFalta } = require('./migracion/db.js');
 
 // Lee las credenciales de correo desde un archivo .env (nunca escritas
 // directo en este código) — ver las instrucciones al final de este
@@ -1944,6 +1944,31 @@ app.post('/api/limpiar-historial', async (req, res) => {
 });
 
 // ============================================================
+// CONFIGURACIÓN COMPARTIDA — lo que antes se guardaba solo en el navegador
+// de cada equipo. body: { clave, valor }
+// ============================================================
+const CLAVES_CONFIG_COMPARTIDA = { transportadoras: 'array', cuposExt: 'array', festivos: 'array' };
+
+app.post('/api/configuracion/compartida', (req, res) => {
+    try {
+        const clave = String(req.body?.clave || '');
+        const valor = req.body?.valor;
+        if (!CLAVES_CONFIG_COMPARTIDA[clave]) {
+            return res.status(400).json({ ok: false, msg: `Clave no permitida: ${clave}` });
+        }
+        if (!Array.isArray(valor)) {
+            return res.status(400).json({ ok: false, msg: `"${clave}" debe ser una lista.` });
+        }
+        guardarConfigCompartidaDB(modoActual, clave, valor, normalizarEmail(req.headers['x-user-email']));
+        res.locals.auditoriaResumen = { clave, cantidad: valor.length };
+        res.json({ ok: true, clave });
+    } catch (error) {
+        console.error('🚨 Error en /api/configuracion/compartida:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// ============================================================
 // REACOMODAR CUPOS (Arsitrans / Polar) de un mes — solo mueve viajes de
 // tercero entre sus cupos numerados (ver cupos.js). No toca fechas, rutas,
 // flota propia ni placas reales escritas a mano.
@@ -2222,6 +2247,10 @@ app.get('/api/dashboard-data', (req, res) => {
         // cualquier pantalla (no solo Configuración, que antes era la
         // única que lo sabía) puede mostrar un aviso si estás en Prueba.
         dataSegura.modo = modoActual;
+        // Transportadoras, cupos de Configuración y festivos: los mismos
+        // para todos los equipos (solo se mandan los que ya se guardaron
+        // alguna vez; si no, cada equipo conserva lo suyo y lo sube).
+        Object.assign(dataSegura, leerConfigCompartidaDB(modoActual));
         res.json({ ok: true, data: dataSegura });
     } catch (error) {
         res.status(500).json({ ok: false, message: "Error al leer el archivo", error: error.message });

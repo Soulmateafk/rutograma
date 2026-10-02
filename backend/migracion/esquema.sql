@@ -196,3 +196,13 @@ CREATE TABLE IF NOT EXISTS historico_meses (
   cerrado_en          TEXT,
   PRIMARY KEY (anio, mes)
 );
+
+-- Configuración que antes vivía solo en el navegador de cada equipo
+-- (transportadoras, cupos de Configuración, festivos): ahora la comparten
+-- todos los equipos. Una fila por clave, con su valor en JSON.
+CREATE TABLE IF NOT EXISTS configuracion_compartida (
+  clave               TEXT PRIMARY KEY,
+  valor_json          TEXT NOT NULL,
+  editado_por         TEXT,
+  editado_en          TEXT
+);
