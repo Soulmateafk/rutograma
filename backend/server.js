@@ -693,9 +693,8 @@ const transportadorCorreo = nodemailer.createTransport({
 });
 
 // ¿A qué correos se permite enviar? (EMAIL_DESTINOS_PERMITIDOS en .env)
-//   vacío  → como siempre: solo cuentas de Makand en Outlook (contienen
-//            "makand" y son @outlook.), para no escribirle a correos de prueba.
-//   *      → a cualquier correo.
+//   vacío o * → a cualquier correo (antes, vacío dejaba solo cuentas de
+//               Makand en Outlook; esa regla se quitó).
 //   lista  → separada por comas: dominios ("@gmail.com", "@makand.com")
 //            o correos completos ("pepe@gmail.com").
 const reglaDestinosCorreo = () => String(process.env.EMAIL_DESTINOS_PERMITIDOS || '').trim().toLowerCase();
@@ -704,16 +703,14 @@ const destinoCorreoPermitido = (correo) => {
     const c = String(correo || '').toLowerCase().trim();
     if (!c.includes('@')) return false;
     const regla = reglaDestinosCorreo();
-    if (!regla) return c.includes('makand') && c.includes('@outlook.');
-    if (regla === '*') return true;
+    if (!regla || regla === '*') return true;
     return regla.split(',').map(x => x.trim()).filter(Boolean)
         .some(x => x.startsWith('@') ? c.endsWith(x) : c === x);
 };
 
 const describirReglaDestinos = () => {
     const regla = reglaDestinosCorreo();
-    if (!regla) return 'Solo cuentas de Makand en Outlook (valor por defecto)';
-    if (regla === '*') return 'Cualquier correo';
+    if (!regla || regla === '*') return 'Cualquier correo';
     return `Solo: ${regla}`;
 };
 
