@@ -14,6 +14,12 @@ const bcrypt = require('bcryptjs');
 // (la carpeta donde pusiste esquema.sql/db.js/migrar.js).
 const { rangosMantenimiento, diasOcupadoViaje, mantenimientoQueChoca, agregarSesionConTope, colapsarSesionesDuplicadas, compararParaVariedad, anotarDestino } = require('./reglas');
 const { leerLibroViajeros, armarImportacion, aplicarImportacion } = require('./importacion');
+const { ROLES_VALIDOS, rolDeCuenta, puedeAprobar, requiereAprobacion, describirCambio, solicitudPublica } = require('./aprobaciones');
+
+// Marca secreta (cambia en cada arranque) para que el propio servidor
+// vuelva a ejecutar la petición de un auxiliar cuando un jefe la aprueba.
+// Solo vive en memoria: nadie de afuera puede conocerla.
+const TOKEN_REPLAY_APROBACION = crypto.randomBytes(32).toString('hex');
 const { leerDB, guardarEnDB, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, importarAuditoriaJSONLSiHaceFalta } = require('./migracion/db.js');
 
 // Lee las credenciales de correo desde un archivo .env (nunca escritas
@@ -442,6 +448,16 @@ const cuentasCandidatasParaPase = (email) => {
 const identificarUsuario = (req, res, next) => {
     if (!req.path.startsWith('/api/')) return next();
 
+    // Cambio de un auxiliar que un jefe acaba de aprobar: lo vuelve a
+    // ejecutar el propio servidor (ver /api/aprobaciones/decidir).
+    const marcaReplay = String(req.headers['x-replay-aprobacion'] || '');
+    if (marcaReplay && marcaReplay.length === TOKEN_REPLAY_APROBACION.length &&
+        crypto.timingSafeEqual(Buffer.from(marcaReplay), Buffer.from(TOKEN_REPLAY_APROBACION))) {
+        req.esReplayAprobado = true;
+        req.usuarioVerificado = normalizarEmail(req.headers['x-user-email']);
+        return next();
+    }
+
     const coincidencia = /^Bearer\s+(.+)$/i.exec(String(req.headers['authorization'] || ''));
 
     if (!coincidencia) {
@@ -572,6 +588,12 @@ app.use((req, res, next) => {
         res.on('finish', () => {
             if (res.locals.auditoriaOmitir) return;
             const resumenCompleto = { ...(req.body || {}), ...(res.locals.auditoriaExtra || {}) };
+            // Cambio de un auxiliar aplicado tras la aprobación de un jefe:
+            // queda a nombre del auxiliar, con quién lo aprobó.
+            if (req.esReplayAprobado) {
+                resumenCompleto.aprobadoPor = normalizarEmail(req.headers['x-aprobado-por']);
+                resumenCompleto.aprobacionId = String(req.headers['x-aprobacion-id'] || '');
+            }
             registrarAuditoria(usuario, req.method, req.path, resumenCompleto, modoActual);
         });
     }
@@ -910,6 +932,8 @@ app.use((req, res, next) => {
     // Estas rutas tienen que funcionar ANTES de que exista una sesión —
     // no tiene sentido (ni es posible) revisar el rol todavía.
     if (RUTAS_SIN_RESTRICCION_DE_ROL.includes(req.path)) return next();
+    // Ya aprobado por un jefe: se aplica tal cual.
+    if (req.esReplayAprobado) return next();
 
     try {
         const email = normalizarEmail(req.headers['x-user-email']);
@@ -929,12 +953,193 @@ app.use((req, res, next) => {
             return res.status(403).json({ ok: false, msg: 'Tu cuenta es de solo lectura — no puedes hacer cambios.' });
         }
 
+        // Auxiliar: el cambio NO se aplica; queda pendiente hasta que un
+        // jefe (o el admin) lo apruebe en Aprobaciones.
+        if (cuenta && rolDeCuenta(cuenta, false) === 'auxiliar' && requiereAprobacion(req.method, req.path, req.body)) {
+            const solicitud = {
+                id: crypto.randomBytes(8).toString('hex'),
+                estado: 'PENDIENTE',
+                solicitante: email,
+                nombreSolicitante: cuenta.nombre || email,
+                metodo: req.method,
+                ruta: req.path,
+                cuerpo: req.body || {},
+                descripcion: describirCambio(req.method, req.path, req.body || {}),
+                modo: modoActual,
+                creada: new Date().toISOString()
+            };
+            solicitudesAprobacion.push(solicitud);
+            guardarSolicitudesAprobacion();
+            res.locals.auditoriaExtra = { aprobacion: 'PENDIENTE', aprobacionId: solicitud.id, descripcion: solicitud.descripcion };
+            console.log(`📝 ${email} pidió aprobación: ${solicitud.descripcion}`);
+            return res.status(202).json({
+                ok: true,
+                pendiente: true,
+                aprobacionId: solicitud.id,
+                msg: `Enviado para aprobación del jefe: ${solicitud.descripcion}`
+            });
+        }
+
         next();
     } catch (err) {
         // Un fallo revisando el rol NUNCA debe tumbar la petición real
         // (mismo criterio que ya se usa en registrarAuditoria).
         console.error('⚠️ Error revisando el rol de la cuenta:', err.message);
         next();
+    }
+});
+
+// ============================================================
+// COLA DE APROBACIONES (cambios de cuentas "auxiliar")
+// Se guarda en data/aprobaciones.json, con su historial (quién pidió,
+// quién aprobó o rechazó, cuándo y por qué).
+// ============================================================
+const ARCHIVO_APROBACIONES = path.join(CARPETA_DATOS, 'aprobaciones.json');
+const MAX_SOLICITUDES_GUARDADAS = 1000;
+let solicitudesAprobacion = (() => {
+    try {
+        if (fs.existsSync(ARCHIVO_APROBACIONES)) {
+            const lista = JSON.parse(fs.readFileSync(ARCHIVO_APROBACIONES, 'utf8'));
+            if (Array.isArray(lista)) return lista;
+        }
+    } catch (err) {
+        console.error('⚠️ No se pudo leer aprobaciones.json:', err.message);
+    }
+    return [];
+})();
+function guardarSolicitudesAprobacion() {
+    try {
+        // Las ya decididas más viejas se descartan primero; las pendientes nunca.
+        if (solicitudesAprobacion.length > MAX_SOLICITUDES_GUARDADAS) {
+            const pendientes = solicitudesAprobacion.filter(s => s.estado === 'PENDIENTE');
+            const decididas = solicitudesAprobacion.filter(s => s.estado !== 'PENDIENTE')
+                .slice(-(MAX_SOLICITUDES_GUARDADAS - pendientes.length));
+            solicitudesAprobacion = [...decididas, ...pendientes].sort((a, b) => a.creada.localeCompare(b.creada));
+        }
+        fs.writeFileSync(ARCHIVO_APROBACIONES, JSON.stringify(solicitudesAprobacion), { mode: 0o600 });
+    } catch (err) {
+        console.error('⚠️ No se pudo guardar aprobaciones.json:', err.message);
+    }
+}
+
+/** Rol efectivo de quien hace la petición ('admin', 'jefe', 'editor', 'lector', 'auxiliar'). */
+function rolDelSolicitante(req) {
+    const email = normalizarEmail(req.headers['x-user-email']);
+    if (!email) return null;
+    if (email === normalizarEmail(ADMIN_EMAIL)) return 'admin';
+    const cuenta = (leerExcel().usuarios || []).find(u => normalizarEmail(u.email) === email);
+    return cuenta ? rolDeCuenta(cuenta, false) : null;
+}
+
+// Jefe/admin: todas (pendientes primero). Auxiliar: solo las suyas.
+app.get('/api/aprobaciones', (req, res) => {
+    const email = normalizarEmail(req.headers['x-user-email']);
+    const rol = rolDelSolicitante(req);
+    if (!rol) return res.status(401).json({ ok: false, msg: 'Debes iniciar sesión.' });
+    const visibles = puedeAprobar(rol)
+        ? solicitudesAprobacion
+        : solicitudesAprobacion.filter(s => s.solicitante === email);
+    const lista = [...visibles]
+        .sort((a, b) => (a.estado === 'PENDIENTE' ? 0 : 1) - (b.estado === 'PENDIENTE' ? 0 : 1) ||
+            String(b.decididaEn || b.creada).localeCompare(String(a.decididaEn || a.creada)))
+        .slice(0, 300)
+        .map(solicitudPublica);
+    res.json({
+        ok: true,
+        puedeAprobar: puedeAprobar(rol),
+        pendientes: visibles.filter(s => s.estado === 'PENDIENTE').length,
+        solicitudes: lista
+    });
+});
+
+// Vuelve a ejecutar la petición original del auxiliar contra este mismo
+// servidor, marcada como ya aprobada (pasa por las mismas validaciones
+// que cualquier otro cambio).
+function ejecutarSolicitudAprobada(solicitud, aprobador) {
+    return new Promise((resolve) => {
+        const cuerpo = JSON.stringify(solicitud.cuerpo || {});
+        const peticion = require('http').request({
+            host: '127.0.0.1',
+            port: PORT,
+            method: solicitud.metodo,
+            path: solicitud.ruta,
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(cuerpo),
+                'x-user-email': solicitud.solicitante,
+                'x-replay-aprobacion': TOKEN_REPLAY_APROBACION,
+                'x-aprobado-por': aprobador,
+                'x-aprobacion-id': solicitud.id
+            }
+        }, (respuesta) => {
+            let texto = '';
+            respuesta.on('data', c => { texto += c; });
+            respuesta.on('end', () => {
+                let datos = {};
+                try { datos = JSON.parse(texto); } catch { /* respuesta sin JSON */ }
+                resolve({ status: respuesta.statusCode, datos });
+            });
+        });
+        peticion.on('error', (err) => resolve({ status: 0, datos: { msg: err.message } }));
+        peticion.end(cuerpo);
+    });
+}
+
+app.post('/api/aprobaciones/decidir', async (req, res) => {
+    try {
+        const aprobador = normalizarEmail(req.headers['x-user-email']);
+        // Solo las decisiones que de verdad se aplican van a la auditoría
+        // (no los intentos rechazados ni las solicitudes ya decididas).
+        res.locals.auditoriaOmitir = true;
+        if (!puedeAprobar(rolDelSolicitante(req))) {
+            return res.status(403).json({ ok: false, msg: 'Solo un jefe o el administrador puede aprobar cambios.' });
+        }
+        const { id, accion, motivo } = req.body || {};
+        const solicitud = solicitudesAprobacion.find(s => s.id === id);
+        if (!solicitud) return res.status(404).json({ ok: false, msg: 'Esa solicitud no existe.' });
+        if (solicitud.estado !== 'PENDIENTE') {
+            return res.status(409).json({ ok: false, msg: `Esa solicitud ya fue ${solicitud.estado === 'APROBADA' ? 'aprobada' : 'rechazada'}.` });
+        }
+        res.locals.auditoriaExtra = { solicitante: solicitud.solicitante, descripcion: solicitud.descripcion };
+
+        if (accion === 'RECHAZAR') {
+            res.locals.auditoriaOmitir = false;
+            solicitud.estado = 'RECHAZADA';
+            solicitud.decididaPor = aprobador;
+            solicitud.decididaEn = new Date().toISOString();
+            solicitud.motivo = String(motivo || '').trim();
+            guardarSolicitudesAprobacion();
+            console.log(`❌ ${aprobador} rechazó: ${solicitud.descripcion} (de ${solicitud.solicitante})`);
+            return res.json({ ok: true, solicitud: solicitudPublica(solicitud) });
+        }
+        if (accion !== 'APROBAR') return res.status(400).json({ ok: false, msg: "Acción inválida (usa 'APROBAR' o 'RECHAZAR')." });
+
+        if (solicitud.modo !== modoActual) {
+            return res.status(409).json({
+                ok: false,
+                msg: `Este cambio se pidió en Modo ${solicitud.modo === 'pruebas' ? 'Prueba' : 'Real'}. Cambia a ese modo para aprobarlo.`
+            });
+        }
+
+        const resultado = await ejecutarSolicitudAprobada(solicitud, aprobador);
+        if (resultado.status < 200 || resultado.status >= 300 || resultado.datos.ok === false) {
+            // No se pudo aplicar (ej. el vehículo entró en mantenimiento
+            // mientras tanto): queda pendiente para corregir o rechazar.
+            return res.status(422).json({
+                ok: false,
+                msg: `No se pudo aplicar el cambio: ${resultado.datos.msg || `error ${resultado.status}`}`
+            });
+        }
+        res.locals.auditoriaOmitir = false;
+        solicitud.estado = 'APROBADA';
+        solicitud.decididaPor = aprobador;
+        solicitud.decididaEn = new Date().toISOString();
+        guardarSolicitudesAprobacion();
+        console.log(`✅ ${aprobador} aprobó: ${solicitud.descripcion} (de ${solicitud.solicitante})`);
+        return res.json({ ok: true, solicitud: solicitudPublica(solicitud), resultado: resultado.datos });
+    } catch (error) {
+        console.error('🚨 Error en /api/aprobaciones/decidir:', error);
+        res.status(500).json({ ok: false, msg: error.message });
     }
 });
 
@@ -1018,8 +1223,9 @@ app.get('/api/auth/pendientes', (req, res) => {
     try {
         // El frontend manda el correo del que pregunta en la cabecera
         const solicitante = normalizarEmail(req.headers['x-user-email']);
-        if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
-            return res.status(403).json({ ok: false, msg: 'Solo el administrador puede ver esta lista' });
+        // El jefe también la ve (solo lectura: aprobar o cambiar roles sigue siendo del admin).
+        if (!puedeAprobar(rolDelSolicitante(req))) {
+            return res.status(403).json({ ok: false, msg: 'Solo el administrador o un jefe pueden ver esta lista' });
         }
 
         const data = leerExcel();
@@ -1036,8 +1242,9 @@ app.get('/api/auth/pendientes', (req, res) => {
 app.get('/api/auth/usuarios', (req, res) => {
     try {
         const solicitante = normalizarEmail(req.headers['x-user-email']);
-        if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
-            return res.status(403).json({ ok: false, msg: 'Solo el administrador puede ver esta lista' });
+        // El jefe también la ve (solo lectura: aprobar o cambiar roles sigue siendo del admin).
+        if (!puedeAprobar(rolDelSolicitante(req))) {
+            return res.status(403).json({ ok: false, msg: 'Solo el administrador o un jefe pueden ver esta lista' });
         }
         const data = leerExcel();
         // Ni siquiera al admin hace falta mandarle el hash de las
@@ -1133,8 +1340,8 @@ app.post('/api/auth/rol', (req, res) => {
         const rol = String(req.body.rol || '').toLowerCase();
 
         if (!email) return res.status(400).json({ ok: false, msg: 'Falta el correo' });
-        if (rol !== 'editor' && rol !== 'lector') {
-            return res.status(400).json({ ok: false, msg: "Rol inválido (usa 'editor' o 'lector')" });
+        if (!ROLES_VALIDOS.includes(rol)) {
+            return res.status(400).json({ ok: false, msg: `Rol inválido (usa ${ROLES_VALIDOS.join(', ')})` });
         }
 
         const usuario = data.usuarios.find(u => normalizarEmail(u.email) === email);
@@ -2031,8 +2238,8 @@ app.post('/api/cache/refrescar', (req, res) => {
 app.get('/api/auditoria', (req, res) => {
     try {
         const solicitante = normalizarEmail(req.headers['x-user-email']);
-        if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
-            return res.status(403).json({ ok: false, msg: 'Solo el administrador puede ver la auditoría' });
+        if (!puedeAprobar(rolDelSolicitante(req))) {
+            return res.status(403).json({ ok: false, msg: 'Solo el administrador o un jefe pueden ver la auditoría' });
         }
 
         const limite = Math.min(Number(req.query.limite) || 200, 1000);

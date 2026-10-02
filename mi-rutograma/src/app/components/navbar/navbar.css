@@ -224,3 +224,18 @@
   .nav-search { flex-basis: 170px; min-width: 110px; }
   nav { column-gap: 10px; }
 }
+
+/* Número de cambios esperando aprobación (pestaña Aprobaciones). */
+.tab-pend {
+  display: inline-block;
+  min-width: 16px;
+  margin-left: 5px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: #f59e0b;
+  color: #111827;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}

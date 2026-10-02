@@ -10,7 +10,7 @@
     <button class="tab" routerLink="/vehiculos" routerLinkActive="on">Vehículos</button>
     <button class="tab" routerLink="/rutas" routerLinkActive="on">Rutas</button>
     <button *ngFor="let p of paginasMenuMas" class="tab" [class.oculta]="rutasEnMenuMas.has(p.ruta)"
-            [routerLink]="p.ruta" routerLinkActive="on">{{ p.nombre }}</button>
+            [routerLink]="p.ruta" routerLinkActive="on">{{ p.nombre }}<span class="tab-pend" *ngIf="p.ruta === '/aprobaciones' && pendientesAprobacion">{{ pendientesAprobacion }}</span></button>
   </div>
 
   <div class="tab-mas" *ngIf="rutasEnMenuMas.size > 0">
@@ -21,7 +21,7 @@
     <div class="menu-mas" *ngIf="menuMasAbierto">
       <ng-container *ngFor="let p of paginasMenuMas">
         <button *ngIf="rutasEnMenuMas.has(p.ruta)" class="menu-mas-item"
-                [routerLink]="p.ruta" routerLinkActive="on" (click)="menuMasAbierto = false">{{ p.nombre }}</button>
+                [routerLink]="p.ruta" routerLinkActive="on" (click)="menuMasAbierto = false">{{ p.nombre }}<span class="tab-pend" *ngIf="p.ruta === '/aprobaciones' && pendientesAprobacion">{{ pendientesAprobacion }}</span></button>
       </ng-container>
     </div>
   </div>
@@ -60,13 +60,13 @@
          cambios), separado por Modo Real/Prueba. Deshabilitados cuando
          no hay nada que deshacer/rehacer. El title muestra qué cambio
          se va a revertir/reaplicar, sin tener que adivinar. -->
-    <button class="btn sm" *ngIf="authService.puedeEditar"
+    <button class="btn sm" *ngIf="authService.puedeEditar && !authService.esAuxiliar"
             [disabled]="!dataService.descripcionProximoDeshacer"
             [title]="dataService.descripcionProximoDeshacer ? ('Deshacer: ' + dataService.descripcionProximoDeshacer) : 'No hay ningún cambio reciente para deshacer'"
             (click)="deshacerUltimoCambio()">
       <i class="bi bi-arrow-counterclockwise"></i><span class="btn-txt"> Deshacer</span>
     </button>
-    <button class="btn sm" *ngIf="authService.puedeEditar"
+    <button class="btn sm" *ngIf="authService.puedeEditar && !authService.esAuxiliar"
             [disabled]="!dataService.descripcionProximoRehacer"
             [title]="dataService.descripcionProximoRehacer ? ('Rehacer: ' + dataService.descripcionProximoRehacer) : 'No hay ningún cambio para rehacer'"
             (click)="rehacerUltimoCambio()">

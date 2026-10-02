@@ -325,4 +325,19 @@ public get isConfigured(): boolean { return true;
   public get puedeEditar(): boolean {
     return this.account.rol !== 'lector';
   }
+
+  /** Jefe: edita todo y aprueba los cambios de los auxiliares. */
+  public get esJefe(): boolean {
+    return this.account.rol === 'jefe';
+  }
+
+  /** Auxiliar: sus cambios quedan pendientes hasta que un jefe los apruebe. */
+  public get esAuxiliar(): boolean {
+    return this.account.rol === 'auxiliar';
+  }
+
+  /** Admin o jefe: aprueban cambios y entran a Administración (el jefe, solo a ver). */
+  public get puedeAprobar(): boolean {
+    return this.account.esAdmin || this.account.rol === 'jefe';
+  }
 }

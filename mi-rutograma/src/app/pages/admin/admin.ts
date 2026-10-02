@@ -1,10 +1,11 @@
-import { Component, OnInit, OnDestroy, NgZone, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, NgZone, ChangeDetectorRef, inject } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { DataService } from '../../services/data';
 import { CommonModule } from '@angular/common'; // Necesario para el *ngFor
 import { FormsModule } from '@angular/forms'; // Necesario para los [(ngModel)] de los filtros de auditoría
 import { AccountService, CuentaUsuario } from '../../services/account.service';
 import { UiService } from '../../services/ui.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-admin',
@@ -14,6 +15,21 @@ import { UiService } from '../../services/ui.service';
   styleUrl: './admin.css',
 })
 export class Admin implements OnInit, OnDestroy {
+  // Admin: todo. Jefe: entra solo a mirar (cuentas y auditoría), no
+  // aprueba cuentas ni cambia roles. El servidor aplica lo mismo.
+  public auth = inject(AuthService);
+
+  public readonly rolesDisponibles: Array<{ valor: 'editor' | 'lector' | 'jefe' | 'auxiliar'; nombre: string }> = [
+    { valor: 'editor', nombre: 'Editor' },
+    { valor: 'lector', nombre: 'Solo lectura' },
+    { valor: 'jefe', nombre: 'Jefe' },
+    { valor: 'auxiliar', nombre: 'Auxiliar' }
+  ];
+
+  public nombreRol(rol?: string): string {
+    return this.rolesDisponibles.find(r => r.valor === (rol || 'editor'))?.nombre || 'Editor';
+  }
+
   usuarios: CuentaUsuario[] = [];
   cargando: boolean = false;
 
@@ -113,6 +129,7 @@ export class Admin implements OnInit, OnDestroy {
   }
 
   cambiarPestania(p: 'cuentas' | 'auditoria' | 'dispositivos') {
+    if (p === 'dispositivos' && !this.auth.isAdmin) return;
     this.pestaniaActiva = p;
     if (p === 'auditoria' && this.eventos.length === 0) {
       this.cargarAuditoria();
@@ -189,6 +206,21 @@ export class Admin implements OnInit, OnDestroy {
    * esto — todo lo necesario (resumen) ya viaja en cada evento.
    */
   public descripcionEvento(e: any): string {
+    const r = e?.resumen || {};
+    // Aprobaciones de auxiliares: quién pidió, quién aprobó o rechazó.
+    if (e?.ruta === '/api/aprobaciones/decidir') {
+      const verbo = r.accion === 'APROBAR' ? 'Aprobó' : 'Rechazó';
+      const quien = r.solicitante ? ` de ${r.solicitante}` : '';
+      return `${verbo} el cambio${quien}: ${r.descripcion || 'sin descripción'}${r.motivo ? ` — motivo: "${r.motivo}"` : ''}`;
+    }
+    if (r.aprobacion === 'PENDIENTE') {
+      return `Pidió aprobación: ${r.descripcion || this.descripcionBase(e)}`;
+    }
+    const base = this.descripcionBase(e);
+    return r.aprobadoPor ? `${base} — aprobado por ${r.aprobadoPor}` : base;
+  }
+
+  private descripcionBase(e: any): string {
     const r = e?.resumen || {};
     const ruta = String(e?.ruta || '');
 
@@ -359,7 +391,7 @@ export class Admin implements OnInit, OnDestroy {
     }
   }
 
-  async cambiarRol(usuario: any, rol: 'editor' | 'lector') {
+  async cambiarRol(usuario: any, rol: 'editor' | 'lector' | 'jefe' | 'auxiliar') {
     try {
       const rolAntes = usuario.rol || 'editor';
       await this.account.cambiarRol(usuario.email, rol);

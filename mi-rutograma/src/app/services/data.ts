@@ -4,6 +4,7 @@ import { LocalStorageService } from './local-storage.service';
 import { AuthService } from './auth.service';
 import { UiService } from './ui.service';
 import { firstValueFrom } from 'rxjs';
+import { AccountService } from './account.service';
 import { Subject } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
@@ -13,6 +14,7 @@ export class DataService {
   private storage = inject(LocalStorageService);
   private auth = inject(AuthService);
   private ui = inject(UiService);
+  private cuenta = inject(AccountService);
 
   /**
    * Cabecera con tu correo, para que el backend sepa quién hizo cada
@@ -309,6 +311,9 @@ export class DataService {
   }
 
   private registrarUndo(entry: { tipo: string; clave: string; antes: any | null; despues?: any | null; descripcion: string }): void {
+    // Los cambios de un auxiliar no se aplican hasta que un jefe los
+    // apruebe — no hay nada que deshacer todavía.
+    if (this.cuenta.rol === 'auxiliar') return;
     this.pilaDeshacer.push({ ...entry, timestamp: Date.now() });
     if (this.pilaDeshacer.length > this.MAX_DESHACER) this.pilaDeshacer.shift();
     // Cualquier cambio NUEVO borra lo que se pudiera "rehacer" — una vez
@@ -492,7 +497,32 @@ export class DataService {
     ? `${window.location.protocol}//${window.location.hostname}:5000/api`
     : 'http://localhost:5000/api';
 
+  // ============================================================
+  // CAMBIOS PENDIENTES DE APROBACIÓN (cuenta auxiliar)
+  // El servidor no aplicó el cambio (lo dejó pendiente), pero la pantalla
+  // ya lo había mostrado como hecho: se avisa y se vuelve a traer lo que
+  // de verdad hay en el servidor. Se agrupan los avisos que llegan juntos
+  // (un solo guardado puede mandar varios cambios).
+  // ============================================================
+  private avisosPendientes: string[] = [];
+  private temporizadorPendientes: any = null;
+
+  private alCambioPendiente(mensaje: string): void {
+    this.avisosPendientes.push(mensaje);
+    clearTimeout(this.temporizadorPendientes);
+    this.temporizadorPendientes = setTimeout(async () => {
+      const avisos = this.avisosPendientes;
+      this.avisosPendientes = [];
+      const texto = avisos.length === 1
+        ? avisos[0]
+        : `${avisos.length} cambios enviados para aprobación del jefe.`;
+      await this.inicializarApp(true);
+      this.ui.mostrarToast(`<i class="bi bi-hourglass-split"></i> ${texto} Se aplicarán cuando un jefe los apruebe.`, 'ok');
+    }, 400);
+  }
+
   constructor() {
+    this.cuenta.alCambioPendiente.subscribe(msg => this.alCambioPendiente(msg));
     this.S = {
       mes: new Date().getMonth(),
       anio: new Date().getFullYear(),

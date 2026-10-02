@@ -1,16 +1,18 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject } from 'rxjs';
 import { UiService } from './ui.service';
 
 export type UserStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'NOT_FOUND';
+
+export type RolCuenta = 'admin' | 'editor' | 'lector' | 'jefe' | 'auxiliar';
 
 export interface CuentaUsuario {
   email: string;
   nombre: string;
   estado: UserStatus;
   departamento?: string;
-  rol?: 'admin' | 'editor' | 'lector';
+  rol?: RolCuenta;
   solicitadoEn?: string;
   actualizadoPor?: string;
   actualizadoEn?: string;
@@ -38,7 +40,17 @@ export class AccountService {
   private CLAVE_EMAIL = 'rutograma_admin_email';
   public esAdmin = false;
   /** 'admin' | 'editor' (acceso completo) | 'lector' (solo lectura) */
-  public rol: 'admin' | 'editor' | 'lector' = 'lector';
+  public rol: RolCuenta = 'lector';
+
+  /** El servidor dejó un cambio pendiente de aprobación (cuenta auxiliar). */
+  public alCambioPendiente = new Subject<string>();
+
+  /** Rol que manda el servidor -> rol de la app (desconocido = editor). */
+  public static normalizarRol(rol: any, esAdmin: boolean): RolCuenta {
+    if (esAdmin) return 'admin';
+    const r = String(rol || '').toLowerCase();
+    return (['lector', 'editor', 'jefe', 'auxiliar'] as const).includes(r as any) ? r as RolCuenta : 'editor';
+  }
   /** Motivo que escribió el admin al rechazar la cuenta — solo tiene
    *  valor cuando el último login/verificación devolvió estado REJECTED. */
   public motivoRechazo: string = '';
@@ -146,6 +158,12 @@ export class AccountService {
 
     const respuesta = await fetch(url, { ...init, headers: cabeceras });
 
+    if (respuesta.status === 202) {
+      try {
+        const cuerpo = await respuesta.clone().json();
+        if (cuerpo?.pendiente) this.alCambioPendiente.next(cuerpo.msg || 'Enviado para aprobación del jefe.');
+      } catch { /* sin JSON */ }
+    }
     if (respuesta.status === 401) {
       try {
         const cuerpo = await respuesta.clone().json();
@@ -229,7 +247,7 @@ export class AccountService {
     this.emailActivo = correo;
     this.guardarToken(res.token || '');
     this.esAdmin = !!res.esAdmin;
-    this.rol = res.esAdmin ? 'admin' : (res.rol === 'lector' ? 'lector' : 'editor');
+    this.rol = AccountService.normalizarRol(res.rol, !!res.esAdmin);
     this.motivoRechazo = res.motivoRechazo || '';
     this.sesionesCerradasAlEntrar = Number(res.sesionesCerradas) || 0;
     if (Number(res.maxSesiones) > 0) this.maxSesiones = Number(res.maxSesiones);
@@ -259,7 +277,7 @@ export class AccountService {
         this.http.get(`${this.API_URL}/auth/estado?email=${encodeURIComponent(correo)}`)
       );
       this.esAdmin = !!res.esAdmin;
-      this.rol = res.esAdmin ? 'admin' : (res.rol === 'lector' ? 'lector' : 'editor');
+      this.rol = AccountService.normalizarRol(res.rol, !!res.esAdmin);
       this.motivoRechazo = res.motivoRechazo || '';
       return { estado: res.estado, esAdmin: !!res.esAdmin, rol: this.rol };
     } catch {
@@ -284,7 +302,7 @@ export class AccountService {
   }
 
   /** Cambia el rol de una cuenta ('editor' = acceso completo, 'lector' = solo lectura). Solo admin. */
-  async cambiarRol(email: string, rol: 'editor' | 'lector'): Promise<void> {
+  async cambiarRol(email: string, rol: 'editor' | 'lector' | 'jefe' | 'auxiliar'): Promise<void> {
     const url = `${this.API_URL}/auth/rol`;
     const body = { email, rol };
     try {
