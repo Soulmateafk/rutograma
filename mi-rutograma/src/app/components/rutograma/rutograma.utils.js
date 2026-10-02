@@ -19,7 +19,8 @@ export const ASIGNACIONES_VEHICULOS = {
   'QJZ765': ['valledupar', 'barranquilla']
 };
 
-// Quita tildes/acentos y pasa a minúsculas (lo usa buscarRutaEnExcel), para que "Monteria" y "montería" se reconozcan como lo mismo.
+// Quita tildes/acentos y pasa a minúsculas — se comparte entre buscarRutaEnExcel
+// y esRutaPermitida, para que "Monteria" y "montería" se reconozcan como lo mismo.
 function norm(str) {
   return String(str || '')
     .normalize("NFD")
@@ -82,6 +83,21 @@ function buscarRutaEnExcel(vj, S) {
   }
 
   return null;
+}
+
+// 3. VALIDADOR DE RUTAS PERMITIDAS POR VEHÍCULO (solo LUN 428)
+function esRutaPermitida(placa, rExcel, vj) {
+  const pClean = String(placa || '').toUpperCase().replace(/\s/g, '');
+  if (pClean !== 'LUN428') return true;
+  const rutasPermitidas = ASIGNACIONES_VEHICULOS['LUN428'] || [];
+  const destinoFinal = norm(String(rExcel?.dest || vj.destino || vj.ruta || ''));
+  return rutasPermitidas.some(p => destinoFinal.includes(norm(p)));
+}
+
+// Viaje creado por "Generar Matriz": sin tipo (los reales son 'real',
+// los extra 'extra', los cupos 'cupo') y todavía en "Planificado".
+function esViajeGeneradoPorMatriz(vj) {
+  return !vj.tipo && vj.estado === 'Planificado';
 }
 
 // 4. LÓGICA DE TIEMPOS DINÁMICA
@@ -679,11 +695,18 @@ export function agruparViajes(
           S
         );
 
-      // Antes aquí se ESCONDÍAN los viajes de LUN 428 que no fueran a
-      // Barranquilla/Montería: existían (Vehículos los mostraba) pero el
-      // Rutograma pintaba "Vehículo disponible" ese día. La restricción
-      // de rutas aplica al GENERAR (server.js), no al mostrar lo que ya
-      // existe — y los viajes reales importados pueden ir a cualquier lado.
+      // LUN 428 solo hace Barranquilla/Montería, pero esa regla es para
+      // lo que GENERA la matriz: se esconden únicamente los viajes
+      // generados (sin "tipo" y en "Planificado") que no cumplan la regla.
+      // Los reales del Excel (tipo 'real'), los extra y los agregados o
+      // editados a mano se muestran siempre, vayan adonde vayan.
+      if (
+        esViajeGeneradoPorMatriz(vj) &&
+        !esTransportadoraTercero(vj) &&
+        !esRutaPermitida(placa, rExcel, vj)
+      ) {
+        return;
+      }
 
       const codigoRuta =
         rExcel?.cod ||
