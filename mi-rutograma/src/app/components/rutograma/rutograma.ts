@@ -1910,11 +1910,11 @@ export class RutogramaComponent implements OnInit, OnDestroy {
 
     const ruta = this.nuevoCupo.rutaSeleccionada;
     const nombreTr = this.selectedTr === 'arsi' ? 'Arsitrans' : 'Polar';
-    // Cada cupo recibe su propia placa numerada — ya no compite por espacio
-    // con los demás cupos de la misma transportadora, así que se puede crear
-    // uno en cualquier día, exista o no otro viaje ese día.
-    const numeroCupo = this.siguienteNumeroCupo(nombreTr);
-    const placaCupo = `${nombreTr.toUpperCase()} ${numeroCupo}`;
+    // Se reutiliza un cupo que esté libre ESE día (tenga o no viajes el día
+    // antes o después); solo si todos están ocupados ese día se crea uno nuevo.
+    const diaCupo = Number(this.nuevoCupo.dia);
+    const placaCupo = this.buscarCupoLibre(nombreTr, diaCupo, diaCupo + 1, null)
+      || `${nombreTr.toUpperCase()} ${this.siguienteNumeroCupo(nombreTr)}`;
 
     // Si esa placa numerada todavía no existe como vehículo, la creamos —
     // sin esto, el viaje quedaba "huérfano": existía el dato, pero no
@@ -2374,6 +2374,8 @@ export class RutogramaComponent implements OnInit, OnDestroy {
       viejo.placa = placaCupo;
       viejo.tr = nombreTrFallback;
       viejo.transportadora = nombreTrFallback;
+      // Tercero: solo ocupa el día de salida.
+      viejo.retorno = Number(viejo.salida) + 1;
 
       await this.ds.guardarViaje({ ...viejo });
     }
@@ -2589,6 +2591,8 @@ export class RutogramaComponent implements OnInit, OnDestroy {
         this.selectedViaje.p = placaCupo;
         this.selectedViaje.veh = placaCupo;
         this.selectedViaje.placa = placaCupo;
+        // Tercero: solo ocupa el día de salida.
+        this.selectedViaje.retorno = Number(this.selectedViaje.salida) + 1;
       } else {
         // Sí escribió una placa nueva (real, confirmada por la
         // transportadora) — nos aseguramos de que exista como vehículo
@@ -2839,6 +2843,37 @@ export class RutogramaComponent implements OnInit, OnDestroy {
         this.ui.mostrarToast('No se pudo mover el viaje. Intenta de nuevo.', 'err');
       }
     }
+  }
+
+  // ============================================================
+  // CONDUCTOR AL EDITAR UN VIAJE — lista de todos los conductores. Si se
+  // elige uno distinto al titular de la placa, queda como conductor de
+  // ESTE viaje (condTemporal): cambiar después el conductor de la placa
+  // no lo pisa.
+  // ============================================================
+  public get opcionesConductorViaje(): Array<{ nombre: string; etiqueta: string }> {
+    const titular = this.conductoresMap[String(this.selectedViaje?.p || '').toUpperCase().trim()] || '';
+    const lista = (this.ds.S.conductores || [])
+      .map((c: any) => ({ nombre: String(c.nom || c.nombre || '').trim(), placa: String(c.veh || c.placa || '').toUpperCase().trim(), est: c.est }))
+      .filter((c: any) => c.nombre)
+      .sort((a: any, b: any) => a.nombre.localeCompare(b.nombre, 'es'))
+      .map((c: any) => ({
+        nombre: c.nombre,
+        etiqueta: `${c.nombre}${c.placa ? ' — ' + c.placa : ' — sin placa'}${c.nombre === titular ? ' (titular)' : ''}${c.est && c.est !== 'activo' ? ' · ' + c.est : ''}`
+      }));
+    const actual = String(this.selectedViaje?.cond || '').trim();
+    const opciones = [{ nombre: 'Sin asignar', etiqueta: 'Sin asignar' }, ...lista];
+    if (actual && !opciones.some(o => o.nombre === actual)) opciones.splice(1, 0, { nombre: actual, etiqueta: `${actual} (no está en Conductores)` });
+    return opciones;
+  }
+
+  public trackConductorOpcion = (_: number, c: { nombre: string }) => c.nombre;
+
+  public elegirConductorViaje(nombre: string): void {
+    if (!this.selectedViaje) return;
+    const titular = this.conductoresMap[String(this.selectedViaje.p || '').toUpperCase().trim()] || '';
+    this.selectedViaje.cond = nombre;
+    this.selectedViaje.condTemporal = (nombre && nombre !== 'Sin asignar' && nombre !== titular) ? nombre : '';
   }
 
   aplicarConductorTemporal(): void {

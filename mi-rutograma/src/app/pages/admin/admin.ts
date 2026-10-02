@@ -124,7 +124,13 @@ export class Admin implements OnInit, OnDestroy {
   cargando: boolean = false;
 
   // --- Auditoría ---
-  pestaniaActiva: 'cuentas' | 'auditoria' | 'dispositivos' = 'cuentas';
+  pestaniaActiva: 'cuentas' | 'auditoria' | 'dispositivos' | 'correo' = 'cuentas';
+
+  // --- Correo (solo admin) ---
+  estadoCorreo: any = null;
+  destinoPrueba = '';
+  probandoCorreo = false;
+  resultadoPrueba: { ok: boolean; msg: string } | null = null;
   eventos: any[] = [];
   cargandoAuditoria: boolean = false;
 
@@ -218,15 +224,35 @@ export class Admin implements OnInit, OnDestroy {
     this.subCambios?.unsubscribe();
   }
 
-  cambiarPestania(p: 'cuentas' | 'auditoria' | 'dispositivos') {
-    if (p === 'dispositivos' && !this.auth.isAdmin) return;
+  cambiarPestania(p: 'cuentas' | 'auditoria' | 'dispositivos' | 'correo') {
+    if ((p === 'dispositivos' || p === 'correo') && !this.auth.isAdmin) return;
     this.pestaniaActiva = p;
+    if (p === 'correo') this.cargarEstadoCorreo();
     if (p === 'auditoria' && this.eventos.length === 0) {
       this.cargarAuditoria();
     }
     if (p === 'dispositivos') {
       this.cargarDispositivosBloqueados();
     }
+  }
+
+  async cargarEstadoCorreo() {
+    try {
+      this.estadoCorreo = await this.account.estadoCorreo();
+    } catch {
+      this.estadoCorreo = null;
+    }
+    this.zone.run(() => this.cdr.detectChanges());
+  }
+
+  async probarCorreo() {
+    if (!this.destinoPrueba.trim() || this.probandoCorreo) return;
+    this.probandoCorreo = true;
+    this.resultadoPrueba = null;
+    this.cdr.detectChanges();
+    this.resultadoPrueba = await this.account.probarCorreo(this.destinoPrueba.trim());
+    this.probandoCorreo = false;
+    this.zone.run(() => this.cdr.detectChanges());
   }
 
   async cargarDispositivosBloqueados() {

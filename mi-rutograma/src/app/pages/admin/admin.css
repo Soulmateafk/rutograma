@@ -238,3 +238,16 @@
 .permisos-estado { margin: 12px 0 0; font-size: 12px; color: #94a3b8; }
 .permisos-estado.personalizado { color: #fbbf24; }
 .permisos-estado a { color: #60a5fa; margin-left: 6px; }
+
+.correo-panel { max-width: 640px; }
+.correo-estado { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 8px; background: rgba(245,158,11,0.12); color: #fbbf24; font-size: 13px; margin-bottom: 12px; }
+.correo-estado.ok { background: rgba(34,197,94,0.12); color: #4ade80; }
+.correo-tabla { width: 100%; font-size: 13px; border-collapse: collapse; }
+.correo-tabla td { padding: 6px 4px; border-bottom: 1px solid #1e293b; color: #e2e8f0; }
+.correo-tabla td:first-child { color: #94a3b8; width: 180px; }
+.correo-sub { font-size: 14px; margin: 18px 0 8px; color: #e2e8f0; }
+.correo-prueba { display: flex; gap: 8px; flex-wrap: wrap; }
+.correo-prueba input { flex: 1; min-width: 200px; background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 6px; padding: 8px 10px; font-size: 13px; }
+.correo-resultado { margin: 8px 0 0; font-size: 13px; color: #f87171; }
+.correo-resultado.ok { color: #4ade80; }
+.correo-lista { margin: 0; padding-left: 18px; font-size: 13px; color: #cbd5e1; line-height: 1.7; }

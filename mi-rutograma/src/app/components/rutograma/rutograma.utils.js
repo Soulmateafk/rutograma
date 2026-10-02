@@ -475,13 +475,19 @@ export function buscarCupoLibre(
         return na - nb;
       });
 
+  // Arsitrans/Polar son flota externa: un cupo solo se ocupa el DÍA DE
+  // SALIDA (sin tránsito ni días intermedios). Basta con que ese día esté
+  // libre — aunque tenga viaje el día antes o el día después. Solo si
+  // ningún cupo existente está libre ese día se crea uno nuevo.
+  const diaSalida = Number(diaIni);
+
   for (const placa of candidatos) {
 
     if (
       !hayConflicto(
         placa,
-        diaIni,
-        diaFin,
+        diaSalida,
+        diaSalida + 1,
         S,
         viajeExcluidoId
       )

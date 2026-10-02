@@ -117,6 +117,8 @@ function describirCambio(metodo, ruta, cuerpo = {}) {
         case '/api/configuracion/generar-matriz': return `Generar Matriz de ${txt(b.mes)} ${txt(b.anio)}`;
         case '/api/importar/viajes-reales': return 'Importar viajes reales desde Excel';
         case '/api/modo': return `Cambiar a modo ${txt(b.modo)}`;
+        case '/api/cerrar-mes': return `Cerrar el mes ${txt(b.label)} en el histórico`;
+        case '/api/limpiar-historial': return 'Borrar todo el histórico';
         default: return `${metodo} ${ruta}`;
     }
 }
@@ -124,7 +126,8 @@ function describirCambio(metodo, ruta, cuerpo = {}) {
 /** Lo que se muestra de una solicitud (sin el Excel completo de una importación). */
 function solicitudPublica(s) {
     const { cuerpo, ...resto } = s;
-    const { archivo, ...cuerpoVisible } = cuerpo || {};
+    // Sin lo pesado: el Excel de una importación o los viajes de un cierre de mes.
+    const { archivo, viajes, novedades, ...cuerpoVisible } = cuerpo || {};
     return { ...resto, cuerpo: cuerpoVisible };
 }
 

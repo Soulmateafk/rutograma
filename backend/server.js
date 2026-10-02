@@ -20,7 +20,7 @@ const { ROLES_VALIDOS, rolDeCuenta, requiereAprobacion, describirCambio, solicit
 // vuelva a ejecutar la petición de un auxiliar cuando un jefe la aprueba.
 // Solo vive en memoria: nadie de afuera puede conocerla.
 const TOKEN_REPLAY_APROBACION = crypto.randomBytes(32).toString('hex');
-const { leerDB, guardarEnDB, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, importarAuditoriaJSONLSiHaceFalta } = require('./migracion/db.js');
+const { leerDB, guardarEnDB, listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, importarAuditoriaJSONLSiHaceFalta } = require('./migracion/db.js');
 
 // Lee las credenciales de correo desde un archivo .env (nunca escritas
 // directo en este código) — ver las instrucciones al final de este
@@ -56,6 +56,8 @@ app.use(cors());
 // La importación de viajes reales manda el Excel completo (en base64):
 // necesita un límite más alto que el resto de la API.
 app.use('/api/importar', express.json({ limit: '30mb' }));
+// El cierre de mes trae todos los viajes del mes (la foto que se guarda).
+app.use('/api/cerrar-mes', express.json({ limit: '20mb' }));
 app.use(express.json());
 
 // ============================================================================
@@ -587,7 +589,8 @@ app.use((req, res, next) => {
         // solo trae un id sin nada legible.
         res.on('finish', () => {
             if (res.locals.auditoriaOmitir) return;
-            const resumenCompleto = { ...(req.body || {}), ...(res.locals.auditoriaExtra || {}) };
+            // auditoriaResumen reemplaza el cuerpo cuando es muy grande (ej. cerrar mes).
+            const resumenCompleto = { ...(res.locals.auditoriaResumen || req.body || {}), ...(res.locals.auditoriaExtra || {}) };
             // Cambio de un auxiliar aplicado tras la aprobación de un jefe:
             // queda a nombre del auxiliar, con quién lo aprobó.
             if (req.esReplayAprobado) {
@@ -669,12 +672,29 @@ const transportadorCorreo = nodemailer.createTransport({
     }
 });
 
-// Solo se manda correo de verdad si el destinatario es una cuenta de
-// Makand en Outlook — evita mandarle notificaciones reales a un correo
-// personal/de prueba que alguien haya usado al registrarse.
-const esCorreoMakandOutlook = (correo) => {
+// ¿A qué correos se permite enviar? (EMAIL_DESTINOS_PERMITIDOS en .env)
+//   vacío  → como siempre: solo cuentas de Makand en Outlook (contienen
+//            "makand" y son @outlook.), para no escribirle a correos de prueba.
+//   *      → a cualquier correo.
+//   lista  → separada por comas: dominios ("@gmail.com", "@makand.com")
+//            o correos completos ("pepe@gmail.com").
+const reglaDestinosCorreo = () => String(process.env.EMAIL_DESTINOS_PERMITIDOS || '').trim().toLowerCase();
+
+const destinoCorreoPermitido = (correo) => {
     const c = String(correo || '').toLowerCase().trim();
-    return c.includes('makand') && c.includes('@outlook.');
+    if (!c.includes('@')) return false;
+    const regla = reglaDestinosCorreo();
+    if (!regla) return c.includes('makand') && c.includes('@outlook.');
+    if (regla === '*') return true;
+    return regla.split(',').map(x => x.trim()).filter(Boolean)
+        .some(x => x.startsWith('@') ? c.endsWith(x) : c === x);
+};
+
+const describirReglaDestinos = () => {
+    const regla = reglaDestinosCorreo();
+    if (!regla) return 'Solo cuentas de Makand en Outlook (valor por defecto)';
+    if (regla === '*') return 'Cualquier correo';
+    return `Solo: ${regla}`;
 };
 
 // Devuelve { enviado, motivo } — los usos que solo "disparan y olvidan"
@@ -682,9 +702,9 @@ const esCorreoMakandOutlook = (correo) => {
 // botón de "Enviar resumen de vencimientos ahora" para poder decirle a
 // la persona por qué un correo NO salió, en vez de fallar en silencio.
 const enviarCorreo = async (destinatario, asunto, cuerpoHtml) => {
-    if (!esCorreoMakandOutlook(destinatario)) {
-        console.log(`✉️ Correo NO enviado — "${destinatario}" no es una cuenta de Makand en Outlook. Asunto: ${asunto}`);
-        return { enviado: false, motivo: `El destinatario (${destinatario}) no pasa el filtro de correos (debe contener "makand" y ser @outlook.).` };
+    if (!destinoCorreoPermitido(destinatario)) {
+        console.log(`✉️ Correo NO enviado — "${destinatario}" no está permitido (EMAIL_DESTINOS_PERMITIDOS). Asunto: ${asunto}`);
+        return { enviado: false, motivo: `El destinatario (${destinatario}) no está permitido. Regla actual: ${describirReglaDestinos()}. Cámbiala con EMAIL_DESTINOS_PERMITIDOS en el .env.` };
     }
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
         console.log(`✉️ (Correo NO enviado — falta configurar EMAIL_USER/EMAIL_PASS en .env) Para: ${destinatario} | Asunto: ${asunto}`);
@@ -709,6 +729,36 @@ const enviarCorreo = async (destinatario, asunto, cuerpoHtml) => {
 
 // Normaliza un correo para comparar (minúsculas, sin espacios)
 const normalizarEmail = (e) => String(e || '').toLowerCase().trim();
+
+// ============================================================
+// AVISOS AGRUPADOS — varios avisos al mismo correo en poco tiempo (ej.
+// un auxiliar que guarda 10 viajes seguidos) salen en UN solo correo.
+// ============================================================
+const avisosPorCorreo = new Map(); // destinatario -> { asunto, lineas[], temporizador }
+const ESPERA_AVISOS_MS = (Number(process.env.EMAIL_AVISOS_ESPERA_SEG) || 120) * 1000;
+
+function avisarPorCorreo(destinatario, asunto, lineaHtml, pieHtml = '') {
+    const para = normalizarEmail(destinatario);
+    if (!para || !destinoCorreoPermitido(para)) return;
+    let pendiente = avisosPorCorreo.get(para);
+    if (!pendiente) {
+        pendiente = { asunto, lineas: [], pie: pieHtml };
+        pendiente.temporizador = setTimeout(() => {
+            avisosPorCorreo.delete(para);
+            const titulo = pendiente.lineas.length > 1 ? `${pendiente.asunto} (${pendiente.lineas.length})` : pendiente.asunto;
+            enviarCorreo(para, `${titulo} — Makand`,
+                `<ul>${pendiente.lineas.map(l => `<li>${l}</li>`).join('')}</ul>${pendiente.pie}`);
+        }, ESPERA_AVISOS_MS);
+        avisosPorCorreo.set(para, pendiente);
+    }
+    pendiente.lineas.push(lineaHtml);
+}
+
+
+// Correos que reciben los avisos dirigidos al administrador (ADMIN_EMAIL
+// suele no ser un buzón real): EMAIL_AVISOS_ADMIN en .env, separados por coma.
+const correosAvisosAdmin = () => String(process.env.EMAIL_AVISOS_ADMIN || '')
+    .split(',').map(normalizarEmail).filter(Boolean);
 
 // ============================================================
 // RESUMEN SEMANAL DE VENCIMIENTOS (SOAT, Tecnomecánica, Licencias)
@@ -812,7 +862,8 @@ const construirHtmlVencimientos = (items) => {
 const destinatariosVencimientos = () => {
     const lista = String(process.env.EMAIL_VENCIMIENTOS_DESTINO || '')
         .split(',').map(s => s.trim()).filter(Boolean);
-    return lista.length ? lista : [ADMIN_EMAIL];
+    if (lista.length) return lista;
+    return correosAvisosAdmin().length ? correosAvisosAdmin() : [ADMIN_EMAIL];
 };
 
 // Calcula y envía el resumen. Devuelve { enviado, enviadoA, motivo, total }:
@@ -977,6 +1028,7 @@ app.use((req, res, next) => {
             guardarSolicitudesAprobacion();
             res.locals.auditoriaExtra = { aprobacion: 'PENDIENTE', aprobacionId: solicitud.id, descripcion: solicitud.descripcion };
             console.log(`📝 ${email} pidió aprobación: ${solicitud.descripcion}`);
+            avisarAprobadores(solicitud, data);
             return res.status(202).json({
                 ok: true,
                 pendiente: true,
@@ -1025,6 +1077,32 @@ function guardarSolicitudesAprobacion() {
     } catch (err) {
         console.error('⚠️ No se pudo guardar aprobaciones.json:', err.message);
     }
+}
+
+// Aviso por correo a quienes pueden aprobar (y a EMAIL_AVISOS_ADMIN).
+function avisarAprobadores(solicitud, data) {
+    try {
+        const destinos = new Set(correosAvisosAdmin());
+        (data.usuarios || []).forEach(u => {
+            if (u.estado === 'APPROVED' && permisosDeCuenta(u, false).aprobarCambios) destinos.add(normalizarEmail(u.email));
+        });
+        destinos.delete(solicitud.solicitante);
+        const linea = `<strong>${escaparHtml(solicitud.nombreSolicitante)}</strong> pidió: ${escaparHtml(solicitud.descripcion)}` +
+            (solicitud.modo === 'pruebas' ? ' <em>(Modo Prueba)</em>' : '');
+        destinos.forEach(d => avisarPorCorreo(d, 'Cambios esperando tu aprobación', linea,
+            '<p>Entra al Rutograma, pestaña <strong>Aprobaciones</strong>, para aprobarlos o rechazarlos.</p>'));
+    } catch (err) {
+        console.error('⚠️ No se pudo avisar a los aprobadores:', err.message);
+    }
+}
+
+// Aviso por correo a quien pidió el cambio, cuando se decide.
+function avisarDecision(solicitud) {
+    const aprobada = solicitud.estado === 'APROBADA';
+    const linea = `${aprobada ? '✅ Aprobado' : '❌ Rechazado'}: ${escaparHtml(solicitud.descripcion)} — por ${escaparHtml(solicitud.decididaPor)}` +
+        (solicitud.motivo ? `. Motivo: "${escaparHtml(solicitud.motivo)}"` : '');
+    avisarPorCorreo(solicitud.solicitante, 'Respuesta a tus cambios', linea,
+        '<p>Los ves todos en la pestaña <strong>Aprobaciones</strong> del Rutograma.</p>');
 }
 
 /** Permisos efectivos de quien hace la petición (null = sin sesión / sin cuenta). */
@@ -1115,6 +1193,7 @@ app.post('/api/aprobaciones/decidir', async (req, res) => {
             solicitud.motivo = String(motivo || '').trim();
             guardarSolicitudesAprobacion();
             console.log(`❌ ${aprobador} rechazó: ${solicitud.descripcion} (de ${solicitud.solicitante})`);
+            avisarDecision(solicitud);
             return res.json({ ok: true, solicitud: solicitudPublica(solicitud) });
         }
         if (accion !== 'APROBAR') return res.status(400).json({ ok: false, msg: "Acción inválida (usa 'APROBAR' o 'RECHAZAR')." });
@@ -1145,11 +1224,41 @@ app.post('/api/aprobaciones/decidir', async (req, res) => {
         solicitud.decididaEn = new Date().toISOString();
         guardarSolicitudesAprobacion();
         console.log(`✅ ${aprobador} aprobó: ${solicitud.descripcion} (de ${solicitud.solicitante})`);
+        avisarDecision(solicitud);
         return res.json({ ok: true, solicitud: solicitudPublica(solicitud), resultado: resultado.datos });
     } catch (error) {
         console.error('🚨 Error en /api/aprobaciones/decidir:', error);
         res.status(500).json({ ok: false, msg: error.message });
     }
+});
+
+// ============================================================
+// CORREO — estado de la configuración y correo de prueba (solo admin).
+// ============================================================
+app.get('/api/correo/estado', (req, res) => {
+    if (normalizarEmail(req.headers['x-user-email']) !== normalizarEmail(ADMIN_EMAIL)) {
+        return res.status(403).json({ ok: false, msg: 'Solo el administrador.' });
+    }
+    const usuario = String(process.env.EMAIL_USER || '');
+    res.json({
+        ok: true,
+        configurado: !!(usuario && process.env.EMAIL_PASS),
+        servicio: String(process.env.EMAIL_SERVICE || 'gmail').toLowerCase(),
+        remitente: usuario,
+        destinos: describirReglaDestinos(),
+        avisosAdmin: correosAvisosAdmin()
+    });
+});
+
+app.post('/api/correo/probar', async (req, res) => {
+    if (normalizarEmail(req.headers['x-user-email']) !== normalizarEmail(ADMIN_EMAIL)) {
+        return res.status(403).json({ ok: false, msg: 'Solo el administrador.' });
+    }
+    const destino = normalizarEmail(req.body?.destino);
+    if (!destino || !destino.includes('@')) return res.status(400).json({ ok: false, msg: 'Escribe un correo válido.' });
+    const r = await enviarCorreo(destino, 'Correo de prueba — Makand Rutograma',
+        '<p>¡Funciona! El Rutograma ya puede enviar correos desde este servidor.</p>');
+    res.json({ ok: r.enviado, msg: r.enviado ? `Correo enviado a ${destino}. Revisa la bandeja (y la de spam).` : r.motivo });
 });
 
 // --- Registrar / consultar una cuenta al iniciar sesión ---
@@ -1776,6 +1885,62 @@ async function respaldoAntesDeAccion(etiqueta, solicitante) {
     respaldosParaDeshacer.set(nombre, normalizarEmail(solicitante));
     return nombre;
 }
+
+// ============================================================
+// HISTÓRICO — meses cerrados, guardados en la base (antes vivían solo en
+// el navegador de quien cerraba el mes, y el servidor no tenía estas rutas).
+// Cerrar mes NO borra viajes: guarda una foto del mes con sus totales.
+// ============================================================
+const MESES_NOMBRE = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+app.get('/api/historico', (req, res) => {
+    try {
+        res.json({ ok: true, meses: listarHistoricoMesesDB(modoActual) });
+    } catch (error) {
+        console.error('🚨 Error en /api/historico:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+app.post('/api/cerrar-mes', (req, res) => {
+    try {
+        if (!permisosDelSolicitante(req)?.editarHistorico) {
+            return res.status(403).json({ ok: false, msg: 'Tu cuenta no tiene permiso para cerrar meses.' });
+        }
+        const datos = req.body || {};
+        const mes = Number(datos.mes), anio = Number(datos.anio);
+        if (!Number.isInteger(mes) || mes < 0 || mes > 11 || !Number.isInteger(anio) || anio < 2000) {
+            return res.status(400).json({ ok: false, msg: 'Mes o año inválido.' });
+        }
+        const label = `${MESES_NOMBRE[mes]} de ${anio}`;
+        const yaEstaba = listarHistoricoMesesDB(modoActual).some(h => h.mes === mes && h.anio === anio);
+        const cerradoPor = normalizarEmail(req.headers['x-user-email']);
+        guardarHistoricoMesDB(modoActual, { mes, anio, datos: { ...datos, label }, cerradoPor });
+        res.locals.auditoriaResumen = {
+            mes: label, totalViajes: datos.totalViajes, costo: datos.costo, reemplazo: yaEstaba
+        };
+        console.log(`📦 ${cerradoPor} cerró ${label} (${datos.totalViajes || 0} viajes)${yaEstaba ? ' — reemplaza el cierre anterior' : ''}`);
+        res.json({ ok: true, label, reemplazo: yaEstaba });
+    } catch (error) {
+        console.error('🚨 Error en /api/cerrar-mes:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+app.post('/api/limpiar-historial', async (req, res) => {
+    try {
+        if (!permisosDelSolicitante(req)?.editarHistorico) {
+            return res.status(403).json({ ok: false, msg: 'Tu cuenta no tiene permiso para limpiar el histórico.' });
+        }
+        const respaldoAntes = await respaldoAntesDeAccion('antes-limpiar-historico', req.headers['x-user-email']);
+        const borrados = limpiarHistoricoMesesDB(modoActual);
+        res.locals.auditoriaExtra = { borrados };
+        res.json({ ok: true, borrados, respaldoAntes });
+    } catch (error) {
+        console.error('🚨 Error en /api/limpiar-historial:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
 
 app.post('/api/respaldos/restaurar', async (req, res) => {
     try {
@@ -2966,17 +3131,22 @@ app.post('/api/auth/register', async (req, res) => {
              <p>Tu solicitud de acceso al Rutograma de Makand fue recibida correctamente y está <strong>pendiente de aprobación</strong> por parte del administrador.</p>
              <p>Te avisaremos apenas sea revisada.</p>`
         );
-        enviarCorreo(
-            ADMIN_EMAIL,
+        // Al admin (y EMAIL_AVISOS_ADMIN) y a quien tenga permiso de aceptar cuentas.
+        const avisarA = new Set([normalizarEmail(ADMIN_EMAIL), ...correosAvisosAdmin()]);
+        data.usuarios.forEach(u => {
+            if (u.estado === 'APPROVED' && permisosDeCuenta(u, false).gestionarCuentas) avisarA.add(normalizarEmail(u.email));
+        });
+        avisarA.forEach(destino => enviarCorreo(
+            destino,
             'Nueva solicitud de acceso pendiente — Makand',
-            `<p>Hay una solicitud de acceso nueva esperando tu revisión:</p>
+            `<p>Hay una solicitud de acceso nueva esperando revisión:</p>
              <ul>
-               <li><strong>Nombre:</strong> ${nombre}</li>
-               <li><strong>Correo:</strong> ${email}</li>
-               <li><strong>Departamento:</strong> ${departamento}</li>
+               <li><strong>Nombre:</strong> ${escaparHtml(nombre)}</li>
+               <li><strong>Correo:</strong> ${escaparHtml(email)}</li>
+               <li><strong>Departamento:</strong> ${escaparHtml(departamento)}</li>
              </ul>
-             <p>Entra al panel de Administrador para aprobarla o rechazarla.</p>`
-        );
+             <p>Entra a Administración para aprobarla o rechazarla.</p>`
+        ));
 
         return res.status(201).json({
             ok: true,
@@ -3105,6 +3275,11 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
         });
         const listaVehiculos = data.vehiculos || [];
         const listaConductores = data.conductores || [];
+        const conductorDePlacaMatriz = (placa, vehiculo) => {
+            const c = listaConductores.find(x => String(x.veh || x.placa || '').toUpperCase().trim() === String(placa).toUpperCase().trim());
+            const nombre = (c && (c.nom || c.nombre)) || vehiculo?.cond || vehiculo?.conductor || '';
+            return ['', 'SIN ASIGNAR', 'ASIGNADO'].includes(String(nombre).trim().toUpperCase()) ? 'Sin asignar' : String(nombre).trim();
+        };
 
         if (!listaRutas.length) return res.status(400).json({ ok: false, msg: 'La pestaÃ±a de Rutas estÃ¡ vacÃ­a.' });
         if (!listaVehiculos.length) return res.status(400).json({ ok: false, msg: 'La pestaÃ±a de VehÃ­culos estÃ¡ vacÃ­a.' });
@@ -3457,6 +3632,9 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
                         anio: Number(anio),
                         tarifa: tarifaFinal,
                         costo: tarifaFinal,
+                        // Conductor de la placa al generar: queda guardado en el viaje
+                        // para que un cambio de conductor después no reescriba los ya hechos.
+                        cond: conductorDePlacaMatriz(placaAsignada, vehiculoAsignado),
                         estado: 'Planificado'
                     };
 

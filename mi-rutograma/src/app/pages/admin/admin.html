@@ -11,6 +11,9 @@
     <button class="admin-tab" [class.activa]="pestaniaActiva === 'auditoria'" (click)="cambiarPestania('auditoria')">
       Auditoría
     </button>
+    <button *ngIf="auth.isAdmin" class="admin-tab" [class.activa]="pestaniaActiva === 'correo'" (click)="cambiarPestania('correo')">
+      Correo
+    </button>
     <button *ngIf="auth.isAdmin" class="admin-tab" [class.activa]="pestaniaActiva === 'dispositivos'" (click)="cambiarPestania('dispositivos')">
       Dispositivos
     </button>
@@ -73,6 +76,44 @@
         </tr>
       </tbody>
     </table>
+    </div>
+  </ng-container>
+
+  <!-- ===================== CORREO ===================== -->
+  <ng-container *ngIf="pestaniaActiva === 'correo' && auth.isAdmin">
+    <div class="correo-panel">
+      <p *ngIf="!estadoCorreo" class="admin-msg">Cargando…</p>
+      <ng-container *ngIf="estadoCorreo">
+        <div class="correo-estado" [class.ok]="estadoCorreo.configurado">
+          <i class="bi" [ngClass]="estadoCorreo.configurado ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'"></i>
+          {{ estadoCorreo.configurado ? 'Correo configurado' : 'Correo sin configurar: falta EMAIL_USER / EMAIL_PASS en el archivo .env del servidor' }}
+        </div>
+        <table class="correo-tabla">
+          <tr><td>Servicio</td><td>{{ estadoCorreo.servicio }}</td></tr>
+          <tr><td>Envía desde</td><td>{{ estadoCorreo.remitente || '—' }}</td></tr>
+          <tr><td>Puede enviar a</td><td>{{ estadoCorreo.destinos }}</td></tr>
+          <tr><td>Avisos del admin van a</td><td>{{ estadoCorreo.avisosAdmin?.length ? estadoCorreo.avisosAdmin.join(', ') : '— (EMAIL_AVISOS_ADMIN vacío)' }}</td></tr>
+        </table>
+
+        <h3 class="correo-sub">Probar</h3>
+        <div class="correo-prueba">
+          <input type="email" [(ngModel)]="destinoPrueba" placeholder="tu_correo@ejemplo.com" (keyup.enter)="probarCorreo()">
+          <button class="btn-aprobar" [disabled]="probandoCorreo || !destinoPrueba.trim()" (click)="probarCorreo()">
+            {{ probandoCorreo ? 'Enviando…' : 'Enviar correo de prueba' }}
+          </button>
+        </div>
+        <p *ngIf="resultadoPrueba" class="correo-resultado" [class.ok]="resultadoPrueba.ok">{{ resultadoPrueba.msg }}</p>
+
+        <h3 class="correo-sub">Qué correos se envían</h3>
+        <ul class="correo-lista">
+          <li>Cuenta nueva registrada → al admin y a quien pueda aceptar cuentas.</li>
+          <li>Cuenta aprobada o rechazada → a la persona.</li>
+          <li>Cambios esperando aprobación → a quien pueda aprobar (agrupados cada 2 minutos).</li>
+          <li>Cambio aprobado o rechazado → a quien lo pidió (agrupados).</li>
+          <li>Resumen de vencimientos → cada lunes.</li>
+        </ul>
+        <p class="admin-subtexto">Los datos del correo se cambian en el archivo <code>backend/.env</code> y luego se reinicia el servidor.</p>
+      </ng-container>
     </div>
   </ng-container>
 
