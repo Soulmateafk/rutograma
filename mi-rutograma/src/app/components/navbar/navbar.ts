@@ -5,6 +5,7 @@ import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { DataService } from '../../services/data';
 import { UiService } from '../../services/ui.service';
+import { AccountService } from '../../services/account.service';
 // Reutilizamos la MISMA lógica de conflictos que ya usa el Rutograma —
 // nada de reinventar la regla de disponibilidad en un segundo lugar.
 // @ts-ignore
@@ -23,6 +24,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
   public authService = inject(AuthService);
   public dataService = inject(DataService);
   private router = inject(Router);
+  private cuenta = inject(AccountService);
 
   // El Rutograma (y por lo tanto "+ Viaje Extra") solo usa placas Viajero
   // y Tercero — las Urbano (entregas locales) no deben poder elegirse
@@ -507,6 +509,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     { nombre: 'Histórico', ruta: '/historico' },
     { nombre: 'Comparativo', ruta: '/comparativo' },
     { nombre: 'Sesiones', ruta: '/sesiones' },
+    { nombre: 'Aprobaciones', ruta: '/aprobaciones' },
     { nombre: 'Administrador', ruta: '/admin' }
   ];
 
@@ -521,14 +524,55 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
   // empezando por la última de esta lista. En celular no aplica: ahí
   // las pestañas se deslizan de lado (styles.css).
   // ============================================================
-  public readonly paginasMenuMas: Array<{ nombre: string; ruta: string }> = [
+  private readonly todasPaginasMenuMas: Array<{ nombre: string; ruta: string }> = [
     { nombre: 'Conductores', ruta: '/conductores' },
     { nombre: 'Configuración', ruta: '/configuracion' },
     { nombre: 'Histórico', ruta: '/historico' },
     { nombre: 'Comparativo', ruta: '/comparativo' },
     { nombre: 'Sesiones', ruta: '/sesiones' },
+    { nombre: 'Aprobaciones', ruta: '/aprobaciones' },
     { nombre: 'Administrador', ruta: '/admin' }
   ];
+  private cachePaginas: { clave: string; lista: Array<{ nombre: string; ruta: string }> } = { clave: '', lista: [] };
+
+  /** ¿La cuenta actual puede abrir esta pantalla? (Administrador: admin y jefe; Aprobaciones: además el auxiliar). */
+  private paginaPermitida(ruta: string): boolean {
+    if (ruta === '/admin') return this.authService.puedeAprobar;
+    if (ruta === '/aprobaciones') return this.authService.puedeAprobar || this.authService.esAuxiliar;
+    return true;
+  }
+
+  /** Pestañas de la derecha según el rol (misma lista mientras el rol no cambie). */
+  public get paginasMenuMas(): Array<{ nombre: string; ruta: string }> {
+    const clave = `${this.authService.puedeAprobar}-${this.authService.esAuxiliar}`;
+    if (this.cachePaginas.clave !== clave) {
+      this.cachePaginas = { clave, lista: this.todasPaginasMenuMas.filter(p => this.paginaPermitida(p.ruta)) };
+      this.programarAjuste();
+    }
+    return this.cachePaginas.lista;
+  }
+
+  // Cambios de auxiliares esperando aprobación (número en la pestaña).
+  public pendientesAprobacion = 0;
+  private intervaloPendientes: ReturnType<typeof setInterval> | null = null;
+
+  private async contarPendientesAprobacion(): Promise<void> {
+    if (!this.authService.puedeAprobar && !this.authService.esAuxiliar) {
+      if (this.pendientesAprobacion) { this.pendientesAprobacion = 0; this.cdr.markForCheck(); }
+      return;
+    }
+    try {
+      const base = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const res = await this.authService.fetchAutenticado(`${base}/aprobaciones`);
+      const data = await res.json();
+      const n = data?.ok ? Number(data.pendientes) || 0 : 0;
+      if (n !== this.pendientesAprobacion) {
+        this.pendientesAprobacion = n;
+        this.cdr.markForCheck();
+        this.programarAjuste();
+      }
+    } catch { /* sin conexión: se reintenta en el siguiente ciclo */ }
+  }
   public rutasEnMenuMas = new Set<string>();
   public ocultarFecha = false;
   public menuMasAbierto = false;
@@ -548,9 +592,16 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     if (this.accionesNav) this.observadorTamano.observe(this.accionesNav.nativeElement);
     (document as any).fonts?.ready?.then(() => this.programarAjuste());
     this.programarAjuste();
+
+    this.contarPendientesAprobacion();
+    this.intervaloPendientes = setInterval(() => {
+      if (document.visibilityState === 'visible') this.contarPendientesAprobacion();
+    }, 20000);
+    this.cuenta.alCambioPendiente.subscribe(() => setTimeout(() => this.contarPendientesAprobacion(), 500));
   }
 
   ngOnDestroy(): void {
+    if (this.intervaloPendientes) clearInterval(this.intervaloPendientes);
     this.observadorTamano?.disconnect();
     if (this.ajustePendiente) cancelAnimationFrame(this.ajustePendiente);
   }
@@ -729,6 +780,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     const qSinTildes = sinTildes(q);
     const rutaActual = this.router.url.split(/[?#]/)[0];
     this.paginasBuscables
+      .filter(p => this.paginaPermitida(p.ruta))
       .filter(p => sinTildes(p.nombre).includes(qSinTildes))
       .forEach(p => {
         const actual = rutaActual === p.ruta || rutaActual.startsWith(p.ruta + '/');

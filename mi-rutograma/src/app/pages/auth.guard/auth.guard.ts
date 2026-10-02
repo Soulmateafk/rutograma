@@ -63,8 +63,9 @@ export const adminGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  if (authService.isAdmin) return true;
+  // El jefe también entra (solo a ver: los botones de cambiar son del admin).
+  if (authService.puedeAprobar) return true;
 
-  console.log('GUARD: No es admin -> /dashboard');
+  console.log('GUARD: No es admin ni jefe -> /dashboard');
   return router.createUrlTree(['/dashboard']);
 };

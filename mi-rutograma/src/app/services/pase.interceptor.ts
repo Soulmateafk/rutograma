@@ -1,6 +1,6 @@
-import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
+import { HttpErrorResponse, HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { catchError, throwError } from 'rxjs';
+import { catchError, tap, throwError } from 'rxjs';
 import { AccountService } from './account.service';
 
 /**
@@ -29,6 +29,13 @@ export const paseInterceptor: HttpInterceptorFn = (req, next) => {
     : req;
 
   return next(peticion).pipe(
+    // Cuenta auxiliar: el servidor no aplicó el cambio, lo dejó pendiente
+    // de aprobación (202 + pendiente:true).
+    tap(evento => {
+      if (evento instanceof HttpResponse && evento.status === 202 && (evento.body as any)?.pendiente) {
+        cuenta.alCambioPendiente.next((evento.body as any).msg || 'Enviado para aprobación del jefe.');
+      }
+    }),
     catchError((err: unknown) => {
       if (err instanceof HttpErrorResponse
           && err.status === 401

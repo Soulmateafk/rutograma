@@ -1,5 +1,6 @@
 <div class="admin-container">
-  <h1>Panel de Administrador</h1>
+  <h1>{{ auth.isAdmin ? 'Panel de Administrador' : 'Administración' }}</h1>
+  <p *ngIf="!auth.isAdmin" class="admin-subtexto">Solo lectura: puedes ver las cuentas y la auditoría. Aprobar cuentas y cambiar roles lo hace el administrador.</p>
 
   <div class="admin-tabs">
     <button class="admin-tab" [class.activa]="pestaniaActiva === 'cuentas'" (click)="cambiarPestania('cuentas')">
@@ -8,7 +9,7 @@
     <button class="admin-tab" [class.activa]="pestaniaActiva === 'auditoria'" (click)="cambiarPestania('auditoria')">
       Auditoría
     </button>
-    <button class="admin-tab" [class.activa]="pestaniaActiva === 'dispositivos'" (click)="cambiarPestania('dispositivos')">
+    <button *ngIf="auth.isAdmin" class="admin-tab" [class.activa]="pestaniaActiva === 'dispositivos'" (click)="cambiarPestania('dispositivos')">
       Dispositivos
     </button>
   </div>
@@ -28,7 +29,7 @@
           <th>Departamento</th>
           <th>Estado</th>
           <th>Rol</th>
-          <th>Acciones</th>
+          <th *ngIf="auth.isAdmin">Acciones</th>
         </tr>
       </thead>
       <tbody>
@@ -44,22 +45,20 @@
             </span>
           </td>
           <td>
-            <span class="rol-badge" [class.rol-lector]="u.rol === 'lector'">
-              {{ u.rol === 'lector' ? 'Solo lectura' : 'Editor' }}
+            <select *ngIf="auth.isAdmin" class="rol-select" [ngModel]="u.rol || 'editor'"
+                    (ngModelChange)="cambiarRol(u, $event)" title="Rol de la cuenta">
+              <option *ngFor="let r of rolesDisponibles" [value]="r.valor">{{ r.nombre }}</option>
+            </select>
+            <span *ngIf="!auth.isAdmin" class="rol-badge" [class.rol-lector]="u.rol === 'lector'">
+              {{ nombreRol(u.rol) }}
             </span>
           </td>
-          <td class="acciones">
+          <td class="acciones" *ngIf="auth.isAdmin">
             <button *ngIf="u.estado !== 'APPROVED'" class="btn-aprobar" (click)="aprobarUsuario(u)">
               Aprobar
             </button>
             <button *ngIf="u.estado !== 'REJECTED'" class="btn-rechazar" (click)="rechazarUsuario(u)">
               Rechazar
-            </button>
-            <button *ngIf="u.rol !== 'lector'" class="btn-rol" (click)="cambiarRol(u, 'lector')">
-              Volver solo lectura
-            </button>
-            <button *ngIf="u.rol === 'lector'" class="btn-rol" (click)="cambiarRol(u, 'editor')">
-              Dar acceso completo
             </button>
             <button *ngIf="u.estado === 'APPROVED'" class="btn-rol" (click)="abrirResetClave(u)">
               Restablecer contraseña
@@ -153,7 +152,7 @@
 </div>
 
 <!-- ===================== DISPOSITIVOS BLOQUEADOS ===================== -->
-  <ng-container *ngIf="pestaniaActiva === 'dispositivos'">
+  <ng-container *ngIf="pestaniaActiva === 'dispositivos' && auth.isAdmin">
     <p *ngIf="cargandoDispositivos" class="admin-msg">Cargando dispositivos...</p>
     <p *ngIf="!cargandoDispositivos && dispositivosBloqueados.length === 0" class="admin-msg">
       No hay dispositivos bloqueados en este momento.

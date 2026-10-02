@@ -1,0 +1,64 @@
+<div class="apr-page">
+  <div class="apr-head">
+    <div>
+      <h2>{{ puedeAprobar ? 'Aprobaciones' : 'Mis solicitudes' }}</h2>
+      <p *ngIf="puedeAprobar">Cambios que pidieron los auxiliares. Al aprobar, el cambio se aplica tal cual; al rechazar, no se aplica y el auxiliar ve el motivo.</p>
+      <p *ngIf="!puedeAprobar">Tus cambios se aplican cuando un jefe los aprueba. Aquí ves en qué quedó cada uno.</p>
+    </div>
+    <div class="apr-vistas">
+      <button class="apr-vista" [class.activa]="vista === 'pendientes'" (click)="vista = 'pendientes'">
+        Pendientes <span class="apr-cuenta" *ngIf="pendientes.length">{{ pendientes.length }}</span>
+      </button>
+      <button class="apr-vista" [class.activa]="vista === 'historial'" (click)="vista = 'historial'">Historial</button>
+    </div>
+  </div>
+
+  <div *ngIf="cargando" class="apr-vacio">Cargando…</div>
+  <div *ngIf="!cargando && visibles.length === 0" class="apr-vacio">
+    {{ vista === 'pendientes' ? 'No hay cambios pendientes.' : 'Todavía no hay solicitudes decididas.' }}
+  </div>
+
+  <div class="apr-lista">
+    <div class="apr-item" *ngFor="let s of visibles" [class.apr-rechazada]="s.estado === 'RECHAZADA'" [class.apr-aprobada]="s.estado === 'APROBADA'">
+      <div class="apr-fila">
+        <div class="apr-info">
+          <div class="apr-desc">{{ s.descripcion }}</div>
+          <div class="apr-meta">
+            Pidió <strong>{{ s.nombreSolicitante || s.solicitante }}</strong> · {{ fecha(s.creada) }}
+            <span *ngIf="s.modo === 'pruebas'" class="apr-tag">Modo Prueba</span>
+          </div>
+          <div class="apr-meta" *ngIf="s.estado !== 'PENDIENTE'">
+            {{ s.estado === 'APROBADA' ? 'Aprobó' : 'Rechazó' }} <strong>{{ s.decididaPor }}</strong> · {{ fecha(s.decididaEn) }}
+            <span *ngIf="s.motivo"> — "{{ s.motivo }}"</span>
+          </div>
+        </div>
+        <div class="apr-acciones">
+          <span class="apr-estado" [class.pend]="s.estado === 'PENDIENTE'" [class.ok]="s.estado === 'APROBADA'" [class.no]="s.estado === 'RECHAZADA'">
+            {{ s.estado === 'PENDIENTE' ? 'Pendiente' : s.estado === 'APROBADA' ? 'Aprobada' : 'Rechazada' }}
+          </span>
+          <button class="apr-btn" (click)="alternarDetalle(s)">{{ abiertaId === s.id ? 'Ocultar' : 'Ver' }} detalle</button>
+          <ng-container *ngIf="puedeAprobar && s.estado === 'PENDIENTE'">
+            <button class="apr-btn apr-btn-no" [disabled]="procesandoId" (click)="pedirMotivoRechazo(s)">Rechazar</button>
+            <button class="apr-btn apr-btn-ok" [disabled]="procesandoId" (click)="aprobar(s)">
+              {{ procesandoId === s.id ? 'Aplicando…' : 'Aprobar' }}
+            </button>
+          </ng-container>
+        </div>
+      </div>
+      <pre class="apr-detalle" *ngIf="abiertaId === s.id">{{ detalle(s) }}</pre>
+    </div>
+  </div>
+
+  <div class="apr-modal-fondo" *ngIf="rechazando">
+    <div class="apr-modal">
+      <h3>Rechazar cambio</h3>
+      <p>{{ rechazando.descripcion }}</p>
+      <label>Motivo (lo verá {{ rechazando.nombreSolicitante || rechazando.solicitante }})</label>
+      <textarea rows="3" [(ngModel)]="motivoRechazo" placeholder="Ej: esa ruta sigue activa"></textarea>
+      <div class="apr-modal-acciones">
+        <button class="apr-btn" (click)="cancelarRechazo()">Cancelar</button>
+        <button class="apr-btn apr-btn-no" (click)="confirmarRechazo()">Rechazar</button>
+      </div>
+    </div>
+  </div>
+</div>
