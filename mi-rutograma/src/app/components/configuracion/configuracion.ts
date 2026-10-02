@@ -383,6 +383,7 @@ export class Configuracion implements OnInit {
     });
     this.isModalCupoOpen = false;
     this.ds.autoSave();
+    this.ds.guardarConfigCompartida('cuposExt');
   }
 
   public verDetalleCupo(id: any) {
@@ -406,6 +407,7 @@ export class Configuracion implements OnInit {
     });
     this.isModalDetalleOpen = false;
     this.ds.autoSave();
+    this.ds.guardarConfigCompartida('cuposExt');
   }
 
   public async procesarCarga() {

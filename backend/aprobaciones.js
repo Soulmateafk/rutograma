@@ -119,6 +119,10 @@ function describirCambio(metodo, ruta, cuerpo = {}) {
         case '/api/modo': return `Cambiar a modo ${txt(b.modo)}`;
         case '/api/cerrar-mes': return `Cerrar el mes ${txt(b.label)} en el histórico`;
         case '/api/limpiar-historial': return 'Borrar todo el histórico';
+        case '/api/configuracion/compartida': {
+            const nombres = { transportadoras: 'las transportadoras', cuposExt: 'los cupos de Configuración', festivos: 'los festivos' };
+            return `Cambiar ${nombres[b.clave] || txt(b.clave)}`;
+        }
         case '/api/cupos/reacomodar': return `Reacomodar los cupos de ${txt(b.tr)} (${Number(b.mes) + 1}/${txt(b.anio)})`;
         default: return `${metodo} ${ruta}`;
     }

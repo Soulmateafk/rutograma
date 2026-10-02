@@ -1171,6 +1171,8 @@ export class Dashboard implements OnInit, OnDestroy {
     }
     if (confirm('Eliminar la transportadora "' + clave + '"?')) {
       this.ds.S.transportadoras = this.ds.S.transportadoras.filter((t: any) => t.clave !== clave);
+      this.ds.autoSave();
+      this.ds.guardarConfigCompartida('transportadoras');
       this.actualizarDashboard();
     }
   }
@@ -1179,6 +1181,8 @@ export class Dashboard implements OnInit, OnDestroy {
     const input = event.target as HTMLInputElement;
     const valor = input.value;
     this.ds.S.festivos = valor.split(',').map((f: string) => f.trim()).filter((f: string) => f !== "");
+    this.ds.autoSave();
+    this.ds.guardarConfigCompartida('festivos');
     this.actualizarDashboard();
   }
 
