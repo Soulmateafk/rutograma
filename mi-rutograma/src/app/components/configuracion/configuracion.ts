@@ -181,6 +181,12 @@ export class Configuracion implements OnInit {
       });
       const data = await res.json();
       if (data.ok) {
+        if (data.respaldoAntes) {
+          this.ds.registrarCambio({
+            tipo: 'respaldo', clave: data.respaldoAntes, antes: data.respaldoAntes, despues: nombre,
+            descripcion: `Restauración del respaldo del ${fecha}`
+          });
+        }
         this.ui.mostrarToast('Excel restaurado correctamente.', 'ok');
         this.isModalRespaldosOpen = false;
         // El Excel activo cambió por completo — recargamos todo el
@@ -368,7 +374,13 @@ export class Configuracion implements OnInit {
     // Procesamiento de datos delegado al archivo JS
     const cupoProcesado = procesarDatosCupoJS(this.cupo, rutaSeleccionada.dias);
     
+    const cuposAntes = JSON.parse(JSON.stringify(this.ds.S.cuposExt));
     this.ds.S.cuposExt.push(cupoProcesado);
+    this.ds.registrarCambio({
+      tipo: 'config', clave: 'cuposExt', antes: cuposAntes,
+      despues: JSON.parse(JSON.stringify(this.ds.S.cuposExt)),
+      descripcion: `Nuevo cupo ${cupoProcesado.placa || ''} (${cupoProcesado.ruta || ''})`
+    });
     this.isModalCupoOpen = false;
     this.ds.autoSave();
   }
@@ -385,7 +397,13 @@ export class Configuracion implements OnInit {
     const confirmado = await this.mostrarConfirmPersonalizado('¿Eliminar este cupo?', 'Eliminar', 'Cancelar');
     if (!confirmado) return;
     if (!this.ds.S?.cuposExt) return;
+    const cuposAntes = JSON.parse(JSON.stringify(this.ds.S.cuposExt));
     this.ds.S.cuposExt = this.ds.S.cuposExt.filter((x: any) => x.id !== this.selectedCupo.id);
+    this.ds.registrarCambio({
+      tipo: 'config', clave: 'cuposExt', antes: cuposAntes,
+      despues: JSON.parse(JSON.stringify(this.ds.S.cuposExt)),
+      descripcion: `Eliminación del cupo ${this.selectedCupo.placa || ''}`
+    });
     this.isModalDetalleOpen = false;
     this.ds.autoSave();
   }
@@ -624,6 +642,12 @@ export class Configuracion implements OnInit {
       const resultado = await response.json();
 
       if (resultado.ok) {
+        if (resultado.respaldoAntes) {
+          this.ds.registrarCambio({
+            tipo: 'respaldo', clave: resultado.respaldoAntes, antes: resultado.respaldoAntes, despues: null,
+            descripcion: `Generar Matriz de ${nombreMes}`
+          });
+        }
         const desglose = (resultado.makand !== undefined && resultado.terceros !== undefined)
           ? ` (${resultado.makand} Makand · ${resultado.viajesArsitrans ?? 0} Arsitrans · ${resultado.viajesPolar ?? 0} Polar)`
           : '';
@@ -727,6 +751,12 @@ export class Configuracion implements OnInit {
     try {
       const res = await this.llamarImportacion(false);
       if (res?.ok) {
+        if (res.respaldoAntes) {
+          this.ds.registrarCambio({
+            tipo: 'respaldo', clave: res.respaldoAntes, antes: res.respaldoAntes, despues: null,
+            descripcion: `Importación de ${r.total} viajes reales`
+          });
+        }
         await this.ds.inicializarApp(true);
         this.ui.mostrarToast(
           `<i class="bi bi-check-circle-fill"></i> Importados ${r.total} viajes reales` +

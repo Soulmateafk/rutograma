@@ -41,13 +41,30 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
   // (compartida en toda la app). El historial vive en DataService,
   // guardado localmente en ESTA computadora (no se comparte con otras).
   // ============================================================
+  // Deshacer/rehacer una acción masiva (Generar Matriz, Importar,
+  // Restaurar) devuelve TODA la base a un respaldo: también se pierde lo
+  // que cualquiera haya cambiado después. Por eso se pide confirmación.
+  private async confirmarSiEsMasivo(entrada: any, verbo: string): Promise<boolean> {
+    if (!entrada || entrada.tipo !== 'respaldo') return true;
+    return this.mostrarConfirmPersonalizado(
+      `${verbo} "${entrada.descripcion}" devuelve toda la información al momento en que se hizo.\n\n` +
+      `También se perderán los cambios que cualquier persona haya hecho después.`,
+      verbo,
+      'Cancelar'
+    );
+  }
+
   public async deshacerUltimoCambio(): Promise<void> {
+    const pila = this.dataService.pilaDeshacer;
+    if (!(await this.confirmarSiEsMasivo(pila[pila.length - 1], 'Deshacer'))) return;
     const resultado = await this.dataService.deshacerUltimoCambio();
     this.ui.mostrarToast(resultado.mensaje, resultado.ok ? 'ok' : 'err');
     this.zone.run(() => this.cdr.detectChanges());
   }
 
   public async rehacerUltimoCambio(): Promise<void> {
+    const pila = this.dataService.pilaRehacer;
+    if (!(await this.confirmarSiEsMasivo(pila[pila.length - 1], 'Rehacer'))) return;
     const resultado = await this.dataService.rehacerUltimoCambio();
     this.ui.mostrarToast(resultado.mensaje, resultado.ok ? 'ok' : 'err');
     this.zone.run(() => this.cdr.detectChanges());

@@ -1067,8 +1067,9 @@ app.post('/api/auth/decidir', (req, res) => {
         const motivo = String(req.body.motivo || '').trim();
 
         if (!email) return res.status(400).json({ ok: false, msg: 'Falta el correo' });
-        if (accion !== 'APPROVED' && accion !== 'REJECTED') {
-            return res.status(400).json({ ok: false, msg: "Acción inválida (usa 'APPROVED' o 'REJECTED')" });
+        // 'PENDING' solo lo usa Deshacer (volver una cuenta a "por revisar").
+        if (accion !== 'APPROVED' && accion !== 'REJECTED' && accion !== 'PENDING') {
+            return res.status(400).json({ ok: false, msg: "Acción inválida (usa 'APPROVED', 'REJECTED' o 'PENDING')" });
         }
 
         const usuario = data.usuarios.find(u => normalizarEmail(u.email) === email);
@@ -1526,31 +1527,46 @@ app.get('/api/respaldos', async (req, res) => {
     }
 });
 
+// ============================================================
+// DESHACER ACCIONES MASIVAS (Generar Matriz, Importar viajes reales,
+// Restaurar respaldo): antes de aplicarlas se toma un respaldo y su nombre
+// vuelve a la app, que lo guarda en su historial de Deshacer. Deshacer =
+// restaurar ese respaldo. Quien hizo la acción puede deshacerla aunque no
+// sea admin (solo con SUS respaldos de deshacer; se olvidan al reiniciar
+// el servidor, y entonces solo el admin puede restaurarlos).
+// ============================================================
+const respaldosParaDeshacer = new Map(); // nombre -> correo de quien hizo la acción
+async function respaldoAntesDeAccion(etiqueta, solicitante) {
+    const nombre = path.basename(await crearRespaldoDB(modoActual, etiqueta));
+    respaldosParaDeshacer.set(nombre, normalizarEmail(solicitante));
+    return nombre;
+}
+
 app.post('/api/respaldos/restaurar', async (req, res) => {
     try {
         // Solo admin: el middleware global ya bloquea 'lector' aquí (es
         // POST), pero un 'editor' seguiría pasando. Restaurar un respaldo
         // reemplaza la base completa, así que se restringe a admin también.
         const solicitante = normalizarEmail(req.headers['x-user-email']);
-        if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
-            return res.status(403).json({ ok: false, msg: 'Solo el administrador puede restaurar respaldos' });
-        }
-
         const { nombre } = req.body;
         if (!nombre || typeof nombre !== 'string') {
             return res.status(400).json({ ok: false, msg: 'Falta el nombre del respaldo a restaurar.' });
+        }
+        const esSuDeshacer = !!solicitante && respaldosParaDeshacer.get(path.basename(nombre)) === solicitante;
+        if (solicitante !== normalizarEmail(ADMIN_EMAIL) && !esSuDeshacer) {
+            return res.status(403).json({ ok: false, msg: 'Solo el administrador puede restaurar respaldos' });
         }
 
         // Antes de sobreescribir, se guarda un respaldo del estado ACTUAL
         // (así restaurar también se puede deshacer, restaurando ESE
         // respaldo nuevo si hace falta volver atrás de la restauración).
-        await crearRespaldoDB(modoActual);
+        const respaldoAntes = await respaldoAntesDeAccion('antes-restaurar', solicitante);
 
         restaurarRespaldoDB(path.basename(nombre), modoActual);
         cacheExcel = null; cacheUsuariosReales.ts = 0; // se invalida — la próxima lectura toma la base recién restaurada
 
         console.log(`♻️ Base de datos restaurada desde el respaldo: ${nombre}`);
-        res.json({ ok: true });
+        res.json({ ok: true, respaldoAntes });
     } catch (error) {
         console.error('❌ Error restaurando respaldo:', error);
         res.status(500).json({ ok: false, msg: error.message || 'No se pudo restaurar el respaldo.' });
@@ -2071,6 +2087,21 @@ app.post('/api/novedades', (req, res) => {
     }
 });
 
+// Borrar una novedad (lo usa Deshacer al revertir una novedad recién creada).
+app.post('/api/novedades/eliminar', (req, res) => {
+    try {
+        const data = leerExcel();
+        const antes = (data.novedades || []).length;
+        data.novedades = (data.novedades || []).filter(n => String(n.id) !== String(req.body.id));
+        if (data.novedades.length === antes) return res.status(404).json({ ok: false, msg: 'Novedad no encontrada' });
+        guardarEnExcel(data);
+        res.json({ ok: true });
+    } catch (error) {
+        console.error('🚨 Error en /api/novedades/eliminar:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
 app.post('/api/novedades/resolver', (req, res) => {
     try {
         const data = leerExcel();
@@ -2085,7 +2116,8 @@ app.post('/api/novedades/resolver', (req, res) => {
         // Contexto para la auditoría — el body de la petición solo trae el id.
         res.locals.auditoriaExtra = { titulo: novedad.titulo, tipo: novedad.tipo };
 
-        novedad.resuelta = true;
+        // resuelta:false = volver a abrirla (lo usa Deshacer).
+        novedad.resuelta = req.body.resuelta === false ? false : true;
         guardarEnExcel(data);
         res.json({ ok: true, novedad });
     } catch (error) {
@@ -2533,6 +2565,20 @@ app.get('/api/dispositivos-bloqueados', (req, res) => {
 });
 
 // --- Desbloquear un dispositivo (solo admin) ---
+// Volver a bloquear un dispositivo (lo usa Deshacer al revertir un desbloqueo).
+app.post('/api/dispositivos/bloquear', (req, res) => {
+    const solicitante = normalizarEmail(req.headers['x-user-email']);
+    if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
+        return res.status(403).json({ ok: false, msg: 'Solo el administrador puede bloquear dispositivos' });
+    }
+    const { email, dispositivoId, dispositivo, ip } = req.body || {};
+    if (!email || !dispositivoId) {
+        return res.status(400).json({ ok: false, msg: 'Faltan datos del dispositivo a bloquear.' });
+    }
+    bloquearDispositivoDeSesion({ email, dispositivoId, dispositivo, ip });
+    res.json({ ok: true });
+});
+
 app.post('/api/dispositivos/desbloquear', (req, res) => {
     const solicitante = normalizarEmail(req.headers['x-user-email']);
     if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
@@ -2721,7 +2767,7 @@ app.post('/api/auth/register', async (req, res) => {
 //   de guardar, como cualquier escritura).
 // La lógica está en importacion.js (con pruebas).
 // ============================================================
-app.post('/api/importar/viajes-reales', (req, res) => {
+app.post('/api/importar/viajes-reales', async (req, res) => {
     try {
         const { archivo, previsualizar, aplicarRutas } = req.body || {};
         if (!archivo || typeof archivo !== 'string') {
@@ -2757,6 +2803,7 @@ app.post('/api/importar/viajes-reales', (req, res) => {
             return res.status(200).json({ ok: true, previsualizacion: true, resumen });
         }
 
+        const respaldoAntes = await respaldoAntesDeAccion('antes-importar', req.headers['x-user-email']);
         const copia = JSON.parse(JSON.stringify(data));
         const resultado = aplicarImportacion(copia, importacion, { aplicarRutas: !!aplicarRutas });
         guardarEnExcel(copia);
@@ -2765,7 +2812,7 @@ app.post('/api/importar/viajes-reales', (req, res) => {
             reemplazados: resultado.reemplazados, rutasCambiadas: resultado.rutasCambiadas
         };
         console.log(`📥 Importados ${resumen.total} viajes reales (${resumen.desde} a ${resumen.hasta}); reemplazados ${resultado.reemplazados}.`);
-        return res.status(200).json({ ok: true, resumen, ...resultado });
+        return res.status(200).json({ ok: true, resumen, respaldoAntes, ...resultado });
     } catch (error) {
         console.error('🚨 Error en /api/importar/viajes-reales:', error);
         return res.status(500).json({ ok: false, msg: error.message });
@@ -2805,6 +2852,9 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
         // solo al terminar la petición.
         const esPrevisualizacion = !!previsualizar;
         const data = esPrevisualizacion ? JSON.parse(JSON.stringify(dataOriginal)) : dataOriginal;
+        // Respaldo de ANTES de tocar nada, para poder deshacer la generación.
+        const respaldoAntes = esPrevisualizacion ? null
+            : await respaldoAntesDeAccion('antes-generar-matriz', req.headers['x-user-email']);
 
         // Blindaje: si por cualquier motivo quedaron rutas duplicadas (mismo
         // codigo repetido), nos quedamos solo con la primera de cada una --
@@ -3312,6 +3362,7 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
 
         return res.status(200).json({
             ok: true,
+            respaldoAntes,
             previsualizacion: esPrevisualizacion,
             total: viajesEstructurados,
             makand: viajesMakand,

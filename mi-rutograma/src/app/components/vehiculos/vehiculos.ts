@@ -907,6 +907,14 @@ export class VehiculosComponent implements OnInit, OnDestroy {
     this.ds.eliminarVehiculoBD(v.placa).subscribe({
       next: (res: any) => {
         if (res.ok) {
+          const eliminado = this.ds.S.vehiculos[v.index];
+          if (eliminado) {
+            this.ds.registrarCambio({
+              tipo: 'eliminar-vehiculo', clave: String(eliminado.p || eliminado.placa || ''),
+              antes: JSON.parse(JSON.stringify(eliminado)), despues: null,
+              descripcion: `Eliminación del vehículo ${v.placa}`
+            });
+          }
           this.ds.S.vehiculos.splice(v.index, 1);
           this.ds.autoSave();
           this.prepararDatos();

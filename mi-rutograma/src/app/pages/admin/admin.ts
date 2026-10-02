@@ -1,4 +1,6 @@
-import { Component, OnInit, NgZone, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, NgZone, ChangeDetectorRef } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { DataService } from '../../services/data';
 import { CommonModule } from '@angular/common'; // Necesario para el *ngFor
 import { FormsModule } from '@angular/forms'; // Necesario para los [(ngModel)] de los filtros de auditoría
 import { AccountService, CuentaUsuario } from '../../services/account.service';
@@ -11,7 +13,7 @@ import { UiService } from '../../services/ui.service';
   templateUrl: './admin.html',
   styleUrl: './admin.css',
 })
-export class Admin implements OnInit {
+export class Admin implements OnInit, OnDestroy {
   usuarios: CuentaUsuario[] = [];
   cargando: boolean = false;
 
@@ -63,8 +65,11 @@ export class Admin implements OnInit {
     private account: AccountService,
     private zone: NgZone,
     private cdr: ChangeDetectorRef,
-    private ui: UiService
+    private ui: UiService,
+    private ds: DataService
   ) {}
+
+  private subCambios?: Subscription;
 
   // Modal de confirmación propio — reemplaza el confirm() nativo del
   // navegador. Mismo patrón ya usado en rutograma.ts/rutas.ts/
@@ -95,6 +100,16 @@ export class Admin implements OnInit {
 
   async ngOnInit() {
     this.cargarUsuarios();
+    // Si se deshace/rehace un cambio de cuentas o dispositivos desde la
+    // barra de arriba, se recargan las listas para verlo al instante.
+    this.subCambios = this.ds.cambioRevertido.subscribe(tipo => {
+      if (tipo === 'usuario-rol' || tipo === 'usuario-estado') this.cargarUsuarios();
+      if (tipo === 'dispositivo-desbloqueado') this.cargarDispositivosBloqueados();
+    });
+  }
+
+  ngOnDestroy() {
+    this.subCambios?.unsubscribe();
   }
 
   cambiarPestania(p: 'cuentas' | 'auditoria' | 'dispositivos') {
@@ -123,6 +138,12 @@ export class Admin implements OnInit {
   async desbloquear(d: any) {
     try {
       await this.account.desbloquearDispositivo(d.email, d.dispositivoId);
+      this.ds.registrarCambio({
+        tipo: 'dispositivo-desbloqueado', clave: `${d.email}|${d.dispositivoId}`,
+        antes: { email: d.email, dispositivoId: d.dispositivoId, dispositivo: d.dispositivo, ip: d.ip },
+        despues: null,
+        descripcion: `Desbloqueo del dispositivo ${d.dispositivo || ''} de ${d.email}`
+      });
       this.ui.mostrarToast(`Dispositivo de ${d.email} desbloqueado.`, 'ok');
       this.dispositivosBloqueados = this.dispositivosBloqueados.filter(x => x !== d);
       this.zone.run(() => this.cdr.detectChanges());
@@ -282,7 +303,13 @@ export class Admin implements OnInit {
     );
     if (confirmado) {
       try {
+        const estadoAntes = { estado: usuario.estado, motivo: (usuario as any).motivoRechazo || '' };
         await this.account.aprobar(usuario.email);
+        this.ds.registrarCambio({
+          tipo: 'usuario-estado', clave: usuario.email,
+          antes: estadoAntes, despues: { estado: 'APPROVED', motivo: '' },
+          descripcion: `Aprobación de ${usuario.email}`
+        });
         await this.cargarUsuarios(); // Recargamos para ver el cambio real
       } catch (error) {
         console.error("Error al aprobar:", error);
@@ -315,7 +342,14 @@ export class Admin implements OnInit {
     const usuario = this.usuarioARechazar;
     this.isModalMotivoRechazoOpen = false;
     try {
-      await this.account.rechazar(usuario.email, this.motivoRechazoTexto.trim());
+      const estadoAntes = { estado: usuario.estado, motivo: (usuario as any).motivoRechazo || '' };
+      const motivo = this.motivoRechazoTexto.trim();
+      await this.account.rechazar(usuario.email, motivo);
+      this.ds.registrarCambio({
+        tipo: 'usuario-estado', clave: usuario.email,
+        antes: estadoAntes, despues: { estado: 'REJECTED', motivo },
+        descripcion: `Rechazo de ${usuario.email}`
+      });
       await this.cargarUsuarios();
     } catch (error) {
       console.error("Error al rechazar:", error);
@@ -327,7 +361,14 @@ export class Admin implements OnInit {
 
   async cambiarRol(usuario: any, rol: 'editor' | 'lector') {
     try {
+      const rolAntes = usuario.rol || 'editor';
       await this.account.cambiarRol(usuario.email, rol);
+      if (rolAntes !== rol) {
+        this.ds.registrarCambio({
+          tipo: 'usuario-rol', clave: usuario.email, antes: rolAntes, despues: rol,
+          descripcion: `Rol de ${usuario.email}: ${rolAntes} → ${rol}`
+        });
+      }
       usuario.rol = rol; // actualización inmediata en la tabla, sin esperar recarga
       this.zone.run(() => this.cdr.detectChanges());
     } catch (error) {
