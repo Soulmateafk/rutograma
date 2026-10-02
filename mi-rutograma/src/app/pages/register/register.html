@@ -55,8 +55,32 @@
             <rect x="4" y="11" width="16" height="9" rx="2" />
             <path d="M8 11V7a4 4 0 0 1 8 0v4" />
           </svg>
-          <input type="password" [(ngModel)]="pass" placeholder="Mínimo 6 caracteres">
+          <input class="reg-con-ojo" [type]="verPass ? 'text' : 'password'" [(ngModel)]="pass" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+          <button type="button" class="reg-ojo" (click)="verPass = !verPass"
+                  [attr.aria-label]="verPass ? 'Ocultar contraseña' : 'Ver contraseña'" [title]="verPass ? 'Ocultar contraseña' : 'Ver contraseña'">
+            <i class="bi" [ngClass]="verPass ? 'bi-eye-slash' : 'bi-eye'"></i>
+          </button>
         </div>
+      </div>
+
+      <div class="reg-field">
+        <label class="reg-label">Confirmar contraseña</label>
+        <div class="reg-input-wrap">
+          <svg class="reg-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="11" width="16" height="9" rx="2" />
+            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+          </svg>
+          <input class="reg-con-ojo" [type]="verConfirmacion ? 'text' : 'password'" [(ngModel)]="confirmarPass" placeholder="Escríbela otra vez" autocomplete="new-password"
+                 [class.reg-input-error]="confirmarPass && !coinciden" (keyup.enter)="enviarSolicitud()">
+          <button type="button" class="reg-ojo" (click)="verConfirmacion = !verConfirmacion"
+                  [attr.aria-label]="verConfirmacion ? 'Ocultar contraseña' : 'Ver contraseña'" [title]="verConfirmacion ? 'Ocultar contraseña' : 'Ver contraseña'">
+            <i class="bi" [ngClass]="verConfirmacion ? 'bi-eye-slash' : 'bi-eye'"></i>
+          </button>
+        </div>
+        <p class="reg-coincide" *ngIf="confirmarPass" [class.reg-coincide-ok]="coinciden">
+          <i class="bi" [ngClass]="coinciden ? 'bi-check-circle-fill' : 'bi-x-circle-fill'"></i>
+          {{ coinciden ? 'Las contraseñas coinciden' : 'Las contraseñas no coinciden' }}
+        </p>
       </div>
 
       <div class="reg-field">

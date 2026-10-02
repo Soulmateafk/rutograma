@@ -21,7 +21,16 @@ export class RegisterComponent {
   nombre: string = '';
   email: string = '';
   pass: string = '';
+  confirmarPass: string = '';
   departamento: string = '';
+
+  // Botón del ojo de cada campo de contraseña.
+  verPass = false;
+  verConfirmacion = false;
+
+  get coinciden(): boolean {
+    return this.pass === this.confirmarPass;
+  }
 
   // Desplegable propio de "Departamento" — reemplaza el <select> nativo,
   // ya que la mayoría de navegadores IGNORAN el estilo personalizado de
@@ -52,6 +61,14 @@ export class RegisterComponent {
     }
     if (this.pass.length < 6) {
       this.ui.mostrarToast('La contraseña debe tener al menos 6 caracteres', 'err');
+      return;
+    }
+    if (!this.confirmarPass) {
+      this.ui.mostrarToast('Confirma tu contraseña escribiéndola otra vez', 'err');
+      return;
+    }
+    if (!this.coinciden) {
+      this.ui.mostrarToast('Las contraseñas no coinciden', 'err');
       return;
     }
 

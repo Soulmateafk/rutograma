@@ -450,3 +450,27 @@ select.form-control option {
     padding: 30px 20px 24px;
   }
 }
+/* Botón del ojo (ver / ocultar contraseña), dentro del campo a la derecha. */
+.reg-input-wrap input.reg-con-ojo { padding-right: 44px; }
+.reg-ojo {
+  position: absolute;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+.reg-ojo:hover { color: var(--text-main); background: rgba(255, 255, 255, 0.06); }
+.reg-ojo:focus-visible { outline: 2px solid var(--blue-bright); outline-offset: 1px; }
+
+.reg-input-wrap input.reg-input-error { border-color: #ef4444; }
+.reg-field .reg-coincide { margin: 6px 0 0; font-size: 0.8rem; color: #f87171; display: flex; gap: 6px; align-items: center; }
+.reg-field .reg-coincide.reg-coincide-ok { color: #4ade80; }
