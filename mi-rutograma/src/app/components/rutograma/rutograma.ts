@@ -1218,7 +1218,10 @@ export class RutogramaComponent implements OnInit, OnDestroy {
       // hayConflicto() (solo true/false); ahora se usa
       // obtenerViajesEnConflicto() para poder revisar el tipo de cada
       // viaje con el que choca.
-      const conflictivosReales = vj.tipo === 'extra'
+      // Los viajes REALES (importados del Excel de operación) tampoco se
+      // pintan en rojo: ya pasaron así. Si un viaje generado choca con uno
+      // real, el que se marca es el generado.
+      const conflictivosReales = (vj.tipo === 'extra' || vj.tipo === 'real')
         ? []
         : obtenerViajesEnConflicto(placaLimpia, vj.salida, vj.retorno, this.ds.S, vj).filter((otro: any) => otro.tipo !== 'extra');
       const existeConflicto = conflictivosReales.length > 0;
@@ -1233,7 +1236,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
       // conflicto, aunque de verdad choquen con otro — se quedan con su
       // color normal de "extra". El dato conflictoLogico se sigue
       // guardando igual, solo se cambia el color que se ve en pantalla.
-      if (existeConflicto && vj.tipo !== 'extra') {
+      if (existeConflicto && vj.tipo !== 'extra' && vj.tipo !== 'real') {
         vj.cssClass = 'bg-conflicto';
       } else if (vj.estado === 'Entregado') {
         vj.cssClass = 'bg-entregado';

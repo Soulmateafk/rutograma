@@ -285,6 +285,24 @@ function armarImportacion({ filas, tiempos = {}, rutas = [], vehiculos = [], fec
         });
     });
 
+    // Un vehículo de Makand no puede seguir ocupado por un viaje cuando ya
+    // salió al siguiente: en el archivo, "FECHA DE RETORNO A PLANTA" a veces
+    // va más allá (parece ser la vuelta de las cajas, no del vehículo), y
+    // eso dejaba viajes reales encimados. Se recorta al día de la siguiente
+    // salida real de esa placa.
+    const porPlaca = {};
+    viajes.filter(v => v.tr === 'Makand').forEach(v => (porPlaca[v.placa] || (porPlaca[v.placa] = [])).push(v));
+    Object.values(porPlaca).forEach(lista => {
+        lista.sort((a, b) => a.fecha.localeCompare(b.fecha));
+        for (let i = 0; i < lista.length - 1; i++) {
+            const actual = lista[i];
+            const hastaSiguiente = diasEntre(actual.fecha, lista[i + 1].fecha);
+            if (hastaSiguiente >= 1 && actual.retorno - actual.salida > hastaSiguiente) {
+                actual.retorno = actual.salida + hastaSiguiente;
+            }
+        }
+    });
+
     // Filas de cupo que todavía no existen en Vehículos.
     const cuposNuevos = [];
     ['Arsitrans', 'Polar'].forEach(tr => {
