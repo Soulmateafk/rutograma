@@ -19,8 +19,7 @@ export const ASIGNACIONES_VEHICULOS = {
   'QJZ765': ['valledupar', 'barranquilla']
 };
 
-// Quita tildes/acentos y pasa a minúsculas — se comparte entre buscarRutaEnExcel
-// y esRutaPermitida, para que "Monteria" y "montería" se reconozcan como lo mismo.
+// Quita tildes/acentos y pasa a minúsculas (lo usa buscarRutaEnExcel), para que "Monteria" y "montería" se reconozcan como lo mismo.
 function norm(str) {
   return String(str || '')
     .normalize("NFD")
@@ -83,31 +82,6 @@ function buscarRutaEnExcel(vj, S) {
   }
 
   return null;
-}
-
-// 3. VALIDADOR DE RUTAS PERMITIDAS POR VEHÍCULO
-function esRutaPermitida(placa, rExcel, vj) {
-  const pClean = String(placa || '')
-    .toUpperCase()
-    .replace(/\s/g, '');
-
-  // Solo LUN 428 mantiene esta restricción.
-  if (pClean !== 'LUN428') return true;
-
-  const rutasPermitidas = ASIGNACIONES_VEHICULOS['LUN428'] || [];
-
-  const destinoFinal = norm(
-    String(
-      rExcel?.dest ||
-      vj.destino ||
-      vj.ruta ||
-      ''
-    )
-  );
-
-  return rutasPermitidas.some(
-    p => destinoFinal.includes(norm(p))
-  );
 }
 
 // 4. LÓGICA DE TIEMPOS DINÁMICA
@@ -705,21 +679,11 @@ export function agruparViajes(
           S
         );
 
-      // Solo LUN 428 mantiene
-      // restricción de rutas.
-      // Las rutas de Makand se muestran directamente.
-// El filtro de rutas permitidas solo aplica a viajes externos.
-if (
-  vj.tipo !== 'extra' &&
-  !esTransportadoraTercero(vj) &&
-  !esRutaPermitida(
-    placa,
-    rExcel,
-    vj
-  )
-) {
-  return;
-}
+      // Antes aquí se ESCONDÍAN los viajes de LUN 428 que no fueran a
+      // Barranquilla/Montería: existían (Vehículos los mostraba) pero el
+      // Rutograma pintaba "Vehículo disponible" ese día. La restricción
+      // de rutas aplica al GENERAR (server.js), no al mostrar lo que ya
+      // existe — y los viajes reales importados pueden ir a cualquier lado.
 
       const codigoRuta =
         rExcel?.cod ||

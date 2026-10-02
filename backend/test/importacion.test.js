@@ -130,3 +130,18 @@ test('aplicar: reemplaza solo los viajes dentro del rango del archivo', () => {
     assert.equal(res.reemplazados, 1);
     assert.deepEqual(data.viajes.map(v => v.id).sort(), ['REAL-2026-09-03-PRZ064', 'REAL-2026-09-05-PRZ064', 'antes', 'despues'].sort());
 });
+
+test('un viaje real no ocupa al vehículo más allá de su siguiente salida real', () => {
+    const r = armarImportacion({
+        filas: [
+            // sale el 13 y el archivo dice que "retorna" el 17...
+            fila({ 'PLACA': 'NOW033', 'FECHA DE CARGUE': '9/13/26', 'FECHA DE RETORNO A PLANTA': '9/17/26' }),
+            // ...pero ya volvió a salir el 14
+            fila({ 'PLACA': 'NOW033', 'FECHA DE CARGUE': '9/14/26' })
+        ],
+        tiempos: { 'CALI': 2 }, rutas: RUTAS, vehiculos: [{ p: 'NOW 033' }], hoy: '2026-10-01'
+    });
+    const [primero, segundo] = r.viajes;
+    assert.equal(primero.retorno, 14);
+    assert.equal(segundo.retorno - segundo.salida, 2);
+});
