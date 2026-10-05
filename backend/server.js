@@ -15,7 +15,7 @@ const bcrypt = require('bcryptjs');
 const { rangosMantenimiento, diasOcupadoViaje, mantenimientoQueChoca, agregarSesionConTope, colapsarSesionesDuplicadas, compararParaVariedad, anotarDestino } = require('./reglas');
 const { leerLibroViajeros, armarImportacion, aplicarImportacion } = require('./importacion');
 const { planReacomodoCupos } = require('./cupos');
-const { ROLES_VALIDOS, rolDeCuenta, requiereAprobacion, describirCambio, solicitudPublica, permisosDeCuenta, normalizarPermisos, necesitaAprobacion } = require('./aprobaciones');
+const { ROLES_VALIDOS, rolDeCuenta, requiereAprobacion, describirCambio, solicitudPublica, permisosDeCuenta, normalizarPermisos, necesitaAprobacion, permisoRequerido, nombrePermiso } = require('./aprobaciones');
 
 // Marca secreta (cambia en cada arranque) para que el propio servidor
 // vuelva a ejecutar la petición de un auxiliar cuando un jefe la aprueba.
@@ -1063,7 +1063,7 @@ const RUTAS_SIN_RESTRICCION_DE_ROL = [
     '/api/sesiones/cerrar-otras',
     '/api/sesiones/cerrar-actual'
 ];
-const RUTAS_CON_PERMISO_PROPIO = ['/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/aprobaciones/decidir'];
+const RUTAS_CON_PERMISO_PROPIO = ['/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
 
 app.use((req, res, next) => {
     if (!req.path.startsWith('/api/') || req.method === 'GET') return next();
@@ -1092,6 +1092,12 @@ app.use((req, res, next) => {
         const permisos = cuenta ? permisosDeCuenta(cuenta, false) : null;
         if (permisos && !permisos.editar) {
             return res.status(403).json({ ok: false, msg: 'Tu cuenta es de solo lectura — no puedes hacer cambios.' });
+        }
+        // Permiso puntual de la acción (eliminar, generar matriz, importar...).
+        const requerido = permisoRequerido(req.method, req.path, req.body);
+        if (permisos && requerido && !permisos[requerido]) {
+            res.locals.auditoriaOmitir = true;
+            return res.status(403).json({ ok: false, msg: `Tu cuenta no tiene permiso para: ${nombrePermiso(requerido)}.` });
         }
 
         // Cuenta que necesita aprobación (auxiliar, o permisos así): el
@@ -1455,7 +1461,11 @@ app.get('/api/auth/usuarios', (req, res) => {
         // Ni siquiera al admin hace falta mandarle el hash de las
         // contraseñas — la pantalla de administración solo necesita
         // correo, nombre, departamento y estado de cada cuenta.
-        const usuariosSinHash = (data.usuarios || []).map(({ passHash, ...resto }) => resto);
+        // Las solicitudes más recientes primero.
+        const fechaCuenta = (u) => Date.parse(u.solicitadoEn || u.actualizadoEn || '') || 0;
+        const usuariosSinHash = (data.usuarios || [])
+            .map(({ passHash, ...resto }) => resto)
+            .sort((a, b) => fechaCuenta(b) - fechaCuenta(a));
         res.json({ ok: true, usuarios: usuariosSinHash });
     } catch (error) {
         res.status(500).json({ ok: false, msg: error.message });
@@ -1542,6 +1552,43 @@ app.post('/api/auth/decidir', (req, res) => {
         res.json({ ok: true, email, estado: accion, rol: usuario.rol, permisos: usuario.permisos || null });
     } catch (error) {
         console.error("🚨 Error en /api/auth/decidir:", error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// --- Eliminar una solicitud de cuenta (rechazada; el admin también puede
+// borrar las pendientes, ej. de spam). No se pueden borrar cuentas aprobadas
+// desde aquí: primero se rechazan. Se cierran sus sesiones. ---
+app.post('/api/auth/eliminar', (req, res) => {
+    try {
+        const solicitante = normalizarEmail(req.headers['x-user-email']);
+        const esAdmin = solicitante === normalizarEmail(ADMIN_EMAIL);
+        if (!esAdmin && !permisosDelSolicitante(req)?.gestionarCuentas) {
+            return res.status(403).json({ ok: false, msg: 'Tu cuenta no tiene permiso para eliminar solicitudes de cuenta.' });
+        }
+        const email = normalizarEmail(req.body?.email);
+        const data = leerExcel();
+        const usuario = (data.usuarios || []).find(u => normalizarEmail(u.email) === email);
+        if (!usuario) return res.status(404).json({ ok: false, msg: 'Esa cuenta ya no existe.' });
+        const permitidos = esAdmin ? ['REJECTED', 'PENDING'] : ['REJECTED'];
+        if (!permitidos.includes(usuario.estado)) {
+            return res.status(409).json({
+                ok: false,
+                msg: esAdmin
+                    ? 'Solo se pueden eliminar solicitudes rechazadas o pendientes. Para quitar una cuenta aprobada, recházala primero.'
+                    : 'Solo se pueden eliminar solicitudes rechazadas.'
+            });
+        }
+        data.usuarios = data.usuarios.filter(u => u !== usuario);
+        guardarEnExcel(data);
+        const sesionesAntes = sesionesActivas.length;
+        sesionesActivas = sesionesActivas.filter(x => x.email !== email);
+        if (sesionesActivas.length !== sesionesAntes) guardarSesiones();
+        res.locals.auditoriaExtra = { nombre: usuario.nombre || '', estadoAnterior: usuario.estado };
+        console.log(`🗑️ ${solicitante} eliminó la solicitud de cuenta de ${email} (${usuario.estado})`);
+        res.json({ ok: true, email });
+    } catch (error) {
+        console.error('🚨 Error en /api/auth/eliminar:', error);
         res.status(500).json({ ok: false, msg: error.message });
     }
 });
@@ -1644,8 +1691,8 @@ app.post('/api/auth/resetear-clave', async (req, res) => {
 app.post('/api/vencimientos/enviar-ahora', async (req, res) => {
     try {
         const solicitante = normalizarEmail(req.headers['x-user-email']);
-        if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
-            return res.status(403).json({ ok: false, msg: 'Solo el administrador puede enviar este resumen' });
+        if (solicitante !== normalizarEmail(ADMIN_EMAIL) && !permisosDelSolicitante(req)?.enviarVencimientos) {
+            return res.status(403).json({ ok: false, msg: 'Tu cuenta no tiene permiso para enviar este resumen.' });
         }
         const resultado = await enviarResumenVencimientos();
         return res.json({ ok: true, ...resultado });
@@ -1888,8 +1935,8 @@ app.post('/api/modo', (req, res) => {
         // restringe al administrador, igual que aprobar cuentas o restaurar
         // un respaldo, en vez de dejarlo abierto a cualquier editor.
         const solicitante = normalizarEmail(req.headers['x-user-email']);
-        if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
-            return res.status(403).json({ ok: false, msg: 'Solo el administrador puede cambiar el modo.' });
+        if (solicitante !== normalizarEmail(ADMIN_EMAIL) && !permisosDelSolicitante(req)?.cambiarModo) {
+            return res.status(403).json({ ok: false, msg: 'Tu cuenta no tiene permiso para cambiar el modo.' });
         }
 
         const { modo } = req.body;
@@ -1946,8 +1993,8 @@ app.get('/api/respaldos', async (req, res) => {
         // roles (arriba) la deja pasar sin revisar nada — el chequeo tiene
         // que hacerse aquí mismo, igual que en /api/auditoria.
         const solicitante = normalizarEmail(req.headers['x-user-email']);
-        if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
-            return res.status(403).json({ ok: false, msg: 'Solo el administrador puede ver los respaldos' });
+        if (solicitante !== normalizarEmail(ADMIN_EMAIL) && !permisosDelSolicitante(req)?.restaurarRespaldos) {
+            return res.status(403).json({ ok: false, msg: 'Tu cuenta no tiene permiso para ver los respaldos.' });
         }
         const respaldos = listarRespaldosDB(modoActual);
         res.json({ ok: true, respaldos });
@@ -2132,8 +2179,8 @@ app.post('/api/respaldos/restaurar', async (req, res) => {
             return res.status(400).json({ ok: false, msg: 'Falta el nombre del respaldo a restaurar.' });
         }
         const esSuDeshacer = !!solicitante && respaldosParaDeshacer.get(path.basename(nombre)) === solicitante;
-        if (solicitante !== normalizarEmail(ADMIN_EMAIL) && !esSuDeshacer) {
-            return res.status(403).json({ ok: false, msg: 'Solo el administrador puede restaurar respaldos' });
+        if (solicitante !== normalizarEmail(ADMIN_EMAIL) && !esSuDeshacer && !permisosDelSolicitante(req)?.restaurarRespaldos) {
+            return res.status(403).json({ ok: false, msg: 'Tu cuenta no tiene permiso para restaurar respaldos.' });
         }
 
         // Antes de sobreescribir, se guarda un respaldo del estado ACTUAL
@@ -3086,12 +3133,13 @@ app.get('/api/sesiones', (req, res) => {
     const yo = req.usuarioVerificado;
     if (!yo) return res.status(401).json({ ok: false, codigo: 'sin_pase', msg: 'Debes iniciar sesión.' });
     const esAdmin = yo === normalizarEmail(ADMIN_EMAIL);
-    const verTodas = esAdmin && String(req.query.todas || '') === '1';
+    const puedeVerTodas = esAdmin || !!permisosDelSolicitante(req)?.verSesionesTodas;
+    const verTodas = puedeVerTodas && String(req.query.todas || '') === '1';
     const lista = sesionesActivas
         .filter(x => verTodas || x.email === yo)
         .map(x => datosPublicosSesion(x, req.sesionId))
         .sort((a, b) => Date.parse(b.ultima) - Date.parse(a.ultima));
-    res.json({ ok: true, esAdmin, sesiones: lista, maxSesiones: MAX_SESIONES_POR_CUENTA });
+    res.json({ ok: true, esAdmin, puedeVerTodas, sesiones: lista, maxSesiones: MAX_SESIONES_POR_CUENTA });
 });
 
 app.post('/api/sesiones/cerrar', (req, res) => {
@@ -3140,8 +3188,8 @@ app.post('/api/sesiones/cerrar-actual', (req, res) => {
 // --- Ver los dispositivos bloqueados (solo admin) ---
 app.get('/api/dispositivos-bloqueados', (req, res) => {
     const solicitante = normalizarEmail(req.headers['x-user-email']);
-    if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
-        return res.status(403).json({ ok: false, msg: 'Solo el administrador puede ver los dispositivos bloqueados' });
+    if (solicitante !== normalizarEmail(ADMIN_EMAIL) && !permisosDelSolicitante(req)?.gestionarDispositivos) {
+        return res.status(403).json({ ok: false, msg: 'Tu cuenta no tiene permiso para ver los dispositivos bloqueados.' });
     }
     const lista = [...dispositivosBloqueados].sort((a, b) => Date.parse(b.bloqueadoEn) - Date.parse(a.bloqueadoEn));
     res.json({ ok: true, dispositivos: lista });
@@ -3151,8 +3199,8 @@ app.get('/api/dispositivos-bloqueados', (req, res) => {
 // Volver a bloquear un dispositivo (lo usa Deshacer al revertir un desbloqueo).
 app.post('/api/dispositivos/bloquear', (req, res) => {
     const solicitante = normalizarEmail(req.headers['x-user-email']);
-    if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
-        return res.status(403).json({ ok: false, msg: 'Solo el administrador puede bloquear dispositivos' });
+    if (solicitante !== normalizarEmail(ADMIN_EMAIL) && !permisosDelSolicitante(req)?.gestionarDispositivos) {
+        return res.status(403).json({ ok: false, msg: 'Tu cuenta no tiene permiso para bloquear dispositivos.' });
     }
     const { email, dispositivoId, dispositivo, ip } = req.body || {};
     if (!email || !dispositivoId) {
@@ -3164,8 +3212,8 @@ app.post('/api/dispositivos/bloquear', (req, res) => {
 
 app.post('/api/dispositivos/desbloquear', (req, res) => {
     const solicitante = normalizarEmail(req.headers['x-user-email']);
-    if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
-        return res.status(403).json({ ok: false, msg: 'Solo el administrador puede desbloquear dispositivos' });
+    if (solicitante !== normalizarEmail(ADMIN_EMAIL) && !permisosDelSolicitante(req)?.gestionarDispositivos) {
+        return res.status(403).json({ ok: false, msg: 'Tu cuenta no tiene permiso para desbloquear dispositivos.' });
     }
     const { email, dispositivoId } = req.body || {};
     if (!email || !dispositivoId) {

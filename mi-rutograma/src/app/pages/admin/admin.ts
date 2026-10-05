@@ -3,7 +3,7 @@ import { Subscription } from 'rxjs';
 import { DataService } from '../../services/data';
 import { CommonModule } from '@angular/common'; // Necesario para el *ngFor
 import { FormsModule } from '@angular/forms'; // Necesario para los [(ngModel)] de los filtros de auditoría
-import { AccountService, CuentaUsuario, Permisos, PERMISOS_INFO, permisosDeRol, normalizarPermisos, mismosPermisos } from '../../services/account.service';
+import { AccountService, CuentaUsuario, Permisos, PERMISOS_INFO, PERMISOS_QUE_REQUIEREN_EDITAR, permisosDeRol, permisosCompletos, normalizarPermisos, mismosPermisos } from '../../services/account.service';
 import { UiService } from '../../services/ui.service';
 import { AuthService } from '../../services/auth.service';
 
@@ -39,7 +39,7 @@ export class Admin implements OnInit, OnDestroy {
   public modalPermisos: { usuario: CuentaUsuario; modo: 'aprobar' | 'editar'; rol: 'editor' | 'lector' | 'jefe' | 'auxiliar'; permisos: Permisos } | null = null;
 
   public permisosDe(u: CuentaUsuario): Permisos {
-    return u.permisos ? normalizarPermisos(u.permisos) : permisosDeRol(u.rol || 'editor');
+    return permisosCompletos(u.rol || 'editor', u.permisos);
   }
 
   public resumenPermisos(u: CuentaUsuario): string {
@@ -62,7 +62,7 @@ export class Admin implements OnInit, OnDestroy {
     if (!this.modalPermisos) return;
     const p = { ...this.modalPermisos.permisos, [clave]: !this.modalPermisos.permisos[clave] };
     // Activar algo que depende de "Hacer cambios" lo activa también.
-    if ((clave === 'sinAprobacion' || clave === 'editarHistorico') && p[clave]) p.editar = true;
+    if (PERMISOS_QUE_REQUIEREN_EDITAR.includes(clave) && p[clave]) p.editar = true;
     this.modalPermisos.permisos = normalizarPermisos(p);
   }
 
@@ -225,7 +225,8 @@ export class Admin implements OnInit, OnDestroy {
   }
 
   cambiarPestania(p: 'cuentas' | 'auditoria' | 'dispositivos' | 'correo') {
-    if ((p === 'dispositivos' || p === 'correo') && !this.auth.isAdmin) return;
+    if (p === 'correo' && !this.auth.isAdmin) return;
+    if (p === 'dispositivos' && !this.auth.isAdmin && !this.auth.puede('gestionarDispositivos')) return;
     this.pestaniaActiva = p;
     if (p === 'correo') this.cargarEstadoCorreo();
     if (p === 'auditoria' && this.eventos.length === 0) {
@@ -408,6 +409,8 @@ export class Admin implements OnInit, OnDestroy {
         return `Solicitó una cuenta nueva (${r.nombre || r.email || ''})`;
       case '/api/auth/check':
         return `Verificó su cuenta al iniciar sesión`;
+      case '/api/auth/eliminar':
+        return `Eliminó la solicitud de cuenta de ${r.email || 'desconocido'}${r.nombre ? ' (' + r.nombre + ')' : ''}`;
       case '/api/auth/decidir':
         return `${r.accion === 'APPROVED' ? 'Aprobó' : 'Rechazó'} la cuenta de ${r.email || 'desconocido'}`;
       case '/api/auth/rol':
@@ -433,13 +436,38 @@ export class Admin implements OnInit, OnDestroy {
     this.cargando = true;
     try {
       // Trae TODAS las cuentas reales desde el servidor (con su estado).
-      this.usuarios = await this.account.listarTodas();
+      // Las solicitudes más recientes primero, las más viejas al final.
+      const fecha = (u: any) => Date.parse(u.solicitadoEn || u.actualizadoEn || '') || 0;
+      this.usuarios = (await this.account.listarTodas()).sort((a: any, b: any) => fecha(b) - fecha(a));
     } catch (error) {
       console.error("Error al cargar usuarios:", error);
       this.usuarios = [];
     } finally {
       this.cargando = false;
       this.zone.run(() => this.cdr.detectChanges());
+    }
+  }
+
+  /** Rechazadas: admin o quien pueda gestionar cuentas. Pendientes: solo el admin. */
+  public puedeEliminarCuenta(u: CuentaUsuario): boolean {
+    if (u.estado === 'REJECTED') return this.auth.isAdmin || this.auth.puedeGestionarCuentas;
+    return u.estado === 'PENDING' && this.auth.isAdmin;
+  }
+
+  async eliminarCuenta(u: CuentaUsuario) {
+    const confirmado = await this.mostrarConfirmPersonalizado(
+      `¿Eliminar la solicitud de ${u.email}${u.nombre ? ' (' + u.nombre + ')' : ''}?\n\nSe borra para siempre; si la persona quiere entrar después, tendrá que registrarse de nuevo.`,
+      'Eliminar',
+      'Cancelar'
+    );
+    if (!confirmado) return;
+    try {
+      await this.account.eliminarCuenta(u.email);
+      this.usuarios = this.usuarios.filter(x => x.email !== u.email);
+      this.ui.mostrarToast(`Solicitud de ${u.email} eliminada.`, 'ok');
+      this.zone.run(() => this.cdr.detectChanges());
+    } catch (error: any) {
+      this.ui.mostrarToast(error?.error?.msg || 'No se pudo eliminar la solicitud.', 'err');
     }
   }
 

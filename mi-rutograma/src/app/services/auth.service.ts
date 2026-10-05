@@ -356,6 +356,11 @@ public get isConfigured(): boolean { return true;
     return this.account.permisos.gestionarCuentas;
   }
 
+  /** ¿La cuenta tiene este permiso? (ver PERMISOS_INFO en account.service.ts) */
+  public puede(clave: string): boolean {
+    return !!(this.account.permisos as any)[clave];
+  }
+
   public get puedeEditarHistorico(): boolean {
     return this.account.permisos.editarHistorico;
   }

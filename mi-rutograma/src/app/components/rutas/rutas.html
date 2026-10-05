@@ -233,7 +233,7 @@
                 <i class="bi" [ngClass]="r.activa === false ? 'bi-play-fill' : 'bi-pause-fill'"></i>
               </button>
 
-              <button class="btn"
+              <button class="btn" *ngIf="auth.puede('eliminar')"
                       style="padding: 5px 10px; font-size: 12px; background: #ef4444; color: white; border: none; font-weight: bold;"
                       (click)="eliminarRuta(r._idx)">
                 <i class="bi bi-x"></i>

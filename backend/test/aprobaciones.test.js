@@ -63,3 +63,35 @@ test('permisos: por rol, personalizados y del admin', () => {
     assert.equal(raro.verAdministracion, true);
     assert.equal('inventado' in raro, false);
 });
+
+const { permisoRequerido } = require('../aprobaciones');
+
+test('permisos puntuales: qué pide cada acción y valores de cada rol', () => {
+    assert.equal(permisoRequerido('POST', '/api/viajes/eliminar', {}), 'eliminar');
+    assert.equal(permisoRequerido('DELETE', '/api/vehiculos/ABC123', {}), 'eliminar');
+    assert.equal(permisoRequerido('POST', '/api/configuracion/generar-matriz', {}), 'generarMatriz');
+    assert.equal(permisoRequerido('POST', '/api/configuracion/generar-matriz', { previsualizar: true }), null);
+    assert.equal(permisoRequerido('POST', '/api/importar/viajes-reales', {}), 'importarExcel');
+    assert.equal(permisoRequerido('POST', '/api/modo', {}), 'cambiarModo');
+    assert.equal(permisoRequerido('POST', '/api/viajes', {}), null);
+
+    assert.equal(permisosDeRol('editor').importarExcel, true);
+    assert.equal(permisosDeRol('editor').cambiarModo, false);
+    assert.equal(permisosDeRol('auxiliar').importarExcel, false);
+    assert.equal(permisosDeRol('jefe').verSesionesTodas, true);
+    assert.equal(permisosDeRol('lector').eliminar, false);
+
+    // Sin "Hacer cambios" no queda ningún permiso de cambio.
+    const sinEditar = normalizarPermisos({ eliminar: true, cambiarModo: true, verSesionesTodas: true });
+    assert.equal(sinEditar.eliminar, false);
+    assert.equal(sinEditar.cambiarModo, false);
+    assert.equal(sinEditar.verSesionesTodas, true);
+
+    // Personalizados guardados antes de existir un permiso: toma el de su rol.
+    const viejo = { rol: 'editor', permisos: JSON.stringify({ editar: true, sinAprobacion: true, editarHistorico: false }) };
+    assert.equal(permisosDeCuenta(viejo, false).eliminar, true);
+    assert.equal(permisosDeCuenta(viejo, false).editarHistorico, false);
+    // Y si se quitó a propósito, sigue quitado.
+    const sinEliminar = { rol: 'editor', permisos: { editar: true, sinAprobacion: true, eliminar: false } };
+    assert.equal(permisosDeCuenta(sinEliminar, false).eliminar, false);
+});

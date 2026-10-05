@@ -148,7 +148,7 @@
                     <ng-container *ngIf="auth.puedeEditar">
                       <button type="button" class="action-btn" (click)="abrirModal('m-cond', $index)" title="Editar"><i class="bi bi-pencil-square" style="color:#fbbf24;"></i></button>
                       <button type="button" class="action-btn" (click)="cambiarEstado(c)" title="Cambiar estado"><i class="bi bi-arrow-repeat" style="color:#34d399;"></i></button>
-                      <button type="button" class="action-btn btn-delete" (click)="eliminarConductor($index)" title="Eliminar"><i class="bi bi-trash-fill" style="color:#f87171;"></i></button>
+                      <button type="button" class="action-btn btn-delete" *ngIf="auth.puede('eliminar')" (click)="eliminarConductor($index)" title="Eliminar"><i class="bi bi-trash-fill" style="color:#f87171;"></i></button>
                     </ng-container>
                   </div>
                 </td>

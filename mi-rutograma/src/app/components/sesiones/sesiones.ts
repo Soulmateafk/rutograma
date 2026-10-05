@@ -70,7 +70,8 @@ export class SesionesComponent implements OnInit, OnDestroy {
       const data = await res.json();
       if (data.ok) {
         this.sesiones = data.sesiones;
-        this.esAdmin = !!data.esAdmin;
+        // Admin, o cuentas con el permiso "Ver las sesiones de todas las cuentas".
+        this.esAdmin = !!(data.puedeVerTodas ?? data.esAdmin);
         if (Number(data.maxSesiones) > 0) this.maxSesiones = Number(data.maxSesiones);
       } else if (!silencioso) {
         this.ui.mostrarToast(data.msg || 'No se pudieron cargar las sesiones.', 'err');

@@ -25,25 +25,42 @@ const puedeAprobar = (rol) => rol === 'admin' || rol === 'jefe';
 const PERMISOS = [
     { clave: 'editar', nombre: 'Hacer cambios' },
     { clave: 'sinAprobacion', nombre: 'Sus cambios se aplican sin esperar aprobación' },
+    { clave: 'eliminar', nombre: 'Eliminar viajes, vehículos, rutas, conductores y novedades' },
+    { clave: 'generarMatriz', nombre: 'Generar la Matriz del mes' },
+    { clave: 'importarExcel', nombre: 'Importar viajes reales desde Excel' },
+    { clave: 'reacomodarCupos', nombre: 'Reacomodar cupos de Arsitrans y Polar' },
+    { clave: 'editarConfiguracion', nombre: 'Cambiar transportadoras, cupos de Configuración y festivos' },
+    { clave: 'editarHistorico', nombre: 'Cerrar mes y limpiar el histórico' },
+    { clave: 'cambiarModo', nombre: 'Cambiar entre modo Real y modo Prueba' },
+    { clave: 'restaurarRespaldos', nombre: 'Ver y restaurar respaldos' },
     { clave: 'aprobarCambios', nombre: 'Aprobar o rechazar cambios de otros' },
     { clave: 'verAdministracion', nombre: 'Ver cuentas y auditoría' },
-    { clave: 'gestionarCuentas', nombre: 'Aceptar o rechazar cuentas nuevas' },
-    { clave: 'editarHistorico', nombre: 'Cerrar mes y limpiar el histórico' }
+    { clave: 'gestionarCuentas', nombre: 'Aceptar, rechazar y eliminar solicitudes de cuenta' },
+    { clave: 'verSesionesTodas', nombre: 'Ver las sesiones de todas las cuentas' },
+    { clave: 'gestionarDispositivos', nombre: 'Ver y desbloquear dispositivos' },
+    { clave: 'enviarVencimientos', nombre: 'Enviar el resumen de vencimientos por correo' }
 ];
 const CLAVES_PERMISOS = PERMISOS.map(p => p.clave);
 
+// Permisos que solo tienen sentido si la cuenta puede hacer cambios.
+const REQUIEREN_EDITAR = ['sinAprobacion', 'eliminar', 'generarMatriz', 'importarExcel', 'reacomodarCupos',
+    'editarConfiguracion', 'editarHistorico', 'cambiarModo', 'restaurarRespaldos'];
+
+const EDICION_COMPLETA = { editar: true, sinAprobacion: true, eliminar: true, generarMatriz: true, importarExcel: true, reacomodarCupos: true, editarConfiguracion: true };
+
 const PERMISOS_POR_ROL = {
-    editor: { editar: true, sinAprobacion: true, editarHistorico: true },
+    editor: { ...EDICION_COMPLETA, editarHistorico: true },
     lector: {},
-    jefe: { editar: true, sinAprobacion: true, aprobarCambios: true, verAdministracion: true },
-    auxiliar: { editar: true }
+    jefe: { ...EDICION_COMPLETA, aprobarCambios: true, verAdministracion: true, verSesionesTodas: true },
+    // El auxiliar puede pedir casi todo; cada cambio espera aprobación.
+    auxiliar: { editar: true, eliminar: true, generarMatriz: true, reacomodarCupos: true, editarConfiguracion: true }
 };
 
 /** Deja solo claves conocidas en true/false y quita combinaciones sin sentido. */
 function normalizarPermisos(entrada) {
     const p = {};
     CLAVES_PERMISOS.forEach(c => { p[c] = !!(entrada && entrada[c]); });
-    if (!p.editar) { p.sinAprobacion = false; p.editarHistorico = false; }
+    if (!p.editar) REQUIEREN_EDITAR.forEach(c => { p[c] = false; });
     if (p.gestionarCuentas) p.verAdministracion = true; // para aceptar cuentas hay que verlas
     return p;
 }
@@ -61,10 +78,36 @@ function permisosDeCuenta(cuenta, esAdmin) {
     if (typeof propios === 'string') {
         try { propios = JSON.parse(propios); } catch { propios = null; }
     }
-    return propios && typeof propios === 'object'
-        ? normalizarPermisos(propios)
-        : permisosDeRol(rolDeCuenta(cuenta, false));
+    const delRol = permisosDeRol(rolDeCuenta(cuenta, false));
+    if (!propios || typeof propios !== 'object') return delRol;
+    // Personalizados guardados antes de que existiera un permiso: ese
+    // permiso toma el valor por defecto de su rol (nadie pierde acceso).
+    const completos = { ...delRol };
+    Object.keys(propios).forEach(c => { if (CLAVES_PERMISOS.includes(c)) completos[c] = propios[c]; });
+    return normalizarPermisos(completos);
 }
+
+// Qué permiso pide cada acción (además de "Hacer cambios"). Las vistas
+// previas no lo piden: no cambian nada.
+const RUTAS_ELIMINAR = ['/api/viajes/eliminar', '/api/rutas/eliminar', '/api/vehiculos/eliminar', '/api/conductores/eliminar', '/api/novedades/eliminar'];
+const PERMISO_POR_RUTA = {
+    '/api/configuracion/generar-matriz': 'generarMatriz',
+    '/api/importar/viajes-reales': 'importarExcel',
+    '/api/cupos/reacomodar': 'reacomodarCupos',
+    '/api/configuracion/compartida': 'editarConfiguracion',
+    '/api/cerrar-mes': 'editarHistorico',
+    '/api/limpiar-historial': 'editarHistorico',
+    '/api/modo': 'cambiarModo'
+};
+
+/** Permiso que necesita esta petición, o null si basta con "Hacer cambios". */
+function permisoRequerido(metodo, ruta, cuerpo) {
+    if (cuerpo && cuerpo.previsualizar === true) return null;
+    if (RUTAS_ELIMINAR.includes(ruta) || (metodo === 'DELETE' && String(ruta).startsWith('/api/vehiculos/'))) return 'eliminar';
+    return PERMISO_POR_RUTA[ruta] || null;
+}
+
+const nombrePermiso = (clave) => (PERMISOS.find(p => p.clave === clave) || {}).nombre || clave;
 
 /** ¿Los cambios de esta cuenta esperan aprobación? */
 const necesitaAprobacion = (permisos) => !!permisos.editar && !permisos.sinAprobacion;
@@ -77,7 +120,7 @@ const RUTAS_SIN_APROBACION = [
     '/api/sesiones/cerrar', '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual',
     '/api/cache/refrescar',
     '/api/aprobaciones/decidir',
-    '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave'
+    '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar'
 ];
 
 /** ¿Esta petición de un auxiliar debe quedar pendiente de aprobación? */
@@ -145,6 +188,8 @@ module.exports = {
     permisosDeRol,
     permisosDeCuenta,
     necesitaAprobacion,
+    permisoRequerido,
+    nombrePermiso,
     requiereAprobacion,
     describirCambio,
     solicitudPublica

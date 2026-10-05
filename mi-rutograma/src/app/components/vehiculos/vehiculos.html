@@ -151,7 +151,7 @@
           <ng-container *ngIf="auth.puedeEditar">
             <button class="btn-action edit" (click)="editarVehiculo(v.index)">Editar</button>
             <button class="btn-action mant" (click)="abrirMantenimiento(v.index)">Mant.</button>
-            <button class="btn-action del" (click)="eliminarVehiculo(v.index)">X</button>
+            <button class="btn-action del" *ngIf="auth.puede('eliminar')" (click)="eliminarVehiculo(v.index)">X</button>
           </ng-container>
           </td>
         </tr>
