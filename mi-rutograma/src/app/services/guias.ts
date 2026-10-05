@@ -150,6 +150,15 @@ export const GUIAS: Record<string, Guia> = {
     ]
   },
 
+  cumplimiento: {
+    titulo: 'Cumplimiento',
+    pasos: [
+      { el: 'cu-mes', titulo: 'Mes', texto: 'Elige qué mes ver. Se calcula con lo que marcan los conductores en su celular ("Ya salí" / "Ya llegué").' },
+      { el: 'cu-kpis', titulo: 'Cómo va el mes', texto: 'Cuántos viajes se marcan, cuántos salen a tiempo (hasta 30 minutos después de la hora), el retraso promedio y cuánto tardan hasta el destino.' },
+      { el: 'cu-tabla', titulo: 'El detalle', texto: 'Lo mismo por conductor, por ruta o por transportadora. Verde va bien; amarillo y rojo, hay que revisar.' }
+    ]
+  },
+
   comparativo: {
     titulo: 'Comparativo',
     pasos: [

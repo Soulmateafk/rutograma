@@ -58,6 +58,7 @@ export class App implements OnInit {
     { prefijo: '/pending', titulo: 'Cuenta pendiente · Makand' },
     { prefijo: '/historico', titulo: 'Histórico · Makand' },
     { prefijo: '/comparativo', titulo: 'Comparativo · Makand' },
+    { prefijo: '/cumplimiento', titulo: 'Cumplimiento · Makand' },
     { prefijo: '/resumen', titulo: 'Bienvenido · Makand' },
     { prefijo: '/admin', titulo: 'Administrador · Makand' },
   ];

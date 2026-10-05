@@ -1791,7 +1791,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
               const conductor = cond && !['SIN ASIGNAR', 'ASIGNADO'].includes(cond.toUpperCase()) ? cond : (this.conductoresMap[placa] || '');
               const regresa = Number(v.retorno) > Number(v.salida || v.dia) ? `día ${v.retorno}` : '';
               return [v.placaReal ? `${placa} (${v.placaReal})` : placa, v.tr || 'Makand', conductor, v.ruta || v.codigo || '',
-                v.destino || '', v.cliente || v.cli || '', v.hora && v.hora !== '--:--' ? v.hora : '', v.cajas || '', regresa,
+                v.destino || '', v.cliente || v.cli || '', this.horaDelViajeParaPdf(v), v.cajas || '', regresa,
                 v.estado === 'Cancelado' ? `Cancelado${v.motivoCancelacion ? ': ' + v.motivoCancelacion : ''}` : (v.estado || 'Planificado')];
             }),
             styles: { fontSize: 9, cellPadding: 2 },
@@ -1820,6 +1820,18 @@ export class RutogramaComponent implements OnInit, OnDestroy {
       this.generandoPdfSemana = false;
       this.cdr.markForCheck();
     }
+  }
+
+  /** Hora del viaje; si no la tiene, la de su ruta para ese día de la semana. */
+  private horaDelViajeParaPdf(v: any): string {
+    if (/^\d{1,2}:\d{2}$/.test(String(v.hora || '').trim())) return String(v.hora).trim();
+    const ruta = (this.ds.S.rutas || []).find((r: any) => String(r.cod || r.codigo || '').toUpperCase() === String(v.ruta || v.codigo || '').toUpperCase());
+    if (!ruta || !v.fecha) return '';
+    let dias = ruta.dias;
+    if (typeof dias === 'string') { try { dias = JSON.parse(dias); } catch { dias = null; } }
+    const [a, m, d] = String(v.fecha).split('-').map(Number);
+    const hora = String(dias?.[['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'][new Date(a, m - 1, d).getDay()]]?.hora || '').trim();
+    return /^\d{1,2}:\d{2}$/.test(hora) ? hora : '';
   }
 
   public diasDeSemanaActiva(): Array<{ dia: number; nombreDia: string }> {

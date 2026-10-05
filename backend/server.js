@@ -26,6 +26,7 @@ const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
 const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar } = require('./dias-cerrados');
 const { armarHojaDeVida } = require('./hoja-vida');
+const { armarCumplimiento } = require('./cumplimiento');
 const { faltasDeClave, mensajeClave, errorNombre, errorEmail, errorDepartamento, nombreLimpio, DEPARTAMENTOS,
     normalizarPlaca, errorConductor, errorVehiculo } = require('./validaciones');
 
@@ -2794,6 +2795,20 @@ app.post('/api/vehiculos', (req, res) => {
 
     } catch (error) {
         console.error("🚨 Error en /api/vehiculos:", error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// Cumplimiento del mes (ver cumplimiento.js). ?anio=2026&mes=9 (mes 0-11)
+app.get('/api/cumplimiento', (req, res) => {
+    try {
+        const anio = Number(req.query.anio), mes = Number(req.query.mes);
+        if (!Number.isInteger(anio) || !Number.isInteger(mes) || mes < 0 || mes > 11) {
+            return res.status(400).json({ ok: false, msg: 'Mes o año inválido.' });
+        }
+        res.json({ ok: true, ...armarCumplimiento(leerExcel(), { anio, mes }) });
+    } catch (error) {
+        console.error('🚨 Error en /api/cumplimiento:', error);
         res.status(500).json({ ok: false, msg: error.message });
     }
 });
