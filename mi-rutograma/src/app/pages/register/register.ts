@@ -80,6 +80,10 @@ export class RegisterComponent {
 
   public toggleDropdown(): void {
     this.isDropdownOpen = !this.isDropdownOpen;
+    // Que se vea la lista completa (en celular quedaba debajo del borde).
+    if (this.isDropdownOpen && typeof document !== 'undefined') {
+      setTimeout(() => document.querySelector('.reg-dropdown-panel')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 0);
+    }
   }
 
   public seleccionarDepartamento(d: string): void {

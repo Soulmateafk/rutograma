@@ -11,6 +11,7 @@ import { AccountService } from '../../services/account.service';
 // @ts-ignore
 import { mantenimientoQueChoca, rangosMantenimiento } from '../../services/mantenimiento';
 import { obtenerDiasViaje, obtenerViajesEnConflicto, reprogramarViajeConflictivo, siguienteNumeroCupo, buscarCupoLibre, reprogramarViajesDesde } from '../rutograma/rutograma.utils.js';
+import { fechaLocal } from '../../services/dias-cerrados';
 
 @Component({
   selector: 'app-navbar',
@@ -29,6 +30,11 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
   // El Rutograma (y por lo tanto "+ Viaje Extra") solo usa placas Viajero
   // y Tercero — las Urbano (entregas locales) no deben poder elegirse
   // aquí.
+  /** Sin permiso para días cerrados, el viaje extra no puede ser de un día que ya pasó. */
+  public get fechaMinimaViajeExtra(): string {
+    return this.authService.puede('editarDiasPasados') ? '' : fechaLocal();
+  }
+
   public vehiculosParaViajeExtra(): any[] {
     return (this.dataService.S?.vehiculos || []).filter((v: any) =>
       String(v.categoria || 'Viajero').trim() !== 'Urbano'
@@ -221,6 +227,10 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
 
     if (!this.nuevoViaje.placa || !this.nuevoViaje.ruta || !this.nuevoViaje.fecha) {
       this.ui.mostrarToast('Completa vehículo, ruta y fecha.', 'err');
+      return;
+    }
+    if (this.fechaMinimaViajeExtra && this.nuevoViaje.fecha < this.fechaMinimaViajeExtra) {
+      this.ui.mostrarToast('No se pueden crear viajes en días que ya pasaron.', 'err');
       return;
     }
 

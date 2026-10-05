@@ -27,6 +27,7 @@ const PERMISOS = [
     { clave: 'sinAprobacion', nombre: 'Sus cambios se aplican sin esperar aprobación' },
     { clave: 'eliminar', nombre: 'Eliminar viajes, vehículos, rutas, conductores y novedades' },
     { clave: 'generarMatriz', nombre: 'Generar la Matriz del mes' },
+    { clave: 'editarDiasPasados', nombre: 'Cambiar o borrar viajes de días ya cerrados' },
     { clave: 'importarExcel', nombre: 'Importar viajes reales desde Excel' },
     { clave: 'reacomodarCupos', nombre: 'Reacomodar cupos de Arsitrans y Polar' },
     { clave: 'editarConfiguracion', nombre: 'Cambiar transportadoras, cupos de Configuración y festivos' },
@@ -43,7 +44,7 @@ const PERMISOS = [
 const CLAVES_PERMISOS = PERMISOS.map(p => p.clave);
 
 // Permisos que solo tienen sentido si la cuenta puede hacer cambios.
-const REQUIEREN_EDITAR = ['sinAprobacion', 'eliminar', 'generarMatriz', 'importarExcel', 'reacomodarCupos',
+const REQUIEREN_EDITAR = ['sinAprobacion', 'eliminar', 'generarMatriz', 'editarDiasPasados', 'importarExcel', 'reacomodarCupos',
     'editarConfiguracion', 'editarHistorico', 'cambiarModo', 'restaurarRespaldos'];
 
 const EDICION_COMPLETA = { editar: true, sinAprobacion: true, eliminar: true, generarMatriz: true, importarExcel: true, reacomodarCupos: true, editarConfiguracion: true };
@@ -53,7 +54,7 @@ const PERMISOS_POR_ROL = {
     lector: {},
     // Solo ve sus propios viajes (pantalla Mis viajes); no cambia nada.
     conductor: {},
-    jefe: { ...EDICION_COMPLETA, aprobarCambios: true, verAdministracion: true, verSesionesTodas: true },
+    jefe: { ...EDICION_COMPLETA, editarDiasPasados: true, aprobarCambios: true, verAdministracion: true, verSesionesTodas: true },
     // El auxiliar puede pedir casi todo; cada cambio espera aprobación.
     auxiliar: { editar: true, eliminar: true, generarMatriz: true, reacomodarCupos: true, editarConfiguracion: true }
 };

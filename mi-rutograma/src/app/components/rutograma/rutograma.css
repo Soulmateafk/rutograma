@@ -1578,3 +1578,12 @@ tr.ruto-fila-resaltada > .ruto-td-vehicle-info {
 .ruto-historial-cambio .a { color: #4ade80; font-weight: 600; }
 .ruto-historial-aprobado { color: #4ade80; margin-top: 2px; }
 .ruto-historial-vacio { font-size: 11px; color: var(--color-texto-apagado, #64748b); font-style: italic; }
+
+/* Detalle de un viaje de un día ya cerrado. */
+.ruto-aviso-dia-cerrado {
+  display: flex; gap: 10px; align-items: flex-start;
+  margin: 0 0 14px; padding: 10px 12px; border-radius: 8px;
+  background: rgba(100, 116, 139, 0.15); border: 1px solid rgba(148, 163, 184, 0.35);
+  color: var(--color-texto-principal); font-size: 12.5px; line-height: 1.45;
+}
+.ruto-aviso-dia-cerrado i { color: #94a3b8; font-size: 15px; margin-top: 1px; }

@@ -11,6 +11,7 @@ import * as XLSX from 'xlsx';
 import { UiService } from '../../services/ui.service';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { viajeCerrado } from '../../services/dias-cerrados';
 
 // IMPORTACIONES DEL MOTOR LÓGICO
 import { agruparViajes, prepararRutasEnriquecidas, hayConflicto, obtenerViajesEnConflicto, reprogramarSiguientesTrasEliminar, reprogramarViajesDesde, reprogramarViajeConflictivo, buscarViajesTercerosRobables, tomarViajeTerceroParaVehiculo, buscarVehiculosDisponiblesParaVarado, transferirViajeAOtroVehiculo, esDiaVarado, siguienteNumeroCupo as siguienteNumeroCupoCompartido, buscarCupoLibre as buscarCupoLibreCompartido } from './rutograma.utils.js';
@@ -2657,6 +2658,15 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   // le MOSTRABA a esta persona (con los valores de relleno de la pantalla).
   private viajeOriginalEdicion: any = null;
   private vistaInicialEdicion: any = null;
+
+  /**
+   * El viaje abierto ya terminó (día cerrado) y esta cuenta no tiene el
+   * permiso para cambiarlo: solo se anota el estado y lo que pasó después.
+   * El servidor es el que lo hace cumplir (ver backend/dias-cerrados.js).
+   */
+  public get viajeSeleccionadoBloqueado(): boolean {
+    return !!this.viajeOriginalEdicion && viajeCerrado(this.viajeOriginalEdicion) && !this.auth.puede('editarDiasPasados');
+  }
   private trOriginalEdicion: string = '';
   private retornoOriginalEdicion: number = 0;
 

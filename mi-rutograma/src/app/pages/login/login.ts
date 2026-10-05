@@ -54,7 +54,10 @@ export class LoginComponent implements OnInit {
     } else {
       detalle = 'Bienvenido. Ya puedes gestionar el Rutograma.';
     }
-    return `${saludo}. ${detalle}`;
+    // Aviso del cierre por inactividad (no aplica a conductores).
+    const avisoInactividad = this.auth.esConductor ? ''
+      : '<br><small>Si te ausentas 1 hora o más sin usar la app, tu sesión se cerrará sola por seguridad.</small>';
+    return `${saludo}. ${detalle}${avisoInactividad}`;
   }
 
   // 1. Botón para Microsoft
