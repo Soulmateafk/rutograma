@@ -99,6 +99,9 @@ export class MisViajesComponent implements OnInit, OnDestroy {
           this.buscadoPor = data.buscadoPor || '';
           this.placaBuscada = data.placaBuscada || '';
           this.dias = this.agruparPorDia(data.viajes || []);
+          this.quitados = data.quitados || [];
+          this.hayAvisos = !!data.hayAvisos;
+          this.cuentaAvisos = (data.viajes || []).filter((v: any) => v.aviso).reduce((n: any, v: any) => { n[v.aviso.tipo] = (n[v.aviso.tipo] || 0) + 1; return n; }, {});
           this.ultimaActualizacion = new Date();
         }
       }
@@ -218,6 +221,43 @@ export class MisViajesComponent implements OnInit, OnDestroy {
 
   private olvidarElegido(): void {
     try { sessionStorage.removeItem(MisViajesComponent.CLAVE_ELEGIDO); } catch { /* nada */ }
+  }
+
+  // ---------- Avisos: viajes nuevos o cambiados ----------
+
+  hayAvisos = false;
+  quitados: any[] = [];
+  cuentaAvisos: Record<string, number> = {};
+  confirmandoAvisos = false;
+
+  get textoAvisos(): string {
+    const partes: string[] = [];
+    const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
+    if (this.cuentaAvisos['nuevo']) partes.push(plural(this.cuentaAvisos['nuevo'], 'viaje nuevo', 'viajes nuevos'));
+    if (this.cuentaAvisos['cambio']) partes.push(plural(this.cuentaAvisos['cambio'], 'viaje cambió', 'viajes cambiaron'));
+    if (this.cuentaAvisos['cancelado']) partes.push(plural(this.cuentaAvisos['cancelado'], 'viaje cancelado', 'viajes cancelados'));
+    if (this.quitados.length) partes.push(plural(this.quitados.length, 'viaje ya no es tuyo', 'viajes ya no son tuyos'));
+    return partes.length ? `Atención: ${partes.join(', ')}.` : 'Hay cambios en tus viajes.';
+  }
+
+  /** "Entendido": ya vio los cambios; dejan de marcarse. */
+  async entendido(): Promise<void> {
+    this.confirmandoAvisos = true;
+    this.cdr.markForCheck();
+    try {
+      const res = await this.auth.fetchAutenticado(`${API_URL}/mis-viajes/visto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...(this.elegido || {}) })
+      });
+      const data = await res.json();
+      if (data?.ok) await this.cargar(true);
+      else this.ui.mostrarToast(data?.msg || 'No se pudo guardar. Inténtalo de nuevo.', 'err');
+    } catch {
+      this.ui.mostrarToast('Sin conexión: no se pudo guardar. Inténtalo de nuevo.', 'err');
+    }
+    this.confirmandoAvisos = false;
+    this.cdr.markForCheck();
   }
 
   // ---------- "Ya salí" / "Ya llegué" ----------

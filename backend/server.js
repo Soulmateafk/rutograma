@@ -26,7 +26,8 @@ const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
 const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar } = require('./dias-cerrados');
 const { armarHojaDeVida } = require('./hoja-vida');
-const { armarCumplimiento } = require('./cumplimiento');
+const { armarCumplimiento, horaDelViaje } = require('./cumplimiento');
+const { compararConVisto, armarVisto } = require('./avisos-conductor');
 const { faltasDeClave, mensajeClave, errorNombre, errorEmail, errorDepartamento, nombreLimpio, DEPARTAMENTOS,
     normalizarPlaca, errorConductor, errorVehiculo } = require('./validaciones');
 
@@ -565,7 +566,7 @@ app.use(identificarUsuario);
 // Cuentas de rol "conductor": solo su pantalla Mis viajes y lo básico de la
 // sesión. El resto de la información (otros viajes, vehículos, cuentas...)
 // no se les entrega aunque la pidan directo.
-const RUTAS_PARA_CONDUCTOR = ['/api/mis-viajes', '/api/mis-viajes/validar', '/api/mis-viajes/marcar', '/api/modo', '/api/sesiones', '/api/sesiones/cerrar',
+const RUTAS_PARA_CONDUCTOR = ['/api/mis-viajes', '/api/mis-viajes/validar', '/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/modo', '/api/sesiones', '/api/sesiones/cerrar',
     '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual', '/api/guias', '/api/guias/vista', '/api/guias/reiniciar'];
 app.use((req, res, next) => {
     if (!req.path.startsWith('/api/') || req.path.startsWith('/api/auth/') || RUTAS_PARA_CONDUCTOR.includes(req.path)) return next();
@@ -1107,7 +1108,7 @@ const RUTAS_SIN_RESTRICCION_DE_ROL = [
     '/api/sesiones/cerrar-otras',
     '/api/sesiones/cerrar-actual'
 ];
-const RUTAS_CON_PERMISO_PROPIO = ['/api/mis-viajes/marcar', '/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
+const RUTAS_CON_PERMISO_PROPIO = ['/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
 
 app.use((req, res, next) => {
     if (!req.path.startsWith('/api/') || req.method === 'GET') return next();
@@ -2913,7 +2914,7 @@ function viajesParaConductor(data, coincide) {
                 id: v.id, fecha: v.fecha, dia: v.dia, salida: v.salida, retorno: v.retorno,
                 ruta: v.ruta || v.codigo || '', destino: v.destino || ruta.dest || '', dest2: v.dest2 || '',
                 cliente: v.cliente || '', placa: v.p || v.placa || '', tr: v.tr || v.transportadora || '',
-                cond: v.cond || '', hora: v.hora || '', estado: v.estado || 'Planificado', cajas: v.cajas || null,
+                cond: v.cond || '', hora: horaDelViaje(v, rutas), estado: v.estado || 'Planificado', cajas: v.cajas || null,
                 salidaReal: v.salidaReal || null, llegadaReal: v.llegadaReal || null
             };
         })
@@ -3010,15 +3011,49 @@ function viajesDeQuienPide(req, data, { ced: cedPedida = '', placa: placaPedidaE
     return { enlazada, conductor, viajes, buscadoPor, placaPedida };
 }
 
+// Lo que cada conductor ya vio de sus viajes (botón "Entendido"), para
+// marcarle lo nuevo y lo que cambió (ver avisos-conductor.js).
+const ARCHIVO_VIAJES_VISTOS = path.join(CARPETA_DATOS, 'viajes-vistos.json');
+let viajesVistos = (() => {
+    try { return fs.existsSync(ARCHIVO_VIAJES_VISTOS) ? JSON.parse(fs.readFileSync(ARCHIVO_VIAJES_VISTOS, 'utf8')) : {}; }
+    catch (err) { console.error('⚠️ No se pudo leer viajes-vistos.json:', err.message); return {}; }
+})();
+const claveVisto = (ced) => `${modoActual}:${ced}`;
+function guardarViajesVistos() {
+    try { fs.writeFileSync(ARCHIVO_VIAJES_VISTOS, JSON.stringify(viajesVistos), { mode: 0o600 }); }
+    catch (err) { console.error('⚠️ No se pudo guardar viajes-vistos.json:', err.message); }
+}
+
 app.get('/api/mis-viajes', (req, res) => {
     try {
         const data = leerExcel();
         const r = viajesDeQuienPide(req, data, { ced: req.query.ced, placa: req.query.placa });
         if (r.error) return res.status(r.status).json({ ok: false, msg: r.error });
         if (r.sinConductor) return res.json({ ok: true, enlazado: false, compartida: !r.enlazada, ...(r.msg ? { msg: r.msg } : {}) });
-        res.json({ ok: true, enlazado: true, compartida: !r.enlazada, conductor: r.conductor, viajes: r.viajes, buscadoPor: r.buscadoPor, placaBuscada: r.placaPedida.toUpperCase() });
+        // La primera vez se toma lo de ahora como visto (no se marca todo como nuevo).
+        const clave = claveVisto(r.conductor.ced);
+        if (!viajesVistos[clave]) { viajesVistos[clave] = { ts: new Date().toISOString(), visto: armarVisto(r.viajes) }; guardarViajesVistos(); }
+        const avisos = compararConVisto(r.viajes, viajesVistos[clave].visto, fechaLocal());
+        res.json({ ok: true, enlazado: true, compartida: !r.enlazada, conductor: r.conductor, viajes: avisos.viajes, quitados: avisos.quitados, hayAvisos: avisos.hayAvisos, buscadoPor: r.buscadoPor, placaBuscada: r.placaPedida.toUpperCase() });
     } catch (error) {
         console.error('🚨 Error en /api/mis-viajes:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// "Entendido": el conductor ya vio los cambios de sus viajes. Body: { ced?, placa? }
+app.post('/api/mis-viajes/visto', (req, res) => {
+    try {
+        res.locals.auditoriaOmitir = true; // no cambia nada de la operación
+        const data = leerExcel();
+        const r = viajesDeQuienPide(req, data, { ced: req.body?.ced, placa: req.body?.placa });
+        if (r.error) return res.status(r.status).json({ ok: false, msg: r.error });
+        if (r.sinConductor) return res.status(400).json({ ok: false, msg: 'Primero confirma quién eres.' });
+        viajesVistos[claveVisto(r.conductor.ced)] = { ts: new Date().toISOString(), visto: armarVisto(r.viajes) };
+        guardarViajesVistos();
+        res.json({ ok: true });
+    } catch (error) {
+        console.error('🚨 Error en /api/mis-viajes/visto:', error);
         res.status(500).json({ ok: false, msg: error.message });
     }
 });

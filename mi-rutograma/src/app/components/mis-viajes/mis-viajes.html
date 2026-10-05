@@ -62,6 +62,17 @@
       <button *ngIf="compartida" class="mv-secundario" (click)="cambiarConductor()"><i class="bi bi-person-x"></i> No soy yo</button>
     </div>
 
+    <!-- Lo nuevo y lo que cambió desde la última vez que tocó "Entendido". -->
+    <div *ngIf="hayAvisos" class="mv-avisos" data-guia="mv-avisos">
+      <div class="mv-avisos-titulo"><i class="bi bi-bell-fill"></i> {{ textoAvisos }}</div>
+      <ul *ngIf="quitados.length" class="mv-quitados">
+        <li *ngFor="let q of quitados"><i class="bi bi-x-circle"></i> Ya no tienes el viaje del {{ q.fecha | date:'EEEE d MMM':'':'es' }} a {{ q.destino || q.ruta }}{{ q.placa ? ' (' + q.placa + ')' : '' }}</li>
+      </ul>
+      <button class="mv-primario mv-entendido" [disabled]="confirmandoAvisos" (click)="entendido()">
+        <i class="bi bi-check2"></i> {{ confirmandoAvisos ? 'Guardando…' : 'Entendido' }}
+      </button>
+    </div>
+
     <div *ngIf="buscadoPor === 'nombre'" class="mv-nota">
       <i class="bi bi-info-circle"></i> La placa {{ placaBuscada }} no tiene viajes en estos días; te mostramos los viajes a tu nombre.
     </div>
@@ -76,6 +87,10 @@
         <div *ngIf="d.descanso" class="mv-descanso"><i class="bi bi-moon-stars-fill"></i> Día de descanso</div>
         <div *ngIf="!d.viajes.length && !d.descanso" class="mv-sin">Sin viajes</div>
         <article *ngFor="let v of d.viajes" class="mv-viaje" [ngClass]="claseEstado(v.estado)">
+          <div *ngIf="v.aviso" class="mv-aviso-viaje" [ngClass]="'mv-aviso-' + v.aviso.tipo">
+            <b>{{ v.aviso.tipo === 'nuevo' ? 'Nuevo' : v.aviso.tipo === 'cancelado' ? 'Cancelado' : 'Cambió' }}</b>
+            <span *ngFor="let c of v.aviso.cambios">{{ c.campo }}: {{ c.de }} → {{ c.a }}</span>
+          </div>
           <div class="mv-viaje-top">
             <div class="mv-destino">{{ v.destino || v.ruta }}<span *ngIf="v.dest2"> + {{ v.dest2 }}</span></div>
             <span class="mv-estado">{{ v.estado }}</span>

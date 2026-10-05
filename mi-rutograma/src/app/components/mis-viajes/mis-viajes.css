@@ -60,3 +60,17 @@
 .mv-marcar-llegada { background: #16a34a; }
 .mv-marcar:disabled, .mv-deshacer:disabled { opacity: 0.6; cursor: wait; }
 .mv-deshacer { background: none; border: 1px solid #475569; color: #cbd5e1; border-radius: 10px; padding: 10px 12px; font-size: 13px; cursor: pointer; font-family: inherit; }
+
+/* Viajes nuevos o cambiados */
+.mv-avisos { background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.45); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
+.mv-avisos-titulo { font-weight: 700; color: #fbbf24; display: flex; gap: 8px; align-items: center; }
+.mv-quitados { margin: 8px 0 0; padding: 0; list-style: none; font-size: 13px; color: #fca5a5; display: flex; flex-direction: column; gap: 4px; }
+.mv-entendido { margin-top: 10px; width: 100%; }
+.mv-aviso-viaje { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin: -2px 0 8px; padding: 6px 8px; border-radius: 8px; font-size: 12.5px; }
+.mv-aviso-viaje b { font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; padding: 2px 6px; border-radius: 4px; }
+.mv-aviso-nuevo { background: rgba(59, 130, 246, 0.15); color: #bfdbfe; }
+.mv-aviso-nuevo b { background: #2563eb; color: #fff; }
+.mv-aviso-cambio { background: rgba(245, 158, 11, 0.15); color: #fde68a; }
+.mv-aviso-cambio b { background: #d97706; color: #fff; }
+.mv-aviso-cancelado { background: rgba(239, 68, 68, 0.15); color: #fecaca; }
+.mv-aviso-cancelado b { background: #dc2626; color: #fff; }
