@@ -272,7 +272,12 @@ select.form-control option {
    ============================================================ */
 .reg-dropdown {
   position: relative;
+  flex-wrap: wrap;
 }
+/* La lista abierta queda debajo del botón (no al lado) y el ícono se queda
+   a la altura del botón aunque la caja crezca. */
+.reg-dropdown .reg-input-icon { top: 15px; }
+.reg-dropdown-panel { flex-basis: 100%; box-sizing: border-box; }
 
 .reg-dropdown-trigger {
   width: 100%;
@@ -319,10 +324,13 @@ select.form-control option {
 }
 
 .reg-dropdown-panel {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
+  /* Dentro del flujo (empuja lo de abajo) y no flotando: la tarjeta recorta
+     lo que se sale de ella, y así la última opción quedaba cortada. */
+  position: relative;
+  margin-top: 6px;
+  max-height: 232px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   z-index: 20;
   background: var(--input-bg);
   border: 1.5px solid var(--input-border);

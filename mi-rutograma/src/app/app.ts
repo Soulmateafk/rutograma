@@ -10,11 +10,12 @@ import { ThemeService } from './services/theme.service';
 import { NavbarComponent } from './components/navbar/navbar'; 
 import { GuiaComponent } from './components/guia/guia';
 import { GuiaService } from './services/guia.service';
+import { AvisoInactividadComponent } from './components/aviso-inactividad/aviso-inactividad';
 
 @Component({
   selector: 'app-root',
   standalone: true, 
-  imports: [RouterOutlet, NavbarComponent, CommonModule, GuiaComponent], 
+  imports: [RouterOutlet, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent], 
   templateUrl: './app.html'
 })
 export class App implements OnInit {

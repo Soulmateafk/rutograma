@@ -19,7 +19,7 @@ const patronCupo = (nombreTr) => new RegExp(`^${String(nombreTr).toUpperCase()}\
  * @param {object[]} vehiculos todos los vehículos
  * @param {{ tr: string, anio: number, mes: number }} opciones  mes 0-11
  */
-function planReacomodoCupos(viajes, vehiculos, { tr, anio, mes }) {
+function planReacomodoCupos(viajes, vehiculos, { tr, anio, mes, desde = '' }) {
     const patron = patronCupo(tr);
     const prefijo = `${anio}-${String(mes + 1).padStart(2, '0')}`;
     const trBuscada = String(tr).toLowerCase();
@@ -28,6 +28,7 @@ function planReacomodoCupos(viajes, vehiculos, { tr, anio, mes }) {
         trDe(v).includes(trBuscada.slice(0, 6)) &&
         String(v.estado || '') !== 'Cancelado' &&
         String(v.fecha || '').startsWith(prefijo) &&
+        String(v.fecha || '') >= desde &&
         patron.test(placaDe(v))
     );
 

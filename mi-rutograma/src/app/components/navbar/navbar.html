@@ -109,7 +109,7 @@
 
       <div class="nb-field" data-guia="ve-fecha">
         <label>Fecha</label>
-        <input type="date" [(ngModel)]="nuevoViaje.fecha">
+        <input type="date" [(ngModel)]="nuevoViaje.fecha" [min]="fechaMinimaViajeExtra">
       </div>
 
       <div class="nb-field" data-guia="ve-cliente">

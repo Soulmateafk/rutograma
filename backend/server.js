@@ -24,6 +24,7 @@ const TOKEN_REPLAY_APROBACION = crypto.randomBytes(32).toString('hex');
 const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, listarAuditoriaViajeDB, importarAuditoriaJSONLSiHaceFalta } = require('./migracion/db.js');
 const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
+const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar } = require('./dias-cerrados');
 const { faltasDeClave, mensajeClave, errorNombre, errorEmail, errorDepartamento, nombreLimpio, DEPARTAMENTOS } = require('./validaciones');
 
 // Lee las credenciales de correo desde un archivo .env (nunca escritas
@@ -1126,6 +1127,16 @@ app.use((req, res, next) => {
             res.locals.auditoriaOmitir = true;
             return res.status(403).json({ ok: false, msg: `Tu cuenta no tiene permiso para: ${nombrePermiso(requerido)}.` });
         }
+        // Días cerrados: un viaje que ya terminó no se mueve ni se borra sin
+        // el permiso (ver dias-cerrados.js). Se revisa antes de la cola de
+        // aprobaciones, para no mandarle al jefe algo que no se puede aplicar.
+        if (permisos && !permisos.editarDiasPasados) {
+            const motivo = motivoBloqueoDiaCerrado(req, data);
+            if (motivo) {
+                res.locals.auditoriaOmitir = true;
+                return res.status(403).json({ ok: false, codigo: 'dia_cerrado', msg: motivo });
+            }
+        }
 
         // Cuenta que necesita aprobación (auxiliar, o permisos así): el
         // cambio NO se aplica; queda pendiente hasta que alguien con
@@ -1164,6 +1175,14 @@ app.use((req, res, next) => {
         next();
     }
 });
+
+function motivoBloqueoDiaCerrado(req, data) {
+    const b = req.body || {};
+    const buscar = (id) => (id === undefined || id === null) ? null : (data.viajes || []).find(v => v.id === id) || null;
+    if (req.method === 'POST' && req.path === '/api/viajes') return motivoBloqueoGuardar(buscar(b.id), b, fechaLocal());
+    if (req.method === 'POST' && req.path === '/api/viajes/eliminar') return motivoBloqueoEliminar(buscar(b.id), fechaLocal());
+    return '';
+}
 
 // ============================================================
 // COLA DE APROBACIONES (cambios de cuentas "auxiliar")
@@ -2268,7 +2287,8 @@ app.post('/api/cupos/reacomodar', async (req, res) => {
             return res.status(400).json({ ok: false, msg: 'Mes o año inválido.' });
         }
         const data = leerExcel();
-        const plan = planReacomodoCupos(data.viajes || [], data.vehiculos || [], { tr, anio, mes });
+        // Los días cerrados no se reacomodan (cada día se acomoda por separado).
+        const plan = planReacomodoCupos(data.viajes || [], data.vehiculos || [], { tr, anio, mes, desde: fechaLocal() });
 
         if (req.body?.previsualizar) {
             res.locals.auditoriaOmitir = true;
@@ -3758,6 +3778,15 @@ app.post('/api/importar/viajes-reales', async (req, res) => {
     }
 });
 
+/** Cuántos días de ese mes ya pasaron (0 si el mes es futuro; todos si ya pasó). */
+function diasYaPasadosDelMes(anio, mesIndex, hoy) {
+    const prefijo = `${anio}-${String(mesIndex + 1).padStart(2, '0')}`;
+    const totalDias = new Date(anio, mesIndex + 1, 0).getDate();
+    if (hoy.slice(0, 7) > prefijo) return totalDias;
+    if (hoy.slice(0, 7) < prefijo) return 0;
+    return Number(hoy.slice(8, 10)) - 1;
+}
+
 app.post('/api/configuracion/generar-matriz', async (req, res) => {
     try {
         const { mes, anio, festivos, previsualizar } = req.body; 
@@ -3823,11 +3852,14 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
         // (incluida gente que le haya dado clic mas de una vez seguida).
         const mesIndexLimpieza = { 'Enero':0,'Febrero':1,'Marzo':2,'Abril':3,'Mayo':4,'Junio':5,'Julio':6,'Agosto':7,'Septiembre':8,'Octubre':9,'Noviembre':10,'Diciembre':11 }[mes];
         const totalViajesAntesDeLimpiar = (data.viajes || []).length;
+        const hoyMatriz = fechaLocal();
         data.viajes = (data.viajes || []).filter(v => {
             // Los viajes REALES (importados del Excel de operación) nunca
             // se borran: son lo que de verdad pasó, y la generación sigue
             // a partir de ellos (ver viajesRealesDelMes más abajo).
             if (v.tipo === 'real') return true;
+            // Los que salieron antes de hoy tampoco: el histórico no se regenera.
+            if (v.fecha && String(v.fecha) < hoyMatriz) return true;
             const coincidePorEtiqueta = v.mes === mes && String(v.anio) === String(anio);
             let coincidePorFecha = false;
             if (v.fecha) {
@@ -3843,11 +3875,14 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
         // Viajes reales de ESTE mes: ya pasaron, así que solo se generan los
         // días posteriores al último día con datos reales.
         const viajesRealesDelMes = data.viajes.filter(v => {
-            if (v.tipo !== 'real' || !v.fecha) return false;
+            if (!v.fecha || (v.tipo !== 'real' && String(v.fecha) >= hoyMatriz)) return false;
             const f = new Date(v.fecha + 'T00:00:00');
             return f.getFullYear() === Number(anio) && f.getMonth() === mesIndexLimpieza;
         }).sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
-        const ultimoDiaReal = viajesRealesDelMes.reduce((max, v) => Math.max(max, Number(v.dia || v.salida || 0)), 0);
+        const ultimoDiaReal = Math.max(
+            viajesRealesDelMes.reduce((max, v) => Math.max(max, Number(v.dia || v.salida || 0)), 0),
+            // Nunca se generan días que ya pasaron (mes pasado: ninguno).
+            diasYaPasadosDelMes(Number(anio), mesIndexLimpieza, hoyMatriz));
         // Filas de cupo (ARSITRANS n / POLAR n) que usan los viajes reales
         // que se conservan — no se borran en la limpieza de cupos.
         const cuposConViajeReal = new Set(
