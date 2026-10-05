@@ -60,6 +60,14 @@ function rutaPermitidaParaVehiculo(placa, ruta) {
 }
 
 app.use(cors());
+// Cabeceras de seguridad básicas (y sin anunciar que es Express).
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    next();
+});
 // La importación de viajes reales manda el Excel completo (en base64):
 // necesita un límite más alto que el resto de la API.
 app.use('/api/importar', express.json({ limit: '30mb' }));
@@ -144,16 +152,17 @@ try {
 // tener que tocar endpoint por endpoint.
 //
 // Dos modos (variable EXIGIR_TOKEN en el .env):
-//  - TOLERANTE (por defecto): se aceptan peticiones sin pase como antes, pero
-//    se avisa en la consola por cada ruta que llegue así — para poder
-//    comprobar que la app ya manda el pase en todas partes antes de exigirlo.
-//  - ESTRICTO (EXIGIR_TOKEN=true): toda petición a /api/ necesita un pase
-//    válido (salvo login y registro), y la cuenta debe estar aprobada.
+//  - ESTRICTO (por defecto): toda petición a /api/ necesita un pase válido
+//    (salvo login, registro y consultar el modo), y la cuenta debe estar
+//    aprobada. La app ya manda el pase en todas partes.
+//  - TOLERANTE (EXIGIR_TOKEN=false, solo para emergencias): se aceptan
+//    peticiones sin pase, pero SIN identidad: el correo que diga la petición
+//    se ignora, así nadie puede hacerse pasar por otro (ni por el admin).
 //
 // El pase también deja de servir en cuanto: vence (30 días), la cuenta se
 // elimina, o su contraseña cambia (restablecer contraseña cierra las
 // sesiones abiertas de esa cuenta).
-const EXIGIR_TOKEN = String(process.env.EXIGIR_TOKEN || '').trim().toLowerCase() === 'true';
+const EXIGIR_TOKEN = String(process.env.EXIGIR_TOKEN || '').trim().toLowerCase() !== 'false';
 const TOKEN_DIAS = (() => { const d = parseFloat(process.env.TOKEN_DIAS); return (Number.isFinite(d) && d > 0) ? d : 30; })();
 const RUTAS_PUBLICAS_SIN_PASE = ['/api/auth/login', '/api/auth/register'];
 // Rutas para las que basta estar identificado, aunque la cuenta aún no esté
@@ -489,7 +498,11 @@ const identificarUsuario = (req, res, next) => {
     const coincidencia = /^Bearer\s+(.+)$/i.exec(String(req.headers['authorization'] || ''));
 
     if (!coincidencia) {
+        // Sin pase no hay identidad: el correo que diga la petición no vale.
+        delete req.headers['x-user-email'];
         if (RUTAS_PUBLICAS_SIN_PASE.includes(req.path)) return next();
+        // El modo (Real/Prueba) se consulta antes de iniciar sesión.
+        if (req.method === 'GET' && req.path === '/api/modo') return next();
         if (EXIGIR_TOKEN) {
             return res.status(401).json({ ok: false, codigo: 'sin_pase', msg: 'Debes iniciar sesión.' });
         }
@@ -3793,8 +3806,19 @@ app.post('/api/auth/cambiar-clave', async (req, res) => {
 });
 
 // --- REGISTRAR NUEVA CUENTA (contraseña hasheada con bcrypt) ---
+// Tope de solicitudes de cuenta por equipo (que nadie llene la lista de
+// solicitudes con cuentas inventadas).
+const REGISTROS_POR_HORA = 5;
+const registrosPorEquipo = new Map();
 app.post('/api/auth/register', async (req, res) => {
     try {
+        const equipo = req.socket?.remoteAddress || '';
+        const ahora = Date.now();
+        const recientes = (registrosPorEquipo.get(equipo) || []).filter(t => ahora - t < 3600000);
+        if (recientes.length >= REGISTROS_POR_HORA) {
+            res.locals.auditoriaOmitir = true;
+            return res.status(429).json({ ok: false, msg: 'Demasiadas solicitudes de cuenta desde este equipo. Intenta de nuevo en una hora.' });
+        }
         const data = leerExcel();
         if (!data.usuarios) data.usuarios = [];
 
@@ -3837,6 +3861,9 @@ app.post('/api/auth/register', async (req, res) => {
 
         data.usuarios.push(nuevoUsuario);
         guardarEnExcel(data);
+        recientes.push(ahora);
+        registrosPorEquipo.set(equipo, recientes);
+        if (registrosPorEquipo.size > 5000) registrosPorEquipo.delete(registrosPorEquipo.keys().next().value);
         console.log(`👤 Nueva cuenta registrada: ${email}`);
 
         // Se disparan SIN esperar (fire-and-forget) — si el correo tarda
@@ -4662,6 +4689,10 @@ app.get('/api/exportar-rutograma', (req, res) => {
 // Corta = 1 día, Media = 2 días, Larga = 3 días. Se puede borrar este
 // endpoint después de usarlo una vez.
 app.get('/api/migrar-dias-transito', (req, res) => {
+    // Mantenimiento de una sola vez que CAMBIA datos (aunque sea GET): solo el admin.
+    if (normalizarEmail(req.headers['x-user-email']) !== normalizarEmail(ADMIN_EMAIL)) {
+        return res.status(403).json({ ok: false, msg: 'Solo el administrador.' });
+    }
     try {
         const data = leerExcel();
         const cambios = [];
@@ -4692,6 +4723,10 @@ app.get('/api/migrar-dias-transito', (req, res) => {
 // anteriores, antes de que existiera la marca "origenAuto"). Se puede
 // borrar este endpoint después de usarlo una vez.
 app.get('/api/limpiar-cupos-huerfanos', (req, res) => {
+    // Mantenimiento de una sola vez que CAMBIA datos (aunque sea GET): solo el admin.
+    if (normalizarEmail(req.headers['x-user-email']) !== normalizarEmail(ADMIN_EMAIL)) {
+        return res.status(403).json({ ok: false, msg: 'Solo el administrador.' });
+    }
     try {
         const data = leerExcel();
         const placasConViaje = new Set(
@@ -4772,7 +4807,7 @@ const alArrancar = (conHttps) => {
     if (conHttps) console.log(`🔒 Y también por HTTPS en: https://localhost:${PORT}`);
     console.log(EXIGIR_TOKEN
         ? '🔐 Sesiones: modo ESTRICTO — toda petición necesita un pase válido.'
-        : '🔓 Sesiones: modo TOLERANTE — se aceptan peticiones sin pase (con aviso [SIN PASE] por cada ruta). Cuando ya no aparezcan avisos, se puede activar EXIGIR_TOKEN=true en el .env.');
+        : '🔓 Sesiones: modo TOLERANTE (EXIGIR_TOKEN=false) — se aceptan peticiones sin pase, pero sin identidad. Úsalo solo en una emergencia: quita esa línea del .env para volver al modo estricto.');
     // Resumen semanal de vencimientos: una revisión poco después de arrancar
     // (por si el servidor estaba apagado el lunes) y luego cada 30 minutos.
     setTimeout(revisarResumenSemanalVencimientos, 30 * 1000);
