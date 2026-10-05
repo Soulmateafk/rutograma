@@ -86,7 +86,18 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'input[placeholder^="Buscar por placa"]', titulo: 'Buscar', texto: 'Filtra por placa, conductor o transportadora.' },
       { el: '.header-actions', titulo: 'Histórico y nuevo vehículo', texto: '"Ver histórico" muestra cómo estaba la flota en meses anteriores. "+ Nuevo Vehículo" registra uno.' },
       { el: 'veh-tabla', titulo: 'La flota', texto: 'Cada vehículo con su conductor, estado, documentos y viajes del mes. "Editar" cambia sus datos; "Mant." lo manda a mantenimiento.' },
+      { el: 'veh-hoja', titulo: 'Hoja de vida', texto: 'Todo lo de un vehículo en una pantalla: viajes por mes, conductores que lo han manejado, mantenimientos, veces que se ha varado, documentos y novedades. Se puede imprimir.' },
       { el: 'veh-viajes', titulo: 'Viajes por vehículo', texto: 'Los viajes de cada vehículo de Makand en el mes.' }
+    ]
+  },
+
+  'hoja-de-vida': {
+    titulo: 'Hoja de vida',
+    pasos: [
+      { el: 'hv-cabecera', titulo: 'El vehículo', texto: 'Sus datos de hoy: estado, conductor, capacidad y último mantenimiento.' },
+      { el: '.hv-kpis', titulo: 'En números', texto: 'Viajes hechos, de este mes y próximos, días en taller, veces que se ha varado y viajes cancelados.' },
+      { el: '.hv-grid', titulo: 'El detalle', texto: 'Documentos (en rojo los vencidos), conductores que lo han manejado, viajes por mes, destinos, mantenimientos, averías y sus viajes.' },
+      { el: '.hv-btn', titulo: 'Imprimir', texto: 'Imprime la hoja o guárdala como PDF.' }
     ]
   },
 

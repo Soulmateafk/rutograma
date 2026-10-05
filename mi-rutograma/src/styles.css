@@ -358,3 +358,10 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   margin: 0;
 }
+/* Hoja de vida del vehículo: al imprimir solo sale la hoja. */
+@media print {
+  body.imprimiendo-hoja app-navbar,
+  body.imprimiendo-hoja app-guia,
+  body.imprimiendo-hoja app-aviso-inactividad { display: none !important; }
+  body.imprimiendo-hoja { background: #fff !important; }
+}

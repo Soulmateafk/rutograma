@@ -148,6 +148,7 @@
           </td>
           <td class="text-center">{{ v.viajesCount }}</td>
           <td class="actions-cell">
+          <a class="btn-action hv" data-guia="veh-hoja" [routerLink]="['/hoja-de-vida', v.p]" title="Hoja de vida: viajes, mantenimientos, documentos y conductores"><i class="bi bi-journal-text"></i> Hoja</a>
           <ng-container *ngIf="auth.puedeEditar">
             <button class="btn-action edit" (click)="editarVehiculo(v.index)">Editar</button>
             <button class="btn-action mant" data-guia="veh-mant" (click)="abrirMantenimiento(v.index)">Mant.</button>

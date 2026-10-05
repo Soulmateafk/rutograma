@@ -50,6 +50,7 @@ export class App implements OnInit {
     { prefijo: '/dashboard', titulo: 'Dashboard · Makand' },
     { prefijo: '/configuracion', titulo: 'Configuración · Makand' },
     { prefijo: '/vehiculos', titulo: 'Vehículos · Makand' },
+    { prefijo: '/hoja-de-vida', titulo: 'Hoja de vida · Makand' },
     { prefijo: '/rutas', titulo: 'Rutas · Makand' },
     { prefijo: '/conductores', titulo: 'Conductores · Makand' },
     { prefijo: '/login', titulo: 'Ingresar · Makand' },

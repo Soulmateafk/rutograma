@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef, NgZone } from '@angular/core';
 import { errorVehiculo, normalizarPlaca } from '../../services/validaciones';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -14,7 +14,7 @@ import { reprogramarViajesDesde, buscarViajesTercerosRobables, tomarViajeTercero
 @Component({
   selector: 'app-vehiculos',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './vehiculos.html',
   styleUrls: ['./vehiculos.css']
 })

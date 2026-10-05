@@ -25,6 +25,7 @@ const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, 
 const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
 const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar } = require('./dias-cerrados');
+const { armarHojaDeVida } = require('./hoja-vida');
 const { faltasDeClave, mensajeClave, errorNombre, errorEmail, errorDepartamento, nombreLimpio, DEPARTAMENTOS,
     normalizarPlaca, errorConductor, errorVehiculo } = require('./validaciones');
 
@@ -2780,6 +2781,18 @@ app.post('/api/vehiculos', (req, res) => {
 
     } catch (error) {
         console.error("🚨 Error en /api/vehiculos:", error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// Hoja de vida de un vehículo (ver hoja-vida.js). ?placa=LUN 428
+app.get('/api/vehiculos/hoja-de-vida', (req, res) => {
+    try {
+        const hoja = armarHojaDeVida(leerExcel(), String(req.query.placa || ''), fechaLocal());
+        if (!hoja) return res.status(404).json({ ok: false, msg: 'No hay ningún vehículo con esa placa.' });
+        res.json({ ok: true, ...hoja });
+    } catch (error) {
+        console.error('🚨 Error en /api/vehiculos/hoja-de-vida:', error);
         res.status(500).json({ ok: false, msg: error.message });
     }
 });
