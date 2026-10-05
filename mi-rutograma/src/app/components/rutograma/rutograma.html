@@ -152,7 +152,7 @@
                 </div>
 
                 <div *ngIf="vj.isStart && vj.type !== 'cancelado'"
-                     (click)="verDetalle(vj.id)"
+                     (click)="verDetalle(vj.id)" data-guia="ruto-viaje"
                      (mouseenter)="mostrarTooltipViaje($event, vj, v)"
                      (mousemove)="moverTooltipViaje($event)"
                      (mouseleave)="ocultarTooltipViaje()"
@@ -296,7 +296,7 @@
                   </div>
 
                   <div *ngIf="vj.isStart && vj.type !== 'cancelado'"
-                       (click)="verDetalle(vj.id)"
+                       (click)="verDetalle(vj.id)" data-guia="ruto-viaje"
                        (mouseenter)="mostrarTooltipViaje($event, vj, v)"
                        (mousemove)="moverTooltipViaje($event)"
                        (mouseleave)="ocultarTooltipViaje()"
@@ -560,7 +560,7 @@
         <span *ngIf="!editandoViaje" class="ruto-grid-value">{{ selectedViaje.destino }}</span>
         <input *ngIf="editandoViaje" type="text" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.destino">
       </div>
-      <div>
+      <div data-guia="ruto-conductor">
         <span class="ruto-grid-label">Conductor:</span>
         <span *ngIf="!editandoViaje" class="ruto-grid-value">
           {{ selectedViaje.cond || conductoresMap[selectedViaje.veh] || 'Sin Conductor' }}
@@ -695,9 +695,9 @@
     <div class="ruto-modal-footer">
       <button class="btn-delete" *ngIf="auth.puede('eliminar') && !editandoViaje" (click)="eliminarViaje()">Eliminar viaje</button>
       <button class="btn-edit" style="background:#b45309;color: var(--color-texto-principal);border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" *ngIf="auth.puedeEditar && !editandoViaje && selectedViaje.estado !== 'Cancelado'" (click)="abrirVarado()"><i class="bi bi-cone-striped"></i> Vehículo varado</button>
-      <button class="btn-edit" style="background:#2563eb;color: var(--color-texto-principal);border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" *ngIf="auth.puedeEditar && !editandoViaje" (click)="abrirEdicion()"><i class="bi bi-pencil-square"></i> Editar viaje</button>
-      <button class="btn-save" style="background:#10b981;color: var(--color-texto-principal);border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" *ngIf="editandoViaje" (click)="guardarCambiosViaje()"><i class="bi bi-save-fill"></i> Guardar cambios</button>
-      <button class="btn-close" (click)="cerrarDetalle()">Cerrar</button>
+      <button class="btn-edit" style="background:#2563eb;color: var(--color-texto-principal);border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" *ngIf="auth.puedeEditar && !editandoViaje" data-guia="ruto-editar" (click)="abrirEdicion()"><i class="bi bi-pencil-square"></i> Editar viaje</button>
+      <button class="btn-save" style="background:#10b981;color: var(--color-texto-principal);border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" *ngIf="editandoViaje" data-guia="ruto-guardar" (click)="guardarCambiosViaje()"><i class="bi bi-save-fill"></i> Guardar cambios</button>
+      <button class="btn-close" data-guia="ruto-cerrar" (click)="cerrarDetalle()">Cerrar</button>
     </div>
   </div>
 </div>

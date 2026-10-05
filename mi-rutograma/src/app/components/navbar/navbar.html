@@ -87,7 +87,7 @@
     <h3>+ Viaje Extra</h3>
 
     <div class="nb-form-grid">
-      <div class="nb-field">
+      <div class="nb-field" data-guia="ve-vehiculo">
         <label>Vehículo</label>
         <select [(ngModel)]="nuevoViaje.placa">
           <option value="" disabled selected>Selecciona un vehículo</option>
@@ -97,7 +97,7 @@
         </select>
       </div>
 
-      <div class="nb-field">
+      <div class="nb-field" data-guia="ve-ruta">
         <label>Ruta</label>
         <select [(ngModel)]="nuevoViaje.ruta" (ngModelChange)="onRutaExtraChange()">
           <option value="" disabled selected>Selecciona una ruta</option>
@@ -107,30 +107,30 @@
         </select>
       </div>
 
-      <div class="nb-field">
+      <div class="nb-field" data-guia="ve-fecha">
         <label>Fecha</label>
         <input type="date" [(ngModel)]="nuevoViaje.fecha">
       </div>
 
-      <div class="nb-field">
+      <div class="nb-field" data-guia="ve-cliente">
         <label>Cliente</label>
         <input type="text" [(ngModel)]="nuevoViaje.cliente" placeholder="Cliente">
       </div>
 
-      <div class="nb-field">
+      <div class="nb-field" data-guia="ve-cajas">
         <label>Cajas</label>
         <input type="number" [(ngModel)]="nuevoViaje.cajas" placeholder="660">
       </div>
 
-      <div class="nb-field">
+      <div class="nb-field" data-guia="ve-hora">
         <label>Hora</label>
         <input type="time" [(ngModel)]="nuevoViaje.hora">
       </div>
     </div>
 
     <div class="nb-modal-footer">
-      <button class="btn sm" [disabled]="procesandoViajeExtra" (click)="cerrarModalViaje()">Cerrar</button>
-      <button class="btn pri sm" [disabled]="procesandoViajeExtra" (click)="guardarViajeExtra()">{{ procesandoViajeExtra ? 'Guardando...' : 'Guardar viaje' }}</button>
+      <button class="btn sm" data-guia="ve-cerrar" [disabled]="procesandoViajeExtra" (click)="cerrarModalViaje()">Cerrar</button>
+      <button class="btn pri sm" data-guia="ve-guardar" [disabled]="procesandoViajeExtra" (click)="guardarViajeExtra()">{{ procesandoViajeExtra ? 'Guardando...' : 'Guardar viaje' }}</button>
     </div>
   </div>
 </div>
@@ -143,7 +143,7 @@
     <h3>&#9889; Reportar novedad</h3>
 
     <div class="nb-form-grid nb-form-grid-1">
-      <div class="nb-field">
+      <div class="nb-field" data-guia="nov-tipo">
         <label>Tipo</label>
         <select [(ngModel)]="nuevaNovedad.tipo">
           <option value="Incidente">Incidente</option>
@@ -153,20 +153,20 @@
         </select>
       </div>
 
-      <div class="nb-field">
+      <div class="nb-field" data-guia="nov-titulo">
         <label>Título</label>
         <input type="text" [(ngModel)]="nuevaNovedad.titulo" placeholder="Resumen corto">
       </div>
 
-      <div class="nb-field">
+      <div class="nb-field" data-guia="nov-desc">
         <label>Descripción</label>
         <textarea [(ngModel)]="nuevaNovedad.desc" rows="4" placeholder="Detalles de la novedad"></textarea>
       </div>
     </div>
 
     <div class="nb-modal-footer">
-      <button class="btn sm" (click)="cerrarModalNovedad()">Cerrar</button>
-      <button class="btn pri sm" (click)="guardarNovedad()">Guardar novedad</button>
+      <button class="btn sm" data-guia="nov-cerrar" (click)="cerrarModalNovedad()">Cerrar</button>
+      <button class="btn pri sm" data-guia="nov-guardar" (click)="guardarNovedad()">Guardar novedad</button>
     </div>
   </div>
 </div>

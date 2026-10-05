@@ -150,7 +150,7 @@
           <td class="actions-cell">
           <ng-container *ngIf="auth.puedeEditar">
             <button class="btn-action edit" (click)="editarVehiculo(v.index)">Editar</button>
-            <button class="btn-action mant" (click)="abrirMantenimiento(v.index)">Mant.</button>
+            <button class="btn-action mant" data-guia="veh-mant" (click)="abrirMantenimiento(v.index)">Mant.</button>
             <button class="btn-action del" *ngIf="auth.puede('eliminar')" (click)="eliminarVehiculo(v.index)">X</button>
           </ng-container>
           </td>
@@ -288,7 +288,7 @@
   <div class="modal-card">
     <h3>Mantenimiento — {{ vehMantPlaca }}</h3>
 
-    <div class="modal-grid">
+    <div class="modal-grid" data-guia="veh-mant-fechas">
       <div class="input-group" style="grid-column: span 2;">
         <label>Fecha de inicio</label>
         <input type="date" [(ngModel)]="mantForm.inicio">
@@ -302,8 +302,8 @@
     <div class="modal-actions">
       <button class="btn-action del" *ngIf="auth.puedeEditar && ds.S.vehiculos[vehMantIdx]?.est === 'Mantenimiento'" [disabled]="procesandoMantenimiento" (click)="quitarMantenimiento()">Quitar mantenimiento</button>
       <button class="btn-action del" *ngIf="auth.puedeEditar && ds.S.vehiculos[vehMantIdx]?.est === 'Mantenimiento'" [disabled]="procesandoMantenimiento" title="Úsalo solo si este mantenimiento se registró por error — no queda en el historial" (click)="eliminarMantenimientoActivo()">Eliminar (fue un error)</button>
-      <button class="btn-cancel" [disabled]="procesandoMantenimiento" (click)="cerrarModalMant()">Cancelar</button>
-      <button class="btn-save" [disabled]="procesandoMantenimiento" (click)="guardarMantenimiento()">{{ procesandoMantenimiento ? 'Guardando...' : 'Guardar' }}</button>
+      <button class="btn-cancel" data-guia="veh-mant-cancelar" [disabled]="procesandoMantenimiento" (click)="cerrarModalMant()">Cancelar</button>
+      <button class="btn-save" data-guia="veh-mant-guardar" [disabled]="procesandoMantenimiento" (click)="guardarMantenimiento()">{{ procesandoMantenimiento ? 'Guardando...' : 'Guardar' }}</button>
     </div>
 
     <div class="historial-mant-bloque" *ngIf="ds.S.vehiculos[vehMantIdx]?.historialMantenimiento?.length">
