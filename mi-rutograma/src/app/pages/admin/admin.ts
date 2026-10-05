@@ -7,6 +7,7 @@ import { AccountService, CuentaUsuario, Permisos, PERMISOS_INFO, PERMISOS_QUE_RE
 import { UiService } from '../../services/ui.service';
 import { AuthService } from '../../services/auth.service';
 import { GuiaService } from '../../services/guia.service';
+import { errorEmail, faltasDeClave, mensajeClave } from '../../services/validaciones';
 
 type RolAsignable = 'editor' | 'lector' | 'jefe' | 'auxiliar' | 'conductor';
 
@@ -494,6 +495,10 @@ export class Admin implements OnInit, OnDestroy {
   conductoresClave = '';
 
   async guardarCuentaConductores() {
+    const error = errorEmail(this.conductoresEmail);
+    if (error) { this.ui.mostrarToast(error, 'err'); return; }
+    const faltas = faltasDeClave(this.conductoresClave, { email: this.conductoresEmail });
+    if (faltas.length) { this.ui.mostrarToast(mensajeClave(faltas), 'err'); return; }
     const r = await this.account.cuentaConductores(this.conductoresEmail.trim(), this.conductoresClave);
     if (r.ok) {
       this.ui.mostrarToast(r.creada ? `Cuenta ${this.conductoresEmail} creada. Comparte el correo y la contraseña con los conductores.` : `Contraseña de ${this.conductoresEmail} cambiada.`, 'ok');
@@ -639,22 +644,31 @@ export class Admin implements OnInit, OnDestroy {
   // confusiones al leerla en voz alta o escribirla a mano) — para no
   // depender de que el admin invente una buena contraseña a las carreras.
   public generarClaveAleatoria(): void {
-    const caracteres = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-    let clave = '';
-    for (let i = 0; i < 10; i++) {
-      clave += caracteres[Math.floor(Math.random() * caracteres.length)];
-    }
-    this.nuevaClaveTexto = clave;
+    // Siempre cumple las reglas: mayúscula, minúscula, número y símbolo
+    // (sin letras que se confunden, como O/0 o l/1), al azar seguro.
+    const grupos = ['ABCDEFGHJKMNPQRSTUVWXYZ', 'abcdefghjkmnpqrstuvwxyz', '23456789', '!@#$%*-+?'];
+    const azar = (n: number) => crypto.getRandomValues(new Uint32Array(1))[0] % n;
+    const todos = grupos.join('');
+    const letras = grupos.map(g => g[azar(g.length)]);
+    while (letras.length < 12) letras.push(todos[azar(todos.length)]);
+    for (let i = letras.length - 1; i > 0; i--) { const j = azar(i + 1); [letras[i], letras[j]] = [letras[j], letras[i]]; }
+    this.nuevaClaveTexto = letras.join('');
+  }
+
+  /** Lo que le falta a una contraseña escrita en Administración ('' = está bien). */
+  public faltasClave(clave: string, email = '', nombre = ''): string[] {
+    return clave ? faltasDeClave(clave, { email, nombre }) : [];
   }
 
   public async confirmarResetClave(): Promise<void> {
     if (!this.usuarioAResetear) return;
-    if (this.nuevaClaveTexto.trim().length < 6) {
-      this.ui.mostrarToast('La contraseña debe tener al menos 6 caracteres.', 'err');
+    const usuario = this.usuarioAResetear;
+    const faltas = faltasDeClave(this.nuevaClaveTexto.trim(), { email: usuario.email, nombre: usuario.nombre });
+    if (faltas.length) {
+      this.ui.mostrarToast(mensajeClave(faltas), 'err');
       return;
     }
 
-    const usuario = this.usuarioAResetear;
     try {
       await this.account.resetearClave(usuario.email, this.nuevaClaveTexto.trim());
       this.isModalResetClaveOpen = false;

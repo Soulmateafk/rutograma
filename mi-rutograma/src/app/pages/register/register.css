@@ -484,3 +484,19 @@ select.form-control option {
   gap: 6px;
   align-items: flex-start;
 }
+
+.reg-error { margin: 6px 0 0; font-size: 0.8rem; color: #f87171; display: flex; gap: 6px; align-items: center; }
+
+/* Contraseña: barrita de fuerza y requisitos que se marcan en vivo. */
+.reg-clave-info { margin-top: 8px; }
+.reg-fuerza { display: flex; align-items: center; gap: 4px; }
+.reg-fuerza span { flex: 1; height: 4px; border-radius: 2px; background: var(--input-border); opacity: 0.5; transition: background 0.2s ease, opacity 0.2s ease; }
+.reg-fuerza em { font-style: normal; font-size: 0.75rem; color: var(--text-muted); min-width: 84px; text-align: right; }
+.reg-fuerza[data-nivel="1"] span:nth-child(-n+1) { background: #ef4444; opacity: 1; }
+.reg-fuerza[data-nivel="2"] span:nth-child(-n+2) { background: #f59e0b; opacity: 1; }
+.reg-fuerza[data-nivel="3"] span:nth-child(-n+3) { background: #22c55e; opacity: 1; }
+.reg-fuerza[data-nivel="4"] span:nth-child(-n+4) { background: #22c55e; opacity: 1; }
+.reg-requisitos { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+.reg-requisitos li { font-size: 0.75rem; color: #f87171; display: flex; gap: 6px; align-items: flex-start; line-height: 1.35; }
+.reg-requisitos li.ok { color: #4ade80; }
+@media (max-width: 420px) { .reg-requisitos { grid-template-columns: 1fr; } }
