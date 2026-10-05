@@ -2915,7 +2915,8 @@ function viajesParaConductor(data, coincide) {
                 ruta: v.ruta || v.codigo || '', destino: v.destino || ruta.dest || '', dest2: v.dest2 || '',
                 cliente: v.cliente || '', placa: v.p || v.placa || '', tr: v.tr || v.transportadora || '',
                 cond: v.cond || '', hora: horaDelViaje(v, rutas), estado: v.estado || 'Planificado', cajas: v.cajas || null,
-                salidaReal: v.salidaReal || null, llegadaReal: v.llegadaReal || null
+                salidaReal: v.salidaReal || null, llegadaReal: v.llegadaReal || null,
+                nota: String(v.obs || '').trim()
             };
         })
         .sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)) || String(a.hora).localeCompare(String(b.hora)));

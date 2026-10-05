@@ -1837,7 +1837,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
         } else {
           autoTable(doc, {
             startY: 27,
-            head: [['Vehículo', 'Transp.', 'Conductor', 'Ruta', 'Destino', 'Cliente', 'Hora', 'Cajas', 'Regresa', 'Estado']],
+            head: [['Vehículo', 'Transp.', 'Conductor', 'Ruta', 'Destino', 'Cliente', 'Hora', 'Cajas', 'Regresa', 'Estado', 'Nota']],
             body: viajes.map((v: any) => {
               const placa = String(v.p || v.placa || '').toUpperCase();
               const cond = String(v.cond || '').trim();
@@ -1845,9 +1845,11 @@ export class RutogramaComponent implements OnInit, OnDestroy {
               const regresa = Number(v.retorno) > Number(v.salida || v.dia) ? `día ${v.retorno}` : '';
               return [v.placaReal ? `${placa} (${v.placaReal})` : placa, v.tr || 'Makand', conductor, v.ruta || v.codigo || '',
                 v.destino || '', v.cliente || v.cli || '', this.horaDelViajeParaPdf(v), v.cajas || '', regresa,
-                v.estado === 'Cancelado' ? `Cancelado${v.motivoCancelacion ? ': ' + v.motivoCancelacion : ''}` : (v.estado || 'Planificado')];
+                v.estado === 'Cancelado' ? `Cancelado${v.motivoCancelacion ? ': ' + v.motivoCancelacion : ''}` : (v.estado || 'Planificado'),
+                String(v.obs || '')];
             }),
             styles: { fontSize: 9, cellPadding: 2 },
+            columnStyles: { 10: { cellWidth: 45 } },
             headStyles: { fillColor: [30, 41, 59] },
             alternateRowStyles: { fillColor: [241, 245, 249] },
             didParseCell: (data: any) => {

@@ -102,6 +102,7 @@
             <span *ngIf="v.cliente"><i class="bi bi-shop"></i> {{ v.cliente }}</span>
             <span *ngIf="v.cajas"><i class="bi bi-box-seam"></i> {{ v.cajas }} cajas</span>
           </div>
+          <div class="mv-nota-viaje" *ngIf="v.nota"><i class="bi bi-sticky-fill"></i> {{ v.nota }}</div>
           <div class="mv-ruta">Ruta {{ v.ruta }}<span *ngIf="vuelve(v)"> · Regresa el {{ vuelve(v) }}</span></div>
           <div class="mv-marcas" *ngIf="v.salidaReal || v.llegadaReal">
             <span *ngIf="v.salidaReal"><i class="bi bi-play-circle-fill"></i> Salió {{ v.salidaReal | date:'h:mm a' }}</span>

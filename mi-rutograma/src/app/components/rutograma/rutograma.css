@@ -1600,3 +1600,9 @@ tr.ruto-fila-resaltada > .ruto-td-vehicle-info {
 .ruto-novedad-fila { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
 .ruto-novedad-desc { opacity: 0.85; font-size: 12.5px; }
 .ruto-novedad-fila .ruto-aviso-btn { flex-shrink: 0; cursor: pointer; border: none; font-family: inherit; }
+
+/* Nota del viaje */
+.ruto-nota-viaje { margin: 12px 0 4px; }
+.ruto-nota-texto { margin-top: 4px; padding: 8px 10px; border-radius: 8px; background: rgba(250, 204, 21, 0.12); border-left: 3px solid #facc15; font-size: 13px; white-space: pre-wrap; }
+.ruto-nota-input { width: 100%; box-sizing: border-box; margin-top: 4px; background: var(--color-fondo-input); border: 1px solid var(--color-borde); color: var(--color-texto-principal); padding: 6px 8px; border-radius: 6px; font-family: inherit; resize: vertical; }
+.ruto-badge-nota { display: inline-flex; align-items: center; gap: 3px; margin-top: 2px; margin-left: 2px; padding: 1px 5px; border-radius: 4px; font-size: 9px; font-weight: 700; background: rgba(250, 204, 21, 0.2); color: #fde68a; }

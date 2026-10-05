@@ -77,7 +77,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: '.btn-export', titulo: 'Exportar y Foto del mes', texto: 'Descarga el Rutograma en Excel, o saca una imagen del mes para compartir.' },
       { el: 'ruto-pdf-semana', titulo: 'PDF de la semana', texto: 'Descarga la semana elegida en PDF: una hoja por día con vehículo, conductor, ruta, cliente y hora. Listo para imprimir o mandar por WhatsApp.' },
       { el: '.btn-zoom', titulo: 'Zoom', texto: 'Acerca o aleja la matriz para ver más días o más detalle.' },
-      { el: '.ruto-card-viaje', titulo: 'Detalle e historial', texto: 'Al abrir un viaje ves sus datos y, con "Ver historial de cambios", quién lo cambió, qué y cuándo.' },
+      { el: '.ruto-card-viaje', titulo: 'Detalle, notas e historial', texto: 'Al abrir un viaje ves sus datos; en "Editar viaje" le puedes poner una nota para el conductor (la ve en su celular). Con "Ver historial de cambios" ves quién lo cambió, qué y cuándo.' },
       { el: '.ruto-tr-cupo-header', titulo: 'Arsitrans y Polar', texto: 'Los cupos de terceros. "+ Confirmar cupo" agrega uno; "Reacomodar" junta los viajes del mes en los menos cupos posibles, sin tocar nada más.' }
     ]
   },

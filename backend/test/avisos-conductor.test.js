@@ -28,3 +28,9 @@ test('nuevo, cambio de hora, cancelado y quitado', () => {
     // El que ya pasó y desapareció de la lista no se avisa.
     assert.deepStrictEqual(r.quitados.map(q => q.id), ['c']);
 });
+
+test('una nota nueva o cambiada se avisa', () => {
+    const visto = armarVisto([v1]);
+    const r = compararConVisto([{ ...v1, nota: 'Llamar antes' }], visto, HOY);
+    assert.deepStrictEqual(r.viajes[0].aviso.cambios, [{ campo: 'Nota', de: '—', a: 'Llamar antes' }]);
+});

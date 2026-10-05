@@ -12,7 +12,8 @@ const CAMPOS = [
     { clave: 'placa', nombre: 'Vehículo' },
     { clave: 'ruta', nombre: 'Ruta' },
     { clave: 'destino', nombre: 'Destino' },
-    { clave: 'cancelado', nombre: 'Estado' }
+    { clave: 'cancelado', nombre: 'Estado' },
+    { clave: 'nota', nombre: 'Nota' }
 ];
 
 /** Lo que le importa al conductor de un viaje (para comparar). */
@@ -23,7 +24,8 @@ function firmaViaje(v) {
         placa: String(v.placa || '').toUpperCase().trim(),
         ruta: String(v.ruta || '').toUpperCase().trim(),
         destino: String(v.destino || '').trim(),
-        cancelado: v.estado === 'Cancelado' ? 'Cancelado' : ''
+        cancelado: v.estado === 'Cancelado' ? 'Cancelado' : '',
+        nota: String(v.nota || '').trim()
     };
 }
 

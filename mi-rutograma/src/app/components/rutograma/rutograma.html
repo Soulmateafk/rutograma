@@ -182,6 +182,7 @@
                     {{ vj.prioridad === 'urgente' ? 'URGENTE' : 'PRIORIDAD ALTA' }}
                   </div>
                   <div *ngIf="viajesConCambioPendiente.has(vj.id)" class="ruto-badge-pendiente" title="Este viaje tiene un cambio esperando aprobación"><i class="bi bi-hourglass-split"></i> Cambio por aprobar</div>
+                  <div *ngIf="vj.obs" class="ruto-badge-nota" [title]="'Nota: ' + vj.obs"><i class="bi bi-sticky-fill"></i> Nota</div>
                   <div *ngIf="vj.llegadaReal || vj.salidaReal" class="ruto-badge-marca" [class.llego]="vj.llegadaReal"
                        [title]="vj.llegadaReal ? 'El conductor marcó que llegó' : 'El conductor marcó que salió'">
                     <i class="bi" [ngClass]="vj.llegadaReal ? 'bi-flag-fill' : 'bi-play-fill'"></i>
@@ -324,6 +325,7 @@
                        [ngClass]="vj.cssClass">
 
                     <div *ngIf="viajesConCambioPendiente.has(vj.id)" class="ruto-badge-pendiente" title="Este viaje tiene un cambio esperando aprobación"><i class="bi bi-hourglass-split"></i> Cambio por aprobar</div>
+                  <div *ngIf="vj.obs" class="ruto-badge-nota" [title]="'Nota: ' + vj.obs"><i class="bi bi-sticky-fill"></i> Nota</div>
                   <div *ngIf="vj.llegadaReal || vj.salidaReal" class="ruto-badge-marca" [class.llego]="vj.llegadaReal"
                        [title]="vj.llegadaReal ? 'El conductor marcó que llegó' : 'El conductor marcó que salió'">
                     <i class="bi" [ngClass]="vj.llegadaReal ? 'bi-flag-fill' : 'bi-play-fill'"></i>
@@ -705,6 +707,14 @@
       </div>
       <div class="ruto-grid-colspan-2"><span class="ruto-grid-label">Costo:</span> <span class="ruto-grid-value-bold">${{ selectedViaje.costo }}</span></div>
     </div>
+    <!-- Nota del viaje: la ve también el conductor en Mis viajes. -->
+    <div class="ruto-nota-viaje" data-guia="ruto-nota" *ngIf="editandoViaje || selectedViaje.obs">
+      <span class="ruto-grid-label"><i class="bi bi-sticky"></i> Nota para el conductor:</span>
+      <div *ngIf="!editandoViaje" class="ruto-nota-texto">{{ selectedViaje.obs }}</div>
+      <textarea *ngIf="editandoViaje" class="ruto-input-edit ruto-nota-input" rows="2" maxlength="300" [(ngModel)]="selectedViaje.obs"
+                placeholder="Ej: Llamar al cliente antes de llegar. Cargar después de las 2 p. m."></textarea>
+    </div>
+
     <div class="ruto-ultima-edicion">
       <i class="bi bi-person-check"></i> {{ textoUltimaEdicion(selectedViaje) }}
     </div>
