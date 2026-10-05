@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { UiService } from '../../services/ui.service';
+import { DEPARTAMENTOS, REQUISITOS_CLAVE, errorDepartamento, errorEmail, errorNombre, faltasDeClave, nombreLimpio } from '../../services/validaciones';
 
 @Component({
   selector: 'app-register',
@@ -32,10 +33,49 @@ export class RegisterComponent {
     return this.pass === this.confirmarPass;
   }
 
+  // Cada campo muestra su error cuando la persona sale de él (o al intentar
+  // enviar), no mientras apenas empieza a escribir.
+  public tocado: Record<string, boolean> = {};
+  public intentoEnviar = false;
+  public mostrarError(campo: string): boolean {
+    return this.intentoEnviar || !!this.tocado[campo];
+  }
+
+  get errorNombre(): string { return errorNombre(this.nombre); }
+  get errorEmail(): string { return errorEmail(this.email); }
+  get errorDepartamento(): string { return errorDepartamento(this.departamento); }
+
+  /** Requisitos de la contraseña, marcados en vivo. */
+  get requisitosClave(): Array<{ texto: string; ok: boolean }> {
+    const faltas = faltasDeClave(this.pass, { email: this.email, nombre: this.nombre });
+    const lista = REQUISITOS_CLAVE.filter(r => r.clave !== 'maximo' || this.pass.length > 64)
+      .map(r => ({ texto: r.texto, ok: !faltas.includes(r.texto) }));
+    for (const extra of ['Que no contenga tu correo', 'Que no contenga tu nombre']) {
+      if (faltas.includes(extra)) lista.push({ texto: extra, ok: false });
+    }
+    return lista;
+  }
+
+  get claveSegura(): boolean {
+    return faltasDeClave(this.pass, { email: this.email, nombre: this.nombre }).length === 0;
+  }
+
+  /** 0 a 4, para la barrita de fuerza. */
+  get fuerzaClave(): number {
+    if (!this.pass) return 0;
+    const cumplidos = this.requisitosClave.filter(r => r.ok).length;
+    const total = this.requisitosClave.length;
+    if (this.claveSegura) return this.pass.length >= 12 ? 4 : 3;
+    return cumplidos >= total - 2 ? 2 : 1;
+  }
+  get textoFuerza(): string {
+    return ['', 'Débil', 'Le falta poco', 'Segura', 'Muy segura'][this.fuerzaClave];
+  }
+
   // Desplegable propio de "Departamento" — reemplaza el <select> nativo,
   // ya que la mayoría de navegadores IGNORAN el estilo personalizado de
   // sus opciones (siempre salen en blanco, sin importar el CSS puesto).
-  public departamentos: string[] = ['Logística', 'Transporte', 'Recursos Humanos', 'Contabilidad', 'Conductor'];
+  public departamentos: string[] = DEPARTAMENTOS;
   public isDropdownOpen: boolean = false;
 
   public toggleDropdown(): void {
@@ -45,6 +85,7 @@ export class RegisterComponent {
   public seleccionarDepartamento(d: string): void {
     this.departamento = d;
     this.isDropdownOpen = false;
+    this.tocado['departamento'] = true;
   }
 
   constructor(
@@ -54,13 +95,15 @@ export class RegisterComponent {
   ) {}
 
   async enviarSolicitud() {
-    // 1. Validación de campos
-    if (!this.nombre || !this.email || !this.pass || !this.departamento) {
-      this.ui.mostrarToast('Por favor, completa todos los campos y selecciona un departamento', 'err');
+    // 1. Validación de campos (el servidor lo revisa otra vez).
+    this.intentoEnviar = true;
+    const error = this.errorNombre || this.errorEmail;
+    if (error) {
+      this.ui.mostrarToast(error, 'err');
       return;
     }
-    if (this.pass.length < 6) {
-      this.ui.mostrarToast('La contraseña debe tener al menos 6 caracteres', 'err');
+    if (!this.claveSegura) {
+      this.ui.mostrarToast('La contraseña todavía no es segura: revisa los requisitos en rojo.', 'err');
       return;
     }
     if (!this.confirmarPass) {
@@ -71,12 +114,16 @@ export class RegisterComponent {
       this.ui.mostrarToast('Las contraseñas no coinciden', 'err');
       return;
     }
+    if (this.errorDepartamento) {
+      this.ui.mostrarToast('Selecciona tu departamento', 'err');
+      return;
+    }
 
     // 2. Enviar la solicitud AL BACKEND (queda pendiente de aprobación).
     try {
       await this.auth.registrarSolicitud({
-        nombre: this.nombre,
-        email: this.email,
+        nombre: nombreLimpio(this.nombre),
+        email: this.email.trim(),
         pass: this.pass,
         departamento: this.departamento
       });

@@ -28,9 +28,12 @@
       </div>
       <div class="cuenta-conductores-form">
         <input type="email" [(ngModel)]="conductoresEmail" placeholder="conductores@makand.com">
-        <input type="text" [(ngModel)]="conductoresClave" placeholder="Contraseña (mín. 6)">
+        <input type="text" [(ngModel)]="conductoresClave" placeholder="Contraseña segura" maxlength="64">
         <button class="btn-aprobar" (click)="guardarCuentaConductores()">Crear / cambiar contraseña</button>
       </div>
+      <p class="clave-faltas" *ngIf="faltasClave(conductoresClave, conductoresEmail).length">
+        <i class="bi bi-shield-exclamation"></i> Le falta: {{ faltasClave(conductoresClave, conductoresEmail).join(', ').toLowerCase() }}.
+      </p>
     </div>
 
     <p *ngIf="cargando" class="admin-msg">Cargando cuentas...</p>
@@ -287,13 +290,19 @@
 <div class="mbg" [class.hide]="!isModalResetClaveOpen">
   <div class="modal" style="width:420px">
     <p style="font-size: 14px; color: #e2e8f0; line-height: 1.5; margin: 0 0 10px 0;">
-      Nueva contraseña para <strong>{{ usuarioAResetear?.email }}</strong> (mínimo 6 caracteres):
+      Nueva contraseña para <strong>{{ usuarioAResetear?.email }}</strong> (mínimo 8 caracteres, con mayúscula, minúscula, número y un carácter especial):
     </p>
     <div style="display:flex; gap:8px;">
       <input [(ngModel)]="nuevaClaveTexto" type="text" placeholder="Nueva contraseña"
              style="flex:1; background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:6px; padding:8px 10px; font-size:13px;">
-      <button class="btn" (click)="generarClaveAleatoria()" title="Generar una contraseña al azar"><i class="bi bi-shuffle"></i> Generar</button>
+      <button class="btn" (click)="generarClaveAleatoria()" title="Generar una contraseña segura al azar"><i class="bi bi-shuffle"></i> Generar</button>
     </div>
+    <p class="clave-faltas" *ngIf="faltasClave(nuevaClaveTexto.trim(), usuarioAResetear?.email || '', usuarioAResetear?.nombre || '').length">
+      <i class="bi bi-shield-exclamation"></i> Le falta: {{ faltasClave(nuevaClaveTexto.trim(), usuarioAResetear?.email || '', usuarioAResetear?.nombre || '').join(', ').toLowerCase() }}.
+    </p>
+    <p class="clave-ok" *ngIf="nuevaClaveTexto.trim() && !faltasClave(nuevaClaveTexto.trim(), usuarioAResetear?.email || '', usuarioAResetear?.nombre || '').length">
+      <i class="bi bi-shield-check"></i> Contraseña segura.
+    </p>
     <p style="font-size: 12px; color: #94a3b8; margin: 10px 0 0 0;">
       Después de guardar, comparte esta contraseña con la persona por otro medio (no viaja por correo, por seguridad).
     </p>

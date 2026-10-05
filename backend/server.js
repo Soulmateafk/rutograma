@@ -24,6 +24,7 @@ const TOKEN_REPLAY_APROBACION = crypto.randomBytes(32).toString('hex');
 const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, listarAuditoriaViajeDB, importarAuditoriaJSONLSiHaceFalta } = require('./migracion/db.js');
 const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
+const { faltasDeClave, mensajeClave, errorNombre, errorEmail, errorDepartamento, nombreLimpio, DEPARTAMENTOS } = require('./validaciones');
 
 // Lee las credenciales de correo desde un archivo .env (nunca escritas
 // directo en este código) — ver las instrucciones al final de este
@@ -1657,8 +1658,9 @@ app.post('/api/auth/cuenta-conductores', async (req, res) => {
         }
         const email = normalizarEmail(req.body?.email);
         const clave = String(req.body?.clave || '');
-        if (!email.includes('@')) return res.status(400).json({ ok: false, msg: 'Escribe un correo para la cuenta (ej. conductores@makand.com).' });
-        if (clave.length < 6) return res.status(400).json({ ok: false, msg: 'La contraseña debe tener al menos 6 caracteres.' });
+        if (errorEmail(email)) return res.status(400).json({ ok: false, msg: 'Escribe un correo válido para la cuenta (ej. conductores@makand.com).' });
+        const faltas = faltasDeClave(clave, { email });
+        if (faltas.length) return res.status(400).json({ ok: false, msg: mensajeClave(faltas), faltas });
         const data = leerExcel();
         if (!data.usuarios) data.usuarios = [];
         let cuenta = data.usuarios.find(u => normalizarEmail(u.email) === email);
@@ -1745,11 +1747,10 @@ app.post('/api/auth/resetear-clave', async (req, res) => {
         const nuevaClave = String(req.body.nuevaClave || '');
 
         if (!email) return res.status(400).json({ ok: false, msg: 'Falta el correo' });
-        if (nuevaClave.length < 6) {
-            return res.status(400).json({ ok: false, msg: 'La contraseña debe tener al menos 6 caracteres' });
-        }
 
         const usuario = data.usuarios.find(u => normalizarEmail(u.email) === email);
+        const faltas = faltasDeClave(nuevaClave, { email, nombre: usuario?.nombre });
+        if (faltas.length) return res.status(400).json({ ok: false, msg: mensajeClave(faltas), faltas });
         if (!usuario) return res.status(404).json({ ok: false, msg: 'Cuenta no encontrada' });
 
         usuario.passHash = await bcrypt.hash(nuevaClave, 10);
@@ -3612,17 +3613,23 @@ app.post('/api/auth/register', async (req, res) => {
         const data = leerExcel();
         if (!data.usuarios) data.usuarios = [];
 
-        const nombre = String(req.body.nombre || '').trim();
+        const nombre = nombreLimpio(req.body.nombre);
         const email = normalizarEmail(req.body.email);
         const pass = String(req.body.pass || '');
-        const departamento = String(req.body.departamento || '').trim();
+        const departamentoEscrito = String(req.body.departamento || '').trim();
 
-        if (!nombre || !email || !pass || !departamento) {
+        if (!nombre || !email || !pass || !departamentoEscrito) {
             return res.status(400).json({ ok: false, msg: 'Todos los campos son obligatorios' });
         }
-        if (pass.length < 6) {
-            return res.status(400).json({ ok: false, msg: 'La contraseña debe tener al menos 6 caracteres' });
-        }
+        // Cada dato se revisa aquí también: la pantalla ya lo hace, pero
+        // alguien podría llamar al servidor directo.
+        const errorDato = errorNombre(nombre) || errorEmail(email) || errorDepartamento(departamentoEscrito);
+        if (errorDato) return res.status(400).json({ ok: false, msg: errorDato });
+        const faltas = faltasDeClave(pass, { email, nombre });
+        if (faltas.length) return res.status(400).json({ ok: false, msg: mensajeClave(faltas), faltas });
+        // Se guarda tal cual está escrito en la lista (con tildes y mayúsculas).
+        const departamento = DEPARTAMENTOS.find(d => d.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+            === departamentoEscrito.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()) || departamentoEscrito;
 
         const existe = data.usuarios.find(u => normalizarEmail(u.email) === email);
         if (existe) {

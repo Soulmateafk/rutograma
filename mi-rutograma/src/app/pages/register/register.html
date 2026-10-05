@@ -33,8 +33,10 @@
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
             <circle cx="12" cy="7" r="4" />
           </svg>
-          <input type="text" [(ngModel)]="nombre" placeholder="Ej: Camilo Rodríguez">
+          <input type="text" [(ngModel)]="nombre" placeholder="Ej: Camilo Rodríguez" autocomplete="name" maxlength="80"
+                 [class.reg-input-error]="mostrarError('nombre') && errorNombre" (blur)="tocado['nombre'] = true">
         </div>
+        <p class="reg-error" *ngIf="mostrarError('nombre') && errorNombre"><i class="bi bi-x-circle-fill"></i> {{ errorNombre }}</p>
       </div>
 
       <div class="reg-field">
@@ -44,8 +46,10 @@
             <rect x="3" y="5" width="18" height="14" rx="2" />
             <path d="m3 7 9 6 9-6" />
           </svg>
-          <input type="email" [(ngModel)]="email" placeholder="tu.correo@makand.com">
+          <input type="email" [(ngModel)]="email" placeholder="tu.correo@makand.com" autocomplete="email" maxlength="120"
+                 [class.reg-input-error]="mostrarError('email') && errorEmail" (blur)="tocado['email'] = true">
         </div>
+        <p class="reg-error" *ngIf="mostrarError('email') && errorEmail"><i class="bi bi-x-circle-fill"></i> {{ errorEmail }}</p>
       </div>
 
       <div class="reg-field">
@@ -55,11 +59,23 @@
             <rect x="4" y="11" width="16" height="9" rx="2" />
             <path d="M8 11V7a4 4 0 0 1 8 0v4" />
           </svg>
-          <input class="reg-con-ojo" [type]="verPass ? 'text' : 'password'" [(ngModel)]="pass" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+          <input class="reg-con-ojo" [type]="verPass ? 'text' : 'password'" [(ngModel)]="pass" placeholder="Mínimo 8, con mayúscula, número y símbolo" autocomplete="new-password"
+                 maxlength="64" [class.reg-input-error]="mostrarError('pass') && !claveSegura" (blur)="tocado['pass'] = true">
           <button type="button" class="reg-ojo" (click)="verPass = !verPass"
                   [attr.aria-label]="verPass ? 'Ocultar contraseña' : 'Ver contraseña'" [title]="verPass ? 'Ocultar contraseña' : 'Ver contraseña'">
             <i class="bi" [ngClass]="verPass ? 'bi-eye-slash' : 'bi-eye'"></i>
           </button>
+        </div>
+        <div class="reg-clave-info" *ngIf="pass || mostrarError('pass')">
+          <div class="reg-fuerza" [attr.data-nivel]="fuerzaClave">
+            <span></span><span></span><span></span><span></span>
+            <em>{{ textoFuerza }}</em>
+          </div>
+          <ul class="reg-requisitos">
+            <li *ngFor="let r of requisitosClave" [class.ok]="r.ok">
+              <i class="bi" [ngClass]="r.ok ? 'bi-check-circle-fill' : 'bi-x-circle'"></i> {{ r.texto }}
+            </li>
+          </ul>
         </div>
       </div>
 
@@ -103,6 +119,7 @@
             </button>
           </div>
         </div>
+        <p class="reg-error" *ngIf="mostrarError('departamento') && errorDepartamento"><i class="bi bi-x-circle-fill"></i> {{ errorDepartamento }}</p>
         <p class="reg-nota-conductor" *ngIf="departamento === 'Conductor'">
           <i class="bi bi-truck"></i>
           Escribe arriba tu nombre completo tal como está en la lista de conductores. Cuando te aprueben, al entrar verás solo tus viajes.
