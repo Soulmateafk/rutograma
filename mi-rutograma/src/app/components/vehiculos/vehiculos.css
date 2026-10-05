@@ -140,3 +140,5 @@
     min-width: 600px;
   }
 }
+
+.btn-action.hv { text-decoration: none; display: inline-flex; align-items: center; gap: 4px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; }

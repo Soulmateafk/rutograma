@@ -813,7 +813,8 @@ export class DataService {
 
     try {
       // 1. Esperamos confirmación estricta del backend
-      const res: any = await firstValueFrom(this.http.post(url, dataAEnviar, this.headersAuditoria()));
+      // "Nuevo vehículo": el servidor rechaza si esa placa ya existe (en vez de sobrescribirla).
+      const res: any = await firstValueFrom(this.http.post(url, vehiculo.esNuevo ? { ...dataAEnviar, esNuevo: true } : dataAEnviar, this.headersAuditoria()));
 
       console.log("✅ [DEBUG ANGULAR] Servidor respondió OK");
       const guardado = (res && res.version !== undefined)
@@ -1676,6 +1677,8 @@ export class DataService {
 
     const url = `${this.API_URL}/conductores`;
     const cuerpo: any = { ...dataConductor };
+    // "esNuevo" solo viaja al servidor (rechaza la cédula repetida); no se guarda.
+    delete dataConductor.esNuevo;
     if (!opciones.protegerDeChoques) delete cuerpo.version;
 
     const aplicarLocalYRegistrar = async (guardado: any, mensajeExito: string, tipoToast: string) => {

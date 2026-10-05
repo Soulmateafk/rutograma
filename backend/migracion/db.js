@@ -100,6 +100,9 @@ function conectar(modo = 'real') {
   agregarColumnaSiFalta('viajes', 'obs', 'TEXT');
   agregarColumnaSiFalta('viajes', 'hora_real', 'TEXT');
   agregarColumnaSiFalta('viajes', 'fecha_entrega', 'TEXT');
+  // "Ya salí" / "Ya llegué" del conductor (fecha y hora ISO de cada uno).
+  agregarColumnaSiFalta('viajes', 'salida_real', 'TEXT');
+  agregarColumnaSiFalta('viajes', 'llegada_real', 'TEXT');
   agregarColumnaSiFalta('viajes', 'cond_temporal', 'TEXT');
   agregarColumnaSiFalta('viajes', 'novedades', "TEXT NOT NULL DEFAULT '[]'");
   // Estas 5 son las que de verdad usa la TARJETA del Rutograma (una
@@ -225,6 +228,8 @@ function leerDB(modo = 'real') {
     obs: v.obs,
     horaReal: v.hora_real,
     fechaEntrega: v.fecha_entrega,
+    salidaReal: v.salida_real,
+    llegadaReal: v.llegada_real,
     condTemporal: v.cond_temporal,
     novedades: aJSON(v.novedades, []),
     peso: v.peso,
@@ -359,8 +364,8 @@ function guardarEnDB(data, modo = 'real') {
     if (data.viajes) {
       db.prepare('DELETE FROM viajes').run();
       const ins = db.prepare(`INSERT INTO viajes
-        (id, ruta, destino, destino_real, cliente, placa, placa_real, placa_original, transportadora, fecha, dia, salida, retorno, retorno_manual, cajas, mes, anio, tarifa, estado, conductor, hora, tipo, cli, cli2, cajas2, dest2, split, split_razon, motivo_cancelacion, peso_kg, vol_m3, prod, manif, obs, hora_real, fecha_entrega, cond_temporal, novedades, peso, volumen, manifiesto, costo, prioridad, version, editado_por, editado_en)
-        VALUES (@id, @ruta, @destino, @destino_real, @cliente, @placa, @placa_real, @placa_original, @transportadora, @fecha, @dia, @salida, @retorno, @retorno_manual, @cajas, @mes, @anio, @tarifa, @estado, @conductor, @hora, @tipo, @cli, @cli2, @cajas2, @dest2, @split, @split_razon, @motivo_cancelacion, @peso_kg, @vol_m3, @prod, @manif, @obs, @hora_real, @fecha_entrega, @cond_temporal, @novedades, @peso, @volumen, @manifiesto, @costo, @prioridad, @version, @editado_por, @editado_en)`);
+        (id, ruta, destino, destino_real, cliente, placa, placa_real, placa_original, transportadora, fecha, dia, salida, retorno, retorno_manual, cajas, mes, anio, tarifa, estado, conductor, hora, tipo, cli, cli2, cajas2, dest2, split, split_razon, motivo_cancelacion, peso_kg, vol_m3, prod, manif, obs, hora_real, fecha_entrega, salida_real, llegada_real, cond_temporal, novedades, peso, volumen, manifiesto, costo, prioridad, version, editado_por, editado_en)
+        VALUES (@id, @ruta, @destino, @destino_real, @cliente, @placa, @placa_real, @placa_original, @transportadora, @fecha, @dia, @salida, @retorno, @retorno_manual, @cajas, @mes, @anio, @tarifa, @estado, @conductor, @hora, @tipo, @cli, @cli2, @cajas2, @dest2, @split, @split_razon, @motivo_cancelacion, @peso_kg, @vol_m3, @prod, @manif, @obs, @hora_real, @fecha_entrega, @salida_real, @llegada_real, @cond_temporal, @novedades, @peso, @volumen, @manifiesto, @costo, @prioridad, @version, @editado_por, @editado_en)`);
       for (const v of data.viajes) {
         ins.run({
           id: String(v.id),
@@ -399,6 +404,8 @@ function guardarEnDB(data, modo = 'real') {
           obs: v.obs || null,
           hora_real: v.horaReal || null,
           fecha_entrega: v.fechaEntrega || null,
+          salida_real: v.salidaReal || null,
+          llegada_real: v.llegadaReal || null,
           cond_temporal: v.condTemporal || null,
           novedades: JSON.stringify(v.novedades || []),
           peso: v.peso != null ? Number(v.peso) : null,

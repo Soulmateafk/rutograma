@@ -1,0 +1,121 @@
+<div class="hv-page">
+  <div class="hv-top hv-no-imprimir">
+    <a routerLink="/vehiculos" class="hv-volver"><i class="bi bi-arrow-left"></i> Vehículos</a>
+    <button class="hv-btn" *ngIf="hoja" (click)="imprimir()"><i class="bi bi-printer"></i> Imprimir / PDF</button>
+  </div>
+
+  <p *ngIf="cargando" class="hv-msg">Cargando hoja de vida…</p>
+  <p *ngIf="!cargando && error" class="hv-msg hv-error"><i class="bi bi-exclamation-triangle-fill"></i> {{ error }}</p>
+
+  <ng-container *ngIf="!cargando && hoja as h">
+    <header class="hv-cabecera" data-guia="hv-cabecera">
+      <div>
+        <div class="hv-etiqueta">Hoja de vida</div>
+        <h1>{{ h.vehiculo.placa }}</h1>
+        <p>{{ h.vehiculo.tipo || 'Vehículo' }} · {{ h.vehiculo.transportadora }}<span *ngIf="h.vehiculo.categoria"> · {{ h.vehiculo.categoria }}</span></p>
+      </div>
+      <div class="hv-datos">
+        <div><span>Estado</span><b [class.hv-rojo]="h.vehiculo.estado === 'Mantenimiento'">{{ h.vehiculo.estado || '—' }}</b></div>
+        <div><span>Conductor</span><b>{{ h.vehiculo.conductorActual || 'Sin asignar' }}</b></div>
+        <div><span>Capacidad</span><b>{{ h.vehiculo.cajas || '—' }} cajas · {{ h.vehiculo.kg || '—' }} kg · {{ h.vehiculo.m3 || '—' }} m³</b></div>
+        <div><span>Último mantenimiento</span><b>{{ h.vehiculo.ultimoMantenimiento ? (h.vehiculo.ultimoMantenimiento | date:'d MMM y':'':'es') : '—' }}</b></div>
+      </div>
+    </header>
+
+    <section class="hv-kpis">
+      <div class="hv-kpi"><b>{{ h.resumen.viajesHechos }}</b><span>viajes hechos</span></div>
+      <div class="hv-kpi"><b>{{ h.resumen.viajesEsteMes }}</b><span>este mes</span></div>
+      <div class="hv-kpi"><b>{{ h.resumen.proximos }}</b><span>próximos</span></div>
+      <div class="hv-kpi"><b>{{ h.resumen.diasEnTaller }}</b><span>días en taller</span></div>
+      <div class="hv-kpi"><b>{{ h.resumen.averias }}</b><span>veces varado</span></div>
+      <div class="hv-kpi"><b>{{ h.resumen.cancelados }}</b><span>cancelados</span></div>
+    </section>
+
+    <div class="hv-grid">
+      <section class="hv-card">
+        <h2><i class="bi bi-file-earmark-check"></i> Documentos</h2>
+        <div *ngFor="let d of h.documentos" class="hv-doc" [ngClass]="'hv-doc-' + (d.estado === 'al día' ? 'ok' : d.estado === 'por vencer' ? 'pronto' : d.estado === 'vencido' ? 'vencido' : 'nada')">
+          <span class="hv-doc-nombre">{{ d.nombre }}</span>
+          <span class="hv-doc-fecha">{{ d.vence ? (d.vence | date:'d MMM y':'':'es') : '' }}</span>
+          <span class="hv-doc-estado">{{ textoDocumento(d) }}</span>
+        </div>
+      </section>
+
+      <section class="hv-card">
+        <h2><i class="bi bi-person-badge"></i> Conductores que lo han manejado</h2>
+        <p *ngIf="!h.conductores.length" class="hv-vacio">Ningún viaje tiene el conductor anotado.</p>
+        <div *ngFor="let c of h.conductores" class="hv-fila">
+          <span>{{ c.nombre }}</span>
+          <span class="hv-sub">{{ c.viajes }} viaje{{ c.viajes === 1 ? '' : 's' }} · {{ c.desde | date:'d MMM':'':'es' }} – {{ c.hasta | date:'d MMM y':'':'es' }}</span>
+        </div>
+        <p *ngIf="h.resumen.sinConductor" class="hv-nota">{{ h.resumen.sinConductor }} viaje{{ h.resumen.sinConductor === 1 ? '' : 's' }} sin conductor anotado (en el Rutograma salen con el titular{{ h.vehiculo.conductorActual ? ', ' + h.vehiculo.conductorActual : '' }}).</p>
+      </section>
+
+      <section class="hv-card">
+        <h2><i class="bi bi-bar-chart"></i> Viajes por mes</h2>
+        <p *ngIf="!h.porMes.length" class="hv-vacio">Todavía no tiene viajes.</p>
+        <div *ngFor="let m of h.porMes" class="hv-barra-fila">
+          <span class="hv-barra-mes">{{ m.nombre }}</span>
+          <div class="hv-barra">
+            <div class="hv-barra-ok" [style.width.%]="m.viajes / maxViajesMes * 100"></div>
+            <div class="hv-barra-cancel" [style.width.%]="m.cancelados / maxViajesMes * 100"></div>
+          </div>
+          <span class="hv-barra-num">{{ m.viajes }}<small *ngIf="m.cancelados"> +{{ m.cancelados }} canc.</small></span>
+        </div>
+      </section>
+
+      <section class="hv-card">
+        <h2><i class="bi bi-geo-alt"></i> Destinos más frecuentes</h2>
+        <p *ngIf="!h.destinos.length" class="hv-vacio">Sin destinos todavía.</p>
+        <div *ngFor="let d of h.destinos" class="hv-fila"><span>{{ d.destino }}</span><span class="hv-sub">{{ d.viajes }} viaje{{ d.viajes === 1 ? '' : 's' }}</span></div>
+      </section>
+
+      <section class="hv-card">
+        <h2><i class="bi bi-tools"></i> Mantenimientos</h2>
+        <p *ngIf="!h.mantenimientos.length" class="hv-vacio">Sin mantenimientos registrados.</p>
+        <div *ngFor="let m of h.mantenimientos" class="hv-fila">
+          <span>{{ m.inicio | date:'d MMM y':'':'es' }}<span *ngIf="m.fin !== m.inicio"> – {{ m.fin | date:'d MMM y':'':'es' }}</span></span>
+          <span class="hv-sub">{{ m.dias }} día{{ m.dias === 1 ? '' : 's' }}<b *ngIf="m.enCurso" class="hv-rojo"> · en curso</b></span>
+        </div>
+      </section>
+
+      <section class="hv-card">
+        <h2><i class="bi bi-cone-striped"></i> Varado / averías</h2>
+        <p *ngIf="!h.averias.length" class="hv-vacio">Nunca se ha reportado varado.</p>
+        <div *ngFor="let a of h.averias" class="hv-fila">
+          <span>{{ a.fecha ? (a.fecha | date:'d MMM y':'':'es') : '—' }} · {{ a.razon || 'Sin razón' }}</span>
+          <span class="hv-sub" *ngIf="a.terminoElViaje">Terminó el viaje {{ a.terminoElViaje }}</span>
+        </div>
+      </section>
+
+      <section class="hv-card hv-ancha">
+        <h2><i class="bi bi-calendar-week"></i> Próximos viajes</h2>
+        <p *ngIf="!h.proximosViajes.length" class="hv-vacio">No tiene viajes programados.</p>
+        <table *ngIf="h.proximosViajes.length" class="hv-tabla">
+          <tr><th>Fecha</th><th>Ruta</th><th>Destino</th><th>Conductor</th><th>Estado</th></tr>
+          <tr *ngFor="let v of h.proximosViajes"><td>{{ v.fecha | date:'EEE d MMM':'':'es' }}</td><td>{{ v.ruta }}</td><td>{{ v.destino }}</td><td>{{ v.conductor || h.vehiculo.conductorActual || '—' }}</td><td>{{ v.estado }}</td></tr>
+        </table>
+      </section>
+
+      <section class="hv-card hv-ancha">
+        <h2><i class="bi bi-clock-history"></i> Últimos viajes</h2>
+        <p *ngIf="!h.ultimosViajes.length" class="hv-vacio">Todavía no tiene viajes.</p>
+        <table *ngIf="h.ultimosViajes.length" class="hv-tabla">
+          <tr><th>Fecha</th><th>Ruta</th><th>Destino</th><th>Cliente</th><th>Conductor</th><th>Estado</th></tr>
+          <tr *ngFor="let v of h.ultimosViajes" [class.hv-cancelado]="v.estado === 'Cancelado'">
+            <td>{{ v.fecha | date:'EEE d MMM':'':'es' }}</td><td>{{ v.ruta }}</td><td>{{ v.destino }}</td><td>{{ v.cliente }}</td><td>{{ v.conductor || '—' }}</td>
+            <td>{{ v.estado }}<span *ngIf="v.llegadaReal" class="hv-sub"> · llegó {{ v.llegadaReal | date:'h:mm a':'':'es' }}</span></td>
+          </tr>
+        </table>
+      </section>
+
+      <section class="hv-card hv-ancha" *ngIf="h.novedades.length">
+        <h2><i class="bi bi-lightning-charge"></i> Novedades que lo mencionan</h2>
+        <div *ngFor="let n of h.novedades" class="hv-fila">
+          <span><b>{{ n.titulo }}</b> <span class="hv-sub">{{ n.descripcion }}</span></span>
+          <span class="hv-sub">{{ n.fecha | date:'d MMM y':'':'es' }} · {{ n.tipo }}{{ n.resuelta ? ' · resuelta' : '' }}</span>
+        </div>
+      </section>
+    </div>
+  </ng-container>
+</div>

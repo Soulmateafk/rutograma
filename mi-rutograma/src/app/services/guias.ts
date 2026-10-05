@@ -74,6 +74,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: '.ruto-legend', titulo: 'Colores', texto: 'Qué significa cada color. Haz clic en Makand, Arsitrans o Polar para ver solo esa transportadora.' },
       { el: '.btn-import', titulo: 'Importar Operación', texto: 'Carga la operación desde un archivo de Excel.' },
       { el: '.btn-export', titulo: 'Exportar y Foto del mes', texto: 'Descarga el Rutograma en Excel, o saca una imagen del mes para compartir.' },
+      { el: 'ruto-pdf-semana', titulo: 'PDF de la semana', texto: 'Descarga la semana elegida en PDF: una hoja por día con vehículo, conductor, ruta, cliente y hora. Listo para imprimir o mandar por WhatsApp.' },
       { el: '.btn-zoom', titulo: 'Zoom', texto: 'Acerca o aleja la matriz para ver más días o más detalle.' },
       { el: '.ruto-card-viaje', titulo: 'Detalle e historial', texto: 'Al abrir un viaje ves sus datos y, con "Ver historial de cambios", quién lo cambió, qué y cuándo.' },
       { el: '.ruto-tr-cupo-header', titulo: 'Arsitrans y Polar', texto: 'Los cupos de terceros. "+ Confirmar cupo" agrega uno; "Reacomodar" junta los viajes del mes en los menos cupos posibles, sin tocar nada más.' }
@@ -86,7 +87,18 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'input[placeholder^="Buscar por placa"]', titulo: 'Buscar', texto: 'Filtra por placa, conductor o transportadora.' },
       { el: '.header-actions', titulo: 'Histórico y nuevo vehículo', texto: '"Ver histórico" muestra cómo estaba la flota en meses anteriores. "+ Nuevo Vehículo" registra uno.' },
       { el: 'veh-tabla', titulo: 'La flota', texto: 'Cada vehículo con su conductor, estado, documentos y viajes del mes. "Editar" cambia sus datos; "Mant." lo manda a mantenimiento.' },
+      { el: 'veh-hoja', titulo: 'Hoja de vida', texto: 'Todo lo de un vehículo en una pantalla: viajes por mes, conductores que lo han manejado, mantenimientos, veces que se ha varado, documentos y novedades. Se puede imprimir.' },
       { el: 'veh-viajes', titulo: 'Viajes por vehículo', texto: 'Los viajes de cada vehículo de Makand en el mes.' }
+    ]
+  },
+
+  'hoja-de-vida': {
+    titulo: 'Hoja de vida',
+    pasos: [
+      { el: 'hv-cabecera', titulo: 'El vehículo', texto: 'Sus datos de hoy: estado, conductor, capacidad y último mantenimiento.' },
+      { el: '.hv-kpis', titulo: 'En números', texto: 'Viajes hechos, de este mes y próximos, días en taller, veces que se ha varado y viajes cancelados.' },
+      { el: '.hv-grid', titulo: 'El detalle', texto: 'Documentos (en rojo los vencidos), conductores que lo han manejado, viajes por mes, destinos, mantenimientos, averías y sus viajes.' },
+      { el: '.hv-btn', titulo: 'Imprimir', texto: 'Imprime la hoja o guárdala como PDF.' }
     ]
   },
 
@@ -121,6 +133,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'conf-motor', titulo: 'Motor de reasignación', texto: 'Cómo se reacomodan los viajes cuando un vehículo queda ocupado.' },
       { el: 'conf-modo', titulo: 'Modo de trabajo', texto: 'Modo Prueba trabaja sobre una copia: lo que hagas ahí no toca la operación real.' },
       { el: 'conf-apariencia', titulo: 'Apariencia', texto: 'Cambia entre modo claro y oscuro.' },
+      { el: 'conf-mi-cuenta', titulo: 'Mi cuenta', texto: 'Cambia tu contraseña cuando quieras (necesitas la actual). Al cambiarla, tu sesión se cierra en los demás equipos.' },
       { el: 'conf-guias', titulo: 'Guías', texto: 'Desde aquí vuelves a ver todas las guías de la app.' },
       { el: 'conf-respaldos', titulo: 'Respaldos', texto: 'Cada cambio guarda un respaldo automático. Desde aquí se puede volver a un momento anterior.' },
       { el: 'conf-importar', titulo: 'Importar viajes reales', texto: 'Sube el Excel de operación. Antes de guardar ves qué entra y qué se corrigió.' },
@@ -169,6 +182,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'mv-identificar', titulo: 'Identifícate', texto: 'Escribe tu nombre y la placa del vehículo. Luego confirmas que la información sea correcta.' },
       { el: 'mv-cabecera', titulo: 'Tu cuenta', texto: 'Tu nombre y tu vehículo. Con los botones actualizas o cierras sesión.' },
       { el: 'mv-foto', titulo: 'Foto de tus viajes', texto: 'Descarga una imagen con tus viajes para tenerla a mano o compartirla.' },
+      { el: '.mv-acciones-viaje', titulo: 'Ya salí / Ya llegué', texto: 'Cuando arranques, toca "Ya salí"; al llegar al destino, "Ya llegué". La oficina lo ve al instante. Si tocaste por error, tienes 15 minutos para deshacerlo.' },
       { el: 'mv-dias', titulo: 'Tus viajes por día', texto: 'Hoy y los próximos días, con destino, hora, vehículo y cuándo regresas. Los días de descanso salen marcados. Se actualiza sola cada minuto.' },
       PASO_AYUDA
     ]

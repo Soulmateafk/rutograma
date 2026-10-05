@@ -200,21 +200,21 @@
     <div class="form-row">
       <div class="form-group">
         <label>Nombre completo</label>
-        <input type="text" [(ngModel)]="nuevoConductor.nom" placeholder="Nombre conductor">
+        <input type="text" [(ngModel)]="nuevoConductor.nom" placeholder="Nombre y apellido" maxlength="80">
       </div>
       <div class="form-group">
         <label>Cédula</label>
-        <input type="text" [(ngModel)]="nuevoConductor.ced" placeholder="123456789">
+        <input type="text" [(ngModel)]="nuevoConductor.ced" placeholder="Solo números" inputmode="numeric" maxlength="13" [disabled]="indexEdicion !== null" [title]="indexEdicion !== null ? 'La cédula identifica al conductor: no se cambia' : ''">
       </div>
     </div>
     <div class="form-row">
       <div class="form-group">
         <label>Teléfono</label>
-        <input type="text" [(ngModel)]="nuevoConductor.tel" placeholder="300 000 0000">
+        <input type="tel" [(ngModel)]="nuevoConductor.tel" placeholder="300 000 0000" inputmode="tel" maxlength="16">
       </div>
       <div class="form-group" data-guia="cond-vehiculo">
         <label>Vehículo asignado</label>
-        <input type="text" [(ngModel)]="nuevoConductor.veh" placeholder="Ej. ABC-123">
+        <input type="text" [(ngModel)]="nuevoConductor.veh" placeholder="Ej. ABC 123" maxlength="8" style="text-transform: uppercase;">
       </div>
     </div>
     <div class="form-row">

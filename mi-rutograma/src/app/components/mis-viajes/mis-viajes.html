@@ -12,6 +12,7 @@
     <div class="mv-acciones">
       <button *ngIf="paso === 'viajes'" class="mv-btn" (click)="cargar()" title="Actualizar"><i class="bi bi-arrow-clockwise"></i></button>
       <a *ngIf="!compartida" class="mv-btn" routerLink="/sesiones" title="Mis sesiones"><i class="bi bi-laptop"></i></a>
+      <button *ngIf="!compartida" class="mv-btn" (click)="cambiandoClave = true" title="Cambiar mi contraseña"><i class="bi bi-key"></i></button>
       <button class="mv-btn mv-salir" (click)="salir()" title="Cerrar sesión"><i class="bi bi-box-arrow-right"></i></button>
     </div>
   </header>
@@ -86,10 +87,35 @@
             <span *ngIf="v.cajas"><i class="bi bi-box-seam"></i> {{ v.cajas }} cajas</span>
           </div>
           <div class="mv-ruta">Ruta {{ v.ruta }}<span *ngIf="vuelve(v)"> · Regresa el {{ vuelve(v) }}</span></div>
+          <div class="mv-marcas" *ngIf="v.salidaReal || v.llegadaReal">
+            <span *ngIf="v.salidaReal"><i class="bi bi-play-circle-fill"></i> Salió {{ v.salidaReal | date:'h:mm a' }}</span>
+            <span *ngIf="v.llegadaReal"><i class="bi bi-flag-fill"></i> Llegó {{ v.llegadaReal | date:'h:mm a' }}</span>
+          </div>
+          <!-- Botones (no salen en la foto). -->
+          <div class="mv-acciones-viaje mv-no-foto" *ngIf="puedeMarcar(v)">
+            <button *ngIf="!v.salidaReal" class="mv-marcar mv-marcar-salida" [disabled]="marcandoId === v.id" (click)="marcar(v, 'salida')">
+              <i class="bi bi-play-fill"></i> Ya salí
+            </button>
+            <button *ngIf="v.salidaReal && !v.llegadaReal" class="mv-marcar mv-marcar-llegada" [disabled]="marcandoId === v.id" (click)="marcar(v, 'llegada')">
+              <i class="bi bi-flag-fill"></i> Ya llegué al destino
+            </button>
+            <button *ngIf="sePuedeDeshacer(v)" class="mv-deshacer" [disabled]="marcandoId === v.id" (click)="marcar(v, 'deshacer')">
+              Me equivoqué, deshacer
+            </button>
+          </div>
         </article>
       </section>
     </div>
 
     <p class="mv-pie" *ngIf="ultimaActualizacion">Actualizado {{ ultimaActualizacion | date:'h:mm a' }} · se actualiza solo cada minuto</p>
   </ng-container>
+</div>
+
+<!-- Cambiar mi contraseña (solo cuenta propia; la compartida la maneja el admin). -->
+<div class="mv-modal-fondo" *ngIf="cambiandoClave" (click)="cambiandoClave = false">
+  <div class="mv-modal" (click)="$event.stopPropagation()">
+    <h3>Cambiar mi contraseña</h3>
+    <app-cambiar-clave [email]="auth.currentUser?.email || ''" [nombre]="conductor?.nombre || ''"
+                       (listo)="cambiandoClave = false" (cancelar)="cambiandoClave = false"></app-cambiar-clave>
+  </div>
 </div>

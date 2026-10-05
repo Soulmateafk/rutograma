@@ -20,6 +20,7 @@ import { ResumenComponent } from './components/resumen/resumen';
 import { SesionesComponent } from './components/sesiones/sesiones';
 import { AprobacionesComponent } from './components/aprobaciones/aprobaciones';
 import { MisViajesComponent } from './components/mis-viajes/mis-viajes';
+import { HojaVidaComponent } from './components/hoja-vida/hoja-vida';
 
 export const routes: Routes = [
   // 1. Redirección automática
@@ -34,6 +35,7 @@ export const routes: Routes = [
   { path: 'dashboard', component: Dashboard, canActivate: [authGuard] },
   { path: 'rutograma', component: RutogramaComponent, canActivate: [authGuard] },
   { path: 'vehiculos', component: VehiculosComponent, canActivate: [authGuard] },
+  { path: 'hoja-de-vida/:placa', component: HojaVidaComponent, canActivate: [authGuard] },
   { path: 'rutas', component: RutasComponent, canActivate: [authGuard] },
   { path: 'conductores', component: ConductoresComponent, canActivate: [authGuard] }, 
   { path: 'configuracion', component: Configuracion, canActivate: [authGuard] },

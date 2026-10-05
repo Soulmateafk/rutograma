@@ -1,4 +1,5 @@
 import { Component, inject, OnInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
+import { errorConductor, normalizarPlaca } from '../../services/validaciones';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
@@ -379,6 +380,31 @@ export class ConductoresComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Datos limpios y revisados (el servidor revisa lo mismo): cédula sin
+    // puntos, placa escrita igual que en la flota ('lun428' -> 'LUN 428').
+    const esNuevo = this.indexEdicion === null;
+    if (esNuevo) {
+      const ced = String(this.nuevoConductor.ced || '').replace(/[.\s]/g, '');
+      this.nuevoConductor.ced = this.nuevoConductor.cedula = this.nuevoConductor.cc = ced;
+    }
+    if (this.nuevoConductor.veh) {
+      const escrita = normalizarPlaca(this.nuevoConductor.veh);
+      const enFlota = (this.dataService.S.vehiculos || []).find((v: any) => normalizarPlaca(v.p || v.placa) === escrita);
+      this.nuevoConductor.veh = this.nuevoConductor.placa = this.nuevoConductor.p = enFlota ? (enFlota.p || enFlota.placa) : escrita;
+    }
+    const errorDato = errorConductor(this.nuevoConductor, esNuevo ? null : this.conductorOriginalEdicion, this.dataService.S.vehiculos || []);
+    if (errorDato) {
+      this.ui.mostrarToast(errorDato, 'err');
+      return;
+    }
+    if (esNuevo) {
+      const repetido = (this.dataService.S.conductores || []).find((c: any) => String(c.ced || c.cedula || c.cc || '').replace(/[.\s]/g, '') === this.nuevoConductor.ced);
+      if (repetido) {
+        this.ui.mostrarToast(`Ya existe un conductor con la cédula ${this.nuevoConductor.ced} (${repetido.nom || repetido.nombre}).`, 'err');
+        return;
+      }
+    }
+
     // ¿La placa ya la tiene otro conductor? Se ofrece pasársela a este
     // (antes solo salía "El vehículo ya está asignado").
     const placaPedida = String(this.nuevoConductor.veh || '').trim();
@@ -407,6 +433,7 @@ export class ConductoresComponent implements OnInit, OnDestroy {
       // Solo se manda la versión cuando se está editando uno que ya existía
       // (protección contra choques) — un conductor nuevo no tiene versión previa.
       if (this.indexEdicion !== null) conductorAEnviar.version = this.conductorOriginalEdicion?.version;
+      else conductorAEnviar.esNuevo = true;
 
       const errorMsg = await this.dataService.guardarConductorValidado(
         conductorAEnviar,
