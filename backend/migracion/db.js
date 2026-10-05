@@ -121,6 +121,8 @@ function conectar(modo = 'real') {
   agregarColumnaSiFalta('usuarios', 'motivo_rechazo', 'TEXT');
   // Permisos personalizados (JSON). NULL = los de su rol.
   agregarColumnaSiFalta('usuarios', 'permisos', 'TEXT');
+  // Cuenta de rol "conductor": cédula del conductor al que está enlazada.
+  agregarColumnaSiFalta('usuarios', 'conductor_ced', 'TEXT');
 
   conexiones[modo] = db;
   return db;
@@ -240,7 +242,8 @@ function leerDB(modo = 'real') {
     departamento: u.departamento, estado: u.estado, rol: u.rol,
     solicitadoEn: u.solicitado_en, actualizadoPor: u.actualizado_por,
     actualizadoEn: u.actualizado_en, motivoRechazo: u.motivo_rechazo,
-    permisos: aJSON(u.permisos, null)
+    permisos: aJSON(u.permisos, null),
+    conductorCed: u.conductor_ced || null
   }));
 
   const novedades = db.prepare('SELECT * FROM novedades').all().map(n => ({
@@ -413,8 +416,8 @@ function guardarEnDB(data, modo = 'real') {
     if (data.usuarios) {
       db.prepare('DELETE FROM usuarios').run();
       const ins = db.prepare(`INSERT INTO usuarios
-        (email, nombre, pass_hash, departamento, estado, rol, solicitado_en, actualizado_por, actualizado_en, motivo_rechazo, permisos)
-        VALUES (@email, @nombre, @pass_hash, @departamento, @estado, @rol, @solicitado_en, @actualizado_por, @actualizado_en, @motivo_rechazo, @permisos)`);
+        (email, nombre, pass_hash, departamento, estado, rol, solicitado_en, actualizado_por, actualizado_en, motivo_rechazo, permisos, conductor_ced)
+        VALUES (@email, @nombre, @pass_hash, @departamento, @estado, @rol, @solicitado_en, @actualizado_por, @actualizado_en, @motivo_rechazo, @permisos, @conductor_ced)`);
       for (const u of data.usuarios) {
         ins.run({
           email: String(u.email || '').toLowerCase().trim(),
@@ -427,7 +430,8 @@ function guardarEnDB(data, modo = 'real') {
           actualizado_por: u.actualizadoPor || null,
           actualizado_en: u.actualizadoEn || null,
           motivo_rechazo: u.motivoRechazo || null,
-          permisos: u.permisos && typeof u.permisos === 'object' ? JSON.stringify(u.permisos) : null
+          permisos: u.permisos && typeof u.permisos === 'object' ? JSON.stringify(u.permisos) : null,
+          conductor_ced: u.conductorCed || null
         });
       }
     }
@@ -511,6 +515,19 @@ function listarAuditoriaDB(limite = 200) {
     modo: f.modo,
     resumen: aJSON(f.resumen, {})
   }));
+}
+
+/** Eventos de auditoría de UN viaje (guardados, eliminación), del más viejo al más nuevo. */
+function listarAuditoriaViajeDB(idViaje, modo = 'real') {
+  const db = conectar('real');
+  const filas = db.prepare(
+    `SELECT fecha, usuario, metodo, ruta, modo, resumen FROM auditoria
+      WHERE ruta IN ('/api/viajes', '/api/viajes/eliminar')
+        AND modo = ?
+        AND CAST(json_extract(resumen, '$.id') AS TEXT) = ?
+      ORDER BY fecha ASC LIMIT 300`
+  ).all(modo, String(idViaje));
+  return filas.map(f => ({ fecha: f.fecha, usuario: f.usuario, ruta: f.ruta, resumen: aJSON(f.resumen, {}) }));
 }
 
 // Migración ÚNICA del auditoria.jsonl viejo — se corre una vez al
@@ -648,5 +665,5 @@ module.exports = {
   leerConfigCompartidaDB, guardarConfigCompartidaDB,
   listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB,
   leerDB, guardarEnDB, conectar, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB,
-  registrarAuditoriaDB, listarAuditoriaDB, importarAuditoriaJSONLSiHaceFalta
+  registrarAuditoriaDB, listarAuditoriaDB, listarAuditoriaViajeDB, importarAuditoriaJSONLSiHaceFalta
 };

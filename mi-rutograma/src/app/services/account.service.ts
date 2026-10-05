@@ -5,7 +5,7 @@ import { UiService } from './ui.service';
 
 export type UserStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'NOT_FOUND';
 
-export type RolCuenta = 'admin' | 'editor' | 'lector' | 'jefe' | 'auxiliar';
+export type RolCuenta = 'admin' | 'editor' | 'lector' | 'jefe' | 'auxiliar' | 'conductor';
 
 /** Lo que puede hacer una cuenta. Misma lista y reglas que backend/aprobaciones.js. */
 export interface Permisos {
@@ -56,6 +56,7 @@ const EDICION_COMPLETA: Partial<Permisos> = { editar: true, sinAprobacion: true,
 const PERMISOS_POR_ROL: Record<string, Partial<Permisos>> = {
   editor: { ...EDICION_COMPLETA, editarHistorico: true },
   lector: {},
+  conductor: {},
   jefe: { ...EDICION_COMPLETA, aprobarCambios: true, verAdministracion: true, verSesionesTodas: true },
   auxiliar: { editar: true, eliminar: true, generarMatriz: true, reacomodarCupos: true, editarConfiguracion: true }
 };
@@ -95,6 +96,8 @@ export interface CuentaUsuario {
   rol?: RolCuenta;
   /** Personalizados por el admin; null/ausente = los de su rol. */
   permisos?: Permisos | null;
+  /** Rol conductor: cédula del conductor al que está enlazada la cuenta. */
+  conductorCed?: string | null;
   solicitadoEn?: string;
   actualizadoPor?: string;
   actualizadoEn?: string;
@@ -137,7 +140,7 @@ export class AccountService {
   public static normalizarRol(rol: any, esAdmin: boolean): RolCuenta {
     if (esAdmin) return 'admin';
     const r = String(rol || '').toLowerCase();
-    return (['lector', 'editor', 'jefe', 'auxiliar'] as const).includes(r as any) ? r as RolCuenta : 'editor';
+    return (['lector', 'editor', 'jefe', 'auxiliar', 'conductor'] as const).includes(r as any) ? r as RolCuenta : 'editor';
   }
   /** Motivo que escribió el admin al rechazar la cuenta — solo tiene
    *  valor cuando el último login/verificación devolvió estado REJECTED. */
@@ -393,9 +396,9 @@ export class AccountService {
   }
 
   /** Cambia el rol de una cuenta y, opcionalmente, le pone permisos a medida (null = los del rol). Solo admin. */
-  async cambiarRol(email: string, rol: 'editor' | 'lector' | 'jefe' | 'auxiliar', permisos: Permisos | null = null): Promise<void> {
+  async cambiarRol(email: string, rol: 'editor' | 'lector' | 'jefe' | 'auxiliar' | 'conductor', permisos: Permisos | null = null, conductorCed: string | null = null): Promise<void> {
     const url = `${this.API_URL}/auth/rol`;
-    const body = { email, rol, permisos };
+    const body = { email, rol, permisos, conductorCed };
     try {
       await firstValueFrom(
         this.http.post(url, body, { headers: { 'x-user-email': this.emailActivo } })
@@ -453,9 +456,9 @@ export class AccountService {
   }
 
   /** Aprueba una cuenta. El admin puede elegir rol y permisos en el mismo paso. */
-  async aprobar(email: string, rol?: string, permisos: Permisos | null = null): Promise<void> {
+  async aprobar(email: string, rol?: string, permisos: Permisos | null = null, conductorCed: string | null = null): Promise<void> {
     const body: any = { email, accion: 'APPROVED' };
-    if (rol) { body.rol = rol; body.permisos = permisos; }
+    if (rol) { body.rol = rol; body.permisos = permisos; body.conductorCed = conductorCed; }
     await firstValueFrom(
       this.http.post(`${this.API_URL}/auth/decidir`, body, {
         headers: { 'x-user-email': this.emailActivo }
@@ -480,6 +483,17 @@ export class AccountService {
   async probarCorreo(destino: string): Promise<{ ok: boolean; msg: string }> {
     try {
       return await firstValueFrom(this.http.post<any>(`${this.API_URL}/correo/probar`, { destino }, { headers: { 'x-user-email': this.emailActivo } }));
+    } catch (e: any) {
+      return { ok: false, msg: e?.error?.msg || 'No se pudo comunicar con el servidor.' };
+    }
+  }
+
+  /** Crea (o le cambia la contraseña a) la cuenta compartida de conductores. Solo admin. */
+  async cuentaConductores(email: string, clave: string): Promise<{ ok: boolean; msg?: string; creada?: boolean }> {
+    try {
+      return await firstValueFrom(this.http.post<any>(`${this.API_URL}/auth/cuenta-conductores`, { email, clave }, {
+        headers: { 'x-user-email': this.emailActivo }
+      }));
     } catch (e: any) {
       return { ok: false, msg: e?.error?.msg || 'No se pudo comunicar con el servidor.' };
     }

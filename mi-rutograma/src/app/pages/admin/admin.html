@@ -21,6 +21,18 @@
 
   <!-- ===================== CUENTAS ===================== -->
   <ng-container *ngIf="pestaniaActiva === 'cuentas'">
+    <div *ngIf="auth.isAdmin" class="cuenta-conductores">
+      <div class="cuenta-conductores-texto">
+        <strong><i class="bi bi-people-fill"></i> Cuenta compartida de conductores</strong>
+        <span>Una sola cuenta para todos: al entrar, cada conductor escribe su nombre y placa, confirma, y ve sus viajes (puede descargar una foto). Para un conductor con su propia cuenta, ponle el rol "Conductor" y enlázalo.</span>
+      </div>
+      <div class="cuenta-conductores-form">
+        <input type="email" [(ngModel)]="conductoresEmail" placeholder="conductores@makand.com">
+        <input type="text" [(ngModel)]="conductoresClave" placeholder="Contraseña (mín. 6)">
+        <button class="btn-aprobar" (click)="guardarCuentaConductores()">Crear / cambiar contraseña</button>
+      </div>
+    </div>
+
     <p *ngIf="cargando" class="admin-msg">Cargando cuentas...</p>
     <p *ngIf="!cargando && usuarios.length === 0" class="admin-msg">
       No hay cuentas registradas actualmente.
@@ -61,6 +73,7 @@
               {{ nombreRol(u.rol) }}
             </span>
             <span *ngIf="u.permisos" class="permisos-tag" [title]="resumenPermisos(u)">personalizado</span>
+            <div *ngIf="u.rol === 'conductor'" class="cuenta-fecha"><i class="bi bi-person-badge"></i> {{ nombreConductorEnlazado(u) }}</div>
           </td>
           <td class="acciones" *ngIf="auth.isAdmin || auth.puedeGestionarCuentas">
             <button *ngIf="u.estado !== 'APPROVED' && (auth.isAdmin || u.estado === 'PENDING')" class="btn-aprobar" (click)="aprobarUsuario(u)">
@@ -74,6 +87,9 @@
             </button>
             <button *ngIf="auth.isAdmin && u.estado === 'APPROVED'" class="btn-rol" (click)="abrirResetClave(u)">
               Restablecer contraseña
+            </button>
+            <button *ngIf="auth.isAdmin && u.estado === 'APPROVED'" class="btn-rol" (click)="reiniciarGuiasDe(u)" title="La próxima vez que entre a cada página volverá a ver la guía">
+              Reiniciar guías
             </button>
             <button *ngIf="puedeEliminarCuenta(u)" class="btn-rechazar" (click)="eliminarCuenta(u)" title="Borrar esta solicitud para siempre">
               <i class="bi bi-trash"></i> Eliminar
@@ -295,6 +311,15 @@
       <option *ngFor="let r of rolesDisponibles" [value]="r.valor">{{ r.nombre }}</option>
     </select>
     <p class="permisos-ayuda">El rol marca los permisos por defecto. Puedes ajustarlos uno por uno.</p>
+
+    <div *ngIf="modalPermisos.rol === 'conductor'" class="permisos-conductor">
+      <label class="permisos-label">Conductor de esta cuenta</label>
+      <select class="rol-select permisos-rol" [(ngModel)]="modalPermisos.conductorCed">
+        <option value="">— Elige el conductor —</option>
+        <option *ngFor="let c of conductoresParaEnlazar" [value]="c.ced">{{ c.nombre }}{{ c.placa ? ' — ' + c.placa : '' }}</option>
+      </select>
+      <p class="permisos-ayuda">Esta cuenta solo verá la pantalla "Mis viajes", con los viajes de ese conductor.</p>
+    </div>
 
     <div class="permisos-lista">
       <ng-container *ngFor="let p of permisosInfo; let i = index">

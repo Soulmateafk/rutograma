@@ -142,7 +142,8 @@ CREATE TABLE IF NOT EXISTS usuarios (
   actualizado_por     TEXT,
   actualizado_en      TEXT,
   motivo_rechazo      TEXT,
-  permisos            TEXT   -- JSON con permisos personalizados; NULL = los de su rol
+  permisos            TEXT,  -- JSON con permisos personalizados; NULL = los de su rol
+  conductor_ced       TEXT   -- rol conductor: cédula del conductor enlazado
 );
 
 CREATE TABLE IF NOT EXISTS auditoria (

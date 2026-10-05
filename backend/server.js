@@ -21,7 +21,9 @@ const { ROLES_VALIDOS, rolDeCuenta, requiereAprobacion, describirCambio, solicit
 // vuelva a ejecutar la petición de un auxiliar cuando un jefe la aprueba.
 // Solo vive en memoria: nadie de afuera puede conocerla.
 const TOKEN_REPLAY_APROBACION = crypto.randomBytes(32).toString('hex');
-const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, importarAuditoriaJSONLSiHaceFalta } = require('./migracion/db.js');
+const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, listarAuditoriaViajeDB, importarAuditoriaJSONLSiHaceFalta } = require('./migracion/db.js');
+const { armarHistorialViaje } = require('./historial');
+const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
 
 // Lee las credenciales de correo desde un archivo .env (nunca escritas
 // directo en este código) — ver las instrucciones al final de este
@@ -541,6 +543,28 @@ const identificarUsuario = (req, res, next) => {
     next();
 };
 app.use(identificarUsuario);
+
+// Cuentas de rol "conductor": solo su pantalla Mis viajes y lo básico de la
+// sesión. El resto de la información (otros viajes, vehículos, cuentas...)
+// no se les entrega aunque la pidan directo.
+const RUTAS_PARA_CONDUCTOR = ['/api/mis-viajes', '/api/mis-viajes/validar', '/api/modo', '/api/sesiones', '/api/sesiones/cerrar',
+    '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual', '/api/guias', '/api/guias/vista', '/api/guias/reiniciar'];
+app.use((req, res, next) => {
+    if (!req.path.startsWith('/api/') || req.path.startsWith('/api/auth/') || RUTAS_PARA_CONDUCTOR.includes(req.path)) return next();
+    if (req.esReplayAprobado) return next();
+    const email = normalizarEmail(req.headers['x-user-email']);
+    if (!email || email === normalizarEmail(ADMIN_EMAIL)) return next();
+    try {
+        const cuenta = (leerExcel().usuarios || []).find(u => normalizarEmail(u.email) === email);
+        if (cuenta && rolDeCuenta(cuenta, false) === 'conductor') {
+            res.locals.auditoriaOmitir = true;
+            return res.status(403).json({ ok: false, codigo: 'solo_conductor', msg: 'Tu cuenta de conductor solo puede ver "Mis viajes".' });
+        }
+    } catch (err) {
+        console.error('⚠️ Error revisando la cuenta de conductor:', err.message);
+    }
+    next();
+});
 
 // --- Bloqueo por intentos fallidos de login (fuerza bruta) ---
 // Se cuenta por correo + dirección de quien intenta: así quien se equivoca
@@ -1065,7 +1089,7 @@ const RUTAS_SIN_RESTRICCION_DE_ROL = [
     '/api/sesiones/cerrar-otras',
     '/api/sesiones/cerrar-actual'
 ];
-const RUTAS_CON_PERMISO_PROPIO = ['/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
+const RUTAS_CON_PERMISO_PROPIO = ['/api/auth/cuenta-conductores', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
 
 app.use((req, res, next) => {
     if (!req.path.startsWith('/api/') || req.method === 'GET') return next();
@@ -1523,6 +1547,7 @@ app.post('/api/auth/decidir', (req, res) => {
             }
             usuario.rol = rol;
             usuario.permisos = req.body.permisos ? normalizarPermisos(req.body.permisos) : null;
+            usuario.conductorCed = rol === 'conductor' ? (String(req.body.conductorCed || '').trim() || null) : null;
         }
         usuario.actualizadoPor = solicitante;
         usuario.actualizadoEn = new Date().toISOString();
@@ -1595,6 +1620,47 @@ app.post('/api/auth/eliminar', (req, res) => {
     }
 });
 
+// --- Cuenta compartida de conductores (solo admin): la crea o le cambia la
+// contraseña. Es una cuenta de rol "conductor" sin enlazar: al entrar,
+// cada conductor escribe su nombre y placa para ver sus viajes. ---
+app.post('/api/auth/cuenta-conductores', async (req, res) => {
+    // La contraseña nunca va a la auditoría (ni si algo falla).
+    res.locals.auditoriaResumen = { email: normalizarEmail(req.body?.email) };
+    try {
+        if (normalizarEmail(req.headers['x-user-email']) !== normalizarEmail(ADMIN_EMAIL)) {
+            return res.status(403).json({ ok: false, msg: 'Solo el administrador.' });
+        }
+        const email = normalizarEmail(req.body?.email);
+        const clave = String(req.body?.clave || '');
+        if (!email.includes('@')) return res.status(400).json({ ok: false, msg: 'Escribe un correo para la cuenta (ej. conductores@makand.com).' });
+        if (clave.length < 6) return res.status(400).json({ ok: false, msg: 'La contraseña debe tener al menos 6 caracteres.' });
+        const data = leerExcel();
+        if (!data.usuarios) data.usuarios = [];
+        let cuenta = data.usuarios.find(u => normalizarEmail(u.email) === email);
+        const existia = !!cuenta;
+        if (cuenta && rolDeCuenta(cuenta, false) !== 'conductor') {
+            return res.status(409).json({ ok: false, msg: 'Ese correo ya es de otra cuenta que no es de conductores.' });
+        }
+        if (!cuenta) {
+            cuenta = { email, nombre: 'Conductores (cuenta compartida)', departamento: 'Transporte', solicitadoEn: new Date().toISOString() };
+            data.usuarios.push(cuenta);
+        }
+        cuenta.passHash = await bcrypt.hash(clave, 10);
+        cuenta.estado = 'APPROVED';
+        cuenta.rol = 'conductor';
+        cuenta.permisos = null;
+        cuenta.conductorCed = null;
+        cuenta.actualizadoPor = normalizarEmail(req.headers['x-user-email']);
+        cuenta.actualizadoEn = new Date().toISOString();
+        guardarEnExcel(data);
+        res.locals.auditoriaResumen = { email, accion: existia ? 'Cambió la contraseña' : 'Creó la cuenta' };
+        res.json({ ok: true, email, creada: !existia });
+    } catch (error) {
+        console.error('🚨 Error en /api/auth/cuenta-conductores:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
 // --- Asignar rol (y opcionalmente permisos personalizados) a una cuenta (solo admin) ---
 app.post('/api/auth/rol', (req, res) => {
     try {
@@ -1620,6 +1686,8 @@ app.post('/api/auth/rol', (req, res) => {
         usuario.rol = rol;
         // Sin "permisos" (o null) = los de su rol; con objeto = personalizados.
         usuario.permisos = req.body.permisos ? normalizarPermisos(req.body.permisos) : null;
+        // Rol conductor: a qué conductor (cédula) está enlazada la cuenta.
+        usuario.conductorCed = rol === 'conductor' ? (String(req.body.conductorCed || '').trim() || null) : null;
         usuario.actualizadoPor = solicitante;
         usuario.actualizadoEn = new Date().toISOString();
 
@@ -2118,11 +2186,17 @@ app.post('/api/guias/vista', (req, res) => {
     res.json({ ok: true, vistas: guiasVistas[email] });
 });
 
-// Sin "pagina" se reinician todas (vuelven a salir).
+// Sin "pagina" se reinician todas (vuelven a salir). El admin puede
+// reiniciarlas a otra cuenta con "email".
 app.post('/api/guias/reiniciar', (req, res) => {
     res.locals.auditoriaOmitir = true;
-    const email = quienPideGuia(req);
-    if (!email) return res.status(401).json({ ok: false, msg: 'Debes iniciar sesión.' });
+    const quien = quienPideGuia(req);
+    if (!quien) return res.status(401).json({ ok: false, msg: 'Debes iniciar sesión.' });
+    let email = quien;
+    if (req.body?.email && normalizarEmail(req.body.email) !== quien) {
+        if (quien !== normalizarEmail(ADMIN_EMAIL)) return res.status(403).json({ ok: false, msg: 'Solo el administrador puede reiniciar las guías de otra cuenta.' });
+        email = normalizarEmail(req.body.email);
+    }
     const pagina = req.body?.pagina ? String(req.body.pagina) : '';
     guiasVistas[email] = pagina ? (guiasVistas[email] || []).filter(p => p !== pagina) : [];
     guardarGuias();
@@ -2712,6 +2786,148 @@ app.post('/api/cache/refrescar', (req, res) => {
 });
 
 // --- Consultar el registro de auditoría (solo admin) ---
+// ============================================================
+// MIS VIAJES — pantalla de una cuenta de rol "conductor": sus viajes desde
+// ayer hasta dentro de 2 semanas. Son suyos los que tienen su nombre, y los
+// de su placa que no tienen otro conductor puesto.
+// ============================================================
+const sinTildes = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+
+const placaLimpia = (p) => String(p || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+/** Viajes de ayer a dentro de 2 semanas que coinciden con "coincide". */
+function viajesParaConductor(data, coincide) {
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const desde = iso(new Date(hoy.getTime() - 86400000));
+    const hasta = iso(new Date(hoy.getTime() + 14 * 86400000));
+    const rutas = data.rutas || [];
+    return (data.viajes || [])
+        .filter(v => v.fecha && v.fecha >= desde && v.fecha <= hasta && coincide(v))
+        .map(v => {
+            const ruta = rutas.find(r => String(r.cod || r.codigo || '').toUpperCase() === String(v.ruta || v.codigo || '').toUpperCase()) || {};
+            return {
+                id: v.id, fecha: v.fecha, dia: v.dia, salida: v.salida, retorno: v.retorno,
+                ruta: v.ruta || v.codigo || '', destino: v.destino || ruta.dest || '', dest2: v.dest2 || '',
+                cliente: v.cliente || '', placa: v.p || v.placa || '', tr: v.tr || v.transportadora || '',
+                cond: v.cond || '', hora: v.hora || '', estado: v.estado || 'Planificado', cajas: v.cajas || null
+            };
+        })
+        .sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)) || String(a.hora).localeCompare(String(b.hora)));
+}
+
+const COND_GENERICOS = ['', 'SIN ASIGNAR', 'ASIGNADO', 'SIN CONDUCTOR'];
+const esDelConductor = (v, nombre, placa) => {
+    const cond = sinTildes(v.cond);
+    if (COND_GENERICOS.includes(cond)) return !!placa && placaLimpia(v.p || v.placa) === placaLimpia(placa);
+    return cond === sinTildes(nombre);
+};
+
+const datosConductor = (c) => ({
+    ced: String(c.ced || c.cedula || c.cc || '').trim(),
+    nombre: c.nom || c.nombre || '',
+    placa: String(c.veh || c.placa || '').toUpperCase().trim(),
+    estado: c.est || c.estado || '',
+    descansosPorMes: c.descansosPorMes || {}
+});
+
+const cuentaQuePide = (req, data) => {
+    const email = normalizarEmail(req.usuarioVerificado || req.headers['x-user-email']);
+    return (data.usuarios || []).find(u => normalizarEmail(u.email) === email) || null;
+};
+
+// Cuenta compartida de conductores (rol conductor SIN enlazar): busca al
+// conductor por nombre y placa para que confirme que es él.
+app.get('/api/mis-viajes/validar', (req, res) => {
+    try {
+        const data = leerExcel();
+        const escrito = String(req.query.nombre || '').trim();
+        const placa = placaLimpia(req.query.placa);
+        if (sinTildes(escrito).length < 3) return res.status(400).json({ ok: false, msg: 'Escribe tu nombre (al menos 3 letras).' });
+        // Nombres parecidos aunque estén mal escritos (ver buscar-nombre.js);
+        // si la placa es la asignada a un conductor, ese también se ofrece.
+        const todos = (data.conductores || []).map(datosConductor).filter(c => c.ced && c.nombre);
+        const porNombre = nombresParecidos(escrito, todos, { minimo: 0.6, maximo: 5 });
+        const porPlaca = placa ? todos.filter(c => placaLimpia(c.placa) === placa && !porNombre.some(x => x.ced === c.ced))
+            .map(c => ({ ...c, parecido: 0 })) : [];
+        const candidatos = [...porNombre, ...porPlaca]
+            .map(c => ({ ...c, coincidePlaca: !!placa && placaLimpia(c.placa) === placa, nombreExacto: escritoIgual(escrito, c.nombre) }))
+            // Primero el que más se parece; la placa asignada suma un poco.
+            .sort((a, b) => (b.parecido + (b.coincidePlaca ? 0.15 : 0)) - (a.parecido + (a.coincidePlaca ? 0.15 : 0)))
+            .slice(0, 5);
+        const vehiculo = (data.vehiculos || []).find(v => placaLimpia(v.p || v.placa) === placa);
+        res.json({
+            ok: true,
+            candidatos: candidatos.map(({ descansosPorMes, ...resto }) => resto),
+            placa: vehiculo ? String(vehiculo.p || vehiculo.placa).toUpperCase() : String(req.query.placa || '').toUpperCase().trim(),
+            placaExiste: !!vehiculo
+        });
+    } catch (error) {
+        console.error('🚨 Error en /api/mis-viajes/validar:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// Viajes de un conductor. Cuenta enlazada: los de su conductor. Cuenta
+// compartida: los del conductor confirmado (?ced=), primero por la placa
+// que escribió y, si esa placa no tiene viajes, por su nombre.
+app.get('/api/mis-viajes', (req, res) => {
+    try {
+        const data = leerExcel();
+        const cuenta = cuentaQuePide(req, data);
+        const esAdmin = normalizarEmail(req.headers['x-user-email']) === normalizarEmail(ADMIN_EMAIL);
+        if (!cuenta && !esAdmin) return res.status(404).json({ ok: false, msg: 'Cuenta no encontrada.' });
+        const enlazada = String(cuenta?.conductorCed || '').trim();
+        const ced = enlazada || String(req.query.ced || '').trim();
+        if (!ced) return res.json({ ok: true, enlazado: false, compartida: !enlazada });
+        const c = (data.conductores || []).find(x => String(x.ced || x.cedula || x.cc || '').trim() === ced);
+        if (!c) return res.json({ ok: true, enlazado: false, compartida: !enlazada, msg: 'No se encontró ese conductor.' });
+        const conductor = datosConductor(c);
+
+        let viajes, buscadoPor;
+        const placaPedida = String(req.query.placa || '').trim();
+        if (!enlazada && placaPedida) {
+            // Por la placa escrita: viajes de esa placa sin otro conductor puesto, o con el suyo.
+            viajes = viajesParaConductor(data, v => placaLimpia(v.p || v.placa) === placaLimpia(placaPedida) &&
+                (COND_GENERICOS.includes(sinTildes(v.cond)) || sinTildes(v.cond) === sinTildes(conductor.nombre)));
+            buscadoPor = 'placa';
+            if (!viajes.length) {
+                viajes = viajesParaConductor(data, v => sinTildes(v.cond) === sinTildes(conductor.nombre));
+                buscadoPor = 'nombre';
+            }
+        } else {
+            viajes = viajesParaConductor(data, v => esDelConductor(v, conductor.nombre, conductor.placa));
+            buscadoPor = 'conductor';
+        }
+        res.json({ ok: true, enlazado: true, compartida: !enlazada, conductor, viajes, buscadoPor, placaBuscada: placaPedida.toUpperCase() });
+    } catch (error) {
+        console.error('🚨 Error en /api/mis-viajes:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// Historial de cambios de UN viaje (para el detalle del viaje en el
+// Rutograma). Lo puede ver cualquiera que vea el viaje.
+app.get('/api/viajes/historial', (req, res) => {
+    try {
+        const id = String(req.query.id || '').trim();
+        if (!id) return res.status(400).json({ ok: false, msg: 'Falta el viaje.' });
+        const historial = armarHistorialViaje(listarAuditoriaViajeDB(id, modoActual));
+        // Cambios de este viaje que todavía esperan aprobación.
+        const pendientes = solicitudesAprobacion
+            .filter(s => s.estado === 'PENDIENTE' && String(s.cuerpo?.id) === id)
+            .map(s => ({ fecha: s.creada, usuario: s.solicitante, descripcion: s.descripcion }));
+        // Lo que todavía está pendiente ya sale arriba (de la cola): no se repite
+        // el "pidió un cambio" de la auditoría para esas mismas solicitudes.
+        const historialSinRepetir = historial.filter(h => !(/esperando aprobación/.test(h.accion) &&
+            pendientes.some(p => p.usuario === h.usuario && Math.abs(Date.parse(p.fecha) - Date.parse(h.fecha)) < 10000)));
+        res.json({ ok: true, historial: historialSinRepetir, pendientes });
+    } catch (error) {
+        console.error('🚨 Error en /api/viajes/historial:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
 app.get('/api/auditoria', (req, res) => {
     try {
         const solicitante = normalizarEmail(req.headers['x-user-email']);

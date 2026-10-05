@@ -164,6 +164,27 @@ export class GuiaService {
     this.mostrarSiguienteDeCola(intento);
   }
 
+  /** Vuelven a salir todas las guías (de esta cuenta, o de otra si es el admin). */
+  public async reiniciarTodas(email?: string): Promise<boolean> {
+    try {
+      const res = await this.auth.fetchAutenticado(`${API_URL}/guias/reiniciar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(email ? { email } : {})
+      });
+      const data = await res.json();
+      if (!data?.ok) return false;
+      if (!email || email.toLowerCase() === this.correo) {
+        this.vistas = new Set();
+        this.vistasDe = this.correo;
+        this.alNavegar(this.router.url);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   private marcarVista(clave: string): void {
     this.vistas?.add(clave);
     this.auth.fetchAutenticado(`${API_URL}/guias/vista`, {

@@ -45,6 +45,8 @@ export class LoginComponent implements OnInit {
       detalle = 'Bienvenido, administrador. Tienes acceso completo al Rutograma.';
     } else if (this.auth.esJefe) {
       detalle = 'Bienvenido, jefe. Puedes editar el Rutograma y aprobar o rechazar los cambios de tus auxiliares en la pestaña Aprobaciones.';
+    } else if (this.auth.esConductor) {
+      detalle = 'Bienvenido. Aquí ves tus viajes de los próximos días.';
     } else if (this.auth.esAuxiliar) {
       detalle = 'Bienvenido. Eres auxiliar: puedes hacer cambios, pero cada uno se aplica cuando un jefe lo aprueba. Revisa en qué quedaron en la pestaña Aprobaciones.';
     } else if (this.auth.rolActual === 'lector') {

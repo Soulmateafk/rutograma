@@ -7,6 +7,18 @@
   <i class="bi bi-flask-fill"></i> Estás en MODO PRUEBA — nada de lo que veas o generes aquí afecta la operación real.
 </div>
 
+<!-- Cambios de auxiliares esperando aprobación: aviso notable para quien
+     puede aprobar (se actualiza solo cada 20 s). -->
+<div *ngIf="auth.puedeAprobar && pendientesAprobacion.length" class="ruto-aviso-aprobaciones"
+     [class.ruto-aviso-urgente]="horasPendienteMasViejo >= 24" data-guia="ruto-aprobaciones">
+  <i class="bi bi-hourglass-split ruto-aviso-icono"></i>
+  <div class="ruto-aviso-texto">
+    <strong>{{ pendientesAprobacion.length }} cambio{{ pendientesAprobacion.length === 1 ? '' : 's' }} esperando tu aprobación</strong>
+    <span>El más antiguo es de {{ pendientesAprobacion[0].nombreSolicitante || pendientesAprobacion[0].solicitante }}, hace {{ textoAntiguedad }}: {{ pendientesAprobacion[0].descripcion }}</span>
+  </div>
+  <a class="ruto-aviso-btn" routerLink="/aprobaciones">Revisar ahora <i class="bi bi-arrow-right"></i></a>
+</div>
+
 <div id="pg-rutograma" class="ruto-container">
 
   <div class="ruto-header">
@@ -154,6 +166,7 @@
                     <i class="bi" [ngClass]="vj.prioridad === 'urgente' ? 'bi-exclamation-triangle-fill' : 'bi-arrow-up-circle-fill'"></i>
                     {{ vj.prioridad === 'urgente' ? 'URGENTE' : 'PRIORIDAD ALTA' }}
                   </div>
+                  <div *ngIf="viajesConCambioPendiente.has(vj.id)" class="ruto-badge-pendiente" title="Este viaje tiene un cambio esperando aprobación"><i class="bi bi-hourglass-split"></i> Cambio por aprobar</div>
                   <div class="ruto-card-route">
                     {{ vj.destino || vj.ruta || 'Sin Ruta' }}<span *ngIf="vj.dest2"> + {{ vj.dest2 }}</span>
                   </div>
@@ -290,6 +303,7 @@
                        class="ruto-card-viaje"
                        [ngClass]="vj.cssClass">
 
+                    <div *ngIf="viajesConCambioPendiente.has(vj.id)" class="ruto-badge-pendiente" title="Este viaje tiene un cambio esperando aprobación"><i class="bi bi-hourglass-split"></i> Cambio por aprobar</div>
                     <div class="ruto-card-route">{{ vj.destino || vj.ruta || 'Sin Ruta' }}</div>
                     <div class="ruto-card-transport">{{ vj.tr || 'Makand' }}</div>
                     <div class="ruto-card-driver">{{ vj.cond || conductoresMap[v.p] || 'Sin Conductor' }}</div>
@@ -654,6 +668,30 @@
     <div class="ruto-ultima-edicion">
       <i class="bi bi-person-check"></i> {{ textoUltimaEdicion(selectedViaje) }}
     </div>
+
+    <!-- Historial de cambios del viaje (desde la auditoría). -->
+    <div class="ruto-historial" *ngIf="!editandoViaje">
+      <button class="ruto-historial-toggle" (click)="alternarHistorialViaje()">
+        <i class="bi" [ngClass]="historialViaje.abierto ? 'bi-chevron-up' : 'bi-clock-history'"></i>
+        {{ historialViaje.abierto ? 'Ocultar historial de cambios' : 'Ver historial de cambios' }}
+      </button>
+      <div *ngIf="historialViaje.abierto" class="ruto-historial-cuerpo">
+        <div *ngIf="historialViaje.cargando" class="ruto-historial-vacio">Cargando…</div>
+        <div *ngFor="let p of historialViaje.pendientes" class="ruto-historial-item ruto-historial-pendiente">
+          <div class="ruto-historial-cab"><i class="bi bi-hourglass-split"></i> <strong>{{ p.usuario }}</strong> pidió un cambio · {{ p.fecha | date:'d MMM, h:mm a' }}</div>
+          <div class="ruto-historial-cambio">{{ p.descripcion }} — esperando aprobación</div>
+        </div>
+        <div *ngFor="let h of historialViaje.items" class="ruto-historial-item">
+          <div class="ruto-historial-cab"><strong>{{ h.usuario }}</strong> · {{ h.accion }} · {{ h.fecha | date:'d MMM y, h:mm a' }}</div>
+          <div *ngFor="let c of h.cambios" class="ruto-historial-cambio">{{ c.campo }}: <span class="de">{{ c.de }}</span> <i class="bi bi-arrow-right"></i> <span class="a">{{ c.a }}</span></div>
+          <div *ngIf="h.aprobadoPor" class="ruto-historial-aprobado"><i class="bi bi-check2-circle"></i> Aprobado por {{ h.aprobadoPor }}</div>
+        </div>
+        <div *ngIf="!historialViaje.cargando && !historialViaje.items.length && !historialViaje.pendientes.length" class="ruto-historial-vacio">
+          No hay cambios registrados para este viaje. Lo creó Generar Matriz o la importación y nadie lo ha modificado.
+        </div>
+      </div>
+    </div>
+
     <div class="ruto-modal-footer">
       <button class="btn-delete" *ngIf="auth.puede('eliminar') && !editandoViaje" (click)="eliminarViaje()">Eliminar viaje</button>
       <button class="btn-edit" style="background:#b45309;color: var(--color-texto-principal);border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" *ngIf="auth.puedeEditar && !editandoViaje && selectedViaje.estado !== 'Cancelado'" (click)="abrirVarado()"><i class="bi bi-cone-striped"></i> Vehículo varado</button>

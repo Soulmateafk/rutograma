@@ -6,6 +6,9 @@ import { FormsModule } from '@angular/forms'; // Necesario para los [(ngModel)] 
 import { AccountService, CuentaUsuario, Permisos, PERMISOS_INFO, PERMISOS_QUE_REQUIEREN_EDITAR, permisosDeRol, permisosCompletos, normalizarPermisos, mismosPermisos } from '../../services/account.service';
 import { UiService } from '../../services/ui.service';
 import { AuthService } from '../../services/auth.service';
+import { GuiaService } from '../../services/guia.service';
+
+type RolAsignable = 'editor' | 'lector' | 'jefe' | 'auxiliar' | 'conductor';
 
 @Component({
   selector: 'app-admin',
@@ -18,13 +21,28 @@ export class Admin implements OnInit, OnDestroy {
   // Admin: todo. Jefe: entra solo a mirar (cuentas y auditoría), no
   // aprueba cuentas ni cambia roles. El servidor aplica lo mismo.
   public auth = inject(AuthService);
+  private guias = inject(GuiaService);
 
-  public readonly rolesDisponibles: Array<{ valor: 'editor' | 'lector' | 'jefe' | 'auxiliar'; nombre: string }> = [
+  public readonly rolesDisponibles: Array<{ valor: RolAsignable; nombre: string }> = [
     { valor: 'editor', nombre: 'Editor' },
     { valor: 'lector', nombre: 'Solo lectura' },
     { valor: 'jefe', nombre: 'Jefe' },
-    { valor: 'auxiliar', nombre: 'Auxiliar' }
+    { valor: 'auxiliar', nombre: 'Auxiliar' },
+    { valor: 'conductor', nombre: 'Conductor' }
   ];
+
+  /** Conductores para enlazar una cuenta de rol Conductor. */
+  public get conductoresParaEnlazar(): Array<{ ced: string; nombre: string; placa: string }> {
+    return (this.ds.S?.conductores || [])
+      .map((c: any) => ({ ced: String(c.ced || c.cedula || c.cc || '').trim(), nombre: String(c.nom || c.nombre || '').trim(), placa: String(c.veh || c.placa || '').trim() }))
+      .filter((c: any) => c.ced && c.nombre)
+      .sort((a: any, b: any) => a.nombre.localeCompare(b.nombre, 'es'));
+  }
+
+  public nombreConductorEnlazado(u: CuentaUsuario): string {
+    const c = this.conductoresParaEnlazar.find(x => x.ced === String(u.conductorCed || ''));
+    return c ? c.nombre : (u.conductorCed ? 'conductor ya no existe' : 'sin enlazar');
+  }
 
   public nombreRol(rol?: string): string {
     return this.rolesDisponibles.find(r => r.valor === (rol || 'editor'))?.nombre || 'Editor';
@@ -36,7 +54,7 @@ export class Admin implements OnInit, OnDestroy {
   // del rol, se guarda "sin personalizar" (siguen al rol).
   // ============================================================
   public readonly permisosInfo = PERMISOS_INFO;
-  public modalPermisos: { usuario: CuentaUsuario; modo: 'aprobar' | 'editar'; rol: 'editor' | 'lector' | 'jefe' | 'auxiliar'; permisos: Permisos } | null = null;
+  public modalPermisos: { usuario: CuentaUsuario; modo: 'aprobar' | 'editar'; rol: RolAsignable; permisos: Permisos; conductorCed: string } | null = null;
 
   public permisosDe(u: CuentaUsuario): Permisos {
     return permisosCompletos(u.rol || 'editor', u.permisos);
@@ -48,11 +66,11 @@ export class Admin implements OnInit, OnDestroy {
   }
 
   public abrirPermisos(u: CuentaUsuario, modo: 'aprobar' | 'editar'): void {
-    const rol = (u.rol && u.rol !== 'admin' ? u.rol : 'editor') as 'editor' | 'lector' | 'jefe' | 'auxiliar';
-    this.modalPermisos = { usuario: u, modo, rol, permisos: modo === 'aprobar' ? permisosDeRol(rol) : this.permisosDe(u) };
+    const rol = (u.rol && u.rol !== 'admin' ? u.rol : 'editor') as RolAsignable;
+    this.modalPermisos = { usuario: u, modo, rol, permisos: modo === 'aprobar' ? permisosDeRol(rol) : this.permisosDe(u), conductorCed: String(u.conductorCed || '') };
   }
 
-  public cambiarRolModal(rol: 'editor' | 'lector' | 'jefe' | 'auxiliar'): void {
+  public cambiarRolModal(rol: RolAsignable): void {
     if (!this.modalPermisos) return;
     this.modalPermisos.rol = rol;
     this.modalPermisos.permisos = permisosDeRol(rol);
@@ -77,13 +95,18 @@ export class Admin implements OnInit, OnDestroy {
   public async guardarPermisos(): Promise<void> {
     const m = this.modalPermisos;
     if (!m) return;
+    if (m.rol === 'conductor' && !m.conductorCed) {
+      this.ui.mostrarToast('Elige a qué conductor queda enlazada esta cuenta.', 'err');
+      return;
+    }
     this.modalPermisos = null;
+    const conductorCed = m.rol === 'conductor' ? m.conductorCed : null;
     const permisos = this.modalPersonalizadoDe(m) ? m.permisos : null;
     const u = m.usuario;
     try {
       if (m.modo === 'aprobar') {
         const estadoAntes = { estado: u.estado, motivo: (u as any).motivoRechazo || '' };
-        await this.account.aprobar(u.email, m.rol, permisos);
+        await this.account.aprobar(u.email, m.rol, permisos, conductorCed);
         this.ds.registrarCambio({
           tipo: 'usuario-estado', clave: u.email,
           antes: estadoAntes, despues: { estado: 'APPROVED', motivo: '' },
@@ -92,7 +115,7 @@ export class Admin implements OnInit, OnDestroy {
         this.ui.mostrarToast(`Cuenta de ${u.email} aprobada como ${this.nombreRol(m.rol)}${permisos ? ' (permisos personalizados)' : ''}.`, 'ok');
         await this.cargarUsuarios();
       } else {
-        await this.guardarRolYPermisos(u, m.rol, permisos);
+        await this.guardarRolYPermisos(u, m.rol, permisos, conductorCed);
         this.ui.mostrarToast(`Permisos de ${u.email} guardados.`, 'ok');
       }
     } catch (error) {
@@ -105,10 +128,10 @@ export class Admin implements OnInit, OnDestroy {
     return !mismosPermisos(m.permisos, permisosDeRol(m.rol));
   }
 
-  private async guardarRolYPermisos(usuario: CuentaUsuario, rol: 'editor' | 'lector' | 'jefe' | 'auxiliar', permisos: Permisos | null): Promise<void> {
-    const antes = { rol: usuario.rol || 'editor', permisos: usuario.permisos || null };
-    await this.account.cambiarRol(usuario.email, rol, permisos);
-    const despues = { rol, permisos };
+  private async guardarRolYPermisos(usuario: CuentaUsuario, rol: RolAsignable, permisos: Permisos | null, conductorCed: string | null = null): Promise<void> {
+    const antes = { rol: usuario.rol || 'editor', permisos: usuario.permisos || null, conductorCed: usuario.conductorCed || null };
+    await this.account.cambiarRol(usuario.email, rol, permisos, conductorCed);
+    const despues = { rol, permisos, conductorCed };
     if (JSON.stringify(antes) !== JSON.stringify(despues)) {
       this.ds.registrarCambio({
         tipo: 'usuario-rol', clave: usuario.email, antes, despues,
@@ -117,6 +140,7 @@ export class Admin implements OnInit, OnDestroy {
     }
     usuario.rol = rol; // actualización inmediata en la tabla, sin esperar recarga
     usuario.permisos = permisos;
+    usuario.conductorCed = conductorCed;
     this.zone.run(() => this.cdr.detectChanges());
   }
 
@@ -448,6 +472,26 @@ export class Admin implements OnInit, OnDestroy {
     }
   }
 
+  // --- Cuenta compartida de conductores ---
+  conductoresEmail = 'conductores@makand.com';
+  conductoresClave = '';
+
+  async guardarCuentaConductores() {
+    const r = await this.account.cuentaConductores(this.conductoresEmail.trim(), this.conductoresClave);
+    if (r.ok) {
+      this.ui.mostrarToast(r.creada ? `Cuenta ${this.conductoresEmail} creada. Comparte el correo y la contraseña con los conductores.` : `Contraseña de ${this.conductoresEmail} cambiada.`, 'ok');
+      this.conductoresClave = '';
+      await this.cargarUsuarios();
+    } else {
+      this.ui.mostrarToast(r.msg || 'No se pudo guardar la cuenta.', 'err');
+    }
+  }
+
+  async reiniciarGuiasDe(u: CuentaUsuario) {
+    const ok = await this.guias.reiniciarTodas(u.email);
+    this.ui.mostrarToast(ok ? `${u.email} volverá a ver las guías.` : 'No se pudieron reiniciar sus guías.', ok ? 'ok' : 'err');
+  }
+
   /** Rechazadas: admin o quien pueda gestionar cuentas. Pendientes: solo el admin. */
   public puedeEliminarCuenta(u: CuentaUsuario): boolean {
     if (u.estado === 'REJECTED') return this.auth.isAdmin || this.auth.puedeGestionarCuentas;
@@ -541,7 +585,14 @@ export class Admin implements OnInit, OnDestroy {
   }
 
   /** Cambiar el rol desde la tabla: vuelve a los permisos de ese rol. */
-  async cambiarRol(usuario: any, rol: 'editor' | 'lector' | 'jefe' | 'auxiliar') {
+  async cambiarRol(usuario: any, rol: RolAsignable) {
+    // Conductor necesita elegir a qué conductor se enlaza: se abre la ventana.
+    if (rol === 'conductor') {
+      this.abrirPermisos(usuario, 'editar');
+      if (this.modalPermisos) this.cambiarRolModal('conductor');
+      this.zone.run(() => this.cdr.detectChanges());
+      return;
+    }
     try {
       await this.guardarRolYPermisos(usuario, rol, null);
     } catch (error) {

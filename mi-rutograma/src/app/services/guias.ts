@@ -67,6 +67,7 @@ export const GUIAS: Record<string, Guia> = {
   rutograma: {
     titulo: 'Rutograma',
     pasos: [
+      { el: 'ruto-aprobaciones', titulo: 'Cambios por aprobar', texto: 'Si alguien pidió cambios que esperan tu aprobación, aquí lo ves. Los viajes afectados llevan la marca "Cambio por aprobar".' },
       { el: '.ruto-mes-selector', titulo: 'Mes', texto: 'Elige qué mes ver en la matriz.' },
       { el: '.ruto-table-responsive', titulo: 'La matriz', texto: 'Cada fila es un vehículo y cada columna un día. Haz clic en un viaje para ver o editar sus detalles; un día vacío dice si el vehículo está disponible o su conductor descansa.' },
       { el: '.ruto-buscar-vehiculo', titulo: 'Resaltar placa', texto: 'Escribe una placa para encontrar su fila rápido.' },
@@ -74,6 +75,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: '.btn-import', titulo: 'Importar Operación', texto: 'Carga la operación desde un archivo de Excel.' },
       { el: '.btn-export', titulo: 'Exportar y Foto del mes', texto: 'Descarga el Rutograma en Excel, o saca una imagen del mes para compartir.' },
       { el: '.btn-zoom', titulo: 'Zoom', texto: 'Acerca o aleja la matriz para ver más días o más detalle.' },
+      { el: '.ruto-card-viaje', titulo: 'Detalle e historial', texto: 'Al abrir un viaje ves sus datos y, con "Ver historial de cambios", quién lo cambió, qué y cuándo.' },
       { el: '.ruto-tr-cupo-header', titulo: 'Arsitrans y Polar', texto: 'Los cupos de terceros. "+ Confirmar cupo" agrega uno; "Reacomodar" junta los viajes del mes en los menos cupos posibles, sin tocar nada más.' }
     ]
   },
@@ -119,6 +121,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'conf-motor', titulo: 'Motor de reasignación', texto: 'Cómo se reacomodan los viajes cuando un vehículo queda ocupado.' },
       { el: 'conf-modo', titulo: 'Modo de trabajo', texto: 'Modo Prueba trabaja sobre una copia: lo que hagas ahí no toca la operación real.' },
       { el: 'conf-apariencia', titulo: 'Apariencia', texto: 'Cambia entre modo claro y oscuro.' },
+      { el: 'conf-guias', titulo: 'Guías', texto: 'Desde aquí vuelves a ver todas las guías de la app.' },
       { el: 'conf-respaldos', titulo: 'Respaldos', texto: 'Cada cambio guarda un respaldo automático. Desde aquí se puede volver a un momento anterior.' },
       { el: 'conf-importar', titulo: 'Importar viajes reales', texto: 'Sube el Excel de operación. Antes de guardar ves qué entra y qué se corrigió.' },
       { el: 'conf-vencimientos', titulo: 'Resumen de vencimientos', texto: 'Envía ahora por correo el resumen de SOAT, tecnomecánicas y licencias por vencer.' }
@@ -160,10 +163,22 @@ export const GUIAS: Record<string, Guia> = {
     ]
   },
 
+  'mis-viajes': {
+    titulo: 'Mis viajes',
+    pasos: [
+      { el: 'mv-identificar', titulo: 'Identifícate', texto: 'Escribe tu nombre y la placa del vehículo. Luego confirmas que la información sea correcta.' },
+      { el: 'mv-cabecera', titulo: 'Tu cuenta', texto: 'Tu nombre y tu vehículo. Con los botones actualizas o cierras sesión.' },
+      { el: 'mv-foto', titulo: 'Foto de tus viajes', texto: 'Descarga una imagen con tus viajes para tenerla a mano o compartirla.' },
+      { el: 'mv-dias', titulo: 'Tus viajes por día', texto: 'Hoy y los próximos días, con destino, hora, vehículo y cuándo regresas. Los días de descanso salen marcados. Se actualiza sola cada minuto.' },
+      PASO_AYUDA
+    ]
+  },
+
   admin: {
     titulo: 'Administración',
     pasos: [
       { el: '.admin-tabs', titulo: 'Secciones', texto: 'Cuentas, Auditoría (quién cambió qué y cuándo), y según tus permisos, Correo y Dispositivos.' },
+      { el: '.cuenta-conductores', titulo: 'Cuenta de conductores', texto: 'Una cuenta compartida para todos los conductores: cada uno escribe su nombre y placa para ver sus viajes.' },
       { el: '.user-table', titulo: 'Cuentas', texto: 'Las solicitudes más recientes arriba. Aquí se aprueban, rechazan o eliminan, y el administrador elige el rol y los permisos de cada una.' }
     ]
   }
@@ -175,4 +190,4 @@ export function paginaDeUrl(url: string): string {
 }
 
 /** Páginas sin la barra de navegación (no se explica la barra ahí). */
-export const PAGINAS_SIN_NAVBAR = ['login', 'register', 'pending', 'resumen'];
+export const PAGINAS_SIN_NAVBAR = ['login', 'register', 'pending', 'resumen', 'mis-viajes'];

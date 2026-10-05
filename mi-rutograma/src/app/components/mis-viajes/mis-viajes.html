@@ -1,0 +1,95 @@
+<div class="mv-page">
+  <header class="mv-cabecera" data-guia="mv-cabecera">
+    <div>
+      <div class="mv-logo">MAKA<span>ND</span></div>
+      <h1>Hola{{ conductor?.nombre && paso === 'viajes' ? ', ' + conductor.nombre.split(' ')[0] : '' }}</h1>
+      <p *ngIf="conductor && paso === 'viajes'">
+        <span *ngIf="conductor.placa"><i class="bi bi-truck"></i> {{ conductor.placa }}</span>
+        <span *ngIf="!conductor.placa">Sin vehículo asignado</span>
+      </p>
+      <p *ngIf="paso !== 'viajes'">Consulta tus viajes</p>
+    </div>
+    <div class="mv-acciones">
+      <button *ngIf="paso === 'viajes'" class="mv-btn" (click)="cargar()" title="Actualizar"><i class="bi bi-arrow-clockwise"></i></button>
+      <a *ngIf="!compartida" class="mv-btn" routerLink="/sesiones" title="Mis sesiones"><i class="bi bi-laptop"></i></a>
+      <button class="mv-btn mv-salir" (click)="salir()" title="Cerrar sesión"><i class="bi bi-box-arrow-right"></i></button>
+    </div>
+  </header>
+
+  <div *ngIf="cargando" class="mv-vacio">Cargando…</div>
+  <div *ngIf="!cargando && error" class="mv-error"><i class="bi bi-info-circle"></i> {{ error }}</div>
+
+  <!-- Cuenta compartida — paso 1: nombre y placa -->
+  <form *ngIf="!cargando && paso === 'identificar'" class="mv-form" (ngSubmit)="buscarConductor()" data-guia="mv-identificar">
+    <h2>¿Quién eres?</h2>
+    <label>Tu nombre
+      <input type="text" name="nombre" [(ngModel)]="nombreIngresado" placeholder="Ej: Juan Pérez" autocomplete="name">
+    </label>
+    <label>Placa del vehículo
+      <input type="text" name="placa" [(ngModel)]="placaIngresada" placeholder="Ej: PRZ 064" autocapitalize="characters">
+    </label>
+    <button type="submit" class="mv-primario" [disabled]="validando">{{ validando ? 'Buscando…' : 'Continuar' }}</button>
+  </form>
+
+  <!-- Cuenta compartida — paso 2: confirmar -->
+  <div *ngIf="!cargando && paso === 'confirmar'" class="mv-form" data-guia="mv-confirmar">
+    <h2>¿Es correcta la información?</h2>
+    <p class="mv-escribiste" *ngIf="candidatos.length && !candidatos[0].nombreExacto">
+      Escribiste "<em>{{ nombreIngresado }}</em>". ¿Quisiste decir…?
+    </p>
+    <div *ngFor="let c of candidatos" class="mv-candidato">
+      <div>
+        <div class="mv-cand-nombre">{{ c.nombre }}</div>
+        <div *ngIf="!c.parecido && c.coincidePlaca" class="mv-cand-sub">Tiene asignada la placa {{ placaEncontrada }}</div>
+        <div class="mv-cand-sub">
+          Vehículo que vas a consultar: <strong>{{ placaEncontrada }}</strong>
+          <span *ngIf="!placaExiste" class="mv-aviso"> (no está registrada; se buscarán tus viajes por tu nombre)</span>
+          <span *ngIf="placaExiste && c.placa && !c.coincidePlaca" class="mv-aviso"> (en el sistema tienes asignado {{ c.placa }})</span>
+        </div>
+      </div>
+      <button class="mv-primario" (click)="confirmar(c)">Sí, soy yo</button>
+    </div>
+    <button class="mv-secundario" (click)="corregir()">No, corregir los datos</button>
+  </div>
+
+  <!-- Viajes -->
+  <ng-container *ngIf="!cargando && paso === 'viajes'">
+    <div class="mv-barra">
+      <button class="mv-secundario" (click)="descargarFoto()" [disabled]="descargando" data-guia="mv-foto">
+        <i class="bi bi-camera-fill"></i> {{ descargando ? 'Creando foto…' : 'Descargar foto de mis viajes' }}
+      </button>
+      <button *ngIf="compartida" class="mv-secundario" (click)="cambiarConductor()"><i class="bi bi-person-x"></i> No soy yo</button>
+    </div>
+
+    <div *ngIf="buscadoPor === 'nombre'" class="mv-nota">
+      <i class="bi bi-info-circle"></i> La placa {{ placaBuscada }} no tiene viajes en estos días; te mostramos los viajes a tu nombre.
+    </div>
+
+    <div id="mv-captura" class="mv-captura">
+      <div class="mv-captura-titulo">
+        <strong>{{ conductor?.nombre }}</strong>
+        <span>{{ buscadoPor === 'placa' ? placaBuscada : conductor?.placa }} · Viajes al {{ ultimaActualizacion | date:'d MMM y, h:mm a' }}</span>
+      </div>
+      <section *ngFor="let d of dias; let i = index" class="mv-dia" [class.mv-hoy]="d.esHoy" [attr.data-guia]="i === 0 ? 'mv-dias' : null">
+        <h2>{{ d.titulo }}</h2>
+        <div *ngIf="d.descanso" class="mv-descanso"><i class="bi bi-moon-stars-fill"></i> Día de descanso</div>
+        <div *ngIf="!d.viajes.length && !d.descanso" class="mv-sin">Sin viajes</div>
+        <article *ngFor="let v of d.viajes" class="mv-viaje" [ngClass]="claseEstado(v.estado)">
+          <div class="mv-viaje-top">
+            <div class="mv-destino">{{ v.destino || v.ruta }}<span *ngIf="v.dest2"> + {{ v.dest2 }}</span></div>
+            <span class="mv-estado">{{ v.estado }}</span>
+          </div>
+          <div class="mv-detalle">
+            <span *ngIf="v.hora && v.hora !== '--:--'"><i class="bi bi-clock"></i> {{ v.hora }}</span>
+            <span><i class="bi bi-truck"></i> {{ v.placa }}</span>
+            <span *ngIf="v.cliente"><i class="bi bi-shop"></i> {{ v.cliente }}</span>
+            <span *ngIf="v.cajas"><i class="bi bi-box-seam"></i> {{ v.cajas }} cajas</span>
+          </div>
+          <div class="mv-ruta">Ruta {{ v.ruta }}<span *ngIf="vuelve(v)"> · Regresa el {{ vuelve(v) }}</span></div>
+        </article>
+      </section>
+    </div>
+
+    <p class="mv-pie" *ngIf="ultimaActualizacion">Actualizado {{ ultimaActualizacion | date:'h:mm a' }} · se actualiza solo cada minuto</p>
+  </ng-container>
+</div>
