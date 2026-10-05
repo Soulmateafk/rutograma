@@ -66,8 +66,25 @@ export class Admin implements OnInit, OnDestroy {
   }
 
   public abrirPermisos(u: CuentaUsuario, modo: 'aprobar' | 'editar'): void {
-    const rol = (u.rol && u.rol !== 'admin' ? u.rol : 'editor') as RolAsignable;
-    this.modalPermisos = { usuario: u, modo, rol, permisos: modo === 'aprobar' ? permisosDeRol(rol) : this.permisosDe(u), conductorCed: String(u.conductorCed || '') };
+    // Quien pidió la cuenta como "Conductor" llega con ese rol y, si su
+    // nombre está en la lista, ya enlazado (el admin lo puede cambiar).
+    const pidioConductor = modo === 'aprobar' && u.estado !== 'APPROVED' && this.esSolicitudDeConductor(u);
+    const rol = (pidioConductor ? 'conductor' : (u.rol && u.rol !== 'admin' ? u.rol : 'editor')) as RolAsignable;
+    const conductorCed = String(u.conductorCed || '') || (pidioConductor ? this.conductorPorNombre(u.nombre) : '');
+    this.modalPermisos = { usuario: u, modo, rol, permisos: modo === 'aprobar' ? permisosDeRol(rol) : this.permisosDe(u), conductorCed };
+  }
+
+  public esSolicitudDeConductor(u: CuentaUsuario): boolean {
+    return String(u.departamento || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase() === 'conductor';
+  }
+
+  /** Conductor de la lista cuyo nombre tiene todas las palabras escritas (si es uno solo). */
+  private conductorPorNombre(nombre: string): string {
+    const limpiar = (t: string) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9ñ ]/g, ' ').split(/\s+/).filter(Boolean);
+    const palabras = limpiar(nombre);
+    if (!palabras.length) return '';
+    const encontrados = this.conductoresParaEnlazar.filter(c => { const base = limpiar(c.nombre); return palabras.every(p => base.includes(p)); });
+    return encontrados.length === 1 ? encontrados[0].ced : '';
   }
 
   public cambiarRolModal(rol: RolAsignable): void {

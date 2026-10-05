@@ -5,7 +5,7 @@
    foco e interacciones vivas en inputs y botón.
    ============================================================ */
 
-:root {
+:host {
   --bg-deep: #060a14;
   --bg-glow-blue: #1e3a8a;
   --bg-glow-orange: #c2410c;
@@ -474,3 +474,13 @@ select.form-control option {
 .reg-input-wrap input.reg-input-error { border-color: #ef4444; }
 .reg-field .reg-coincide { margin: 6px 0 0; font-size: 0.8rem; color: #f87171; display: flex; gap: 6px; align-items: center; }
 .reg-field .reg-coincide.reg-coincide-ok { color: #4ade80; }
+
+.reg-nota-conductor {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--blue-bright);
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}

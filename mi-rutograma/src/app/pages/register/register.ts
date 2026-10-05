@@ -35,7 +35,7 @@ export class RegisterComponent {
   // Desplegable propio de "Departamento" — reemplaza el <select> nativo,
   // ya que la mayoría de navegadores IGNORAN el estilo personalizado de
   // sus opciones (siempre salen en blanco, sin importar el CSS puesto).
-  public departamentos: string[] = ['Logística', 'Transporte', 'Recursos Humanos', 'Contabilidad'];
+  public departamentos: string[] = ['Logística', 'Transporte', 'Recursos Humanos', 'Contabilidad', 'Conductor'];
   public isDropdownOpen: boolean = false;
 
   public toggleDropdown(): void {
