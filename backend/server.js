@@ -566,7 +566,7 @@ app.use(identificarUsuario);
 // Cuentas de rol "conductor": solo su pantalla Mis viajes y lo básico de la
 // sesión. El resto de la información (otros viajes, vehículos, cuentas...)
 // no se les entrega aunque la pidan directo.
-const RUTAS_PARA_CONDUCTOR = ['/api/mis-viajes', '/api/mis-viajes/validar', '/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/modo', '/api/sesiones', '/api/sesiones/cerrar',
+const RUTAS_PARA_CONDUCTOR = ['/api/mis-viajes', '/api/mis-viajes/validar', '/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/modo', '/api/sesiones', '/api/sesiones/cerrar',
     '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual', '/api/guias', '/api/guias/vista', '/api/guias/reiniciar'];
 app.use((req, res, next) => {
     if (!req.path.startsWith('/api/') || req.path.startsWith('/api/auth/') || RUTAS_PARA_CONDUCTOR.includes(req.path)) return next();
@@ -1108,7 +1108,7 @@ const RUTAS_SIN_RESTRICCION_DE_ROL = [
     '/api/sesiones/cerrar-otras',
     '/api/sesiones/cerrar-actual'
 ];
-const RUTAS_CON_PERMISO_PROPIO = ['/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
+const RUTAS_CON_PERMISO_PROPIO = ['/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
 
 app.use((req, res, next) => {
     if (!req.path.startsWith('/api/') || req.method === 'GET') return next();
@@ -3037,6 +3037,70 @@ app.get('/api/mis-viajes', (req, res) => {
         res.json({ ok: true, enlazado: true, compartida: !r.enlazada, conductor: r.conductor, viajes: avisos.viajes, quitados: avisos.quitados, hayAvisos: avisos.hayAvisos, buscadoPor: r.buscadoPor, placaBuscada: r.placaPedida.toUpperCase() });
     } catch (error) {
         console.error('🚨 Error en /api/mis-viajes:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// Novedad reportada por el conductor desde el celular (varado, retraso,
+// accidente...). Body: { tipo, desc, viajeId?, ced?, placa? }. Queda en las
+// novedades (id "cond-<cédula>-<hora>") y la oficina la ve en el Rutograma.
+const TIPOS_NOVEDAD_CONDUCTOR = { Varado: 'Avería', Retraso: 'Retraso', Accidente: 'Incidente', Otro: 'Aviso' };
+const MAX_NOVEDADES_CONDUCTOR_DIA = 10;
+app.post('/api/mis-viajes/novedad', (req, res) => {
+    try {
+        const data = leerExcel();
+        const b = req.body || {};
+        const r = viajesDeQuienPide(req, data, { ced: b.ced, placa: b.placa });
+        if (r.error) return res.status(r.status).json({ ok: false, msg: r.error });
+        if (r.sinConductor) return res.status(400).json({ ok: false, msg: 'Primero confirma quién eres.' });
+        const tipo = String(b.tipo || '');
+        if (!TIPOS_NOVEDAD_CONDUCTOR[tipo]) return res.status(400).json({ ok: false, msg: 'Elige qué pasó.' });
+        const desc = String(b.desc || '').trim().replace(/\s+/g, ' ');
+        if (desc.length < 5) return res.status(400).json({ ok: false, msg: 'Cuenta un poco qué pasó (mínimo 5 letras).' });
+        if (desc.length > 500) return res.status(400).json({ ok: false, msg: 'Máximo 500 letras.' });
+        const viaje = b.viajeId ? r.viajes.find(v => v.id === b.viajeId) : null;
+        if (b.viajeId && !viaje) return res.status(403).json({ ok: false, msg: 'Ese viaje no es tuyo.' });
+
+        if (!data.novedades) data.novedades = [];
+        const prefijo = `cond-${r.conductor.ced}-`;
+        const inicioDia = new Date(); inicioDia.setHours(0, 0, 0, 0);
+        const hoyDelConductor = data.novedades.filter(n => String(n.id).startsWith(prefijo) && Number(String(n.id).slice(prefijo.length)) >= inicioDia.getTime());
+        if (hoyDelConductor.length >= MAX_NOVEDADES_CONDUCTOR_DIA) {
+            return res.status(429).json({ ok: false, msg: 'Ya reportaste muchas novedades hoy. Llama a la oficina.' });
+        }
+        const placa = (viaje?.placa || r.conductor.placa || '').toUpperCase();
+        const nueva = {
+            id: `${prefijo}${Date.now()}`,
+            tipo: TIPOS_NOVEDAD_CONDUCTOR[tipo],
+            titulo: [tipo, placa, r.conductor.nombre].filter(Boolean).join(' · '),
+            desc: desc + (viaje ? ` — Viaje del ${viaje.fecha}, ruta ${viaje.ruta}${viaje.destino ? ' a ' + viaje.destino : ''}.` : ''),
+            fecha: new Date().toLocaleString('es-CO'),
+            resuelta: false
+        };
+        data.novedades.push(nueva);
+        guardarEnExcel(data);
+        res.locals.auditoriaResumen = { novedad: nueva.titulo, conductor: r.conductor.nombre };
+        console.log(`🚨 ${r.conductor.nombre} reportó: ${nueva.titulo}`);
+        res.status(201).json({ ok: true, novedad: nueva });
+    } catch (error) {
+        console.error('🚨 Error en /api/mis-viajes/novedad:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// Novedades reportadas por conductores sin resolver (últimos 3 días), para
+// el aviso del Rutograma.
+app.get('/api/novedades/conductores', (req, res) => {
+    try {
+        const desde = Date.now() - 3 * 86400000;
+        const lista = (leerExcel().novedades || [])
+            .filter(n => !n.resuelta && /^cond-.+-(\d+)$/.test(String(n.id)))
+            .map(n => ({ ...n, ts: Number(String(n.id).match(/-(\d+)$/)[1]) }))
+            .filter(n => n.ts >= desde)
+            .sort((a, b) => b.ts - a.ts);
+        res.json({ ok: true, novedades: lista });
+    } catch (error) {
+        console.error('🚨 Error en /api/novedades/conductores:', error);
         res.status(500).json({ ok: false, msg: error.message });
     }
 });

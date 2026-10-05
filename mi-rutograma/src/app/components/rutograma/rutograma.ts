@@ -175,8 +175,11 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   ngOnInit() {
     if (typeof window !== 'undefined') {
       this.cargarPendientesAprobacion();
+      this.cargarNovedadesConductores();
       this.relojAprobaciones = setInterval(() => {
-        if (document.visibilityState === 'visible') this.cargarPendientesAprobacion();
+        if (document.visibilityState !== 'visible') return;
+        this.cargarPendientesAprobacion();
+        this.cargarNovedadesConductores();
       }, 20000);
     }
     this.ds.cargarEstadoLocal(); 
@@ -255,6 +258,56 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     if (h < 24) return `${Math.floor(h)} hora${Math.floor(h) === 1 ? '' : 's'}`;
     const d = Math.floor(h / 24);
     return `${d} día${d === 1 ? '' : 's'}`;
+  }
+
+  // ============================================================
+  // NOVEDADES DE CONDUCTORES — lo que reportan desde el celular (varado,
+  // retraso, accidente...) sale arriba del Rutograma hasta que alguien lo
+  // marque como resuelto (se actualiza solo cada 20 s).
+  // ============================================================
+  public novedadesConductores: any[] = [];
+  public resolviendoNovedad: string | null = null;
+
+  private async cargarNovedadesConductores(): Promise<void> {
+    try {
+      const base = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const res = await this.auth.fetchAutenticado(`${base}/novedades/conductores`);
+      const data = await res.json();
+      if (!data?.ok) return;
+      this.novedadesConductores = data.novedades || [];
+      this.cdr.detectChanges();
+    } catch { /* sin conexión: se reintenta en el siguiente ciclo */ }
+  }
+
+  public haceCuanto(ts: number): string {
+    const min = Math.max(0, Math.round((Date.now() - ts) / 60000));
+    if (min < 1) return 'hace un momento';
+    if (min < 60) return `hace ${min} min`;
+    const h = Math.floor(min / 60);
+    return h < 24 ? `hace ${h} h` : `hace ${Math.floor(h / 24)} día${h >= 48 ? 's' : ''}`;
+  }
+
+  public async resolverNovedadConductor(n: any): Promise<void> {
+    if (this.resolviendoNovedad) return;
+    this.resolviendoNovedad = n.id;
+    try {
+      const base = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const res = await this.auth.fetchAutenticado(`${base}/novedades/resolver`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: n.id })
+      });
+      const data = await res.json().catch(() => null);
+      if (res.status === 202) this.ui.mostrarToast('Enviado para aprobación del jefe.', 'ok');
+      else if (!data?.ok) this.ui.mostrarToast(data?.msg || 'No se pudo marcar como resuelta.', 'err');
+      else {
+        const local = (this.ds.S.novedades || []).find((x: any) => String(x.id) === String(n.id));
+        if (local) local.resuelta = true;
+      }
+      await this.cargarNovedadesConductores();
+    } catch {
+      this.ui.mostrarToast('Sin conexión: no se pudo marcar como resuelta.', 'err');
+    }
+    this.resolviendoNovedad = null;
+    this.cdr.detectChanges();
   }
 
   private async cargarPendientesAprobacion(): Promise<void> {

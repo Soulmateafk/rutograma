@@ -223,6 +223,55 @@ export class MisViajesComponent implements OnInit, OnDestroy {
     try { sessionStorage.removeItem(MisViajesComponent.CLAVE_ELEGIDO); } catch { /* nada */ }
   }
 
+  // ---------- Reportar novedad ----------
+
+  readonly tiposNovedad = [
+    { valor: 'Varado', nombre: 'Varado / avería', icono: 'bi-cone-striped' },
+    { valor: 'Retraso', nombre: 'Retraso', icono: 'bi-clock-history' },
+    { valor: 'Accidente', nombre: 'Accidente', icono: 'bi-exclamation-octagon' },
+    { valor: 'Otro', nombre: 'Otra cosa', icono: 'bi-chat-dots' }
+  ];
+  reporte: { tipo: string; viajeId: string; desc: string } | null = null;
+  enviandoReporte = false;
+
+  /** Los viajes de ayer a mañana (con los que más probablemente pasa algo). */
+  get viajesParaReporte(): any[] {
+    const todos = this.dias.flatMap(d => d.viajes).filter((v: any) => v.estado !== 'Cancelado');
+    const desde = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const hasta = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const cerca = todos.filter((v: any) => v.fecha >= desde && v.fecha <= hasta);
+    return cerca.length ? cerca : todos.slice(0, 5);
+  }
+
+  abrirReporte(): void {
+    const enRuta = this.dias.flatMap(d => d.viajes).find((v: any) => v.salidaReal && !v.llegadaReal);
+    this.reporte = { tipo: '', viajeId: enRuta?.id || '', desc: '' };
+  }
+
+  async enviarReporte(): Promise<void> {
+    if (!this.reporte || this.enviandoReporte) return;
+    this.enviandoReporte = true;
+    this.cdr.markForCheck();
+    try {
+      const res = await this.auth.fetchAutenticado(`${API_URL}/mis-viajes/novedad`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo: this.reporte.tipo, desc: this.reporte.desc, viajeId: this.reporte.viajeId || undefined, ...(this.elegido || {}) })
+      });
+      const data = await res.json();
+      if (data?.ok) {
+        this.reporte = null;
+        this.ui.mostrarToast('Listo, la oficina ya lo vio. Si es urgente, llama también.', 'ok');
+      } else {
+        this.ui.mostrarToast(data?.msg || 'No se pudo enviar. Inténtalo de nuevo.', 'err');
+      }
+    } catch {
+      this.ui.mostrarToast('Sin conexión: no se pudo enviar. Si es urgente, llama a la oficina.', 'err');
+    }
+    this.enviandoReporte = false;
+    this.cdr.markForCheck();
+  }
+
   // ---------- Avisos: viajes nuevos o cambiados ----------
 
   hayAvisos = false;

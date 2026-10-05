@@ -1594,3 +1594,9 @@ tr.ruto-fila-resaltada > .ruto-td-vehicle-info {
 
 .ruto-btn-pdf-semana { margin-left: auto; background: rgba(239, 68, 68, 0.15) !important; color: #fca5a5 !important; border-color: rgba(239, 68, 68, 0.4) !important; display: inline-flex; gap: 6px; align-items: center; }
 .ruto-btn-pdf-semana:disabled { opacity: 0.6; cursor: wait; }
+
+/* Novedades de conductores (encima del aviso de aprobaciones). */
+.ruto-novedades-lista { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.ruto-novedad-fila { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.ruto-novedad-desc { opacity: 0.85; font-size: 12.5px; }
+.ruto-novedad-fila .ruto-aviso-btn { flex-shrink: 0; cursor: pointer; border: none; font-family: inherit; }

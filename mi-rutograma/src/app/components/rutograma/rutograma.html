@@ -19,6 +19,21 @@
   <a class="ruto-aviso-btn" routerLink="/aprobaciones">Revisar ahora <i class="bi bi-arrow-right"></i></a>
 </div>
 
+<!-- Novedades que reportan los conductores desde el celular. -->
+<div *ngIf="novedadesConductores.length" class="ruto-aviso-aprobaciones ruto-aviso-urgente ruto-aviso-novedades" data-guia="ruto-novedades-conductores">
+  <i class="bi bi-exclamation-triangle-fill ruto-aviso-icono"></i>
+  <div class="ruto-aviso-texto ruto-novedades-lista">
+    <strong>{{ novedadesConductores.length === 1 ? 'Un conductor reportó una novedad' : novedadesConductores.length + ' novedades de conductores sin resolver' }}</strong>
+    <div *ngFor="let n of novedadesConductores.slice(0, 3)" class="ruto-novedad-fila">
+      <span><b>{{ n.titulo }}</b> · {{ haceCuanto(n.ts) }}<br><span class="ruto-novedad-desc">{{ n.desc }}</span></span>
+      <button *ngIf="auth.puedeEditar" class="ruto-aviso-btn" [disabled]="resolviendoNovedad === n.id" (click)="resolverNovedadConductor(n)">
+        <i class="bi bi-check2"></i> Resuelta
+      </button>
+    </div>
+    <span *ngIf="novedadesConductores.length > 3">y {{ novedadesConductores.length - 3 }} más (en el Dashboard).</span>
+  </div>
+</div>
+
 <div id="pg-rutograma" class="ruto-container">
 
   <div class="ruto-header">
