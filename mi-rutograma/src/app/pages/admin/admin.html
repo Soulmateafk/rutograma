@@ -55,7 +55,10 @@
             {{ u.email }}
             <div *ngIf="u.solicitadoEn" class="cuenta-fecha">Solicitó: {{ u.solicitadoEn | date:'d MMM y, h:mm a' }}</div>
           </td>
-          <td>{{ u.departamento || '—' }}</td>
+          <td>
+            {{ u.departamento || '—' }}
+            <div *ngIf="u.estado === 'PENDING' && esSolicitudDeConductor(u)" class="cuenta-fecha"><i class="bi bi-truck"></i> Pide cuenta de conductor</div>
+          </td>
           <td>
             <span class="estado"
                   [class.estado-aprobado]="u.estado === 'APPROVED'"
@@ -318,7 +321,7 @@
         <option value="">— Elige el conductor —</option>
         <option *ngFor="let c of conductoresParaEnlazar" [value]="c.ced">{{ c.nombre }}{{ c.placa ? ' — ' + c.placa : '' }}</option>
       </select>
-      <p class="permisos-ayuda">Esta cuenta solo verá la pantalla "Mis viajes", con los viajes de ese conductor.</p>
+      <p class="permisos-ayuda">Esta cuenta solo verá la pantalla "Mis viajes", con los viajes de ese conductor. Si lo dejas sin elegir, al entrar escribirá su nombre y placa (como la cuenta compartida).</p>
     </div>
 
     <div class="permisos-lista">

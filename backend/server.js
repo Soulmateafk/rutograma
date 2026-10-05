@@ -1503,6 +1503,18 @@ app.get('/api/auth/usuarios', (req, res) => {
 // body: { email: 'x@y.com', accion: 'APPROVED' | 'REJECTED', rol?, permisos? }
 // rol/permisos solo los toma del admin; quien no es admin solo decide
 // cuentas que estén pendientes, y quedan con el rol por defecto.
+const esSolicitudDeConductor = (u) => sinTildes(String(u?.departamento || '')).toLowerCase().trim() === 'conductor';
+
+// Cédula del conductor cuyo nombre coincide claramente con el escrito: muy
+// parecido y sin otro casi igual de parecido. Si hay duda, null.
+function conductorClaroPorNombre(data, nombre) {
+    if (sinTildes(String(nombre || '')).trim().length < 3) return null;
+    const todos = (data.conductores || []).map(datosConductor).filter(c => c.ced && c.nombre);
+    const [primero, segundo] = nombresParecidos(nombre, todos, { minimo: 0.85, maximo: 2 });
+    if (!primero || (segundo && segundo.parecido >= primero.parecido - 0.05)) return null;
+    return primero.ced;
+}
+
 app.post('/api/auth/decidir', (req, res) => {
     try {
         const solicitante = normalizarEmail(req.headers['x-user-email']);
@@ -1530,6 +1542,7 @@ app.post('/api/auth/decidir', (req, res) => {
             return res.status(403).json({ ok: false, msg: 'Solo puedes aceptar o rechazar cuentas nuevas (pendientes). Lo demás lo hace el administrador.' });
         }
 
+        const primeraAprobacion = accion === 'APPROVED' && usuario.estado !== 'APPROVED';
         usuario.estado = accion;
         // El motivo solo tiene sentido para un rechazo — si se aprueba
         // (incluso después de haber estado rechazada antes), se limpia.
@@ -1538,6 +1551,12 @@ app.post('/api/auth/decidir', (req, res) => {
         // (acceso completo) por defecto — el admin puede bajarlo a 'lector' después.
         if (accion === 'APPROVED' && !usuario.rol) {
             usuario.rol = 'editor';
+        }
+        // Quien pidió la cuenta como "Conductor" queda con ese rol (solo ve
+        // sus viajes), nunca con el 'editor' que trae por defecto.
+        if (primeraAprobacion && esSolicitudDeConductor(usuario) && req.body.rol === undefined) {
+            usuario.rol = 'conductor';
+            usuario.permisos = null;
         }
         // El admin puede elegir al aprobar el rol y, si quiere, permisos a medida.
         if (accion === 'APPROVED' && esAdmin && req.body.rol !== undefined) {
@@ -1548,6 +1567,12 @@ app.post('/api/auth/decidir', (req, res) => {
             usuario.rol = rol;
             usuario.permisos = req.body.permisos ? normalizarPermisos(req.body.permisos) : null;
             usuario.conductorCed = rol === 'conductor' ? (String(req.body.conductorCed || '').trim() || null) : null;
+        }
+        // Conductor sin enlazar: se enlaza solo si su nombre coincide claramente
+        // con uno de la lista (si no, queda como la cuenta compartida: escribe
+        // nombre y placa al entrar, y el admin lo puede enlazar después).
+        if (accion === 'APPROVED' && usuario.rol === 'conductor' && !usuario.conductorCed) {
+            usuario.conductorCed = conductorClaroPorNombre(data, usuario.nombre);
         }
         usuario.actualizadoPor = solicitante;
         usuario.actualizadoEn = new Date().toISOString();

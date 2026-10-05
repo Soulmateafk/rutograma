@@ -103,6 +103,10 @@
             </button>
           </div>
         </div>
+        <p class="reg-nota-conductor" *ngIf="departamento === 'Conductor'">
+          <i class="bi bi-truck"></i>
+          Escribe arriba tu nombre completo tal como está en la lista de conductores. Cuando te aprueben, al entrar verás solo tus viajes.
+        </p>
       </div>
 
       <button (click)="enviarSolicitud()" class="btn-primary">
