@@ -3,7 +3,7 @@
 
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 20px;">
     
-    <div class="card">
+    <div data-guia="conf-parametros" class="card">
       <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Parámetros generales</div>
       
       <div class="fg" style="margin-bottom: 12px;">
@@ -28,13 +28,13 @@
       
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <button class="btn pri" (click)="ds.autoSave()">Guardar Parámetros</button>
-        <button *ngIf="auth.puede('generarMatriz')" class="btn" style="background: #581c87; color: white; font-weight: bold;" [disabled]="generandoMatriz" [style.opacity]="generandoMatriz ? 0.6 : 1" [style.cursor]="generandoMatriz ? 'not-allowed' : 'pointer'" (click)="generarMatrizMensual()">
+        <button data-guia="conf-generar" *ngIf="auth.puede('generarMatriz')" class="btn" style="background: #581c87; color: white; font-weight: bold;" [disabled]="generandoMatriz" [style.opacity]="generandoMatriz ? 0.6 : 1" [style.cursor]="generandoMatriz ? 'not-allowed' : 'pointer'" (click)="generarMatrizMensual()">
           <i class="bi" [ngClass]="generandoMatriz ? 'bi-hourglass-split' : 'bi-lightning-charge-fill'" style="color:#fbbf24;"></i> {{ generandoMatriz ? 'Generando...' : 'Generar Matriz del Mes' }}
         </button>
       </div>
     </div>
 
-    <div class="card">
+    <div data-guia="conf-transportadoras" class="card">
       <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Transportadoras</div>
       
       <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px;">
@@ -59,7 +59,7 @@
       <button class="btn sm" (click)="isModalTranspOpen = true">+ Agregar</button>
     </div>
 
-    <div class="card">
+    <div data-guia="conf-motor" class="card">
       <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Motor de reasignación</div>
       <div style="font-size: 13px; color: var(--color-texto-secundario); line-height: 1.8; font-weight: 400;">
         Al agregar un viaje extra:<br> 
@@ -73,7 +73,7 @@
       </div>
     </div>
 
-    <div class="card" [style.border]="modoActual === 'pruebas' ? '2px solid #f59e0b' : '2px solid transparent'">
+    <div data-guia="conf-modo" class="card" [style.border]="modoActual === 'pruebas' ? '2px solid #f59e0b' : '2px solid transparent'">
       <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Modo de trabajo</div>
 
       <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
@@ -100,7 +100,7 @@
       </p>
     </div>
 
-    <div class="card">
+    <div data-guia="conf-apariencia" class="card">
       <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Apariencia</div>
 
       <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
@@ -123,7 +123,7 @@
       </button>
     </div>
 
-    <div class="card">
+    <div data-guia="conf-respaldos" class="card">
       <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Respaldos</div>
       <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0; line-height: 1.5;">
         Cada guardado crea un respaldo automático — úsalo para volver atrás si algo grande (como "Generar Matriz") no salió como esperabas. Solo se muestran los respaldos del modo en el que estás trabajando ahora ({{ modoActual === 'pruebas' ? 'Prueba' : 'Real' }}).
@@ -136,7 +136,7 @@
       </p>
     </div>
 
-    <div class="card" *ngIf="auth.puede('importarExcel')">
+    <div data-guia="conf-importar" class="card" *ngIf="auth.puede('importarExcel')">
       <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Importar viajes reales</div>
       <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0; line-height: 1.5;">
         Sube el Excel de operación (hoja "DT VIAJEROS." y "CONF"). Antes de guardar verás qué entra, qué se corrigió y qué no se pudo leer. Los viajes del archivo reemplazan a los de la app en esas fechas, y Generar Matriz continúa desde ahí.
@@ -149,7 +149,7 @@
       </label>
     </div>
 
-    <div class="card" *ngIf="auth.puede('enviarVencimientos')">
+    <div data-guia="conf-vencimientos" class="card" *ngIf="auth.puede('enviarVencimientos')">
       <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Resumen de vencimientos</div>
       <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0; line-height: 1.5;">
         Cada lunes el sistema envía por correo un resumen (a los correos definidos en el servidor; por defecto, el del administrador) de los SOAT, tecnomecánicas y licencias que ya vencieron o vencen en los próximos 30 días (si no hay nada pendiente, no envía nada). Con este botón puedes mandarlo ahora mismo.

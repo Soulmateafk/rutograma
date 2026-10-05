@@ -117,6 +117,7 @@ const necesitaAprobacion = (permisos) => !!permisos.editar && !permisos.sinAprob
 // (cada una revisa su propio permiso).
 const RUTAS_SIN_APROBACION = [
     '/api/auth/check', '/api/auth/login', '/api/auth/register',
+    '/api/guias/vista', '/api/guias/reiniciar',
     '/api/sesiones/cerrar', '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual',
     '/api/cache/refrescar',
     '/api/aprobaciones/decidir',

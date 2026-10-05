@@ -1056,6 +1056,8 @@ function cancelarViajesEnConflicto(data, placa, motivo, coincide) {
 // dejar pasar cualquier escritura.
 // ============================================================
 const RUTAS_SIN_RESTRICCION_DE_ROL = [
+    '/api/guias/vista',
+    '/api/guias/reiniciar',
     '/api/auth/check',
     '/api/auth/login',
     '/api/auth/register',
@@ -2073,6 +2075,58 @@ app.post('/api/limpiar-historial', async (req, res) => {
         console.error('🚨 Error en /api/limpiar-historial:', error);
         res.status(500).json({ ok: false, msg: error.message });
     }
+});
+
+// ============================================================
+// GUÍAS DE PRIMERA VEZ — qué guías ya vio cada cuenta (por página). Se
+// guarda en el servidor (no en el navegador) para que no vuelvan a salir al
+// entrar desde otro computador; en un archivo aparte para que no dependa
+// del modo Real/Prueba y sirva también para el admin.
+// ============================================================
+const ARCHIVO_GUIAS = path.join(CARPETA_DATOS, 'guias-vistas.json');
+let guiasVistas = (() => {
+    try {
+        if (fs.existsSync(ARCHIVO_GUIAS)) return JSON.parse(fs.readFileSync(ARCHIVO_GUIAS, 'utf8')) || {};
+    } catch (err) {
+        console.error('⚠️ No se pudo leer guias-vistas.json:', err.message);
+    }
+    return {};
+})();
+const guardarGuias = () => {
+    try { fs.writeFileSync(ARCHIVO_GUIAS, JSON.stringify(guiasVistas)); }
+    catch (err) { console.error('⚠️ No se pudo guardar guias-vistas.json:', err.message); }
+};
+const quienPideGuia = (req) => normalizarEmail(req.usuarioVerificado || req.headers['x-user-email']);
+const paginaGuiaValida = (p) => /^[a-z-]{2,30}$/.test(String(p || ''));
+
+app.get('/api/guias', (req, res) => {
+    const email = quienPideGuia(req);
+    if (!email) return res.status(401).json({ ok: false, msg: 'Debes iniciar sesión.' });
+    res.json({ ok: true, vistas: guiasVistas[email] || [] });
+});
+
+app.post('/api/guias/vista', (req, res) => {
+    res.locals.auditoriaOmitir = true;
+    const email = quienPideGuia(req);
+    const pagina = String(req.body?.pagina || '');
+    if (!email) return res.status(401).json({ ok: false, msg: 'Debes iniciar sesión.' });
+    if (!paginaGuiaValida(pagina)) return res.status(400).json({ ok: false, msg: 'Página inválida.' });
+    const lista = new Set(guiasVistas[email] || []);
+    lista.add(pagina);
+    guiasVistas[email] = [...lista];
+    guardarGuias();
+    res.json({ ok: true, vistas: guiasVistas[email] });
+});
+
+// Sin "pagina" se reinician todas (vuelven a salir).
+app.post('/api/guias/reiniciar', (req, res) => {
+    res.locals.auditoriaOmitir = true;
+    const email = quienPideGuia(req);
+    if (!email) return res.status(401).json({ ok: false, msg: 'Debes iniciar sesión.' });
+    const pagina = req.body?.pagina ? String(req.body.pagina) : '';
+    guiasVistas[email] = pagina ? (guiasVistas[email] || []).filter(p => p !== pagina) : [];
+    guardarGuias();
+    res.json({ ok: true, vistas: guiasVistas[email] });
 });
 
 // ============================================================
