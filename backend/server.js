@@ -95,7 +95,7 @@ const registrarAuditoria = (usuario, metodo, ruta, cuerpo, modo) => {
             // auditoría (y de ahí, en los respaldos). Se listan aquí todos
             // los nombres posibles para que no vuelva a pasar con otro.
             // "archivo": el Excel completo de la importación (megas de texto).
-            ['pass', 'passHash', 'nuevaClave', 'password', 'clave', 'contrasena', 'token', 'archivo']
+            ['pass', 'passHash', 'nuevaClave', 'actual', 'nueva', 'password', 'clave', 'contrasena', 'token', 'archivo']
                 .forEach(campo => delete resumen[campo]);
         }
 
@@ -1091,7 +1091,7 @@ const RUTAS_SIN_RESTRICCION_DE_ROL = [
     '/api/sesiones/cerrar-otras',
     '/api/sesiones/cerrar-actual'
 ];
-const RUTAS_CON_PERMISO_PROPIO = ['/api/auth/cuenta-conductores', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
+const RUTAS_CON_PERMISO_PROPIO = ['/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
 
 app.use((req, res, next) => {
     if (!req.path.startsWith('/api/') || req.method === 'GET') return next();
@@ -3624,6 +3624,50 @@ app.post('/api/auth/login', async (req, res) => {
     } catch (error) {
         console.error('🚨 Error en /api/auth/login:', error);
         return res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// --- CAMBIAR MI CONTRASEÑA (cada quien la suya, sabiendo la actual) ---
+// Body: { actual, nueva }. Exige pase (sesión real). Al cambiarla se cierran
+// las demás sesiones de la cuenta: si alguien más la tenía abierta, sale.
+app.post('/api/auth/cambiar-clave', async (req, res) => {
+    // Las contraseñas nunca van a la auditoría.
+    res.locals.auditoriaResumen = { email: normalizarEmail(req.usuarioVerificado || '') };
+    try {
+        const email = normalizarEmail(req.usuarioVerificado || '');
+        if (!email) return res.status(401).json({ ok: false, codigo: 'sin_pase', msg: 'Debes iniciar sesión.' });
+        const actual = String(req.body?.actual || '');
+        const nueva = String(req.body?.nueva || '');
+
+        const data = leerExcel();
+        const usuario = (data.usuarios || []).find(u => normalizarEmail(u.email) === email);
+        if (!usuario || !usuario.passHash) return res.status(404).json({ ok: false, msg: 'Cuenta no encontrada.' });
+        // La cuenta compartida de conductores la maneja solo el administrador
+        // (si un conductor la cambiara, dejaría por fuera a todos los demás).
+        if (rolDeCuenta(usuario, false) === 'conductor' && !usuario.conductorCed) {
+            return res.status(403).json({ ok: false, msg: 'La contraseña de la cuenta compartida de conductores solo la cambia el administrador.' });
+        }
+        if (!actual || !(await bcrypt.compare(actual, usuario.passHash))) {
+            return res.status(400).json({ ok: false, codigo: 'clave_actual', msg: 'La contraseña actual no es correcta.' });
+        }
+        if (actual === nueva) return res.status(400).json({ ok: false, msg: 'La nueva contraseña debe ser distinta de la actual.' });
+        const faltas = faltasDeClave(nueva, { email, nombre: usuario.nombre });
+        if (faltas.length) return res.status(400).json({ ok: false, msg: mensajeClave(faltas), faltas });
+
+        usuario.passHash = await bcrypt.hash(nueva, 10);
+        usuario.actualizadoPor = email;
+        usuario.actualizadoEn = new Date().toISOString();
+        guardarEnExcel(data);
+
+        const antes = sesionesActivas.length;
+        sesionesActivas = sesionesActivas.filter(x => x.email !== email || x.id === req.sesionId);
+        guardarSesiones();
+        const cerradas = antes - sesionesActivas.length;
+        console.log(`🔑 ${email} cambió su contraseña (${cerradas} sesión(es) más cerradas)`);
+        res.json({ ok: true, sesionesCerradas: cerradas });
+    } catch (error) {
+        console.error('🚨 Error en /api/auth/cambiar-clave:', error);
+        res.status(500).json({ ok: false, msg: error.message });
     }
 });
 

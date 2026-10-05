@@ -12,6 +12,7 @@
     <div class="mv-acciones">
       <button *ngIf="paso === 'viajes'" class="mv-btn" (click)="cargar()" title="Actualizar"><i class="bi bi-arrow-clockwise"></i></button>
       <a *ngIf="!compartida" class="mv-btn" routerLink="/sesiones" title="Mis sesiones"><i class="bi bi-laptop"></i></a>
+      <button *ngIf="!compartida" class="mv-btn" (click)="cambiandoClave = true" title="Cambiar mi contraseña"><i class="bi bi-key"></i></button>
       <button class="mv-btn mv-salir" (click)="salir()" title="Cerrar sesión"><i class="bi bi-box-arrow-right"></i></button>
     </div>
   </header>
@@ -92,4 +93,13 @@
 
     <p class="mv-pie" *ngIf="ultimaActualizacion">Actualizado {{ ultimaActualizacion | date:'h:mm a' }} · se actualiza solo cada minuto</p>
   </ng-container>
+</div>
+
+<!-- Cambiar mi contraseña (solo cuenta propia; la compartida la maneja el admin). -->
+<div class="mv-modal-fondo" *ngIf="cambiandoClave" (click)="cambiandoClave = false">
+  <div class="mv-modal" (click)="$event.stopPropagation()">
+    <h3>Cambiar mi contraseña</h3>
+    <app-cambiar-clave [email]="auth.currentUser?.email || ''" [nombre]="conductor?.nombre || ''"
+                       (listo)="cambiandoClave = false" (cancelar)="cambiandoClave = false"></app-cambiar-clave>
+  </div>
 </div>

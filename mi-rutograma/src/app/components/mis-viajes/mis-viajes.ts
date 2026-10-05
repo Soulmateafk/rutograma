@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import html2canvas from 'html2canvas';
 import { AuthService } from '../../services/auth.service';
+import { CambiarClaveComponent } from '../cambiar-clave/cambiar-clave';
 
 const API_URL = (typeof window !== 'undefined')
   ? `${window.location.protocol}//${window.location.hostname}:5000/api`
@@ -25,7 +26,7 @@ interface DiaConViajes { fecha: string; titulo: string; esHoy: boolean; descanso
 @Component({
   selector: 'app-mis-viajes',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule, CambiarClaveComponent],
   templateUrl: './mis-viajes.html',
   styleUrls: ['./mis-viajes.css']
 })
@@ -49,6 +50,7 @@ export class MisViajesComponent implements OnInit, OnDestroy {
   validando = false;
   elegido: { ced: string; placa: string } | null = null;
   buscadoPor = '';
+  cambiandoClave = false;
   placaBuscada = '';
   descargando = false;
   private static readonly CLAVE_ELEGIDO = 'mis-viajes-elegido';

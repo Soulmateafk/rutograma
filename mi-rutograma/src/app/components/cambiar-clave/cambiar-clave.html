@@ -1,0 +1,29 @@
+<form class="cc-form" (ngSubmit)="guardar()" autocomplete="off">
+  <label class="cc-label">Contraseña actual</label>
+  <input class="cc-input" [type]="ver ? 'text' : 'password'" name="actual" [(ngModel)]="actual" autocomplete="current-password" maxlength="64">
+
+  <label class="cc-label">Nueva contraseña</label>
+  <input class="cc-input" [type]="ver ? 'text' : 'password'" name="nueva" [(ngModel)]="nueva" autocomplete="new-password" maxlength="64"
+         placeholder="Mínimo 8, con mayúscula, número y símbolo">
+  <ul class="cc-requisitos" *ngIf="nueva">
+    <li *ngFor="let r of requisitos" [class.ok]="r.ok">
+      <i class="bi" [ngClass]="r.ok ? 'bi-check-circle-fill' : 'bi-x-circle'"></i> {{ r.texto }}
+    </li>
+  </ul>
+
+  <label class="cc-label">Confirma la nueva contraseña</label>
+  <input class="cc-input" [type]="ver ? 'text' : 'password'" name="confirmar" [(ngModel)]="confirmar" autocomplete="new-password" maxlength="64">
+  <p class="cc-coincide" *ngIf="confirmar" [class.ok]="coinciden">
+    <i class="bi" [ngClass]="coinciden ? 'bi-check-circle-fill' : 'bi-x-circle-fill'"></i>
+    {{ coinciden ? 'Coinciden' : 'No coinciden' }}
+  </p>
+
+  <label class="cc-ver"><input type="checkbox" name="ver" [(ngModel)]="ver"> Mostrar contraseñas</label>
+  <p class="cc-error" *ngIf="error"><i class="bi bi-exclamation-triangle-fill"></i> {{ error }}</p>
+  <p class="cc-nota">Al cambiarla se cierra tu sesión en los demás equipos.</p>
+
+  <div class="cc-botones">
+    <button type="button" class="cc-btn" (click)="cancelar.emit()">Cancelar</button>
+    <button type="submit" class="cc-btn cc-btn-pri" [disabled]="!puedeGuardar">{{ guardando ? 'Guardando…' : 'Cambiar contraseña' }}</button>
+  </div>
+</form>

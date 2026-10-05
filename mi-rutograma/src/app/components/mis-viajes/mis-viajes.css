@@ -47,3 +47,7 @@
 .mv-captura-titulo span { font-size: 12px; color: #94a3b8; }
 .mv-escribiste { margin: -4px 0 0; font-size: 14px; color: #fbbf24; }
 .mv-escribiste em { color: #fde68a; }
+
+.mv-modal-fondo { position: fixed; inset: 0; z-index: 1000; background: rgba(2, 6, 23, 0.7); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.mv-modal { width: min(420px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; border-radius: 14px; padding: 18px; color: #e2e8f0; }
+.mv-modal h3 { margin: 0 0 6px; font-size: 17px; }

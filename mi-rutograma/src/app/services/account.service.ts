@@ -512,6 +512,17 @@ export class AccountService {
 
   /** Restablece la contraseña de una cuenta (solo admin) — para cuando
    *  alguien la olvida, sin necesitar un flujo de correo automático. */
+  /** La persona cambia su propia contraseña (sabiendo la actual). */
+  async cambiarMiClave(actual: string, nueva: string): Promise<{ ok: boolean; msg?: string; sesionesCerradas?: number }> {
+    try {
+      return await firstValueFrom(this.http.post<any>(`${this.API_URL}/auth/cambiar-clave`, { actual, nueva }, {
+        headers: { 'x-user-email': this.emailActivo }
+      }));
+    } catch (e: any) {
+      return { ok: false, msg: e?.error?.msg || 'No se pudo cambiar la contraseña. Revisa tu conexión.' };
+    }
+  }
+
   async resetearClave(email: string, nuevaClave: string): Promise<void> {
     await firstValueFrom(
       this.http.post(`${this.API_URL}/auth/resetear-clave`, { email, nuevaClave }, {

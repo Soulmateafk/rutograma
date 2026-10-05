@@ -121,6 +121,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'conf-motor', titulo: 'Motor de reasignación', texto: 'Cómo se reacomodan los viajes cuando un vehículo queda ocupado.' },
       { el: 'conf-modo', titulo: 'Modo de trabajo', texto: 'Modo Prueba trabaja sobre una copia: lo que hagas ahí no toca la operación real.' },
       { el: 'conf-apariencia', titulo: 'Apariencia', texto: 'Cambia entre modo claro y oscuro.' },
+      { el: 'conf-mi-cuenta', titulo: 'Mi cuenta', texto: 'Cambia tu contraseña cuando quieras (necesitas la actual). Al cambiarla, tu sesión se cierra en los demás equipos.' },
       { el: 'conf-guias', titulo: 'Guías', texto: 'Desde aquí vuelves a ver todas las guías de la app.' },
       { el: 'conf-respaldos', titulo: 'Respaldos', texto: 'Cada cambio guarda un respaldo automático. Desde aquí se puede volver a un momento anterior.' },
       { el: 'conf-importar', titulo: 'Importar viajes reales', texto: 'Sube el Excel de operación. Antes de guardar ves qué entra y qué se corrigió.' },

@@ -9,6 +9,7 @@ import { LoadingService } from '../../services/loading.service';
 import { ThemeService } from '../../services/theme.service';
 import { AccountService } from '../../services/account.service';
 
+import { CambiarClaveComponent } from '../cambiar-clave/cambiar-clave';
 // 🚀 IMPORTAMOS LA LÓGICA PURA DESDE EL JAVASCRIPT
 // @ts-ignore
 import { 
@@ -20,7 +21,7 @@ import {
 @Component({
   selector: 'app-configuracion',
   standalone: true,
-  imports: [FormsModule, CommonModule],
+  imports: [FormsModule, CommonModule, CambiarClaveComponent],
   templateUrl: './configuracion.html',
   styleUrl: './configuracion.css',
 })
@@ -36,6 +37,7 @@ export class Configuracion implements OnInit {
   public theme = inject(ThemeService);
   private account = inject(AccountService);
   public auth = inject(AuthService);
+  public cambiandoClave = false;
   private ui = inject(UiService);
   private loading = inject(LoadingService);
   private zone = inject(NgZone);

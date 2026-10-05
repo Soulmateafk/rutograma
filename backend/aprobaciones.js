@@ -124,7 +124,7 @@ const RUTAS_SIN_APROBACION = [
     '/api/sesiones/cerrar', '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual',
     '/api/cache/refrescar',
     '/api/aprobaciones/decidir',
-    '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar'
+    '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/auth/cambiar-clave'
 ];
 
 /** ¿Esta petición de un auxiliar debe quedar pendiente de aprobación? */
