@@ -25,6 +25,7 @@ export class GuiaComponent implements OnDestroy {
   private pasoMostrado = '';
 
   constructor() {
+    if (typeof document !== 'undefined') document.addEventListener('click', this.alTocar, true);
     effect(() => {
       const a = this.guia.activa();
       if (!a) {
@@ -34,11 +35,16 @@ export class GuiaComponent implements OnDestroy {
         this.pasoMostrado = '';
         return;
       }
+      if (a.indice < 0) { this.foco.set(null); this.cuadro.set(null); return; } // tarea buscando su primer paso
       const clavePaso = `${a.clave}-${a.indice}`;
       if (clavePaso !== this.pasoMostrado) {
         this.pasoMostrado = clavePaso;
+        // Nada de la página queda con el cursor puesto: así no se puede
+        // escribir en un campo mientras la guía lo explica.
+        const enfocado = document.activeElement as HTMLElement | null;
+        if (enfocado && enfocado !== document.body && !enfocado.closest('.guia-cuadro')) enfocado.blur();
         const el = GuiaService.elementoVisible(a.pasos[a.indice].el);
-        el?.scrollIntoView({ block: 'center', inline: 'center', behavior: 'auto' });
+        el?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
       }
       // Se vuelve a medir mientras está abierta: la página puede moverse
       // (datos que llegan, scroll, cambio de tamaño de la ventana).
@@ -49,7 +55,21 @@ export class GuiaComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.detenerReloj();
+    if (typeof document !== 'undefined') document.removeEventListener('click', this.alTocar, true);
   }
+
+  /**
+   * En un paso de "toca aquí", el clic sobre lo iluminado pasa a la página
+   * (abre el formulario de verdad) y la guía sigue al paso siguiente. Se
+   * escucha en captura para enterarse aunque la página detenga el clic.
+   */
+  private alTocar = (e: MouseEvent) => {
+    const a = this.guia.activa();
+    const paso = a && a.indice >= 0 ? a.pasos[a.indice] : null;
+    if (!paso?.tocar) return;
+    const el = GuiaService.elementoVisible(paso.el);
+    if (el && e.target instanceof Node && el.contains(e.target)) this.guia.tocado();
+  };
 
   private detenerReloj(): void {
     if (this.reloj) clearInterval(this.reloj);
@@ -59,7 +79,7 @@ export class GuiaComponent implements OnDestroy {
   @HostListener('window:resize')
   public medir(): void {
     const a = this.guia.activa();
-    if (!a) return;
+    if (!a || a.indice < 0) return;
     const el = GuiaService.elementoVisible(a.pasos[a.indice].el);
     const vw = window.innerWidth, vh = window.innerHeight;
     if (!el) {
@@ -96,9 +116,15 @@ export class GuiaComponent implements OnDestroy {
 
   @HostListener('document:keydown', ['$event'])
   public teclado(e: KeyboardEvent): void {
-    if (!this.guia.activa()) return;
+    if (!this.guia.activa()) {
+      if (e.key === 'Escape' && this.guia.menuAbierto()) this.guia.menuAbierto.set(false);
+      return;
+    }
     if (e.key === 'Escape') { this.guia.terminar(); e.preventDefault(); }
     else if (e.key === 'ArrowRight' || e.key === 'Enter') { this.guia.siguiente(); e.preventDefault(); }
     else if (e.key === 'ArrowLeft') { this.guia.anterior(); e.preventDefault(); }
+    // Tab y espacio moverían el cursor a la página o activarían sus botones
+    // (como "Guardar"): mientras la guía está abierta no se permiten.
+    else if (e.key === 'Tab' || e.key === ' ') e.preventDefault();
   }
 }

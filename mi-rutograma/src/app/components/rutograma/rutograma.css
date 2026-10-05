@@ -1512,3 +1512,69 @@ tr.ruto-fila-resaltada > .ruto-td-vehicle-info {
 .ruto-cupo-header-botones { display: flex; gap: 8px; align-items: center; }
 .ruto-btn-reacomodar { background: transparent; }
 .ruto-btn-reacomodar:disabled { opacity: 0.6; cursor: default; }
+
+/* Aviso de cambios esperando aprobación (para quien puede aprobar). */
+.ruto-aviso-aprobaciones {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 12px 16px 0;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.22), rgba(245, 158, 11, 0.08));
+  border: 1px solid rgba(245, 158, 11, 0.6);
+  color: #fde68a;
+  animation: ruto-aviso-latido 2.4s ease-in-out infinite;
+}
+.ruto-aviso-aprobaciones.ruto-aviso-urgente {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.25), rgba(239, 68, 68, 0.08));
+  border-color: rgba(239, 68, 68, 0.7);
+  color: #fecaca;
+}
+.ruto-aviso-icono { font-size: 22px; }
+.ruto-aviso-texto { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; font-size: 13px; }
+.ruto-aviso-texto strong { font-size: 14px; color: #fff; }
+.ruto-aviso-texto span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.9; }
+.ruto-aviso-btn {
+  flex-shrink: 0;
+  background: #f59e0b;
+  color: #111827;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  text-decoration: none;
+}
+.ruto-aviso-urgente .ruto-aviso-btn { background: #ef4444; color: #fff; }
+@keyframes ruto-aviso-latido {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.18); }
+}
+@media (max-width: 700px) {
+  .ruto-aviso-aprobaciones { flex-wrap: wrap; }
+  .ruto-aviso-texto span { white-space: normal; }
+}
+
+/* Marca en la tarjeta de un viaje con un cambio esperando aprobación. */
+.ruto-badge-pendiente {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  color: #111827;
+  background: #fbbf24;
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-bottom: 2px;
+}
+
+/* Historial de cambios del viaje (detalle). */
+.ruto-historial { margin-top: 10px; border-top: 1px solid var(--color-borde, #334155); padding-top: 8px; }
+.ruto-historial-toggle { background: none; border: none; color: #60a5fa; font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 0; font-family: inherit; }
+.ruto-historial-cuerpo { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.ruto-historial-item { background: var(--color-fondo-tarjeta, #121b2e); border-radius: 6px; padding: 6px 8px; font-size: 11px; color: var(--color-texto-secundario, #94a3b8); }
+.ruto-historial-pendiente { border-left: 3px solid #f59e0b; }
+.ruto-historial-cab { color: var(--color-texto-principal, #e2e8f0); margin-bottom: 2px; }
+.ruto-historial-cambio .de { text-decoration: line-through; opacity: 0.7; }
+.ruto-historial-cambio .a { color: #4ade80; font-weight: 600; }
+.ruto-historial-aprobado { color: #4ade80; margin-top: 2px; }
+.ruto-historial-vacio { font-size: 11px; color: var(--color-texto-apagado, #64748b); font-style: italic; }

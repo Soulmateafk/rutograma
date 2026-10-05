@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { DataService } from '../../services/data';
 import { AuthService } from '../../services/auth.service';
+import { GuiaService } from '../../services/guia.service';
 import { UiService } from '../../services/ui.service';
 import { LoadingService } from '../../services/loading.service';
 import { ThemeService } from '../../services/theme.service';
@@ -39,6 +40,12 @@ export class Configuracion implements OnInit {
   private loading = inject(LoadingService);
   private zone = inject(NgZone);
   private cdr = inject(ChangeDetectorRef);
+  private guias = inject(GuiaService);
+
+  public async reiniciarGuias(): Promise<void> {
+    const ok = await this.guias.reiniciarTodas();
+    this.ui.mostrarToast(ok ? 'Listo: las guías vuelven a salir en cada página, empezando por esta.' : 'No se pudieron reiniciar las guías.', ok ? 'ok' : 'err');
+  }
 
   // --- VARIABLES DE ESTADO: GENERALES Y MODALES ---
   public datosTransp: any = {};

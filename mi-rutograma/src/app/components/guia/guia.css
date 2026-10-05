@@ -76,3 +76,46 @@
 @media (max-width: 600px) {
   .guia-ayuda-btn { right: 12px; bottom: 12px; width: 36px; height: 36px; font-size: 16px; }
 }
+
+/* Paso de "toca aquí": se bloquea todo menos el agujero iluminado. */
+.guia-bloqueo { position: fixed; z-index: 20000; background: transparent; }
+.guia-foco-tocar { animation: guia-pulso 1.4s ease-in-out infinite; }
+@keyframes guia-pulso {
+  0%, 100% { outline-color: #f59e0b; outline-offset: 2px; }
+  50% { outline-color: #fde68a; outline-offset: 5px; }
+}
+.guia-toca { font-size: 12px; color: #fbbf24; display: inline-flex; align-items: center; gap: 4px; }
+
+/* Menú del "?": guía de la página y tareas "¿Cómo hago…?". */
+.guia-menu-fondo { position: fixed; inset: 0; z-index: 899; }
+.guia-menu {
+  position: fixed;
+  right: 18px;
+  bottom: 66px;
+  z-index: 901;
+  width: min(300px, calc(100vw - 32px));
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.guia-menu-titulo { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #f59e0b; padding: 8px 8px 4px; }
+.guia-menu-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: none; border: none; border-radius: 8px; padding: 8px;
+  color: #e2e8f0; font-size: 13px; text-align: left; cursor: pointer; font-family: inherit;
+}
+.guia-menu-item i { color: #94a3b8; }
+.guia-menu-item:hover { background: #1e293b; }
+.guia-menu-nota { font-size: 11px; color: #94a3b8; padding: 6px 8px 4px; line-height: 1.4; border-top: 1px solid #1e293b; margin-top: 4px; }
+
+@media (max-width: 600px) {
+  .guia-menu { right: 12px; bottom: 56px; }
+}

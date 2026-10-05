@@ -336,6 +336,11 @@ public get isConfigured(): boolean { return true;
     return this.account.rol === 'auxiliar';
   }
 
+  /** Cuenta de conductor: solo ve su pantalla "Mis viajes". */
+  public get esConductor(): boolean {
+    return this.account.rol === 'conductor';
+  }
+
   /** Sus cambios quedan pendientes hasta que alguien los apruebe. */
   public get necesitaAprobacion(): boolean {
     return this.account.permisos.editar && !this.account.permisos.sinAprobacion;

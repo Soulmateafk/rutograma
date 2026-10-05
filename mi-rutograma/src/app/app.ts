@@ -97,7 +97,7 @@ export class App implements OnInit {
         // He añadido '/pending' a esta lista
         // Y '/resumen' — se diseñó como tarjeta centrada, tipo Login,
         // no como una pantalla más de trabajo con menú arriba.
-        const rutasSinNavbar = ['/login', '/register', '/pending', '/resumen'];
+        const rutasSinNavbar = ['/login', '/register', '/pending', '/resumen', '/mis-viajes'];
         
         // Si la URL actual está en nuestra lista, ocultamos el navbar (false)
         this.mostrarNavbar.set(!rutasSinNavbar.includes(event.url));

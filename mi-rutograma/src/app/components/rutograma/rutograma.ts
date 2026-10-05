@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, HostListener, ViewChild, ElementRef } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DataService } from '../../services/data';
 import { CommonModule } from '@angular/common';
@@ -39,7 +39,7 @@ interface Viaje {
   selector: 'app-rutograma',
   templateUrl: './rutograma.html',
   standalone: true,
-  imports: [CommonModule, FormsModule], 
+  imports: [CommonModule, FormsModule, RouterLink], 
   styleUrls: ['./rutograma.css']
 })
 export class RutogramaComponent implements OnInit, OnDestroy {
@@ -171,6 +171,12 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
+    if (typeof window !== 'undefined') {
+      this.cargarPendientesAprobacion();
+      this.relojAprobaciones = setInterval(() => {
+        if (document.visibilityState === 'visible') this.cargarPendientesAprobacion();
+      }, 20000);
+    }
     this.ds.cargarEstadoLocal(); 
     
     this.ds.inicializarApp(true);
@@ -228,6 +234,44 @@ export class RutogramaComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.subDataChanged?.unsubscribe();
+    if (this.relojAprobaciones) clearInterval(this.relojAprobaciones);
+  }
+
+  // ============================================================
+  // CAMBIOS ESPERANDO APROBACIÓN — quien puede aprobar ve un aviso
+  // notable arriba; y todos ven "Cambio por aprobar" en los viajes que
+  // tienen un cambio pendiente (el auxiliar, los suyos).
+  // ============================================================
+  public pendientesAprobacion: any[] = [];
+  public viajesConCambioPendiente = new Set<string>();
+  public horasPendienteMasViejo = 0;
+  private relojAprobaciones: ReturnType<typeof setInterval> | null = null;
+
+  public get textoAntiguedad(): string {
+    const h = this.horasPendienteMasViejo;
+    if (h < 1) return 'menos de una hora';
+    if (h < 24) return `${Math.floor(h)} hora${Math.floor(h) === 1 ? '' : 's'}`;
+    const d = Math.floor(h / 24);
+    return `${d} día${d === 1 ? '' : 's'}`;
+  }
+
+  private async cargarPendientesAprobacion(): Promise<void> {
+    if (!this.auth.puedeAprobar && !this.auth.necesitaAprobacion) return;
+    try {
+      const base = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const res = await this.auth.fetchAutenticado(`${base}/aprobaciones`);
+      const data = await res.json();
+      if (!data?.ok) return;
+      const pendientes = (data.solicitudes || [])
+        .filter((s: any) => s.estado === 'PENDIENTE')
+        .sort((a: any, b: any) => String(a.creada).localeCompare(String(b.creada)));
+      this.pendientesAprobacion = pendientes;
+      this.horasPendienteMasViejo = pendientes.length ? (Date.now() - Date.parse(pendientes[0].creada)) / 3600000 : 0;
+      this.viajesConCambioPendiente = new Set(pendientes
+        .filter((s: any) => String(s.ruta).startsWith('/api/viajes') && s.cuerpo?.id !== undefined)
+        .map((s: any) => String(s.cuerpo.id)));
+      this.cdr.detectChanges();
+    } catch { /* sin conexión: se reintenta en el siguiente ciclo */ }
   }
 
   
@@ -2049,7 +2093,33 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     });
   }
 
+  // ============================================================
+  // HISTORIAL DE CAMBIOS DEL VIAJE (detalle del viaje)
+  // ============================================================
+  public historialViaje: { abierto: boolean; cargando: boolean; items: any[]; pendientes: any[]; id: any } =
+    { abierto: false, cargando: false, items: [], pendientes: [], id: null };
+
+  public async alternarHistorialViaje(): Promise<void> {
+    if (this.historialViaje.abierto) { this.historialViaje.abierto = false; return; }
+    const id = this.selectedViaje?.id;
+    this.historialViaje = { abierto: true, cargando: true, items: [], pendientes: [], id };
+    this.cdr.detectChanges();
+    try {
+      const base = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const res = await this.auth.fetchAutenticado(`${base}/viajes/historial?id=${encodeURIComponent(String(id))}`);
+      const data = await res.json();
+      if (this.historialViaje.id !== id) return; // se abrió otro viaje mientras cargaba
+      this.historialViaje.items = data?.historial || [];
+      this.historialViaje.pendientes = data?.pendientes || [];
+    } catch {
+      this.ui.mostrarToast('No se pudo cargar el historial del viaje.', 'err');
+    }
+    this.historialViaje.cargando = false;
+    this.cdr.detectChanges();
+  }
+
   public verDetalle(id: number) { 
+    this.historialViaje = { abierto: false, cargando: false, items: [], pendientes: [], id: null };
     this.zone.run(() => { 
       const viajeOriginal = this.ds.S.viajes?.find((v: any) => v.id === id);
       if (!viajeOriginal) return;

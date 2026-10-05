@@ -2,7 +2,7 @@ import { inject } from '@angular/core';
 import { Router, CanActivateFn } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
-export const authGuard: CanActivateFn = async () => {
+export const authGuard: CanActivateFn = async (_route, state) => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
@@ -31,6 +31,14 @@ export const authGuard: CanActivateFn = async () => {
 
   // 2. Usuario con sesión y aprobado -> entra
   if (authService.currentUserStatus === 'APPROVED') {
+    // Cuenta de conductor: solo "Mis viajes" (y sus sesiones).
+    const pagina = String(state?.url || '').split(/[?#]/)[0];
+    if (authService.esConductor && !['/mis-viajes', '/sesiones'].includes(pagina)) {
+      return router.createUrlTree(['/mis-viajes']);
+    }
+    if (!authService.esConductor && pagina === '/mis-viajes') {
+      return router.createUrlTree(['/dashboard']);
+    }
     console.log('GUARD: Acceso concedido -> Dashboard');
     return true;
   }

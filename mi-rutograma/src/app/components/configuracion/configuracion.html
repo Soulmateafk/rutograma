@@ -123,6 +123,16 @@
       </button>
     </div>
 
+    <div class="card" data-guia="conf-guias">
+      <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Guías de la app</div>
+      <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0; line-height: 1.5;">
+        La primera vez que entras a cada página se explica cómo funciona. Si quieres verlas todas otra vez, reinícialas aquí. Para repasar solo una página, usa el botón "?" de abajo a la derecha.
+      </p>
+      <button class="btn" style="background:var(--color-fondo-tarjeta-hover); color: var(--color-texto-principal); font-weight:bold;" (click)="reiniciarGuias()">
+        <i class="bi bi-signpost-split"></i> Volver a ver todas las guías
+      </button>
+    </div>
+
     <div data-guia="conf-respaldos" class="card">
       <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Respaldos</div>
       <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0; line-height: 1.5;">

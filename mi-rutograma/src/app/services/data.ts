@@ -279,8 +279,8 @@ export class DataService {
       case 'usuario-rol': {
         // antes/despues: { rol, permisos } (o solo el rol, en entradas viejas).
         const valor = deshacer ? entry.antes : entry.despues;
-        const { rol, permisos } = typeof valor === 'string' ? { rol: valor, permisos: null } : valor;
-        await this.postApi('/auth/rol', { email: entry.clave, rol, permisos: permisos || null });
+        const { rol, permisos, conductorCed } = typeof valor === 'string' ? { rol: valor, permisos: null, conductorCed: null } : valor;
+        await this.postApi('/auth/rol', { email: entry.clave, rol, permisos: permisos || null, conductorCed: conductorCed || null });
         return true;
       }
       case 'usuario-estado': {
@@ -618,6 +618,13 @@ export class DataService {
     // del propio servidor (esto era la causa del "Headers Timeout Error").
     // Dejamos que sea el NAVEGADOR, ya cargado, quien haga la llamada real.
     if (typeof window === 'undefined') {
+      this.cargado = true;
+      return;
+    }
+
+    // Las cuentas de conductor no reciben los datos generales (solo "Mis
+    // viajes", que se piden aparte): no se intenta cargarlos.
+    if (this.cuenta.rol === 'conductor') {
       this.cargado = true;
       return;
     }

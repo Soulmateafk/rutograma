@@ -1,33 +1,60 @@
 <ng-container *ngIf="guia.activa() as a">
-  <!-- Capa que bloquea la página mientras se explica (los clics no pasan). -->
-  <div class="guia-capa" [class.sin-foco]="!foco()"></div>
-  <div class="guia-foco" *ngIf="foco() as f"
+  <!-- Capa que bloquea la página mientras se explica (los clics no pasan).
+       En un paso de "toca aquí" solo queda libre el elemento iluminado. -->
+  <ng-container *ngIf="a.pasos[a.indice]?.tocar && foco() as f; else capaCompleta">
+    <div class="guia-bloqueo" [style.top.px]="0" [style.left.px]="0" [style.right.px]="0" [style.height.px]="f.top"></div>
+    <div class="guia-bloqueo" [style.top.px]="f.top + f.height" [style.left.px]="0" [style.right.px]="0" [style.bottom.px]="0"></div>
+    <div class="guia-bloqueo" [style.top.px]="f.top" [style.left.px]="0" [style.width.px]="f.left" [style.height.px]="f.height"></div>
+    <div class="guia-bloqueo" [style.top.px]="f.top" [style.left.px]="f.left + f.width" [style.right.px]="0" [style.height.px]="f.height"></div>
+  </ng-container>
+  <ng-template #capaCompleta>
+    <div class="guia-capa" [class.sin-foco]="!foco()"></div>
+  </ng-template>
+  <div class="guia-foco" *ngIf="foco() as f" [class.guia-foco-tocar]="a.pasos[a.indice]?.tocar"
        [style.top.px]="f.top" [style.left.px]="f.left" [style.width.px]="f.width" [style.height.px]="f.height"></div>
 
   <div class="guia-cuadro" *ngIf="cuadro() as c" [style.top.px]="c.top" [style.left.px]="c.left" [style.width.px]="c.ancho"
        role="dialog" aria-live="polite">
-    <div class="guia-cabecera">
-      <span class="guia-pagina">{{ a.guia.titulo }}</span>
-      <span class="guia-contador">{{ a.indice + 1 }} de {{ a.pasos.length }}</span>
-    </div>
-    <h4>{{ a.pasos[a.indice].titulo }}</h4>
-    <p>{{ a.pasos[a.indice].texto }}</p>
-    <div class="guia-puntos">
-      <span *ngFor="let p of a.pasos; let i = index" [class.activo]="i === a.indice"></span>
-    </div>
-    <div class="guia-botones">
-      <button class="guia-saltar" (click)="guia.terminar()">Saltar guía</button>
-      <div class="guia-nav">
-        <button class="guia-btn" *ngIf="a.indice > 0" (click)="guia.anterior()">Atrás</button>
-        <button class="guia-btn guia-btn-pri" (click)="guia.siguiente()">
-          {{ a.indice < a.pasos.length - 1 ? 'Siguiente' : 'Terminar' }}
-        </button>
+    <ng-container *ngIf="a.indice >= 0">
+      <div class="guia-cabecera">
+        <span class="guia-pagina">{{ a.tarea ? '¿Cómo hago…?' : a.guia.titulo }}</span>
+        <span class="guia-contador">{{ a.indice + 1 }} de {{ a.pasos.length }}</span>
       </div>
-    </div>
+      <h4>{{ a.pasos[a.indice].titulo }}</h4>
+      <p>{{ a.pasos[a.indice].texto }}</p>
+      <div class="guia-puntos">
+        <span *ngFor="let p of a.pasos; let i = index" [class.activo]="i === a.indice"></span>
+      </div>
+      <div class="guia-botones">
+        <button class="guia-saltar" (click)="guia.terminar()">{{ a.tarea ? 'Salir sin guardar' : 'Saltar guía' }}</button>
+        <div class="guia-nav">
+          <button class="guia-btn" *ngIf="guia.puedeIrAtras()" (click)="guia.anterior()">Atrás</button>
+          <span class="guia-toca" *ngIf="a.pasos[a.indice].tocar"><i class="bi bi-hand-index-thumb"></i> Toca lo iluminado</span>
+          <button class="guia-btn guia-btn-pri" *ngIf="!a.pasos[a.indice].tocar" (click)="guia.siguiente()">
+            {{ a.indice < a.pasos.length - 1 ? 'Siguiente' : 'Terminar' }}
+          </button>
+        </div>
+      </div>
+    </ng-container>
   </div>
 </ng-container>
 
-<button *ngIf="guia.hayGuiaEnPagina" class="guia-ayuda-btn" (click)="guia.repetirPaginaActual()"
-        title="Ver la guía de esta página" aria-label="Ver la guía de esta página">
+<!-- Menú del botón "?": la guía de esta página y las tareas "¿Cómo hago…?". -->
+<div class="guia-menu-fondo" *ngIf="guia.menuAbierto()" (click)="guia.menuAbierto.set(false)"></div>
+<div class="guia-menu" *ngIf="guia.menuAbierto()" role="menu">
+  <button *ngIf="guia.hayGuiaEnPagina" class="guia-menu-item" (click)="guia.repetirPaginaActual()">
+    <i class="bi bi-book"></i> Guía de esta página
+  </button>
+  <ng-container *ngIf="guia.tareasDisponibles() as tareas">
+    <div *ngIf="tareas.length" class="guia-menu-titulo">¿Cómo hago…?</div>
+    <button *ngFor="let t of tareas" class="guia-menu-item" (click)="guia.iniciarTarea(t)">
+      <i class="bi bi-signpost-split"></i> {{ t.titulo }}
+    </button>
+    <div *ngIf="tareas.length" class="guia-menu-nota">Las guías solo te señalan dónde está cada cosa: no escriben ni guardan nada.</div>
+  </ng-container>
+</div>
+
+<button *ngIf="guia.hayAyuda" class="guia-ayuda-btn" (click)="guia.alternarMenu()"
+        title="Ayuda: guía de esta página y ¿Cómo hago…?" aria-label="Ayuda">
   <i class="bi bi-question-lg"></i>
 </button>
