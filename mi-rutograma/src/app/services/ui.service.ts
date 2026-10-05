@@ -1,10 +1,11 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { Injectable, Inject, PLATFORM_ID, SecurityContext } from '@angular/core';
+import { DomSanitizer } from '@angular/platform-browser';
 import { isPlatformBrowser } from '@angular/common';
 
 @Injectable({ providedIn: 'root' })
 export class UiService {
 
-  constructor(@Inject(PLATFORM_ID) private platformId: Object) {}
+  constructor(@Inject(PLATFORM_ID) private platformId: Object, private sanitizer: DomSanitizer) {}
 
   private get isBrowser(): boolean {
     return isPlatformBrowser(this.platformId);
@@ -52,7 +53,10 @@ export class UiService {
     if (this.isBrowser) {
       const el = document.getElementById('sp-toast') as any;
       if (el) {
-        el.innerHTML = msg;
+        // Los avisos traen HTML sencillo (<br>, íconos), pero también datos
+        // guardados (nombres, títulos...): se limpia cualquier script o
+        // atributo peligroso antes de mostrarlo.
+        el.innerHTML = this.sanitizer.sanitize(SecurityContext.HTML, msg) || '';
         el.style.background = tipo === 'ok' ? '#052e16' : tipo === 'err' ? '#2d0a0a' : '#2d1b00';
         el.style.borderColor = tipo === 'ok' ? '#166534' : tipo === 'err' ? '#7f1d1d' : '#92400e';
         el.style.color = tipo === 'ok' ? '#bbf7d0' : tipo === 'err' ? '#fecaca' : '#fde68a';
@@ -62,7 +66,7 @@ export class UiService {
       }
 
       if ((window as any).mostrarToast) {
-        (window as any).mostrarToast(msg, tipo);
+        (window as any).mostrarToast(this.sanitizer.sanitize(SecurityContext.HTML, msg) || '', tipo);
       }
     }
   }

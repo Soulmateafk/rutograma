@@ -175,8 +175,11 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   ngOnInit() {
     if (typeof window !== 'undefined') {
       this.cargarPendientesAprobacion();
+      this.cargarNovedadesConductores();
       this.relojAprobaciones = setInterval(() => {
-        if (document.visibilityState === 'visible') this.cargarPendientesAprobacion();
+        if (document.visibilityState !== 'visible') return;
+        this.cargarPendientesAprobacion();
+        this.cargarNovedadesConductores();
       }, 20000);
     }
     this.ds.cargarEstadoLocal(); 
@@ -255,6 +258,56 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     if (h < 24) return `${Math.floor(h)} hora${Math.floor(h) === 1 ? '' : 's'}`;
     const d = Math.floor(h / 24);
     return `${d} día${d === 1 ? '' : 's'}`;
+  }
+
+  // ============================================================
+  // NOVEDADES DE CONDUCTORES — lo que reportan desde el celular (varado,
+  // retraso, accidente...) sale arriba del Rutograma hasta que alguien lo
+  // marque como resuelto (se actualiza solo cada 20 s).
+  // ============================================================
+  public novedadesConductores: any[] = [];
+  public resolviendoNovedad: string | null = null;
+
+  private async cargarNovedadesConductores(): Promise<void> {
+    try {
+      const base = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const res = await this.auth.fetchAutenticado(`${base}/novedades/conductores`);
+      const data = await res.json();
+      if (!data?.ok) return;
+      this.novedadesConductores = data.novedades || [];
+      this.cdr.detectChanges();
+    } catch { /* sin conexión: se reintenta en el siguiente ciclo */ }
+  }
+
+  public haceCuanto(ts: number): string {
+    const min = Math.max(0, Math.round((Date.now() - ts) / 60000));
+    if (min < 1) return 'hace un momento';
+    if (min < 60) return `hace ${min} min`;
+    const h = Math.floor(min / 60);
+    return h < 24 ? `hace ${h} h` : `hace ${Math.floor(h / 24)} día${h >= 48 ? 's' : ''}`;
+  }
+
+  public async resolverNovedadConductor(n: any): Promise<void> {
+    if (this.resolviendoNovedad) return;
+    this.resolviendoNovedad = n.id;
+    try {
+      const base = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const res = await this.auth.fetchAutenticado(`${base}/novedades/resolver`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: n.id })
+      });
+      const data = await res.json().catch(() => null);
+      if (res.status === 202) this.ui.mostrarToast('Enviado para aprobación del jefe.', 'ok');
+      else if (!data?.ok) this.ui.mostrarToast(data?.msg || 'No se pudo marcar como resuelta.', 'err');
+      else {
+        const local = (this.ds.S.novedades || []).find((x: any) => String(x.id) === String(n.id));
+        if (local) local.resuelta = true;
+      }
+      await this.cargarNovedadesConductores();
+    } catch {
+      this.ui.mostrarToast('Sin conexión: no se pudo marcar como resuelta.', 'err');
+    }
+    this.resolviendoNovedad = null;
+    this.cdr.detectChanges();
   }
 
   private async cargarPendientesAprobacion(): Promise<void> {
@@ -1784,17 +1837,19 @@ export class RutogramaComponent implements OnInit, OnDestroy {
         } else {
           autoTable(doc, {
             startY: 27,
-            head: [['Vehículo', 'Transp.', 'Conductor', 'Ruta', 'Destino', 'Cliente', 'Hora', 'Cajas', 'Regresa', 'Estado']],
+            head: [['Vehículo', 'Transp.', 'Conductor', 'Ruta', 'Destino', 'Cliente', 'Hora', 'Cajas', 'Regresa', 'Estado', 'Nota']],
             body: viajes.map((v: any) => {
               const placa = String(v.p || v.placa || '').toUpperCase();
               const cond = String(v.cond || '').trim();
               const conductor = cond && !['SIN ASIGNAR', 'ASIGNADO'].includes(cond.toUpperCase()) ? cond : (this.conductoresMap[placa] || '');
               const regresa = Number(v.retorno) > Number(v.salida || v.dia) ? `día ${v.retorno}` : '';
               return [v.placaReal ? `${placa} (${v.placaReal})` : placa, v.tr || 'Makand', conductor, v.ruta || v.codigo || '',
-                v.destino || '', v.cliente || v.cli || '', v.hora && v.hora !== '--:--' ? v.hora : '', v.cajas || '', regresa,
-                v.estado === 'Cancelado' ? `Cancelado${v.motivoCancelacion ? ': ' + v.motivoCancelacion : ''}` : (v.estado || 'Planificado')];
+                v.destino || '', v.cliente || v.cli || '', this.horaDelViajeParaPdf(v), v.cajas || '', regresa,
+                v.estado === 'Cancelado' ? `Cancelado${v.motivoCancelacion ? ': ' + v.motivoCancelacion : ''}` : (v.estado || 'Planificado'),
+                String(v.obs || '')];
             }),
             styles: { fontSize: 9, cellPadding: 2 },
+            columnStyles: { 10: { cellWidth: 45 } },
             headStyles: { fillColor: [30, 41, 59] },
             alternateRowStyles: { fillColor: [241, 245, 249] },
             didParseCell: (data: any) => {
@@ -1820,6 +1875,18 @@ export class RutogramaComponent implements OnInit, OnDestroy {
       this.generandoPdfSemana = false;
       this.cdr.markForCheck();
     }
+  }
+
+  /** Hora del viaje; si no la tiene, la de su ruta para ese día de la semana. */
+  private horaDelViajeParaPdf(v: any): string {
+    if (/^\d{1,2}:\d{2}$/.test(String(v.hora || '').trim())) return String(v.hora).trim();
+    const ruta = (this.ds.S.rutas || []).find((r: any) => String(r.cod || r.codigo || '').toUpperCase() === String(v.ruta || v.codigo || '').toUpperCase());
+    if (!ruta || !v.fecha) return '';
+    let dias = ruta.dias;
+    if (typeof dias === 'string') { try { dias = JSON.parse(dias); } catch { dias = null; } }
+    const [a, m, d] = String(v.fecha).split('-').map(Number);
+    const hora = String(dias?.[['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'][new Date(a, m - 1, d).getDay()]]?.hora || '').trim();
+    return /^\d{1,2}:\d{2}$/.test(hora) ? hora : '';
   }
 
   public diasDeSemanaActiva(): Array<{ dia: number; nombreDia: string }> {

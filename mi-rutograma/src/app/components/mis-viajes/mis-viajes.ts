@@ -99,6 +99,9 @@ export class MisViajesComponent implements OnInit, OnDestroy {
           this.buscadoPor = data.buscadoPor || '';
           this.placaBuscada = data.placaBuscada || '';
           this.dias = this.agruparPorDia(data.viajes || []);
+          this.quitados = data.quitados || [];
+          this.hayAvisos = !!data.hayAvisos;
+          this.cuentaAvisos = (data.viajes || []).filter((v: any) => v.aviso).reduce((n: any, v: any) => { n[v.aviso.tipo] = (n[v.aviso.tipo] || 0) + 1; return n; }, {});
           this.ultimaActualizacion = new Date();
         }
       }
@@ -218,6 +221,92 @@ export class MisViajesComponent implements OnInit, OnDestroy {
 
   private olvidarElegido(): void {
     try { sessionStorage.removeItem(MisViajesComponent.CLAVE_ELEGIDO); } catch { /* nada */ }
+  }
+
+  // ---------- Reportar novedad ----------
+
+  readonly tiposNovedad = [
+    { valor: 'Varado', nombre: 'Varado / avería', icono: 'bi-cone-striped' },
+    { valor: 'Retraso', nombre: 'Retraso', icono: 'bi-clock-history' },
+    { valor: 'Accidente', nombre: 'Accidente', icono: 'bi-exclamation-octagon' },
+    { valor: 'Otro', nombre: 'Otra cosa', icono: 'bi-chat-dots' }
+  ];
+  reporte: { tipo: string; viajeId: string; desc: string } | null = null;
+  enviandoReporte = false;
+
+  /** Los viajes de ayer a mañana (con los que más probablemente pasa algo). */
+  get viajesParaReporte(): any[] {
+    const todos = this.dias.flatMap(d => d.viajes).filter((v: any) => v.estado !== 'Cancelado');
+    const desde = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const hasta = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const cerca = todos.filter((v: any) => v.fecha >= desde && v.fecha <= hasta);
+    return cerca.length ? cerca : todos.slice(0, 5);
+  }
+
+  abrirReporte(): void {
+    const enRuta = this.dias.flatMap(d => d.viajes).find((v: any) => v.salidaReal && !v.llegadaReal);
+    this.reporte = { tipo: '', viajeId: enRuta?.id || '', desc: '' };
+  }
+
+  async enviarReporte(): Promise<void> {
+    if (!this.reporte || this.enviandoReporte) return;
+    this.enviandoReporte = true;
+    this.cdr.markForCheck();
+    try {
+      const res = await this.auth.fetchAutenticado(`${API_URL}/mis-viajes/novedad`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo: this.reporte.tipo, desc: this.reporte.desc, viajeId: this.reporte.viajeId || undefined, ...(this.elegido || {}) })
+      });
+      const data = await res.json();
+      if (data?.ok) {
+        this.reporte = null;
+        this.ui.mostrarToast('Listo, la oficina ya lo vio. Si es urgente, llama también.', 'ok');
+      } else {
+        this.ui.mostrarToast(data?.msg || 'No se pudo enviar. Inténtalo de nuevo.', 'err');
+      }
+    } catch {
+      this.ui.mostrarToast('Sin conexión: no se pudo enviar. Si es urgente, llama a la oficina.', 'err');
+    }
+    this.enviandoReporte = false;
+    this.cdr.markForCheck();
+  }
+
+  // ---------- Avisos: viajes nuevos o cambiados ----------
+
+  hayAvisos = false;
+  quitados: any[] = [];
+  cuentaAvisos: Record<string, number> = {};
+  confirmandoAvisos = false;
+
+  get textoAvisos(): string {
+    const partes: string[] = [];
+    const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
+    if (this.cuentaAvisos['nuevo']) partes.push(plural(this.cuentaAvisos['nuevo'], 'viaje nuevo', 'viajes nuevos'));
+    if (this.cuentaAvisos['cambio']) partes.push(plural(this.cuentaAvisos['cambio'], 'viaje cambió', 'viajes cambiaron'));
+    if (this.cuentaAvisos['cancelado']) partes.push(plural(this.cuentaAvisos['cancelado'], 'viaje cancelado', 'viajes cancelados'));
+    if (this.quitados.length) partes.push(plural(this.quitados.length, 'viaje ya no es tuyo', 'viajes ya no son tuyos'));
+    return partes.length ? `Atención: ${partes.join(', ')}.` : 'Hay cambios en tus viajes.';
+  }
+
+  /** "Entendido": ya vio los cambios; dejan de marcarse. */
+  async entendido(): Promise<void> {
+    this.confirmandoAvisos = true;
+    this.cdr.markForCheck();
+    try {
+      const res = await this.auth.fetchAutenticado(`${API_URL}/mis-viajes/visto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...(this.elegido || {}) })
+      });
+      const data = await res.json();
+      if (data?.ok) await this.cargar(true);
+      else this.ui.mostrarToast(data?.msg || 'No se pudo guardar. Inténtalo de nuevo.', 'err');
+    } catch {
+      this.ui.mostrarToast('Sin conexión: no se pudo guardar. Inténtalo de nuevo.', 'err');
+    }
+    this.confirmandoAvisos = false;
+    this.cdr.markForCheck();
   }
 
   // ---------- "Ya salí" / "Ya llegué" ----------

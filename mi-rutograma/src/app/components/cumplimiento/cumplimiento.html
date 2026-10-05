@@ -1,0 +1,90 @@
+<div class="cu-page">
+  <div class="cu-head" data-guia="cu-mes">
+    <div>
+      <h2>Cumplimiento</h2>
+      <p>Con lo que marcan los conductores en "Mis viajes" (Ya salí / Ya llegué).</p>
+    </div>
+    <div class="cu-mes">
+      <button class="cu-btn" (click)="cambiarMes(-1)" title="Mes anterior"><i class="bi bi-chevron-left"></i></button>
+      <span>{{ nombreMes }}</span>
+      <button class="cu-btn" (click)="cambiarMes(1)" title="Mes siguiente"><i class="bi bi-chevron-right"></i></button>
+    </div>
+  </div>
+
+  <p *ngIf="cargando" class="cu-msg">Cargando…</p>
+  <p *ngIf="!cargando && error" class="cu-msg cu-error"><i class="bi bi-exclamation-triangle-fill"></i> {{ error }}</p>
+
+  <ng-container *ngIf="!cargando && !error && datos as d">
+    <div *ngIf="!d.total.marcados" class="cu-vacio">
+      <i class="bi bi-phone"></i>
+      <div>
+        <b>Todavía no hay viajes marcados en {{ nombreMes }}.</b>
+        <p>Cuando los conductores toquen "Ya salí" y "Ya llegué" en su celular, aquí verás si salen a tiempo y cuánto se demoran.</p>
+      </div>
+    </div>
+
+    <section class="cu-kpis" data-guia="cu-kpis">
+      <div class="cu-kpi">
+        <b>{{ textoPct(d.total.pctMarcados) }}</b>
+        <span>viajes marcados</span>
+        <small>{{ d.total.marcados }} de {{ d.total.viajes }} hasta hoy</small>
+      </div>
+      <div class="cu-kpi" [ngClass]="clase(d.total.pctATiempo)">
+        <b>{{ textoPct(d.total.pctATiempo) }}</b>
+        <span>salieron a tiempo</span>
+        <small>hasta {{ d.toleranciaMin }} min después de la hora</small>
+      </div>
+      <div class="cu-kpi">
+        <b>{{ textoMinutos(d.total.retrasoPromedioMin) }}</b>
+        <span>de retraso promedio</span>
+        <small>{{ d.total.tarde }} salida{{ d.total.tarde === 1 ? '' : 's' }} tarde</small>
+      </div>
+      <div class="cu-kpi">
+        <b>{{ textoHoras(d.total.duracionPromedioHoras) }}</b>
+        <span>hasta el destino</span>
+        <small>de "Ya salí" a "Ya llegué"</small>
+      </div>
+    </section>
+
+    <section class="cu-card" data-guia="cu-tabla">
+      <div class="cu-tabs">
+        <button [class.activo]="vista === 'conductor'" (click)="vista = 'conductor'">Por conductor</button>
+        <button [class.activo]="vista === 'ruta'" (click)="vista = 'ruta'">Por ruta</button>
+        <button [class.activo]="vista === 'transportadora'" (click)="vista = 'transportadora'">Por transportadora</button>
+      </div>
+      <div class="cu-tabla-scroll">
+        <table class="cu-tabla">
+          <tr>
+            <th>{{ vista === 'conductor' ? 'Conductor' : vista === 'ruta' ? 'Ruta' : 'Transportadora' }}</th>
+            <th>Viajes</th><th>Marcados</th><th>A tiempo</th><th>Retraso prom.</th><th>Hasta destino</th>
+          </tr>
+          <tr *ngFor="let f of filas">
+            <td>{{ f.nombre }}</td>
+            <td>{{ f.viajes }}</td>
+            <td>
+              <div class="cu-barra"><div [style.width.%]="f.pctMarcados || 0"></div></div>
+              <span class="cu-sub">{{ f.marcados }} · {{ textoPct(f.pctMarcados) }}</span>
+            </td>
+            <td><span class="cu-pill" [ngClass]="clase(f.pctATiempo)">{{ textoPct(f.pctATiempo) }}</span> <span class="cu-sub" *ngIf="f.tarde">{{ f.tarde }} tarde</span></td>
+            <td>{{ textoMinutos(f.retrasoPromedioMin) }}</td>
+            <td>{{ textoHoras(f.duracionPromedioHoras) }}</td>
+          </tr>
+          <tr *ngIf="!filas.length"><td colspan="6" class="cu-sub">Sin viajes en este mes.</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section class="cu-card" *ngIf="d.masTarde.length">
+      <h3><i class="bi bi-alarm"></i> Salidas más tarde</h3>
+      <div class="cu-tabla-scroll">
+        <table class="cu-tabla">
+          <tr><th>Fecha</th><th>Vehículo</th><th>Conductor</th><th>Ruta</th><th>Programada</th><th>Salió</th><th>Retraso</th></tr>
+          <tr *ngFor="let t of d.masTarde">
+            <td>{{ t.fecha | date:'EEE d MMM':'':'es' }}</td><td>{{ t.placa }}</td><td>{{ t.conductor }}</td><td>{{ t.ruta }}</td>
+            <td>{{ t.hora }}</td><td>{{ t.salidaReal | date:'h:mm a':'':'es' }}</td><td class="cu-mal-texto">{{ textoMinutos(t.retrasoMin) }}</td>
+          </tr>
+        </table>
+      </div>
+    </section>
+  </ng-container>
+</div>

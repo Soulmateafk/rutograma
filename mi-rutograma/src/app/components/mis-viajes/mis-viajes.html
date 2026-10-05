@@ -60,6 +60,18 @@
         <i class="bi bi-camera-fill"></i> {{ descargando ? 'Creando foto…' : 'Descargar foto de mis viajes' }}
       </button>
       <button *ngIf="compartida" class="mv-secundario" (click)="cambiarConductor()"><i class="bi bi-person-x"></i> No soy yo</button>
+      <button class="mv-secundario mv-reportar" data-guia="mv-reportar" (click)="abrirReporte()"><i class="bi bi-exclamation-triangle-fill"></i> Reportar novedad</button>
+    </div>
+
+    <!-- Lo nuevo y lo que cambió desde la última vez que tocó "Entendido". -->
+    <div *ngIf="hayAvisos" class="mv-avisos" data-guia="mv-avisos">
+      <div class="mv-avisos-titulo"><i class="bi bi-bell-fill"></i> {{ textoAvisos }}</div>
+      <ul *ngIf="quitados.length" class="mv-quitados">
+        <li *ngFor="let q of quitados"><i class="bi bi-x-circle"></i> Ya no tienes el viaje del {{ q.fecha | date:'EEEE d MMM':'':'es' }} a {{ q.destino || q.ruta }}{{ q.placa ? ' (' + q.placa + ')' : '' }}</li>
+      </ul>
+      <button class="mv-primario mv-entendido" [disabled]="confirmandoAvisos" (click)="entendido()">
+        <i class="bi bi-check2"></i> {{ confirmandoAvisos ? 'Guardando…' : 'Entendido' }}
+      </button>
     </div>
 
     <div *ngIf="buscadoPor === 'nombre'" class="mv-nota">
@@ -76,6 +88,10 @@
         <div *ngIf="d.descanso" class="mv-descanso"><i class="bi bi-moon-stars-fill"></i> Día de descanso</div>
         <div *ngIf="!d.viajes.length && !d.descanso" class="mv-sin">Sin viajes</div>
         <article *ngFor="let v of d.viajes" class="mv-viaje" [ngClass]="claseEstado(v.estado)">
+          <div *ngIf="v.aviso" class="mv-aviso-viaje" [ngClass]="'mv-aviso-' + v.aviso.tipo">
+            <b>{{ v.aviso.tipo === 'nuevo' ? 'Nuevo' : v.aviso.tipo === 'cancelado' ? 'Cancelado' : 'Cambió' }}</b>
+            <span *ngFor="let c of v.aviso.cambios">{{ c.campo }}: {{ c.de }} → {{ c.a }}</span>
+          </div>
           <div class="mv-viaje-top">
             <div class="mv-destino">{{ v.destino || v.ruta }}<span *ngIf="v.dest2"> + {{ v.dest2 }}</span></div>
             <span class="mv-estado">{{ v.estado }}</span>
@@ -86,6 +102,7 @@
             <span *ngIf="v.cliente"><i class="bi bi-shop"></i> {{ v.cliente }}</span>
             <span *ngIf="v.cajas"><i class="bi bi-box-seam"></i> {{ v.cajas }} cajas</span>
           </div>
+          <div class="mv-nota-viaje" *ngIf="v.nota"><i class="bi bi-sticky-fill"></i> {{ v.nota }}</div>
           <div class="mv-ruta">Ruta {{ v.ruta }}<span *ngIf="vuelve(v)"> · Regresa el {{ vuelve(v) }}</span></div>
           <div class="mv-marcas" *ngIf="v.salidaReal || v.llegadaReal">
             <span *ngIf="v.salidaReal"><i class="bi bi-play-circle-fill"></i> Salió {{ v.salidaReal | date:'h:mm a' }}</span>
@@ -117,5 +134,31 @@
     <h3>Cambiar mi contraseña</h3>
     <app-cambiar-clave [email]="auth.currentUser?.email || ''" [nombre]="conductor?.nombre || ''"
                        (listo)="cambiandoClave = false" (cancelar)="cambiandoClave = false"></app-cambiar-clave>
+  </div>
+</div>
+
+<!-- Reportar novedad (varado, retraso, accidente...) -->
+<div class="mv-modal-fondo" *ngIf="reporte" (click)="reporte = null">
+  <div class="mv-modal" (click)="$event.stopPropagation()">
+    <h3>Reportar novedad</h3>
+    <p class="mv-modal-sub">La oficina lo ve al instante en el Rutograma.</p>
+    <div class="mv-tipos">
+      <button *ngFor="let t of tiposNovedad" class="mv-tipo" [class.activo]="reporte.tipo === t.valor" (click)="reporte.tipo = t.valor">
+        <i class="bi" [ngClass]="t.icono"></i> {{ t.nombre }}
+      </button>
+    </div>
+    <label class="mv-label">¿De qué viaje? (opcional)</label>
+    <select class="mv-input" [(ngModel)]="reporte.viajeId">
+      <option value="">Ninguno en especial</option>
+      <option *ngFor="let v of viajesParaReporte" [value]="v.id">{{ v.fecha | date:'EEE d MMM':'':'es' }} · {{ v.destino || v.ruta }} · {{ v.placa }}</option>
+    </select>
+    <label class="mv-label">¿Qué pasó?</label>
+    <textarea class="mv-input" rows="4" maxlength="500" [(ngModel)]="reporte.desc" placeholder="Ej: Se pinchó una llanta en La Línea, ya viene la grúa."></textarea>
+    <div class="mv-modal-botones">
+      <button class="mv-secundario" (click)="reporte = null">Cancelar</button>
+      <button class="mv-primario" [disabled]="!reporte.tipo || (reporte.desc || '').trim().length < 5 || enviandoReporte" (click)="enviarReporte()">
+        {{ enviandoReporte ? 'Enviando…' : 'Enviar a la oficina' }}
+      </button>
+    </div>
   </div>
 </div>

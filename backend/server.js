@@ -26,6 +26,8 @@ const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
 const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar } = require('./dias-cerrados');
 const { armarHojaDeVida } = require('./hoja-vida');
+const { armarCumplimiento, horaDelViaje } = require('./cumplimiento');
+const { compararConVisto, armarVisto } = require('./avisos-conductor');
 const { faltasDeClave, mensajeClave, errorNombre, errorEmail, errorDepartamento, nombreLimpio, DEPARTAMENTOS,
     normalizarPlaca, errorConductor, errorVehiculo } = require('./validaciones');
 
@@ -60,6 +62,14 @@ function rutaPermitidaParaVehiculo(placa, ruta) {
 }
 
 app.use(cors());
+// Cabeceras de seguridad básicas (y sin anunciar que es Express).
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    next();
+});
 // La importación de viajes reales manda el Excel completo (en base64):
 // necesita un límite más alto que el resto de la API.
 app.use('/api/importar', express.json({ limit: '30mb' }));
@@ -144,16 +154,17 @@ try {
 // tener que tocar endpoint por endpoint.
 //
 // Dos modos (variable EXIGIR_TOKEN en el .env):
-//  - TOLERANTE (por defecto): se aceptan peticiones sin pase como antes, pero
-//    se avisa en la consola por cada ruta que llegue así — para poder
-//    comprobar que la app ya manda el pase en todas partes antes de exigirlo.
-//  - ESTRICTO (EXIGIR_TOKEN=true): toda petición a /api/ necesita un pase
-//    válido (salvo login y registro), y la cuenta debe estar aprobada.
+//  - ESTRICTO (por defecto): toda petición a /api/ necesita un pase válido
+//    (salvo login, registro y consultar el modo), y la cuenta debe estar
+//    aprobada. La app ya manda el pase en todas partes.
+//  - TOLERANTE (EXIGIR_TOKEN=false, solo para emergencias): se aceptan
+//    peticiones sin pase, pero SIN identidad: el correo que diga la petición
+//    se ignora, así nadie puede hacerse pasar por otro (ni por el admin).
 //
 // El pase también deja de servir en cuanto: vence (30 días), la cuenta se
 // elimina, o su contraseña cambia (restablecer contraseña cierra las
 // sesiones abiertas de esa cuenta).
-const EXIGIR_TOKEN = String(process.env.EXIGIR_TOKEN || '').trim().toLowerCase() === 'true';
+const EXIGIR_TOKEN = String(process.env.EXIGIR_TOKEN || '').trim().toLowerCase() !== 'false';
 const TOKEN_DIAS = (() => { const d = parseFloat(process.env.TOKEN_DIAS); return (Number.isFinite(d) && d > 0) ? d : 30; })();
 const RUTAS_PUBLICAS_SIN_PASE = ['/api/auth/login', '/api/auth/register'];
 // Rutas para las que basta estar identificado, aunque la cuenta aún no esté
@@ -489,7 +500,11 @@ const identificarUsuario = (req, res, next) => {
     const coincidencia = /^Bearer\s+(.+)$/i.exec(String(req.headers['authorization'] || ''));
 
     if (!coincidencia) {
+        // Sin pase no hay identidad: el correo que diga la petición no vale.
+        delete req.headers['x-user-email'];
         if (RUTAS_PUBLICAS_SIN_PASE.includes(req.path)) return next();
+        // El modo (Real/Prueba) se consulta antes de iniciar sesión.
+        if (req.method === 'GET' && req.path === '/api/modo') return next();
         if (EXIGIR_TOKEN) {
             return res.status(401).json({ ok: false, codigo: 'sin_pase', msg: 'Debes iniciar sesión.' });
         }
@@ -551,7 +566,7 @@ app.use(identificarUsuario);
 // Cuentas de rol "conductor": solo su pantalla Mis viajes y lo básico de la
 // sesión. El resto de la información (otros viajes, vehículos, cuentas...)
 // no se les entrega aunque la pidan directo.
-const RUTAS_PARA_CONDUCTOR = ['/api/mis-viajes', '/api/mis-viajes/validar', '/api/mis-viajes/marcar', '/api/modo', '/api/sesiones', '/api/sesiones/cerrar',
+const RUTAS_PARA_CONDUCTOR = ['/api/mis-viajes', '/api/mis-viajes/validar', '/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/modo', '/api/sesiones', '/api/sesiones/cerrar',
     '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual', '/api/guias', '/api/guias/vista', '/api/guias/reiniciar'];
 app.use((req, res, next) => {
     if (!req.path.startsWith('/api/') || req.path.startsWith('/api/auth/') || RUTAS_PARA_CONDUCTOR.includes(req.path)) return next();
@@ -1093,7 +1108,7 @@ const RUTAS_SIN_RESTRICCION_DE_ROL = [
     '/api/sesiones/cerrar-otras',
     '/api/sesiones/cerrar-actual'
 ];
-const RUTAS_CON_PERMISO_PROPIO = ['/api/mis-viajes/marcar', '/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
+const RUTAS_CON_PERMISO_PROPIO = ['/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
 
 app.use((req, res, next) => {
     if (!req.path.startsWith('/api/') || req.method === 'GET') return next();
@@ -2785,6 +2800,20 @@ app.post('/api/vehiculos', (req, res) => {
     }
 });
 
+// Cumplimiento del mes (ver cumplimiento.js). ?anio=2026&mes=9 (mes 0-11)
+app.get('/api/cumplimiento', (req, res) => {
+    try {
+        const anio = Number(req.query.anio), mes = Number(req.query.mes);
+        if (!Number.isInteger(anio) || !Number.isInteger(mes) || mes < 0 || mes > 11) {
+            return res.status(400).json({ ok: false, msg: 'Mes o año inválido.' });
+        }
+        res.json({ ok: true, ...armarCumplimiento(leerExcel(), { anio, mes }) });
+    } catch (error) {
+        console.error('🚨 Error en /api/cumplimiento:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
 // Hoja de vida de un vehículo (ver hoja-vida.js). ?placa=LUN 428
 app.get('/api/vehiculos/hoja-de-vida', (req, res) => {
     try {
@@ -2885,8 +2914,9 @@ function viajesParaConductor(data, coincide) {
                 id: v.id, fecha: v.fecha, dia: v.dia, salida: v.salida, retorno: v.retorno,
                 ruta: v.ruta || v.codigo || '', destino: v.destino || ruta.dest || '', dest2: v.dest2 || '',
                 cliente: v.cliente || '', placa: v.p || v.placa || '', tr: v.tr || v.transportadora || '',
-                cond: v.cond || '', hora: v.hora || '', estado: v.estado || 'Planificado', cajas: v.cajas || null,
-                salidaReal: v.salidaReal || null, llegadaReal: v.llegadaReal || null
+                cond: v.cond || '', hora: horaDelViaje(v, rutas), estado: v.estado || 'Planificado', cajas: v.cajas || null,
+                salidaReal: v.salidaReal || null, llegadaReal: v.llegadaReal || null,
+                nota: String(v.obs || '').trim()
             };
         })
         .sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)) || String(a.hora).localeCompare(String(b.hora)));
@@ -2982,15 +3012,113 @@ function viajesDeQuienPide(req, data, { ced: cedPedida = '', placa: placaPedidaE
     return { enlazada, conductor, viajes, buscadoPor, placaPedida };
 }
 
+// Lo que cada conductor ya vio de sus viajes (botón "Entendido"), para
+// marcarle lo nuevo y lo que cambió (ver avisos-conductor.js).
+const ARCHIVO_VIAJES_VISTOS = path.join(CARPETA_DATOS, 'viajes-vistos.json');
+let viajesVistos = (() => {
+    try { return fs.existsSync(ARCHIVO_VIAJES_VISTOS) ? JSON.parse(fs.readFileSync(ARCHIVO_VIAJES_VISTOS, 'utf8')) : {}; }
+    catch (err) { console.error('⚠️ No se pudo leer viajes-vistos.json:', err.message); return {}; }
+})();
+const claveVisto = (ced) => `${modoActual}:${ced}`;
+function guardarViajesVistos() {
+    try { fs.writeFileSync(ARCHIVO_VIAJES_VISTOS, JSON.stringify(viajesVistos), { mode: 0o600 }); }
+    catch (err) { console.error('⚠️ No se pudo guardar viajes-vistos.json:', err.message); }
+}
+
 app.get('/api/mis-viajes', (req, res) => {
     try {
         const data = leerExcel();
         const r = viajesDeQuienPide(req, data, { ced: req.query.ced, placa: req.query.placa });
         if (r.error) return res.status(r.status).json({ ok: false, msg: r.error });
         if (r.sinConductor) return res.json({ ok: true, enlazado: false, compartida: !r.enlazada, ...(r.msg ? { msg: r.msg } : {}) });
-        res.json({ ok: true, enlazado: true, compartida: !r.enlazada, conductor: r.conductor, viajes: r.viajes, buscadoPor: r.buscadoPor, placaBuscada: r.placaPedida.toUpperCase() });
+        // La primera vez se toma lo de ahora como visto (no se marca todo como nuevo).
+        const clave = claveVisto(r.conductor.ced);
+        if (!viajesVistos[clave]) { viajesVistos[clave] = { ts: new Date().toISOString(), visto: armarVisto(r.viajes) }; guardarViajesVistos(); }
+        const avisos = compararConVisto(r.viajes, viajesVistos[clave].visto, fechaLocal());
+        res.json({ ok: true, enlazado: true, compartida: !r.enlazada, conductor: r.conductor, viajes: avisos.viajes, quitados: avisos.quitados, hayAvisos: avisos.hayAvisos, buscadoPor: r.buscadoPor, placaBuscada: r.placaPedida.toUpperCase() });
     } catch (error) {
         console.error('🚨 Error en /api/mis-viajes:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// Novedad reportada por el conductor desde el celular (varado, retraso,
+// accidente...). Body: { tipo, desc, viajeId?, ced?, placa? }. Queda en las
+// novedades (id "cond-<cédula>-<hora>") y la oficina la ve en el Rutograma.
+const TIPOS_NOVEDAD_CONDUCTOR = { Varado: 'Avería', Retraso: 'Retraso', Accidente: 'Incidente', Otro: 'Aviso' };
+const MAX_NOVEDADES_CONDUCTOR_DIA = 10;
+app.post('/api/mis-viajes/novedad', (req, res) => {
+    try {
+        const data = leerExcel();
+        const b = req.body || {};
+        const r = viajesDeQuienPide(req, data, { ced: b.ced, placa: b.placa });
+        if (r.error) return res.status(r.status).json({ ok: false, msg: r.error });
+        if (r.sinConductor) return res.status(400).json({ ok: false, msg: 'Primero confirma quién eres.' });
+        const tipo = String(b.tipo || '');
+        if (!TIPOS_NOVEDAD_CONDUCTOR[tipo]) return res.status(400).json({ ok: false, msg: 'Elige qué pasó.' });
+        const desc = String(b.desc || '').trim().replace(/\s+/g, ' ');
+        if (desc.length < 5) return res.status(400).json({ ok: false, msg: 'Cuenta un poco qué pasó (mínimo 5 letras).' });
+        if (desc.length > 500) return res.status(400).json({ ok: false, msg: 'Máximo 500 letras.' });
+        const viaje = b.viajeId ? r.viajes.find(v => v.id === b.viajeId) : null;
+        if (b.viajeId && !viaje) return res.status(403).json({ ok: false, msg: 'Ese viaje no es tuyo.' });
+
+        if (!data.novedades) data.novedades = [];
+        const prefijo = `cond-${r.conductor.ced}-`;
+        const inicioDia = new Date(); inicioDia.setHours(0, 0, 0, 0);
+        const hoyDelConductor = data.novedades.filter(n => String(n.id).startsWith(prefijo) && Number(String(n.id).slice(prefijo.length)) >= inicioDia.getTime());
+        if (hoyDelConductor.length >= MAX_NOVEDADES_CONDUCTOR_DIA) {
+            return res.status(429).json({ ok: false, msg: 'Ya reportaste muchas novedades hoy. Llama a la oficina.' });
+        }
+        const placa = (viaje?.placa || r.conductor.placa || '').toUpperCase();
+        const nueva = {
+            id: `${prefijo}${Date.now()}`,
+            tipo: TIPOS_NOVEDAD_CONDUCTOR[tipo],
+            titulo: [tipo, placa, r.conductor.nombre].filter(Boolean).join(' · '),
+            desc: desc + (viaje ? ` — Viaje del ${viaje.fecha}, ruta ${viaje.ruta}${viaje.destino ? ' a ' + viaje.destino : ''}.` : ''),
+            fecha: new Date().toLocaleString('es-CO'),
+            resuelta: false
+        };
+        data.novedades.push(nueva);
+        guardarEnExcel(data);
+        res.locals.auditoriaResumen = { novedad: nueva.titulo, conductor: r.conductor.nombre };
+        console.log(`🚨 ${r.conductor.nombre} reportó: ${nueva.titulo}`);
+        res.status(201).json({ ok: true, novedad: nueva });
+    } catch (error) {
+        console.error('🚨 Error en /api/mis-viajes/novedad:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// Novedades reportadas por conductores sin resolver (últimos 3 días), para
+// el aviso del Rutograma.
+app.get('/api/novedades/conductores', (req, res) => {
+    try {
+        const desde = Date.now() - 3 * 86400000;
+        const lista = (leerExcel().novedades || [])
+            .filter(n => !n.resuelta && /^cond-.+-(\d+)$/.test(String(n.id)))
+            .map(n => ({ ...n, ts: Number(String(n.id).match(/-(\d+)$/)[1]) }))
+            .filter(n => n.ts >= desde)
+            .sort((a, b) => b.ts - a.ts);
+        res.json({ ok: true, novedades: lista });
+    } catch (error) {
+        console.error('🚨 Error en /api/novedades/conductores:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// "Entendido": el conductor ya vio los cambios de sus viajes. Body: { ced?, placa? }
+app.post('/api/mis-viajes/visto', (req, res) => {
+    try {
+        res.locals.auditoriaOmitir = true; // no cambia nada de la operación
+        const data = leerExcel();
+        const r = viajesDeQuienPide(req, data, { ced: req.body?.ced, placa: req.body?.placa });
+        if (r.error) return res.status(r.status).json({ ok: false, msg: r.error });
+        if (r.sinConductor) return res.status(400).json({ ok: false, msg: 'Primero confirma quién eres.' });
+        viajesVistos[claveVisto(r.conductor.ced)] = { ts: new Date().toISOString(), visto: armarVisto(r.viajes) };
+        guardarViajesVistos();
+        res.json({ ok: true });
+    } catch (error) {
+        console.error('🚨 Error en /api/mis-viajes/visto:', error);
         res.status(500).json({ ok: false, msg: error.message });
     }
 });
@@ -3793,8 +3921,19 @@ app.post('/api/auth/cambiar-clave', async (req, res) => {
 });
 
 // --- REGISTRAR NUEVA CUENTA (contraseña hasheada con bcrypt) ---
+// Tope de solicitudes de cuenta por equipo (que nadie llene la lista de
+// solicitudes con cuentas inventadas).
+const REGISTROS_POR_HORA = 5;
+const registrosPorEquipo = new Map();
 app.post('/api/auth/register', async (req, res) => {
     try {
+        const equipo = req.socket?.remoteAddress || '';
+        const ahora = Date.now();
+        const recientes = (registrosPorEquipo.get(equipo) || []).filter(t => ahora - t < 3600000);
+        if (recientes.length >= REGISTROS_POR_HORA) {
+            res.locals.auditoriaOmitir = true;
+            return res.status(429).json({ ok: false, msg: 'Demasiadas solicitudes de cuenta desde este equipo. Intenta de nuevo en una hora.' });
+        }
         const data = leerExcel();
         if (!data.usuarios) data.usuarios = [];
 
@@ -3837,6 +3976,9 @@ app.post('/api/auth/register', async (req, res) => {
 
         data.usuarios.push(nuevoUsuario);
         guardarEnExcel(data);
+        recientes.push(ahora);
+        registrosPorEquipo.set(equipo, recientes);
+        if (registrosPorEquipo.size > 5000) registrosPorEquipo.delete(registrosPorEquipo.keys().next().value);
         console.log(`👤 Nueva cuenta registrada: ${email}`);
 
         // Se disparan SIN esperar (fire-and-forget) — si el correo tarda
@@ -4662,6 +4804,10 @@ app.get('/api/exportar-rutograma', (req, res) => {
 // Corta = 1 día, Media = 2 días, Larga = 3 días. Se puede borrar este
 // endpoint después de usarlo una vez.
 app.get('/api/migrar-dias-transito', (req, res) => {
+    // Mantenimiento de una sola vez que CAMBIA datos (aunque sea GET): solo el admin.
+    if (normalizarEmail(req.headers['x-user-email']) !== normalizarEmail(ADMIN_EMAIL)) {
+        return res.status(403).json({ ok: false, msg: 'Solo el administrador.' });
+    }
     try {
         const data = leerExcel();
         const cambios = [];
@@ -4692,6 +4838,10 @@ app.get('/api/migrar-dias-transito', (req, res) => {
 // anteriores, antes de que existiera la marca "origenAuto"). Se puede
 // borrar este endpoint después de usarlo una vez.
 app.get('/api/limpiar-cupos-huerfanos', (req, res) => {
+    // Mantenimiento de una sola vez que CAMBIA datos (aunque sea GET): solo el admin.
+    if (normalizarEmail(req.headers['x-user-email']) !== normalizarEmail(ADMIN_EMAIL)) {
+        return res.status(403).json({ ok: false, msg: 'Solo el administrador.' });
+    }
     try {
         const data = leerExcel();
         const placasConViaje = new Set(
@@ -4772,7 +4922,7 @@ const alArrancar = (conHttps) => {
     if (conHttps) console.log(`🔒 Y también por HTTPS en: https://localhost:${PORT}`);
     console.log(EXIGIR_TOKEN
         ? '🔐 Sesiones: modo ESTRICTO — toda petición necesita un pase válido.'
-        : '🔓 Sesiones: modo TOLERANTE — se aceptan peticiones sin pase (con aviso [SIN PASE] por cada ruta). Cuando ya no aparezcan avisos, se puede activar EXIGIR_TOKEN=true en el .env.');
+        : '🔓 Sesiones: modo TOLERANTE (EXIGIR_TOKEN=false) — se aceptan peticiones sin pase, pero sin identidad. Úsalo solo en una emergencia: quita esa línea del .env para volver al modo estricto.');
     // Resumen semanal de vencimientos: una revisión poco después de arrancar
     // (por si el servidor estaba apagado el lunes) y luego cada 30 minutos.
     setTimeout(revisarResumenSemanalVencimientos, 30 * 1000);
