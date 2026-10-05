@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef, NgZone } from '@angular/core';
+import { errorVehiculo, normalizarPlaca } from '../../services/validaciones';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
@@ -1012,7 +1013,15 @@ export class VehiculosComponent implements OnInit, OnDestroy {
   private vehiculoOriginalEdicion: any = null;
 
   public guardarVehiculo() {
-    if (!this.datosVehiculo.placa?.trim()) { this.ui.mostrarToast('Placa inválida', 'err'); return; }
+    if (!this.datosVehiculo.placa?.trim()) { this.ui.mostrarToast('Escribe la placa.', 'err'); return; }
+    // Placa escrita como en la flota ('lun428' -> 'LUN 428') y datos revisados
+    // antes de tocar nada (el servidor revisa lo mismo).
+    if (this.vhIdx === -1) this.datosVehiculo.placa = normalizarPlaca(this.datosVehiculo.placa);
+    const errorDato = errorVehiculo({
+      p: this.datosVehiculo.placa, cajas: this.datosVehiculo.capCajas, kg: this.datosVehiculo.maxKg, m3: this.datosVehiculo.maxM3,
+      cond: this.datosVehiculo.conductorPrincipal, soatVence: this.datosVehiculo.soatVence, tecnoVence: this.datosVehiculo.tecnoVence
+    }, this.vhIdx !== -1 ? this.vehiculoOriginalEdicion : null, this.vhIdx !== -1 ? [] : (this.ds.S.vehiculos || []));
+    if (errorDato) { this.ui.mostrarToast(errorDato, 'err'); return; }
     
     const vOriginal = this.vhIdx !== -1 ? this.ds.S.vehiculos[this.vhIdx] : {};
 
@@ -1044,7 +1053,7 @@ export class VehiculosComponent implements OnInit, OnDestroy {
     // Único guardado de Vehículos que pide protección: aquí puede pasar
     // rato entre abrir el modal y guardarlo, y otra persona pudo cambiar
     // el mismo vehículo en medio.
-    this.ds.guardarVehiculo(vehiculoEstructurado, this.vhIdx, false, {
+    this.ds.guardarVehiculo(this.vhIdx === -1 ? { ...vehiculoEstructurado, esNuevo: true } : vehiculoEstructurado, this.vhIdx, false, {
       protegerDeChoques: true,
       baseOriginal: this.vehiculoOriginalEdicion,
       baseVista: this.vehiculoOriginalEdicion

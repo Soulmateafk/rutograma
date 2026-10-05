@@ -201,7 +201,7 @@
     <div class="modal-grid">
       <div class="input-group">
         <label>Placa</label>
-        <input type="text" [(ngModel)]="datosVehiculo.placa">
+        <input type="text" [(ngModel)]="datosVehiculo.placa" placeholder="Ej. ABC 123" maxlength="12" style="text-transform: uppercase;" [disabled]="vhIdx !== -1" [title]="vhIdx !== -1 ? 'La placa identifica al vehículo: no se cambia' : ''">
       </div>
       <div class="input-group">
         <label>Tipo</label>

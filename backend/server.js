@@ -25,7 +25,8 @@ const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, 
 const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
 const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar } = require('./dias-cerrados');
-const { faltasDeClave, mensajeClave, errorNombre, errorEmail, errorDepartamento, nombreLimpio, DEPARTAMENTOS } = require('./validaciones');
+const { faltasDeClave, mensajeClave, errorNombre, errorEmail, errorDepartamento, nombreLimpio, DEPARTAMENTOS,
+    normalizarPlaca, errorConductor, errorVehiculo } = require('./validaciones');
 
 // Lee las credenciales de correo desde un archivo .env (nunca escritas
 // directo en este código) — ver las instrucciones al final de este
@@ -2617,6 +2618,21 @@ app.post('/api/vehiculos', (req, res) => {
         const solicitanteVehiculo = normalizarEmail(req.headers['x-user-email']);
         if (vehiculosAProcesar.length === 1) {
             const vf = vehiculosAProcesar[0];
+            // Placa como están guardadas ('lun428' -> 'LUN 428') y datos revisados
+            // (solo lo nuevo o lo que cambia; ver validaciones.js).
+            const placaNormal = normalizarPlaca(vf.p || vf.placa || vf.veh);
+            if (placaNormal) { vf.p = placaNormal; vf.placa = placaNormal; if (vf.veh) vf.veh = placaNormal; }
+            const previoVal = (data.vehiculos || []).find(v => String(v.p || v.placa || '').toUpperCase().trim() === placaNormal);
+            if (vf.esNuevo && previoVal) {
+                res.locals.auditoriaOmitir = true;
+                return res.status(400).json({ ok: false, msg: `Ya existe un vehículo con la placa ${placaNormal}.` });
+            }
+            const errorVeh = errorVehiculo(vf, previoVal || null, (data.vehiculos || []).filter(v => v !== previoVal));
+            if (errorVeh) {
+                res.locals.auditoriaOmitir = true;
+                return res.status(400).json({ ok: false, msg: errorVeh });
+            }
+            delete vf.esNuevo;
             const placaChequeo = String(vf.p || vf.placa || vf.veh || '').toUpperCase().trim();
             const existentePrevio0 = (data.vehiculos || []).find(v => String(v.p || v.placa || '').toUpperCase().trim() === placaChequeo);
             const rChequeo = verificarYVersionarEntidad(existentePrevio0, vf, solicitanteVehiculo);
@@ -3330,8 +3346,23 @@ app.post('/api/conductores', (req, res) => {
             return res.status(400).json({ ok: false, msg: 'La cédula del conductor es requerida.' });
         }
 
-        const nombre = entrada.nom || entrada.nombre || entrada.nombreCompleto || entrada.n || '';
-        const vehiculo = (entrada.veh || entrada.vehiculo || entrada.p || '').toUpperCase().trim();
+        const previoCond = (data.conductores || []).find(c => String(c.ced || c.cedula || c.cc || '').trim() === cedula) || null;
+        if (entrada.esNuevo && previoCond) {
+            res.locals.auditoriaOmitir = true;
+            return res.status(400).json({ ok: false, msg: `Ya existe un conductor con la cédula ${cedula} (${previoCond.nom || previoCond.nombre || 'sin nombre'}).` });
+        }
+        delete entrada.esNuevo;
+        // Solo lo nuevo o lo que cambia (ver validaciones.js).
+        const errorCond = errorConductor(entrada, previoCond, data.vehiculos || []);
+        if (errorCond) {
+            res.locals.auditoriaOmitir = true;
+            return res.status(400).json({ ok: false, msg: errorCond });
+        }
+
+        const nombre = nombreLimpio(entrada.nom || entrada.nombre || entrada.nombreCompleto || entrada.n || '');
+        // La placa queda escrita igual que en la flota ('lun428' -> 'LUN 428').
+        const placaEscrita = normalizarPlaca(entrada.veh || entrada.vehiculo || entrada.p || '');
+        const vehiculo = ((data.vehiculos || []).find(v => normalizarPlaca(v.p || v.placa) === placaEscrita)?.p || placaEscrita).toUpperCase().trim();
 
         const nuevoConductor = {
             ...entrada,
