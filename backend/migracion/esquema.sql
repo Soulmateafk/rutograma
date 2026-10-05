@@ -113,6 +113,8 @@ CREATE TABLE IF NOT EXISTS viajes (
   obs                 TEXT,
   hora_real           TEXT,
   fecha_entrega       TEXT,
+  salida_real         TEXT,
+  llegada_real        TEXT,
   cond_temporal       TEXT,
   novedades           TEXT NOT NULL DEFAULT '[]',
   peso                REAL,

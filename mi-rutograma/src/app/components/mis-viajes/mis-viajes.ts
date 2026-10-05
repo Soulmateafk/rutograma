@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import html2canvas from 'html2canvas';
 import { AuthService } from '../../services/auth.service';
+import { UiService } from '../../services/ui.service';
 import { CambiarClaveComponent } from '../cambiar-clave/cambiar-clave';
 
 const API_URL = (typeof window !== 'undefined')
@@ -32,6 +33,7 @@ interface DiaConViajes { fecha: string; titulo: string; esHoy: boolean; descanso
 })
 export class MisViajesComponent implements OnInit, OnDestroy {
   public auth = inject(AuthService);
+  private ui = inject(UiService);
   private cdr = inject(ChangeDetectorRef);
   private esNavegador = isPlatformBrowser(inject(PLATFORM_ID));
 
@@ -218,6 +220,55 @@ export class MisViajesComponent implements OnInit, OnDestroy {
     try { sessionStorage.removeItem(MisViajesComponent.CLAVE_ELEGIDO); } catch { /* nada */ }
   }
 
+  // ---------- "Ya salí" / "Ya llegué" ----------
+
+  marcandoId: any = null;
+
+  private fechaLocal(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  /** De ayer a mañana, no cancelado y sin terminar (igual que el servidor). */
+  puedeMarcar(v: any): boolean {
+    if (v.estado === 'Cancelado' || (v.salidaReal && v.llegadaReal && !this.sePuedeDeshacer(v))) return false;
+    const ayer = this.fechaLocal(new Date(Date.now() - 86400000));
+    const manana = this.fechaLocal(new Date(Date.now() + 86400000));
+    return !!v.salidaReal || (v.fecha >= ayer && v.fecha <= manana);
+  }
+
+  /** La última marca se puede deshacer en los primeros 15 minutos. */
+  sePuedeDeshacer(v: any): boolean {
+    const ultima = v.llegadaReal || v.salidaReal;
+    return !!ultima && Date.now() - new Date(ultima).getTime() < 15 * 60000;
+  }
+
+  async marcar(v: any, accion: 'salida' | 'llegada' | 'deshacer'): Promise<void> {
+    if (this.marcandoId) return;
+    this.marcandoId = v.id;
+    this.cdr.markForCheck();
+    try {
+      const res = await this.auth.fetchAutenticado(`${API_URL}/mis-viajes/marcar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: v.id, accion, ...(this.elegido || {}) })
+      });
+      const data = await res.json();
+      if (!data?.ok) {
+        this.ui.mostrarToast(data?.msg || 'No se pudo marcar. Inténtalo de nuevo.', 'err');
+      } else {
+        v.salidaReal = data.salidaReal;
+        v.llegadaReal = data.llegadaReal;
+        v.estado = data.estado;
+        this.ui.mostrarToast(accion === 'salida' ? '¡Buen viaje! Quedó marcada tu salida.'
+          : accion === 'llegada' ? 'Listo, quedó marcada tu llegada.' : 'Se deshizo la última marca.', 'ok');
+      }
+    } catch {
+      this.ui.mostrarToast('Sin conexión: no se pudo marcar. Inténtalo de nuevo.', 'err');
+    }
+    this.marcandoId = null;
+    this.cdr.markForCheck();
+  }
+
   // ---------- Foto de los viajes ----------
 
   async descargarFoto(): Promise<void> {
@@ -226,7 +277,8 @@ export class MisViajesComponent implements OnInit, OnDestroy {
     this.descargando = true;
     this.cdr.markForCheck();
     try {
-      const canvas = await html2canvas(zona, { backgroundColor: '#0b1222', scale: 2, useCORS: true });
+      const canvas = await html2canvas(zona, { backgroundColor: '#0b1222', scale: 2, useCORS: true,
+        ignoreElements: (el: Element) => el.classList?.contains('mv-no-foto') });
       const enlace = document.createElement('a');
       const nombre = String(this.conductor?.nombre || 'conductor').split(' ').slice(0, 2).join('-');
       enlace.download = `viajes-${nombre}-${new Date().toISOString().slice(0, 10)}.png`;

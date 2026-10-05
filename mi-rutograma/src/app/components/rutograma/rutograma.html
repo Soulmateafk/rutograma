@@ -167,6 +167,11 @@
                     {{ vj.prioridad === 'urgente' ? 'URGENTE' : 'PRIORIDAD ALTA' }}
                   </div>
                   <div *ngIf="viajesConCambioPendiente.has(vj.id)" class="ruto-badge-pendiente" title="Este viaje tiene un cambio esperando aprobación"><i class="bi bi-hourglass-split"></i> Cambio por aprobar</div>
+                  <div *ngIf="vj.llegadaReal || vj.salidaReal" class="ruto-badge-marca" [class.llego]="vj.llegadaReal"
+                       [title]="vj.llegadaReal ? 'El conductor marcó que llegó' : 'El conductor marcó que salió'">
+                    <i class="bi" [ngClass]="vj.llegadaReal ? 'bi-flag-fill' : 'bi-play-fill'"></i>
+                    {{ vj.llegadaReal ? 'Llegó ' + (vj.llegadaReal | date:'h:mm a') : 'Salió ' + (vj.salidaReal | date:'h:mm a') }}
+                  </div>
                   <div class="ruto-card-route">
                     {{ vj.destino || vj.ruta || 'Sin Ruta' }}<span *ngIf="vj.dest2"> + {{ vj.dest2 }}</span>
                   </div>
@@ -304,6 +309,11 @@
                        [ngClass]="vj.cssClass">
 
                     <div *ngIf="viajesConCambioPendiente.has(vj.id)" class="ruto-badge-pendiente" title="Este viaje tiene un cambio esperando aprobación"><i class="bi bi-hourglass-split"></i> Cambio por aprobar</div>
+                  <div *ngIf="vj.llegadaReal || vj.salidaReal" class="ruto-badge-marca" [class.llego]="vj.llegadaReal"
+                       [title]="vj.llegadaReal ? 'El conductor marcó que llegó' : 'El conductor marcó que salió'">
+                    <i class="bi" [ngClass]="vj.llegadaReal ? 'bi-flag-fill' : 'bi-play-fill'"></i>
+                    {{ vj.llegadaReal ? 'Llegó ' + (vj.llegadaReal | date:'h:mm a') : 'Salió ' + (vj.salidaReal | date:'h:mm a') }}
+                  </div>
                     <div class="ruto-card-route">{{ vj.destino || vj.ruta || 'Sin Ruta' }}</div>
                     <div class="ruto-card-transport">{{ vj.tr || 'Makand' }}</div>
                     <div class="ruto-card-driver">{{ vj.cond || conductoresMap[v.p] || 'Sin Conductor' }}</div>
@@ -646,6 +656,13 @@
         </select>
       </div>
 
+      <div *ngIf="selectedViaje.salidaReal || selectedViaje.llegadaReal">
+        <span class="ruto-grid-label">Marcado por el conductor:</span>
+        <span class="ruto-grid-value">
+          <span *ngIf="selectedViaje.salidaReal"><i class="bi bi-play-fill"></i> Salió {{ selectedViaje.salidaReal | date:'d MMM, h:mm a' }}</span>
+          <span *ngIf="selectedViaje.llegadaReal"> · <i class="bi bi-flag-fill"></i> Llegó {{ selectedViaje.llegadaReal | date:'d MMM, h:mm a' }}</span>
+        </span>
+      </div>
       <div>
         <span class="ruto-grid-label">Estado:</span>
         <span *ngIf="!editandoViaje" class="ruto-badge-status" [style.background]="selectedViaje.estado === 'Entregado' ? '#10b981' : (selectedViaje.estado === 'Cancelado' ? '#ef4444' : '#f59e0b')">● {{ selectedViaje.estado || 'Planificado' }}</span>

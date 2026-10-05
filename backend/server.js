@@ -550,7 +550,7 @@ app.use(identificarUsuario);
 // Cuentas de rol "conductor": solo su pantalla Mis viajes y lo básico de la
 // sesión. El resto de la información (otros viajes, vehículos, cuentas...)
 // no se les entrega aunque la pidan directo.
-const RUTAS_PARA_CONDUCTOR = ['/api/mis-viajes', '/api/mis-viajes/validar', '/api/modo', '/api/sesiones', '/api/sesiones/cerrar',
+const RUTAS_PARA_CONDUCTOR = ['/api/mis-viajes', '/api/mis-viajes/validar', '/api/mis-viajes/marcar', '/api/modo', '/api/sesiones', '/api/sesiones/cerrar',
     '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual', '/api/guias', '/api/guias/vista', '/api/guias/reiniciar'];
 app.use((req, res, next) => {
     if (!req.path.startsWith('/api/') || req.path.startsWith('/api/auth/') || RUTAS_PARA_CONDUCTOR.includes(req.path)) return next();
@@ -1092,7 +1092,7 @@ const RUTAS_SIN_RESTRICCION_DE_ROL = [
     '/api/sesiones/cerrar-otras',
     '/api/sesiones/cerrar-actual'
 ];
-const RUTAS_CON_PERMISO_PROPIO = ['/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
+const RUTAS_CON_PERMISO_PROPIO = ['/api/mis-viajes/marcar', '/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
 
 app.use((req, res, next) => {
     if (!req.path.startsWith('/api/') || req.method === 'GET') return next();
@@ -2872,7 +2872,8 @@ function viajesParaConductor(data, coincide) {
                 id: v.id, fecha: v.fecha, dia: v.dia, salida: v.salida, retorno: v.retorno,
                 ruta: v.ruta || v.codigo || '', destino: v.destino || ruta.dest || '', dest2: v.dest2 || '',
                 cliente: v.cliente || '', placa: v.p || v.placa || '', tr: v.tr || v.transportadora || '',
-                cond: v.cond || '', hora: v.hora || '', estado: v.estado || 'Planificado', cajas: v.cajas || null
+                cond: v.cond || '', hora: v.hora || '', estado: v.estado || 'Planificado', cajas: v.cajas || null,
+                salidaReal: v.salidaReal || null, llegadaReal: v.llegadaReal || null
             };
         })
         .sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)) || String(a.hora).localeCompare(String(b.hora)));
@@ -2933,37 +2934,109 @@ app.get('/api/mis-viajes/validar', (req, res) => {
 // Viajes de un conductor. Cuenta enlazada: los de su conductor. Cuenta
 // compartida: los del conductor confirmado (?ced=), primero por la placa
 // que escribió y, si esa placa no tiene viajes, por su nombre.
+/**
+ * Conductor y viajes que le corresponden a quien pide. Cuenta enlazada:
+ * siempre los suyos (ignora lo que mande). Cuenta compartida: el
+ * conductor que eligió (ced) y, si escribió placa, los de esa placa.
+ * Devuelve { error } si no se puede saber quién es.
+ */
+function viajesDeQuienPide(req, data, { ced: cedPedida = '', placa: placaPedidaEntrada = '' } = {}) {
+    const cuenta = cuentaQuePide(req, data);
+    const esAdmin = normalizarEmail(req.headers['x-user-email']) === normalizarEmail(ADMIN_EMAIL);
+    if (!cuenta && !esAdmin) return { error: 'Cuenta no encontrada.', status: 404 };
+    const enlazada = String(cuenta?.conductorCed || '').trim();
+    const ced = enlazada || String(cedPedida || '').trim();
+    if (!ced) return { sinConductor: true, enlazada };
+    const c = (data.conductores || []).find(x => String(x.ced || x.cedula || x.cc || '').trim() === ced);
+    if (!c) return { sinConductor: true, enlazada, msg: 'No se encontró ese conductor.' };
+    const conductor = datosConductor(c);
+
+    let viajes, buscadoPor;
+    const placaPedida = String(placaPedidaEntrada || '').trim();
+    if (!enlazada && placaPedida) {
+        // Por la placa escrita: viajes de esa placa sin otro conductor puesto, o con el suyo.
+        viajes = viajesParaConductor(data, v => placaLimpia(v.p || v.placa) === placaLimpia(placaPedida) &&
+            (COND_GENERICOS.includes(sinTildes(v.cond)) || sinTildes(v.cond) === sinTildes(conductor.nombre)));
+        buscadoPor = 'placa';
+        if (!viajes.length) {
+            viajes = viajesParaConductor(data, v => sinTildes(v.cond) === sinTildes(conductor.nombre));
+            buscadoPor = 'nombre';
+        }
+    } else {
+        viajes = viajesParaConductor(data, v => esDelConductor(v, conductor.nombre, conductor.placa));
+        buscadoPor = 'conductor';
+    }
+    return { enlazada, conductor, viajes, buscadoPor, placaPedida };
+}
+
 app.get('/api/mis-viajes', (req, res) => {
     try {
         const data = leerExcel();
-        const cuenta = cuentaQuePide(req, data);
-        const esAdmin = normalizarEmail(req.headers['x-user-email']) === normalizarEmail(ADMIN_EMAIL);
-        if (!cuenta && !esAdmin) return res.status(404).json({ ok: false, msg: 'Cuenta no encontrada.' });
-        const enlazada = String(cuenta?.conductorCed || '').trim();
-        const ced = enlazada || String(req.query.ced || '').trim();
-        if (!ced) return res.json({ ok: true, enlazado: false, compartida: !enlazada });
-        const c = (data.conductores || []).find(x => String(x.ced || x.cedula || x.cc || '').trim() === ced);
-        if (!c) return res.json({ ok: true, enlazado: false, compartida: !enlazada, msg: 'No se encontró ese conductor.' });
-        const conductor = datosConductor(c);
-
-        let viajes, buscadoPor;
-        const placaPedida = String(req.query.placa || '').trim();
-        if (!enlazada && placaPedida) {
-            // Por la placa escrita: viajes de esa placa sin otro conductor puesto, o con el suyo.
-            viajes = viajesParaConductor(data, v => placaLimpia(v.p || v.placa) === placaLimpia(placaPedida) &&
-                (COND_GENERICOS.includes(sinTildes(v.cond)) || sinTildes(v.cond) === sinTildes(conductor.nombre)));
-            buscadoPor = 'placa';
-            if (!viajes.length) {
-                viajes = viajesParaConductor(data, v => sinTildes(v.cond) === sinTildes(conductor.nombre));
-                buscadoPor = 'nombre';
-            }
-        } else {
-            viajes = viajesParaConductor(data, v => esDelConductor(v, conductor.nombre, conductor.placa));
-            buscadoPor = 'conductor';
-        }
-        res.json({ ok: true, enlazado: true, compartida: !enlazada, conductor, viajes, buscadoPor, placaBuscada: placaPedida.toUpperCase() });
+        const r = viajesDeQuienPide(req, data, { ced: req.query.ced, placa: req.query.placa });
+        if (r.error) return res.status(r.status).json({ ok: false, msg: r.error });
+        if (r.sinConductor) return res.json({ ok: true, enlazado: false, compartida: !r.enlazada, ...(r.msg ? { msg: r.msg } : {}) });
+        res.json({ ok: true, enlazado: true, compartida: !r.enlazada, conductor: r.conductor, viajes: r.viajes, buscadoPor: r.buscadoPor, placaBuscada: r.placaPedida.toUpperCase() });
     } catch (error) {
         console.error('🚨 Error en /api/mis-viajes:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// "Ya salí" / "Ya llegué" — el conductor marca su viaje desde el celular.
+// Body: { id, accion: 'salida' | 'llegada' | 'deshacer', ced?, placa? }
+// (ced/placa solo en la cuenta compartida, como en GET /api/mis-viajes).
+// Solo sus propios viajes, de ayer a mañana. "Deshacer" borra la última
+// marca si fue hace menos de 15 minutos (por si tocó sin querer).
+const MINUTOS_PARA_DESHACER_MARCA = 15;
+app.post('/api/mis-viajes/marcar', (req, res) => {
+    try {
+        const data = leerExcel();
+        const b = req.body || {};
+        const r = viajesDeQuienPide(req, data, { ced: b.ced, placa: b.placa });
+        if (r.error) return res.status(r.status).json({ ok: false, msg: r.error });
+        if (r.sinConductor) return res.status(400).json({ ok: false, msg: 'Primero confirma quién eres.' });
+        if (!r.viajes.some(v => v.id === b.id)) {
+            res.locals.auditoriaOmitir = true;
+            return res.status(403).json({ ok: false, msg: 'Ese viaje no es tuyo.' });
+        }
+        const viaje = (data.viajes || []).find(v => v.id === b.id);
+        if (!viaje) return res.status(404).json({ ok: false, msg: 'Viaje no encontrado.' });
+        const hoy = fechaLocal();
+        const ayer = fechaLocal(new Date(Date.now() - 86400000));
+        const manana = fechaLocal(new Date(Date.now() + 86400000));
+        const ahora = new Date().toISOString();
+        const accion = String(b.accion || '');
+
+        if (accion === 'salida') {
+            if (viaje.estado === 'Cancelado') return res.status(400).json({ ok: false, msg: 'Este viaje está cancelado.' });
+            if (viaje.salidaReal) return res.status(400).json({ ok: false, msg: 'Ya habías marcado la salida.' });
+            if (viaje.fecha < ayer || viaje.fecha > manana) return res.status(400).json({ ok: false, msg: 'Solo puedes marcar la salida de un viaje de hoy (o de ayer/mañana).' });
+            viaje.salidaReal = ahora;
+            if (['', 'Planificado', 'Programado'].includes(String(viaje.estado || ''))) viaje.estado = 'En ruta';
+        } else if (accion === 'llegada') {
+            if (!viaje.salidaReal) return res.status(400).json({ ok: false, msg: 'Primero marca "Ya salí".' });
+            if (viaje.llegadaReal) return res.status(400).json({ ok: false, msg: 'Ya habías marcado la llegada.' });
+            viaje.llegadaReal = ahora;
+            if (viaje.estado !== 'Cancelado') viaje.estado = 'Entregado';
+        } else if (accion === 'deshacer') {
+            const campo = viaje.llegadaReal ? 'llegadaReal' : (viaje.salidaReal ? 'salidaReal' : '');
+            if (!campo) return res.status(400).json({ ok: false, msg: 'No hay nada que deshacer.' });
+            if (Date.now() - new Date(viaje[campo]).getTime() > MINUTOS_PARA_DESHACER_MARCA * 60000) {
+                return res.status(400).json({ ok: false, msg: `Solo se puede deshacer en los primeros ${MINUTOS_PARA_DESHACER_MARCA} minutos. Avísale a la oficina.` });
+            }
+            viaje[campo] = null;
+            viaje.estado = campo === 'llegadaReal' ? 'En ruta' : 'Planificado';
+        } else {
+            return res.status(400).json({ ok: false, msg: 'Acción inválida.' });
+        }
+        viaje.editadoPor = normalizarEmail(req.headers['x-user-email']);
+        viaje.editadoEn = ahora;
+        guardarEnExcel(data);
+        res.locals.auditoriaResumen = { id: viaje.id, placa: viaje.p || viaje.placa, ruta: viaje.ruta, fecha: viaje.fecha, accion, conductor: r.conductor.nombre };
+        console.log(`🚚 ${r.conductor.nombre} marcó ${accion} del viaje ${viaje.id}`);
+        res.json({ ok: true, salidaReal: viaje.salidaReal || null, llegadaReal: viaje.llegadaReal || null, estado: viaje.estado });
+    } catch (error) {
+        console.error('🚨 Error en /api/mis-viajes/marcar:', error);
         res.status(500).json({ ok: false, msg: error.message });
     }
 });
@@ -3122,6 +3195,10 @@ const guardarViajeVersionado = (data, viaje, solicitante) => {
 
     const guardado = {
         ...viaje,
+        // "Ya salí" / "Ya llegué" solo los escribe el conductor (/api/mis-viajes/marcar):
+        // un guardado desde la oficina con el viaje cargado de antes no los borra.
+        salidaReal: existente?.salidaReal || null,
+        llegadaReal: existente?.llegadaReal || null,
         version: versionActual + 1,
         editadoPor: solicitante || '',
         editadoEn: new Date().toISOString()

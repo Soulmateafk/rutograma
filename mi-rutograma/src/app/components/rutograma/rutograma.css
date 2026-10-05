@@ -1587,3 +1587,7 @@ tr.ruto-fila-resaltada > .ruto-td-vehicle-info {
   color: var(--color-texto-principal); font-size: 12.5px; line-height: 1.45;
 }
 .ruto-aviso-dia-cerrado i { color: #94a3b8; font-size: 15px; margin-top: 1px; }
+
+/* Marca del conductor ("Ya salí" / "Ya llegué") en la tarjeta del viaje. */
+.ruto-badge-marca { display: inline-flex; align-items: center; gap: 3px; margin-top: 2px; padding: 1px 5px; border-radius: 4px; font-size: 9px; font-weight: 700; background: rgba(37, 99, 235, 0.25); color: #bfdbfe; }
+.ruto-badge-marca.llego { background: rgba(22, 163, 74, 0.25); color: #bbf7d0; }
