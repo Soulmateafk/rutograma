@@ -4920,6 +4920,9 @@ const crearServidorDual = (aplicacion, credenciales, esperaPrimerByteMs = 10000)
 const alArrancar = (conHttps) => {
     console.log(`🚀 Servidor backend corriendo en: http://localhost:${PORT}`);
     if (conHttps) console.log(`🔒 Y también por HTTPS en: https://localhost:${PORT}`);
+    console.log(hayAppCompilada
+        ? `🖥️  La app se abre en http://localhost:${PORT} (o con la IP de este equipo / Tailscale, puerto ${PORT}).`
+        : '⚠️  La app no está compilada: corre "actualizar-rutograma.bat" (o "npx ng build" en mi-rutograma). Mientras tanto solo funciona la API.');
     console.log(EXIGIR_TOKEN
         ? '🔐 Sesiones: modo ESTRICTO — toda petición necesita un pase válido.'
         : '🔓 Sesiones: modo TOLERANTE (EXIGIR_TOKEN=false) — se aceptan peticiones sin pase, pero sin identidad. Úsalo solo en una emergencia: quita esa línea del .env para volver al modo estricto.');
@@ -4928,6 +4931,33 @@ const alArrancar = (conHttps) => {
     setTimeout(revisarResumenSemanalVencimientos, 30 * 1000);
     setInterval(revisarResumenSemanalVencimientos, 30 * 60 * 1000);
 };
+
+// ============================================================
+// LA APP COMPILADA — el mismo servidor entrega la página (Angular ya
+// compilado con "actualizar-rutograma.bat" / ng build) en el mismo puerto
+// que los datos: no hace falta ng serve. Se abre en http://<equipo>:5000.
+// Si todavía no se ha compilado, solo funciona la API (y se avisa).
+// ============================================================
+const CARPETA_APP = process.env.CARPETA_APP || path.join(__dirname, '..', 'mi-rutograma', 'dist', 'mi-rutograma', 'browser');
+const hayAppCompilada = fs.existsSync(path.join(CARPETA_APP, 'index.html'));
+if (hayAppCompilada) {
+    app.use(express.static(CARPETA_APP, {
+        index: false,
+        // Los archivos con huella en el nombre (main-AB12CD34.js) no cambian
+        // nunca: el navegador los guarda. index.html se pide siempre de nuevo,
+        // así una actualización se ve al recargar.
+        setHeaders: (res, ruta) => {
+            if (/-[A-Z0-9]{8}\.(js|css)$/.test(path.basename(ruta))) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+    }));
+    // Cualquier dirección de la app (/rutograma, /mis-viajes...) devuelve la
+    // página; Angular decide qué mostrar.
+    app.use((req, res, next) => {
+        if ((req.method !== 'GET' && req.method !== 'HEAD') || req.path.startsWith('/api/')) return next();
+        res.setHeader('Cache-Control', 'no-cache');
+        res.sendFile(path.join(CARPETA_APP, 'index.html'));
+    });
+}
 
 const credencialesHttps = cargarCredencialesHttps();
 if (credencialesHttps) {

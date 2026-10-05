@@ -6,8 +6,7 @@
     "start": "NODE_OPTIONS='--no-deprecation' ng serve --host 0.0.0.0",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test",
-    "serve:ssr:mi-rutograma": "node dist/mi-rutograma/server/server.mjs"
+    "test": "ng test"
   },
   "private": true,
   "packageManager": "npm@11.12.1",
