@@ -398,6 +398,10 @@
               (click)="seleccionarSemana(i)">
         {{ semana.etiqueta }}
       </button>
+      <button class="ruto-resumen-semana-tab ruto-btn-pdf-semana" data-guia="ruto-pdf-semana" [disabled]="generandoPdfSemana" (click)="exportarSemanaPDF()"
+              title="Descarga la semana elegida en PDF: una hoja por día, lista para imprimir o mandar por WhatsApp">
+        <i class="bi bi-file-earmark-pdf"></i> {{ generandoPdfSemana ? 'Creando…' : 'PDF de la semana' }}
+      </button>
     </div>
 
     <div class="ruto-resumen-tabs">

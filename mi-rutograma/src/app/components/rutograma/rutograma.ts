@@ -11,6 +11,7 @@ import * as XLSX from 'xlsx';
 import { UiService } from '../../services/ui.service';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { viajeCerrado } from '../../services/dias-cerrados';
 
 // IMPORTACIONES DEL MOTOR LÓGICO
@@ -1735,6 +1736,90 @@ export class RutogramaComponent implements OnInit, OnDestroy {
       etiqueta: `Semana ${i + 1} (${diasSemana[0].dia}-${diasSemana[diasSemana.length - 1].dia})`,
       dias: diasSemana
     }));
+  }
+
+  // ============================================================
+  // PDF DE LA SEMANA — la semana elegida en el resumen, una hoja por
+  // día (horizontal), lista para imprimir o mandar por WhatsApp.
+  // ============================================================
+  public generandoPdfSemana = false;
+
+  public async exportarSemanaPDF(): Promise<void> {
+    const semana = this.semanasDelMes()[this.semanaActivaIndex];
+    if (!semana || this.generandoPdfSemana) return;
+    this.generandoPdfSemana = true;
+    try {
+      const anio = Number(this.ds.S.anio), mes = Number(this.ds.S.mes);
+      const nombresDia = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+      const mesNombre = this.meses[mes].toLowerCase();
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const ancho = doc.internal.pageSize.getWidth();
+      const alto = doc.internal.pageSize.getHeight();
+      const generado = new Date().toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
+      const ordenTr = (tr: string) => (!tr || tr === 'Makand' ? 0 : tr === 'Arsitrans' ? 1 : 2);
+      let total = 0;
+
+      semana.dias.forEach((d, i) => {
+        if (i > 0) doc.addPage();
+        const fecha = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(d.dia).padStart(2, '0')}`;
+        const nombreDia = nombresDia[new Date(anio, mes, d.dia).getDay()];
+        const viajes = (this.ds.S.viajes || [])
+          .filter((v: any) => v.fecha === fecha)
+          .sort((a: any, b: any) => ordenTr(a.tr) - ordenTr(b.tr)
+            || String(a.hora || '').localeCompare(String(b.hora || ''))
+            || String(a.p || a.placa || '').localeCompare(String(b.p || b.placa || '')));
+        total += viajes.filter((v: any) => v.estado !== 'Cancelado').length;
+
+        doc.setFontSize(16);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`Viajes del ${nombreDia} ${d.dia} de ${mesNombre} de ${anio}`, 14, 16);
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        const activos = viajes.filter((v: any) => v.estado !== 'Cancelado').length;
+        doc.text(`MAKAND · ${activos} viaje${activos === 1 ? '' : 's'}${viajes.length - activos ? ` · ${viajes.length - activos} cancelado(s)` : ''}`, 14, 22);
+
+        if (!viajes.length) {
+          doc.setFontSize(12);
+          doc.text('Sin viajes este día.', 14, 36);
+        } else {
+          autoTable(doc, {
+            startY: 27,
+            head: [['Vehículo', 'Transp.', 'Conductor', 'Ruta', 'Destino', 'Cliente', 'Hora', 'Cajas', 'Regresa', 'Estado']],
+            body: viajes.map((v: any) => {
+              const placa = String(v.p || v.placa || '').toUpperCase();
+              const cond = String(v.cond || '').trim();
+              const conductor = cond && !['SIN ASIGNAR', 'ASIGNADO'].includes(cond.toUpperCase()) ? cond : (this.conductoresMap[placa] || '');
+              const regresa = Number(v.retorno) > Number(v.salida || v.dia) ? `día ${v.retorno}` : '';
+              return [v.placaReal ? `${placa} (${v.placaReal})` : placa, v.tr || 'Makand', conductor, v.ruta || v.codigo || '',
+                v.destino || '', v.cliente || v.cli || '', v.hora && v.hora !== '--:--' ? v.hora : '', v.cajas || '', regresa,
+                v.estado === 'Cancelado' ? `Cancelado${v.motivoCancelacion ? ': ' + v.motivoCancelacion : ''}` : (v.estado || 'Planificado')];
+            }),
+            styles: { fontSize: 9, cellPadding: 2 },
+            headStyles: { fillColor: [30, 41, 59] },
+            alternateRowStyles: { fillColor: [241, 245, 249] },
+            didParseCell: (data: any) => {
+              if (data.section === 'body' && String(data.row.raw?.[9] || '').startsWith('Cancelado')) {
+                data.cell.styles.textColor = [148, 163, 184];
+              }
+            }
+          });
+        }
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`${semana.etiqueta} de ${mesNombre} · generado ${generado}`, 14, alto - 8);
+        doc.text(`Hoja ${i + 1} de ${semana.dias.length}`, ancho - 14, alto - 8, { align: 'right' });
+      });
+
+      const desde = semana.dias[0].dia, hasta = semana.dias[semana.dias.length - 1].dia;
+      doc.save(`Viajes-semana-${desde}-${hasta}-${mesNombre}-${anio}.pdf`);
+      this.ui.mostrarToast(`PDF de la semana listo: ${total} viaje${total === 1 ? '' : 's'}, una hoja por día.`, 'ok');
+    } catch (e) {
+      console.error('Error creando el PDF de la semana:', e);
+      this.ui.mostrarToast('No se pudo crear el PDF de la semana.', 'err');
+    } finally {
+      this.generandoPdfSemana = false;
+      this.cdr.markForCheck();
+    }
   }
 
   public diasDeSemanaActiva(): Array<{ dia: number; nombreDia: string }> {

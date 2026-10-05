@@ -1591,3 +1591,6 @@ tr.ruto-fila-resaltada > .ruto-td-vehicle-info {
 /* Marca del conductor ("Ya salí" / "Ya llegué") en la tarjeta del viaje. */
 .ruto-badge-marca { display: inline-flex; align-items: center; gap: 3px; margin-top: 2px; padding: 1px 5px; border-radius: 4px; font-size: 9px; font-weight: 700; background: rgba(37, 99, 235, 0.25); color: #bfdbfe; }
 .ruto-badge-marca.llego { background: rgba(22, 163, 74, 0.25); color: #bbf7d0; }
+
+.ruto-btn-pdf-semana { margin-left: auto; background: rgba(239, 68, 68, 0.15) !important; color: #fca5a5 !important; border-color: rgba(239, 68, 68, 0.4) !important; display: inline-flex; gap: 6px; align-items: center; }
+.ruto-btn-pdf-semana:disabled { opacity: 0.6; cursor: wait; }
