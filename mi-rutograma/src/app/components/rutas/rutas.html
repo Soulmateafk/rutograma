@@ -2,7 +2,7 @@
   
   <div class="frow" style="justify-content: space-between; align-items: center; margin-bottom: 20px;">
     <h2>Gestión de Rutas Logísticas</h2>
-    <div style="display: flex; gap: 10px;">
+    <div data-guia="rutas-acciones" style="display: flex; gap: 10px;">
       <button class="btn" (click)="mostrarHistorial = !mostrarHistorial"> Ver histórico</button>
       <button class="btn pri" *ngIf="auth.puedeEditar" (click)="abrirModalRuta(-1)">+ Crear Nueva Ruta</button>
       <button class="btn" *ngIf="auth.puedeEditar" (click)="modal.abrir('m-cupo')">Confirmar Cupo Externo</button>
@@ -233,7 +233,7 @@
                 <i class="bi" [ngClass]="r.activa === false ? 'bi-play-fill' : 'bi-pause-fill'"></i>
               </button>
 
-              <button class="btn"
+              <button class="btn" *ngIf="auth.puede('eliminar')"
                       style="padding: 5px 10px; font-size: 12px; background: #ef4444; color: white; border: none; font-weight: bold;"
                       (click)="eliminarRuta(r._idx)">
                 <i class="bi bi-x"></i>
@@ -447,7 +447,7 @@
   <!-- PRIORIDADES DE HORARIO                                   -->
   <!-- ========================================================= -->
 
-  <div class="card" style="margin-top: 20px;">
+  <div data-guia="rutas-prioridades" class="card" style="margin-top: 20px;">
 
     <div class="stitle"
          style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 6px; text-align: center;">

@@ -1,0 +1,33 @@
+<ng-container *ngIf="guia.activa() as a">
+  <!-- Capa que bloquea la página mientras se explica (los clics no pasan). -->
+  <div class="guia-capa" [class.sin-foco]="!foco()"></div>
+  <div class="guia-foco" *ngIf="foco() as f"
+       [style.top.px]="f.top" [style.left.px]="f.left" [style.width.px]="f.width" [style.height.px]="f.height"></div>
+
+  <div class="guia-cuadro" *ngIf="cuadro() as c" [style.top.px]="c.top" [style.left.px]="c.left" [style.width.px]="c.ancho"
+       role="dialog" aria-live="polite">
+    <div class="guia-cabecera">
+      <span class="guia-pagina">{{ a.guia.titulo }}</span>
+      <span class="guia-contador">{{ a.indice + 1 }} de {{ a.pasos.length }}</span>
+    </div>
+    <h4>{{ a.pasos[a.indice].titulo }}</h4>
+    <p>{{ a.pasos[a.indice].texto }}</p>
+    <div class="guia-puntos">
+      <span *ngFor="let p of a.pasos; let i = index" [class.activo]="i === a.indice"></span>
+    </div>
+    <div class="guia-botones">
+      <button class="guia-saltar" (click)="guia.terminar()">Saltar guía</button>
+      <div class="guia-nav">
+        <button class="guia-btn" *ngIf="a.indice > 0" (click)="guia.anterior()">Atrás</button>
+        <button class="guia-btn guia-btn-pri" (click)="guia.siguiente()">
+          {{ a.indice < a.pasos.length - 1 ? 'Siguiente' : 'Terminar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</ng-container>
+
+<button *ngIf="guia.hayGuiaEnPagina" class="guia-ayuda-btn" (click)="guia.repetirPaginaActual()"
+        title="Ver la guía de esta página" aria-label="Ver la guía de esta página">
+  <i class="bi bi-question-lg"></i>
+</button>

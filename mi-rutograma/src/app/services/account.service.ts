@@ -11,34 +11,67 @@ export type RolCuenta = 'admin' | 'editor' | 'lector' | 'jefe' | 'auxiliar';
 export interface Permisos {
   editar: boolean;
   sinAprobacion: boolean;
+  eliminar: boolean;
+  generarMatriz: boolean;
+  importarExcel: boolean;
+  reacomodarCupos: boolean;
+  editarConfiguracion: boolean;
+  editarHistorico: boolean;
+  cambiarModo: boolean;
+  restaurarRespaldos: boolean;
   aprobarCambios: boolean;
   verAdministracion: boolean;
   gestionarCuentas: boolean;
-  editarHistorico: boolean;
+  verSesionesTodas: boolean;
+  gestionarDispositivos: boolean;
+  enviarVencimientos: boolean;
 }
 
-export const PERMISOS_INFO: Array<{ clave: keyof Permisos; nombre: string; ayuda: string }> = [
-  { clave: 'editar', nombre: 'Hacer cambios', ayuda: 'Sin esto, la cuenta solo puede ver y exportar.' },
-  { clave: 'sinAprobacion', nombre: 'Sus cambios se aplican sin esperar aprobación', ayuda: 'Sin esto, cada cambio espera a que alguien lo apruebe.' },
-  { clave: 'aprobarCambios', nombre: 'Aprobar o rechazar cambios de otros', ayuda: 'Ve la pestaña Aprobaciones con los pendientes.' },
-  { clave: 'verAdministracion', nombre: 'Ver cuentas y auditoría', ayuda: 'Entra a Administración solo a mirar.' },
-  { clave: 'gestionarCuentas', nombre: 'Aceptar o rechazar cuentas nuevas', ayuda: 'Las cuentas que acepte quedan con rol Editor. Roles y contraseñas siguen siendo del administrador.' },
-  { clave: 'editarHistorico', nombre: 'Cerrar mes y limpiar el histórico', ayuda: '' }
+export const PERMISOS_INFO: Array<{ clave: keyof Permisos; nombre: string; ayuda: string; grupo: string }> = [
+  { grupo: 'Cambios', clave: 'editar', nombre: 'Hacer cambios', ayuda: 'Sin esto, la cuenta solo puede ver y exportar.' },
+  { grupo: 'Cambios', clave: 'sinAprobacion', nombre: 'Sus cambios se aplican sin esperar aprobación', ayuda: 'Sin esto, cada cambio espera a que alguien lo apruebe.' },
+  { grupo: 'Cambios', clave: 'eliminar', nombre: 'Eliminar viajes, vehículos, rutas, conductores y novedades', ayuda: '' },
+  { grupo: 'Cambios', clave: 'generarMatriz', nombre: 'Generar la Matriz del mes', ayuda: '' },
+  { grupo: 'Cambios', clave: 'importarExcel', nombre: 'Importar viajes reales desde Excel', ayuda: '' },
+  { grupo: 'Cambios', clave: 'reacomodarCupos', nombre: 'Reacomodar cupos de Arsitrans y Polar', ayuda: '' },
+  { grupo: 'Cambios', clave: 'editarConfiguracion', nombre: 'Cambiar transportadoras, cupos de Configuración y festivos', ayuda: '' },
+  { grupo: 'Cambios', clave: 'editarHistorico', nombre: 'Cerrar mes y limpiar el histórico', ayuda: '' },
+  { grupo: 'Sistema', clave: 'cambiarModo', nombre: 'Cambiar entre modo Real y modo Prueba', ayuda: 'Afecta a todos los que usan la app.' },
+  { grupo: 'Sistema', clave: 'restaurarRespaldos', nombre: 'Ver y restaurar respaldos', ayuda: 'Restaurar devuelve TODA la información a ese momento.' },
+  { grupo: 'Sistema', clave: 'enviarVencimientos', nombre: 'Enviar el resumen de vencimientos por correo', ayuda: '' },
+  { grupo: 'Equipo', clave: 'aprobarCambios', nombre: 'Aprobar o rechazar cambios de otros', ayuda: 'Ve la pestaña Aprobaciones con los pendientes.' },
+  { grupo: 'Equipo', clave: 'verAdministracion', nombre: 'Ver cuentas y auditoría', ayuda: 'Entra a Administración solo a mirar.' },
+  { grupo: 'Equipo', clave: 'gestionarCuentas', nombre: 'Aceptar, rechazar y eliminar solicitudes de cuenta', ayuda: 'Las cuentas que acepte quedan con rol Editor. Roles, permisos y contraseñas siguen siendo del administrador.' },
+  { grupo: 'Equipo', clave: 'verSesionesTodas', nombre: 'Ver las sesiones de todas las cuentas', ayuda: '' },
+  { grupo: 'Equipo', clave: 'gestionarDispositivos', nombre: 'Ver y desbloquear dispositivos', ayuda: '' }
 ];
 
+/** Permisos que solo tienen sentido si la cuenta puede hacer cambios. */
+export const PERMISOS_QUE_REQUIEREN_EDITAR: Array<keyof Permisos> = ['sinAprobacion', 'eliminar', 'generarMatriz', 'importarExcel',
+  'reacomodarCupos', 'editarConfiguracion', 'editarHistorico', 'cambiarModo', 'restaurarRespaldos'];
+
+const EDICION_COMPLETA: Partial<Permisos> = { editar: true, sinAprobacion: true, eliminar: true, generarMatriz: true, importarExcel: true, reacomodarCupos: true, editarConfiguracion: true };
+
+// Misma tabla que backend/aprobaciones.js.
 const PERMISOS_POR_ROL: Record<string, Partial<Permisos>> = {
-  editor: { editar: true, sinAprobacion: true, editarHistorico: true },
+  editor: { ...EDICION_COMPLETA, editarHistorico: true },
   lector: {},
-  jefe: { editar: true, sinAprobacion: true, aprobarCambios: true, verAdministracion: true },
-  auxiliar: { editar: true }
+  jefe: { ...EDICION_COMPLETA, aprobarCambios: true, verAdministracion: true, verSesionesTodas: true },
+  auxiliar: { editar: true, eliminar: true, generarMatriz: true, reacomodarCupos: true, editarConfiguracion: true }
 };
 
 export function normalizarPermisos(entrada: Partial<Permisos> | null | undefined): Permisos {
   const p = {} as Permisos;
   PERMISOS_INFO.forEach(({ clave }) => { p[clave] = !!entrada?.[clave]; });
-  if (!p.editar) { p.sinAprobacion = false; p.editarHistorico = false; }
+  if (!p.editar) PERMISOS_QUE_REQUIEREN_EDITAR.forEach(c => { p[c] = false; });
   if (p.gestionarCuentas) p.verAdministracion = true;
   return p;
+}
+
+/** Permisos personalizados de una cuenta, completando con los de su rol los que no traiga (guardados antes de existir). */
+export function permisosCompletos(rol: string, propios: Partial<Permisos> | null | undefined): Permisos {
+  if (!propios) return permisosDeRol(rol);
+  return normalizarPermisos({ ...permisosDeRol(rol), ...propios });
 }
 
 export function permisosDeRol(rol: string): Permisos {
@@ -94,7 +127,7 @@ export class AccountService {
   public permisos: Permisos = permisosDeRol('lector');
 
   private tomarPermisos(res: any): void {
-    this.permisos = res?.permisos ? normalizarPermisos(res.permisos) : permisosDeRol(this.rol);
+    this.permisos = permisosCompletos(this.rol, res?.permisos);
   }
 
   /** El servidor dejó un cambio pendiente de aprobación (cuenta auxiliar). */
@@ -450,6 +483,15 @@ export class AccountService {
     } catch (e: any) {
       return { ok: false, msg: e?.error?.msg || 'No se pudo comunicar con el servidor.' };
     }
+  }
+
+  /** Elimina una solicitud de cuenta rechazada (o pendiente, si es el admin). */
+  async eliminarCuenta(email: string): Promise<void> {
+    await firstValueFrom(
+      this.http.post(`${this.API_URL}/auth/eliminar`, { email }, {
+        headers: { 'x-user-email': this.emailActivo }
+      })
+    );
   }
 
   /** Restablece la contraseña de una cuenta (solo admin) — para cuando

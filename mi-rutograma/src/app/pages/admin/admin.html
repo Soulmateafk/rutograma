@@ -14,7 +14,7 @@
     <button *ngIf="auth.isAdmin" class="admin-tab" [class.activa]="pestaniaActiva === 'correo'" (click)="cambiarPestania('correo')">
       Correo
     </button>
-    <button *ngIf="auth.isAdmin" class="admin-tab" [class.activa]="pestaniaActiva === 'dispositivos'" (click)="cambiarPestania('dispositivos')">
+    <button *ngIf="auth.isAdmin || auth.puede('gestionarDispositivos')" class="admin-tab" [class.activa]="pestaniaActiva === 'dispositivos'" (click)="cambiarPestania('dispositivos')">
       Dispositivos
     </button>
   </div>
@@ -39,7 +39,10 @@
       </thead>
       <tbody>
         <tr *ngFor="let u of usuarios">
-          <td>{{ u.email }}</td>
+          <td>
+            {{ u.email }}
+            <div *ngIf="u.solicitadoEn" class="cuenta-fecha">Solicitó: {{ u.solicitadoEn | date:'d MMM y, h:mm a' }}</div>
+          </td>
           <td>{{ u.departamento || '—' }}</td>
           <td>
             <span class="estado"
@@ -71,6 +74,9 @@
             </button>
             <button *ngIf="auth.isAdmin && u.estado === 'APPROVED'" class="btn-rol" (click)="abrirResetClave(u)">
               Restablecer contraseña
+            </button>
+            <button *ngIf="puedeEliminarCuenta(u)" class="btn-rechazar" (click)="eliminarCuenta(u)" title="Borrar esta solicitud para siempre">
+              <i class="bi bi-trash"></i> Eliminar
             </button>
           </td>
         </tr>
@@ -199,7 +205,7 @@
 </div>
 
 <!-- ===================== DISPOSITIVOS BLOQUEADOS ===================== -->
-  <ng-container *ngIf="pestaniaActiva === 'dispositivos' && auth.isAdmin">
+  <ng-container *ngIf="pestaniaActiva === 'dispositivos' && (auth.isAdmin || auth.puede('gestionarDispositivos'))">
     <p *ngIf="cargandoDispositivos" class="admin-msg">Cargando dispositivos...</p>
     <p *ngIf="!cargandoDispositivos && dispositivosBloqueados.length === 0" class="admin-msg">
       No hay dispositivos bloqueados en este momento.
@@ -291,13 +297,16 @@
     <p class="permisos-ayuda">El rol marca los permisos por defecto. Puedes ajustarlos uno por uno.</p>
 
     <div class="permisos-lista">
-      <label class="permiso" *ngFor="let p of permisosInfo">
+      <ng-container *ngFor="let p of permisosInfo; let i = index">
+      <div class="permisos-grupo" *ngIf="i === 0 || permisosInfo[i - 1].grupo !== p.grupo">{{ p.grupo }}</div>
+      <label class="permiso">
         <input type="checkbox" [checked]="modalPermisos.permisos[p.clave]" (change)="alternarPermiso(p.clave)">
         <span>
           <strong>{{ p.nombre }}</strong>
           <small *ngIf="p.ayuda">{{ p.ayuda }}</small>
         </span>
       </label>
+      </ng-container>
     </div>
 
     <p class="permisos-estado" [class.personalizado]="modalPersonalizado">

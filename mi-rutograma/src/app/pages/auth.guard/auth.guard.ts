@@ -59,11 +59,19 @@ export const authGuard: CanActivateFn = async () => {
 // botones de acción sí fallaran al presionarlos (esos sí estaban
 // protegidos en el servidor). Este guardián nuevo bloquea el simple
 // hecho de ver la pantalla a quien no sea el admin.
-export const adminGuard: CanActivateFn = () => {
+export const adminGuard: CanActivateFn = async () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  // El jefe también entra (solo a ver: los botones de cambiar son del admin).
+  // Angular corre los guardianes de una ruta AL MISMO TIEMPO: al recargar la
+  // página (o entrar directo a /admin) los permisos todavía no estaban
+  // cargados y mandaba al Dashboard incluso al admin. Se espera la sesión.
+  if (!authService.currentUser) {
+    const recuperada = await authService.intentarRestaurarSesion();
+    if (!recuperada) return router.createUrlTree(['/login']);
+  }
+
+  // Con permiso "Ver cuentas y auditoría" (el jefe, por defecto) también entra.
   if (authService.puedeVerAdministracion) return true;
 
   console.log('GUARD: No es admin ni jefe -> /dashboard');

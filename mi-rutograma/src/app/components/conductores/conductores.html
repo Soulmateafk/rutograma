@@ -39,7 +39,7 @@
 
   <div class="title-row">
     <h1 class="main-title">Conductores</h1>
-    <div style="display:flex; gap:10px;">
+    <div data-guia="cond-acciones" style="display:flex; gap:10px;">
       <button class="btn" (click)="mostrarHistorial = !mostrarHistorial"><i class="bi bi-calendar-week" style="color:#60a5fa;"></i> Ver histórico</button>
       <button class="btn-nuevo-cond" *ngIf="auth.puedeEditar" (click)="abrirModal('m-cond')"><i class="bi bi-person-plus-fill"></i> Nuevo Conductor</button>
     </div>
@@ -148,7 +148,7 @@
                     <ng-container *ngIf="auth.puedeEditar">
                       <button type="button" class="action-btn" (click)="abrirModal('m-cond', $index)" title="Editar"><i class="bi bi-pencil-square" style="color:#fbbf24;"></i></button>
                       <button type="button" class="action-btn" (click)="cambiarEstado(c)" title="Cambiar estado"><i class="bi bi-arrow-repeat" style="color:#34d399;"></i></button>
-                      <button type="button" class="action-btn btn-delete" (click)="eliminarConductor($index)" title="Eliminar"><i class="bi bi-trash-fill" style="color:#f87171;"></i></button>
+                      <button type="button" class="action-btn btn-delete" *ngIf="auth.puede('eliminar')" (click)="eliminarConductor($index)" title="Eliminar"><i class="bi bi-trash-fill" style="color:#f87171;"></i></button>
                     </ng-container>
                   </div>
                 </td>
@@ -164,7 +164,7 @@
   <!-- VIAJES POR CONDUCTOR (mes activo) — mismo patrón que la     -->
   <!-- sección equivalente en Vehículos.                           -->
   <!-- ========================================================= -->
-  <div class="table-card" style="margin-top: 20px; padding: 16px;">
+  <div data-guia="cond-viajes" class="table-card" style="margin-top: 20px; padding: 16px;">
     <h2 style="font-size: 16px; margin: 0 0 12px 0; color: var(--color-texto-principal);">Viajes por Conductor (mes activo)</h2>
 
     <div *ngIf="!conductoresConViajes().length" style="color: var(--color-texto-apagado); font-style: italic; padding: 12px 0;">

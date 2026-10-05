@@ -251,3 +251,7 @@
 .correo-resultado { margin: 8px 0 0; font-size: 13px; color: #f87171; }
 .correo-resultado.ok { color: #4ade80; }
 .correo-lista { margin: 0; padding-left: 18px; font-size: 13px; color: #cbd5e1; line-height: 1.7; }
+
+.cuenta-fecha { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+.permisos-grupo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; margin: 8px 0 2px; }
+.permisos-lista { max-height: 52vh; overflow-y: auto; padding-right: 4px; }

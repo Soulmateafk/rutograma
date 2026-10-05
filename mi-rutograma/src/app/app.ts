@@ -8,11 +8,13 @@ import { ModalService } from './services/modal';
 import { LoadingService } from './services/loading.service';
 import { ThemeService } from './services/theme.service';
 import { NavbarComponent } from './components/navbar/navbar'; 
+import { GuiaComponent } from './components/guia/guia';
+import { GuiaService } from './services/guia.service';
 
 @Component({
   selector: 'app-root',
   standalone: true, 
-  imports: [RouterOutlet, NavbarComponent, CommonModule], 
+  imports: [RouterOutlet, NavbarComponent, CommonModule, GuiaComponent], 
   templateUrl: './app.html'
 })
 export class App implements OnInit {
@@ -75,7 +77,10 @@ export class App implements OnInit {
     // equivocado por una fracción de segundo.
     private theme: ThemeService,
     private titleService: Title,
-    private router: Router
+    private router: Router,
+    // Igual: se crea desde el arranque para no perderse la primera página
+    // (las guías de primera vez se deciden al navegar).
+    private guias: GuiaService
   ) {
     // Escuchamos los cambios de ruta
     this.router.events.subscribe((event) => {

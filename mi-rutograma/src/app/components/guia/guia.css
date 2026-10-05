@@ -1,0 +1,78 @@
+.guia-capa {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  background: transparent;
+}
+/* Si no hay nada que iluminar, se oscurece todo. */
+.guia-capa.sin-foco { background: rgba(2, 6, 23, 0.72); }
+
+/* El "agujero" iluminado: la sombra enorme oscurece todo lo demás. */
+.guia-foco {
+  position: fixed;
+  z-index: 20001;
+  border-radius: 10px;
+  box-shadow: 0 0 0 9999px rgba(2, 6, 23, 0.72);
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+  pointer-events: none;
+  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
+}
+
+.guia-cuadro {
+  position: fixed;
+  z-index: 20002;
+  box-sizing: border-box;
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 14px 16px 12px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  font-family: inherit;
+  transition: top 0.2s ease, left 0.2s ease;
+}
+.guia-cabecera { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.guia-pagina { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #f59e0b; }
+.guia-contador { font-size: 11px; color: #94a3b8; }
+.guia-cuadro h4 { margin: 0 0 6px; font-size: 15px; color: #f8fafc; }
+.guia-cuadro p { margin: 0; font-size: 13px; line-height: 1.5; color: #cbd5e1; }
+.guia-puntos { display: flex; gap: 4px; margin: 12px 0 10px; flex-wrap: wrap; }
+.guia-puntos span { width: 6px; height: 6px; border-radius: 50%; background: #334155; }
+.guia-puntos span.activo { background: #f59e0b; width: 16px; border-radius: 3px; }
+.guia-botones { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.guia-nav { display: flex; gap: 6px; }
+.guia-saltar { background: none; border: none; color: #94a3b8; font-size: 12px; cursor: pointer; padding: 6px 0; font-family: inherit; }
+.guia-saltar:hover { color: #e2e8f0; text-decoration: underline; }
+.guia-btn {
+  background: transparent; border: 1px solid #334155; color: #e2e8f0;
+  border-radius: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer; font-family: inherit;
+}
+.guia-btn-pri { background: #2563eb; border-color: #3b82f6; color: #fff; font-weight: 600; }
+.guia-btn:hover { filter: brightness(1.1); }
+
+/* Botón "?" para repetir la guía de la página. */
+.guia-ayuda-btn {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 900;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  background: #0f172a;
+  color: #f59e0b;
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+}
+.guia-ayuda-btn:hover { opacity: 1; transform: translateY(-1px); }
+
+@media (max-width: 600px) {
+  .guia-ayuda-btn { right: 12px; bottom: 12px; width: 36px; height: 36px; font-size: 16px; }
+}
