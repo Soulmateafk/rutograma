@@ -35,22 +35,25 @@
   </div>
 </div>
 
-<!-- Revisión del mes: documentos vencidos y choques de agenda (services/revision-viajes.ts). -->
-<div *ngIf="problemasDelMes.length" class="ruto-aviso-aprobaciones ruto-aviso-revision" data-guia="ruto-revision">
+<!-- Revisión del mes: documentos vencidos y choques de agenda (services/revision-viajes.ts).
+     Minimizado: una línea que explica qué es; al abrirlo, la lista. -->
+<div *ngIf="problemasDelMes.length" class="ruto-aviso-aprobaciones ruto-aviso-revision" [class.cerrada]="!revisionAbierta" data-guia="ruto-revision">
   <i class="bi bi-shield-exclamation ruto-aviso-icono"></i>
   <div class="ruto-aviso-texto ruto-novedades-lista">
-    <strong>{{ problemasDelMes.length === 1 ? 'Un viaje por revisar' : problemasDelMes.length + ' viajes por revisar' }} este mes
-      <span class="ruto-revision-sub">(documentos vencidos o se cruzan con otro viaje)</span></strong>
-    <div class="ruto-revision-lista" [class.abierta]="revisionAbierta">
-      <div *ngFor="let p of (revisionAbierta ? problemasDelMes : problemasDelMes.slice(0, 3))" class="ruto-novedad-fila">
+    <button type="button" class="ruto-revision-cabecera" (click)="revisionAbierta = !revisionAbierta" [attr.aria-expanded]="revisionAbierta">
+      <span class="ruto-revision-titulo">
+        <strong>{{ problemasDelMes.length === 1 ? 'Un viaje por revisar' : problemasDelMes.length + ' viajes por revisar' }} este mes</strong>
+        <span class="ruto-revision-sub">Viajes que aún no terminan con SOAT, tecnomecánica o licencia vencidos, o que se cruzan con otro viaje del mismo vehículo o conductor.</span>
+      </span>
+      <span class="ruto-revision-toggle">{{ revisionAbierta ? 'Ocultar' : 'Ver' }} <i class="bi" [ngClass]="revisionAbierta ? 'bi-chevron-up' : 'bi-chevron-down'"></i></span>
+    </button>
+    <div class="ruto-revision-lista" *ngIf="revisionAbierta">
+      <div *ngFor="let p of problemasDelMes" class="ruto-novedad-fila">
         <span><b>{{ p.viaje.fecha | date:'EEE d':'':'es' }} · {{ p.viaje.p || p.viaje.placa }} · {{ p.viaje.ruta || p.viaje.codigo }}</b><br>
           <span class="ruto-novedad-desc">{{ textoProblema(p) }}</span></span>
         <button class="ruto-aviso-btn" (click)="verDetalle(p.viaje.id)"><i class="bi bi-box-arrow-up-right"></i> Abrir</button>
       </div>
     </div>
-    <button *ngIf="problemasDelMes.length > 3" class="ruto-revision-mas" (click)="revisionAbierta = !revisionAbierta">
-      {{ revisionAbierta ? 'Ver menos' : 'Ver los ' + problemasDelMes.length }}
-    </button>
   </div>
 </div>
 

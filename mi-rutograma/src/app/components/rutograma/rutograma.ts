@@ -279,6 +279,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   // vehículo o conductor). Se recalcula como mucho cada 2 s.
   // ============================================================
   private revisionCache: { clave: string; ts: number; lista: ProblemaViaje[] } = { clave: '', ts: 0, lista: [] };
+  /** Minimizado por defecto: solo la línea que explica; al abrirlo, la lista. */
   public revisionAbierta = false;
 
   public get problemasDelMes(): ProblemaViaje[] {

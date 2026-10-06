@@ -12,10 +12,11 @@ import { PresenciaService } from '../../services/presencia.service';
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="oa" *ngIf="otros().length" [class.edita]="otros()[0].editando">
-      <i class="bi" [ngClass]="otros()[0].editando ? 'bi-pencil-fill' : 'bi-eye-fill'"></i>
+    <div class="oa" *ngIf="otros().length" [class.edita]="alguienEdita()">
+      <i class="bi" [ngClass]="alguienEdita() ? 'bi-pencil-fill' : 'bi-eye-fill'"></i>
       <span><strong>{{ texto() }}.</strong>
-        <ng-container *ngIf="otros()[0].editando"> Espera a que termine o coordina con esa persona antes de guardar.</ng-container></span>
+        <ng-container *ngIf="otroEdita()"> Espera a que termine o coordina con esa persona antes de guardar.</ng-container>
+        <ng-container *ngIf="!otroEdita() && alguienEdita()"> Guarda en una sola ventana para no pisar tus propios cambios.</ng-container></span>
     </div>
   `,
   styles: [`
@@ -29,14 +30,19 @@ export class OtrosAquiComponent {
   @Input() que = 'esto';
   private presencia = inject(PresenciaService);
   readonly otros = this.presencia.otros;
+  readonly alguienEdita = computed(() => this.otros().some(x => x.editando));
+  readonly otroEdita = computed(() => this.otros().some(x => x.editando && !x.esYo));
 
   readonly texto = computed(() => {
-    const lista = this.otros();
+    const lista = this.otros().filter(x => !x.esYo);
+    const yo = this.otros().find(x => x.esYo);
     const nombres = (xs: { nombre: string }[]) => xs.map(x => x.nombre).join(xs.length === 2 ? ' y ' : ', ');
     const editan = lista.filter(x => x.editando), ven = lista.filter(x => !x.editando);
     const partes: string[] = [];
     if (editan.length) partes.push(`${nombres(editan)} ${editan.length === 1 ? 'está editando' : 'están editando'} ${this.que}`);
     if (ven.length) partes.push(`${nombres(ven)} ${ven.length === 1 ? 'lo tiene abierto' : 'lo tienen abierto'}`);
+    // La misma cuenta en otra ventana o equipo (ej. el PC de la oficina y la laptop).
+    if (yo) partes.push(yo.editando ? 'Tú lo estás editando en otra ventana o equipo' : 'Tú lo tienes abierto en otra ventana o equipo');
     return partes.join(' · ');
   });
 }

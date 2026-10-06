@@ -1610,11 +1610,14 @@ tr.ruto-fila-resaltada > .ruto-td-vehicle-info {
 .ruto-badge-nota { display: inline-flex; align-items: center; gap: 3px; margin-top: 2px; margin-left: 2px; padding: 1px 5px; border-radius: 4px; font-size: 9px; font-weight: 700; background: rgba(250, 204, 21, 0.2); color: #fde68a; }
 
 /* Revisión del mes (documentos vencidos / choques de agenda) */
-.ruto-aviso-revision { animation: none !important; background: linear-gradient(90deg, rgba(245, 158, 11, 0.22), rgba(245, 158, 11, 0.08)) !important; border-color: rgba(245, 158, 11, 0.5) !important; }
-.ruto-aviso-revision .ruto-aviso-icono { color: #fbbf24; }
+.ruto-aviso-revision { animation: none !important; background: linear-gradient(90deg, rgba(245, 158, 11, 0.16), rgba(245, 158, 11, 0.05)) !important; border-color: rgba(245, 158, 11, 0.45) !important; }
+.ruto-aviso-revision.cerrada { padding-top: 8px; padding-bottom: 8px; }
+.ruto-aviso-revision .ruto-aviso-icono { color: #fbbf24; font-size: 18px; align-self: flex-start; margin-top: 2px; }
 .ruto-aviso-revision .ruto-aviso-btn { flex-shrink: 0; cursor: pointer; border: none; font-family: inherit; }
-.ruto-revision-sub { font-weight: 400; font-size: 12px; opacity: .8; }
-.ruto-revision-mas { align-self: flex-start; margin-top: 4px; background: none; border: none; color: #fbbf24; cursor: pointer; font-size: 12.5px; padding: 0; text-decoration: underline; font-family: inherit; }
-.ruto-revision-lista { display: flex; flex-direction: column; gap: 6px; }
-.ruto-revision-lista.abierta { max-height: 320px; overflow-y: auto; padding-right: 4px; }
+.ruto-revision-cabecera { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: none; padding: 0; color: inherit; font-family: inherit; text-align: left; cursor: pointer; }
+.ruto-revision-titulo { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.ruto-revision-titulo strong { font-size: 13.5px; }
+.ruto-aviso-texto .ruto-revision-sub { white-space: normal; font-size: 12px; opacity: .8; }
+.ruto-revision-toggle { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 6px; background: rgba(245, 158, 11, 0.2); color: #fde68a; font-size: 12.5px; font-weight: 600; }
+.ruto-revision-lista { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; padding-right: 4px; margin-top: 4px; }
 .ruto-novedad-fila app-foto-novedad { margin-left: auto; }

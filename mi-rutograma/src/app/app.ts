@@ -4,6 +4,7 @@ import { Title } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common'; 
 import { DataService } from './services/data';
 import { AuthService } from './services/auth.service';
+import { PresenciaService } from './services/presencia.service';
 import { ModalService } from './services/modal';
 import { LoadingService } from './services/loading.service';
 import { ThemeService } from './services/theme.service';
@@ -80,6 +81,7 @@ export class App implements OnInit {
     // equivocado por una fracción de segundo.
     private theme: ThemeService,
     private titleService: Title,
+    private presencia: PresenciaService,
     private router: Router,
     // Igual: se crea desde el arranque para no perderse la primera página
     // (las guías de primera vez se deciden al navegar).
@@ -104,6 +106,13 @@ export class App implements OnInit {
         
         // Si la URL actual está en nuestra lista, ocultamos el navbar (false)
         this.mostrarNavbar.set(!rutasSinNavbar.includes(event.url));
+
+        // "En línea": se avisa desde cualquier pantalla con sesión (también
+        // Resumen, que no tiene barra arriba) — antes lo arrancaba la barra
+        // y quien estaba en Resumen no le aparecía a nadie.
+        const sinSesion = ['/login', '/register', '/pending'].some(r => event.urlAfterRedirects.startsWith(r));
+        if (sinSesion) this.presencia.detener();
+        else this.presencia.iniciar();
 
         this.actualizarTitulo(event.url);
 

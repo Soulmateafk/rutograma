@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PresenciaService } from '../../services/presencia.service';
 
@@ -15,18 +15,20 @@ import { PresenciaService } from '../../services/presencia.service';
   template: `
     <div class="el-caja" data-guia="nav-en-linea">
       <button type="button" class="el-boton" (click)="$event.stopPropagation(); abierto = !abierto"
-              [title]="personas().length ? 'Quién más está en la app ahora' : 'Nadie más está en la app ahora'">
+              [title]="personas().length ? 'Quién más está en la app ahora (también tus otras ventanas o equipos)' : 'Nadie más está en la app ahora'">
         <i class="bi bi-people-fill"></i>
         <span class="el-punto" [class.hay]="personas().length"></span>
         <span class="el-num">{{ personas().length }}</span>
       </button>
       <div class="el-panel" *ngIf="abierto" (click)="$event.stopPropagation()">
         <div class="el-titulo">En línea ahora</div>
-        <div *ngIf="!personas().length" class="el-vacio">Solo estás tú.</div>
-        <div *ngFor="let p of personas()" class="el-fila">
-          <span class="el-avatar" [class.edita]="p.editando">{{ p.nombre.charAt(0) }}</span>
+        <div *ngIf="!personas().length" class="el-vacio">Nadie más: solo esta ventana.</div>
+        <div *ngFor="let p of personas()" class="el-fila" [class.yo]="p.esYo">
+          <span class="el-avatar" [class.edita]="p.editando" [class.yo]="p.esYo">{{ p.esYo ? 'Tú' : p.nombre.charAt(0) }}</span>
           <div class="el-texto">
-            <div><b>{{ p.nombre }}</b> · {{ p.pagina || 'en la app' }}</div>
+            <div><b>{{ p.esYo ? 'Tú' : p.nombre }}</b> · {{ p.pagina || 'en la app' }}</div>
+            <div class="el-equipo" *ngIf="p.esYo">en otra ventana o equipo<ng-container *ngIf="p.dispositivo"> ({{ p.dispositivo }})</ng-container></div>
+            <div class="el-equipo" *ngIf="!p.esYo && p.oculta">ventana minimizada o en segundo plano</div>
             <div class="el-accion" [class.edita]="p.editando">
               <i *ngIf="p.editando" class="bi bi-pencil-fill"></i>
               {{ p.accion || 'mirando' }} · {{ hace(p.haceSeg) }}
@@ -49,20 +51,20 @@ import { PresenciaService } from '../../services/presencia.service';
     .el-fila { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; border-top: 1px solid var(--color-borde, #334155); font-size: 13px; }
     .el-avatar { flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; background: rgba(96, 165, 250, 0.2); color: #93c5fd; }
     .el-avatar.edita { background: rgba(245, 158, 11, 0.22); color: #fbbf24; }
+    .el-avatar.yo { font-size: 10px; background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+    .el-equipo { font-size: 11.5px; opacity: .7; }
     .el-texto { min-width: 0; }
     .el-accion { font-size: 12px; opacity: .8; }
     .el-accion.edita { color: #fbbf24; opacity: 1; }
     .el-pie { margin-top: 6px; font-size: 11px; opacity: .55; }
   `]
 })
-export class EnLineaComponent implements OnInit, OnDestroy {
+export class EnLineaComponent {
   private presencia = inject(PresenciaService);
   readonly personas = this.presencia.enLinea;
   abierto = false;
 
-  ngOnInit(): void { this.presencia.iniciar(); }
-  ngOnDestroy(): void { this.presencia.detener(); }
-
+  // El aviso lo arranca app.ts en cualquier pantalla con sesión; esto solo lo muestra.
   @HostListener('document:click') cerrar(): void { this.abierto = false; }
 
   hace(seg: number): string {
