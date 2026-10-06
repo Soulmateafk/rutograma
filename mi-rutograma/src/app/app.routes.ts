@@ -23,6 +23,7 @@ import { MisViajesComponent } from './components/mis-viajes/mis-viajes';
 import { HojaVidaComponent } from './components/hoja-vida/hoja-vida';
 import { CumplimientoComponent } from './components/cumplimiento/cumplimiento';
 
+import { AgendaConductorComponent } from './components/agenda-conductor/agenda-conductor';
 export const routes: Routes = [
   // 1. Redirección automática
   { path: '', redirectTo: '/login', pathMatch: 'full' },
@@ -39,6 +40,7 @@ export const routes: Routes = [
   { path: 'hoja-de-vida/:placa', component: HojaVidaComponent, canActivate: [authGuard] },
   { path: 'rutas', component: RutasComponent, canActivate: [authGuard] },
   { path: 'conductores', component: ConductoresComponent, canActivate: [authGuard] }, 
+  { path: 'agenda/:nombre', component: AgendaConductorComponent, canActivate: [authGuard] },
   { path: 'configuracion', component: Configuracion, canActivate: [authGuard] },
   { path: 'historico', component: Historico, canActivate: [authGuard] },
   { path: 'comparativo', component: Comparativo, canActivate: [authGuard] },

@@ -8,6 +8,8 @@ import { Subscription } from 'rxjs';
 import { DataService } from '../../services/data';
 import { AuthService } from '../../services/auth.service';
 import { UiService } from '../../services/ui.service';
+import { PresenciaService } from '../../services/presencia.service';
+import { OtrosAquiComponent } from '../en-linea/otros-aqui';
 import { RouterLink, ActivatedRoute } from '@angular/router';
 
 // @ts-ignore
@@ -19,7 +21,7 @@ const ConductoresUtils: any = (_conductoresUtils as any).default || _conductores
 @Component({
   selector: 'app-conductores',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, OtrosAquiComponent],
   templateUrl: './conductores.html',
   styleUrls: ['./conductores.css']
 })
@@ -27,6 +29,7 @@ export class ConductoresComponent implements OnInit, OnDestroy {
   public dataService = inject(DataService);
   public auth = inject(AuthService);
   private ui = inject(UiService);
+  private presencia = inject(PresenciaService);
   private route = inject(ActivatedRoute);
 
   // Modal de confirmación propio — reemplaza el confirm() nativo del
@@ -581,9 +584,19 @@ export class ConductoresComponent implements OnInit, OnDestroy {
 
     // Muestra el modal seleccionado de forma segura
     document.getElementById(id)?.classList.remove('hide');
+    // "En línea": qué está haciendo (lo ven los demás en la barra de arriba).
+    const nombre = String(this.nuevoConductor?.nom || '').trim();
+    if (id === 'm-cond') {
+      if (indexFiltrado !== null && nombre) this.presencia.establecer(`editando al conductor ${nombre}`, `conductor:${this.nuevoConductor.ced || nombre}`, true);
+      else this.presencia.establecer('registrando un conductor nuevo', '', true);
+    } else if (id === 'm-vista' && this.conductorSeleccionado) {
+      const visto = String(this.conductorSeleccionado.nom || this.conductorSeleccionado.nombre || '').trim();
+      this.presencia.establecer(`viendo al conductor ${visto}`, `conductor:${this.conductorSeleccionado.ced || visto}`, false);
+    }
   }
 
   cerrarModal(id: string) {
     document.getElementById(id)?.classList.add('hide');
+    this.presencia.limpiar();
   }
 }

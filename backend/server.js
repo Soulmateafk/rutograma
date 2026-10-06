@@ -27,6 +27,7 @@ const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
 const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar } = require('./dias-cerrados');
 const { documentosVencidos, choquesDeAgenda, cambioLoQueSeRevisa } = require('./revision-viajes');
+const { crearPresencia, primerNombre } = require('./presencia');
 const { armarHojaDeVida } = require('./hoja-vida');
 const { armarCumplimiento, horaDelViaje } = require('./cumplimiento');
 const { compararConVisto, armarVisto } = require('./avisos-conductor');
@@ -3184,6 +3185,46 @@ app.post('/api/mis-viajes/novedad', (req, res) => {
         console.error('🚨 Error en /api/mis-viajes/novedad:', error);
         res.status(500).json({ ok: false, msg: error.message });
     }
+});
+
+// ============================================================
+// QUIÉN ESTÁ EN LA APP Y QUÉ HACE (ver presencia.js). Cada pestaña de la
+// oficina avisa cada pocos segundos en qué página está, qué hace y qué
+// tiene abierto; recibe a los demás. Es GET a propósito: no cambia ningún
+// dato, así que no pasa por auditoría, respaldos ni aprobaciones, y no
+// queda en ningún historial.
+// ============================================================
+const presencia = crearPresencia();
+const correoDeQuienPide = (req) => normalizarEmail(req.usuarioVerificado || req.headers['x-user-email']);
+
+app.get('/api/presencia', (req, res) => {
+    const email = correoDeQuienPide(req);
+    const pestana = String(req.query.pestana || '').slice(0, 64);
+    if (!email || !pestana) return res.status(400).json({ ok: false, msg: 'Faltan datos.' });
+    const cuenta = (leerExcel().usuarios || []).find(u => normalizarEmail(u.email) === email);
+    const clave = String(req.query.clave || '');
+    presencia.latido(pestana, {
+        email,
+        nombre: cuenta?.nombre || '',
+        pagina: req.query.pagina,
+        accion: req.query.accion,
+        clave,
+        editando: req.query.editando === '1',
+        salir: req.query.salir === '1'
+    });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ ok: true, otros: presencia.otros(clave, email), enLinea: presencia.enLinea(email) });
+});
+
+// Primer nombre de cada cuenta, para mostrar "Carlos" en vez del correo
+// (última edición, choques de edición, aprobaciones...).
+app.get('/api/usuarios/nombres', (req, res) => {
+    const nombres = {};
+    (leerExcel().usuarios || []).forEach(u => {
+        const email = normalizarEmail(u.email);
+        if (email) nombres[email] = primerNombre(u.nombre, email);
+    });
+    res.json({ ok: true, nombres });
 });
 
 // Novedades reportadas por conductores sin resolver (últimos 3 días), para

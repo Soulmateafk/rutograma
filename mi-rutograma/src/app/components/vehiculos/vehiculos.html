@@ -198,6 +198,7 @@
 <div class="modal-overlay" *ngIf="isModalVehiculoOpen">
   <div class="modal-card">
     <h3>{{ vhIdx === -1 ? 'Nuevo Vehículo' : 'Editar Vehículo' }}</h3>
+    <app-otros-aqui *ngIf="vhIdx !== -1" que="este vehículo"></app-otros-aqui>
     
     <div class="modal-grid">
       <div class="input-group">
@@ -279,7 +280,7 @@
     </div>
 
     <div class="modal-actions">
-      <button class="btn-cancel" (click)="isModalVehiculoOpen = false">Cancelar</button>
+      <button class="btn-cancel" (click)="cerrarModal('m-veh')">Cancelar</button>
       <button class="btn-save" (click)="guardarVehiculo()">Guardar</button>
     </div>
   </div>
@@ -288,6 +289,7 @@
 <div class="modal-overlay" *ngIf="isModalMantOpen">
   <div class="modal-card">
     <h3>Mantenimiento — {{ vehMantPlaca }}</h3>
+    <app-otros-aqui que="este vehículo"></app-otros-aqui>
 
     <div class="modal-grid" data-guia="veh-mant-fechas">
       <div class="input-group" style="grid-column: span 2;">
