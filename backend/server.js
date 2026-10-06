@@ -3206,14 +3206,16 @@ app.get('/api/presencia', (req, res) => {
     presencia.latido(pestana, {
         email,
         nombre: cuenta?.nombre || '',
+        dispositivo: describirDispositivo(req.headers['user-agent']),
         pagina: req.query.pagina,
         accion: req.query.accion,
         clave,
         editando: req.query.editando === '1',
+        oculta: req.query.oculta === '1',
         salir: req.query.salir === '1'
     });
     res.setHeader('Cache-Control', 'no-store');
-    res.json({ ok: true, otros: presencia.otros(clave, email), enLinea: presencia.enLinea(email) });
+    res.json({ ok: true, otros: presencia.otros(clave, email, pestana), enLinea: presencia.enLinea(email, pestana) });
 });
 
 // Primer nombre de cada cuenta, para mostrar "Carlos" en vez del correo

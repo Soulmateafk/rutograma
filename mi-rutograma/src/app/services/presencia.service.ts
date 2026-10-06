@@ -14,7 +14,8 @@ const NOMBRES_PAGINA: Record<string, string> = {
   sesiones: 'Sesiones', aprobaciones: 'Aprobaciones', admin: 'Administración'
 };
 
-export interface PersonaEnLinea { nombre: string; pagina: string; accion: string; editando: boolean; haceSeg: number; }
+export interface PersonaEnLinea { nombre: string; esYo: boolean; dispositivo: string; pagina: string; accion: string; editando: boolean; oculta: boolean; haceSeg: number; }
+export interface OtroAqui { nombre: string; editando: boolean; esYo: boolean; }
 
 /**
  * EN LÍNEA AHORA (backend/presencia.js): cada pestaña de la oficina avisa
@@ -29,15 +30,28 @@ export class PresenciaService {
   private router = inject(Router);
   private zone = inject(NgZone);
 
-  private readonly pestana = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  // Una por pestaña, y la misma al recargar (F5): así recargar no deja una
+  // "ventana fantasma" en la lista.
+  private readonly pestana = PresenciaService.idDePestana();
+
+  private static idDePestana(): string {
+    const nuevo = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    try {
+      const guardado = sessionStorage.getItem('pestanaPresencia');
+      if (guardado) return guardado;
+      sessionStorage.setItem('pestanaPresencia', nuevo);
+    } catch { /* sin almacenamiento: uno nuevo cada vez */ }
+    return nuevo;
+  }
   private estado = { accion: '', clave: '', editando: false };
   private reloj: ReturnType<typeof setInterval> | null = null;
   private activo = false;
+  private ultimoLatido = 0;
 
   /** Los demás en la app ahora. */
   readonly enLinea = signal<PersonaEnLinea[]>([]);
   /** Los demás con el mismo objeto abierto que esta pestaña. */
-  readonly otros = signal<{ nombre: string; editando: boolean }[]>([]);
+  readonly otros = signal<OtroAqui[]>([]);
 
   constructor() {
     if (typeof window === 'undefined') return;
@@ -48,15 +62,23 @@ export class PresenciaService {
       if (this.activo) this.latir();
     });
     window.addEventListener('pagehide', () => this.salir());
+    // Al volver a la ventana, avisar de una vez (sin esperar al reloj).
+    document.addEventListener('visibilitychange', () => { if (this.activo) this.latir(); });
   }
 
   /** Lo arranca la barra de arriba (solo existe con sesión iniciada). */
   iniciar(): void {
-    if (this.activo || typeof window === 'undefined' || this.auth.rolActual === 'conductor') return;
+    if (this.activo || typeof window === 'undefined') return;
     this.activo = true;
     this.latir();
     this.zone.runOutsideAngular(() => {
-      this.reloj = setInterval(() => { if (document.visibilityState === 'visible') this.latir(); }, 8000);
+      // Visible: cada 8 s. Minimizada o detrás de otra ventana: cada ~25 s
+      // (antes no avisaba y a los 30 s esa persona desaparecía de la lista
+      // aunque siguiera con la app abierta).
+      this.reloj = setInterval(() => {
+        const visible = document.visibilityState === 'visible';
+        if (visible || Date.now() - this.ultimoLatido >= 25000) this.latir();
+      }, 8000);
     });
   }
 
@@ -94,10 +116,18 @@ export class PresenciaService {
     return `${API_URL}/presencia?${q.toString()}`;
   }
 
+  /** Con sesión de la oficina (al recargar, la sesión se recupera unos instantes después). */
+  private puedeAvisar(): boolean {
+    return !!this.auth.currentUser?.email && this.auth.rolActual !== 'conductor';
+  }
+
   private async latir(): Promise<void> {
+    if (!this.puedeAvisar()) return;
     const { accion, clave, editando } = this.estado;
+    this.ultimoLatido = Date.now();
+    const oculta = document.visibilityState !== 'visible' ? '1' : '0';
     try {
-      const res = await this.auth.fetchAutenticado(this.url({ accion, clave, editando: editando ? '1' : '0' }));
+      const res = await this.auth.fetchAutenticado(this.url({ accion, clave, editando: editando ? '1' : '0', oculta }));
       const data = await res.json();
       if (!data?.ok) return;
       this.zone.run(() => {
@@ -109,6 +139,7 @@ export class PresenciaService {
   }
 
   private salir(): void {
+    if (!this.puedeAvisar()) return;
     try {
       this.auth.fetchAutenticado(this.url({ salir: '1' }), { keepalive: true }).catch(() => {});
     } catch { /* nada */ }
