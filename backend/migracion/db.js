@@ -106,6 +106,8 @@ function conectar(modo = 'real') {
   agregarColumnaSiFalta('viajes', 'llegada_real', 'TEXT');
   agregarColumnaSiFalta('viajes', 'cond_temporal', 'TEXT');
   agregarColumnaSiFalta('viajes', 'novedades', "TEXT NOT NULL DEFAULT '[]'");
+  // Novedad de conductor con foto (el archivo va en data/fotos-novedades).
+  agregarColumnaSiFalta('novedades', 'foto', 'INTEGER NOT NULL DEFAULT 0');
   // Estas 5 son las que de verdad usa la TARJETA del Rutograma (una
   // pantalla distinta al modal de Dashboard de arriba) — nombres
   // distintos para conceptos parecidos: peso/volumen en vez de
@@ -254,7 +256,8 @@ function leerDB(modo = 'real') {
 
   const novedades = db.prepare('SELECT * FROM novedades').all().map(n => ({
     id: n.id, tipo: n.tipo, titulo: n.titulo,
-    desc: n.descripcion, fecha: n.fecha, resuelta: !!n.resuelta
+    desc: n.descripcion, fecha: n.fecha, resuelta: !!n.resuelta,
+    ...(n.foto ? { foto: true } : {})
   }));
 
   const armarHistorial = (tabla) => db.prepare(`SELECT * FROM ${tabla}`).all().map(h => ({
@@ -447,8 +450,8 @@ function guardarEnDB(data, modo = 'real') {
     if (data.novedades) {
       db.prepare('DELETE FROM novedades').run();
       const ins = db.prepare(`INSERT INTO novedades
-        (id, tipo, titulo, descripcion, fecha, resuelta)
-        VALUES (@id, @tipo, @titulo, @descripcion, @fecha, @resuelta)`);
+        (id, tipo, titulo, descripcion, fecha, resuelta, foto)
+        VALUES (@id, @tipo, @titulo, @descripcion, @fecha, @resuelta, @foto)`);
       for (const n of data.novedades) {
         ins.run({
           id: String(n.id),
@@ -456,7 +459,8 @@ function guardarEnDB(data, modo = 'real') {
           titulo: n.titulo || '',
           descripcion: n.desc || '',
           fecha: n.fecha || null,
-          resuelta: n.resuelta ? 1 : 0
+          resuelta: n.resuelta ? 1 : 0,
+          foto: n.foto ? 1 : 0
         });
       }
     }

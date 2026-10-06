@@ -145,6 +145,8 @@
                 <td>
                   <div class="actions-group">
                     <button type="button" class="action-btn" (click)="verDetalles(c)" title="Ver detalles"><i class="bi bi-eye-fill" style="color:#60a5fa;"></i></button>
+                    <button type="button" class="action-btn" data-guia="cond-whatsapp" (click)="avisarPorWhatsApp(c)" [disabled]="!tieneWhatsApp(c)"
+                            [title]="tieneWhatsApp(c) ? 'Avisar por WhatsApp sus viajes de los próximos 7 días' : 'Sin celular válido: edita el conductor para poner su número'"><i class="bi bi-whatsapp" [style.color]="tieneWhatsApp(c) ? '#22c55e' : '#64748b'"></i></button>
                     <ng-container *ngIf="auth.puedeEditar">
                       <button type="button" class="action-btn" (click)="abrirModal('m-cond', $index)" data-guia="cond-editar" title="Editar"><i class="bi bi-pencil-square" style="color:#fbbf24;"></i></button>
                       <button type="button" class="action-btn" (click)="cambiarEstado(c)" title="Cambiar estado"><i class="bi bi-arrow-repeat" style="color:#34d399;"></i></button>
@@ -321,7 +323,11 @@
       <div class="card-info" style="text-align: left; line-height: 2;">
         <p><strong>Nombre:</strong> {{ conductorSeleccionado.nom || conductorSeleccionado.nombre }}</p>
         <p><strong>Cédula:</strong> {{ conductorSeleccionado.ced || conductorSeleccionado.cedula }}</p>
-        <p><strong>Teléfono:</strong> {{ conductorSeleccionado.tel }}</p>
+        <p><strong>Teléfono:</strong> {{ conductorSeleccionado.tel }}
+          <button type="button" class="btn-wa" *ngIf="tieneWhatsApp(conductorSeleccionado)" (click)="avisarPorWhatsApp(conductorSeleccionado)">
+            <i class="bi bi-whatsapp"></i> Avisar sus viajes
+          </button>
+        </p>
         <p><strong>Placa:</strong> {{ conductorSeleccionado.veh || conductorSeleccionado.placa || 'Sin asignar' }}</p>
         <p><strong>Estado:</strong> {{ conductorSeleccionado.est | titlecase }}</p>
         <p><strong>Licencia:</strong> {{ conductorSeleccionado.lic || 'N/A' }}</p>

@@ -262,6 +262,7 @@
           </div>
           <div class="novedad-titulo">{{ n.titulo }}</div>
           <div class="novedad-desc" *ngIf="n.desc">{{ n.desc }}</div>
+          <app-foto-novedad *ngIf="n.foto" [id]="n.id" style="display:inline-block;margin-top:4px;"></app-foto-novedad>
           <button *ngIf="!n.resuelta" class="btn-resolver" (click)="resolverNovedad(n.id)">Marcar como resuelta</button>
           <span *ngIf="n.resuelta" class="novedad-resuelta-tag"><i class="bi bi-check-lg"></i> Resuelta</span>
         </div>

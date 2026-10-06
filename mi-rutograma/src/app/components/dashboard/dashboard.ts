@@ -5,13 +5,14 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Configuracion } from '../../components/configuracion/configuracion';
+import { FotoNovedadComponent } from '../foto-novedad/foto-novedad';
 import { agruparViajes, obtenerDiasViaje } from '../../components/rutograma/rutograma.utils.js';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, Configuracion],
+  imports: [CommonModule, FormsModule, Configuracion, FotoNovedadComponent],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css']
 })

@@ -13,6 +13,8 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { viajeCerrado } from '../../services/dias-cerrados';
+import { FotoNovedadComponent } from '../foto-novedad/foto-novedad';
+import { revisarMes, rangoViaje, ProblemaViaje } from '../../services/revision-viajes';
 
 // IMPORTACIONES DEL MOTOR LÓGICO
 import { agruparViajes, prepararRutasEnriquecidas, hayConflicto, obtenerViajesEnConflicto, reprogramarSiguientesTrasEliminar, reprogramarViajesDesde, reprogramarViajeConflictivo, buscarViajesTercerosRobables, tomarViajeTerceroParaVehiculo, buscarVehiculosDisponiblesParaVarado, transferirViajeAOtroVehiculo, esDiaVarado, siguienteNumeroCupo as siguienteNumeroCupoCompartido, buscarCupoLibre as buscarCupoLibreCompartido } from './rutograma.utils.js';
@@ -41,7 +43,7 @@ interface Viaje {
   selector: 'app-rutograma',
   templateUrl: './rutograma.html',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink], 
+  imports: [CommonModule, FormsModule, RouterLink, FotoNovedadComponent], 
   styleUrls: ['./rutograma.css']
 })
 export class RutogramaComponent implements OnInit, OnDestroy {
@@ -266,6 +268,38 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   // marque como resuelto (se actualiza solo cada 20 s).
   // ============================================================
   public novedadesConductores: any[] = [];
+
+  // ============================================================
+  // REVISIÓN DEL MES (services/revision-viajes.ts): viajes de hoy en
+  // adelante con documentos vencidos o que se cruzan con otro (mismo
+  // vehículo o conductor). Se recalcula como mucho cada 2 s.
+  // ============================================================
+  private revisionCache: { clave: string; ts: number; lista: ProblemaViaje[] } = { clave: '', ts: 0, lista: [] };
+  public revisionAbierta = false;
+
+  public get problemasDelMes(): ProblemaViaje[] {
+    const S = this.ds.S;
+    if (!S?.viajes) return [];
+    const prefijo = `${S.anio}-${String(Number(S.mes) + 1).padStart(2, '0')}`;
+    const clave = `${prefijo}|${S.viajes.length}`;
+    const ahora = Date.now();
+    if (clave === this.revisionCache.clave && ahora - this.revisionCache.ts < 2000) return this.revisionCache.lista;
+    const h = new Date();
+    const hoy = `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`;
+    let lista: ProblemaViaje[] = [];
+    try {
+      // Lo que ya pasó no se puede corregir: solo viajes que aún no terminan.
+      lista = revisarMes(S, prefijo).filter(p => (rangoViaje(p.viaje)?.hasta || '') > hoy);
+    } catch (e) {
+      console.error('Error revisando el mes:', e);
+    }
+    this.revisionCache = { clave, ts: ahora, lista };
+    return lista;
+  }
+
+  public textoProblema(p: ProblemaViaje): string {
+    return [...p.vencidos, ...p.choques.map(c => c.texto)].join(' · ');
+  }
   public resolviendoNovedad: string | null = null;
 
   private async cargarNovedadesConductores(): Promise<void> {
@@ -1796,8 +1830,8 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   // día (horizontal), lista para imprimir o mandar por WhatsApp.
   // ============================================================
   public generandoPdfSemana = false;
-
-  public async exportarSemanaPDF(): Promise<void> {
+  /** modo 'compartir': abre el menú de compartir del equipo con el PDF (si se puede; si no, lo descarga). */
+  public async exportarSemanaPDF(modo: 'descargar' | 'compartir' = 'descargar'): Promise<void> {
     const semana = this.semanasDelMes()[this.semanaActivaIndex];
     if (!semana || this.generandoPdfSemana) return;
     this.generandoPdfSemana = true;
@@ -1866,7 +1900,24 @@ export class RutogramaComponent implements OnInit, OnDestroy {
       });
 
       const desde = semana.dias[0].dia, hasta = semana.dias[semana.dias.length - 1].dia;
-      doc.save(`Viajes-semana-${desde}-${hasta}-${mesNombre}-${anio}.pdf`);
+      const nombreArchivo = `Viajes-semana-${desde}-${hasta}-${mesNombre}-${anio}.pdf`;
+      if (modo === 'compartir') {
+        const archivo = new File([doc.output('blob')], nombreArchivo, { type: 'application/pdf' });
+        const nav = navigator as any;
+        if (nav.canShare?.({ files: [archivo] })) {
+          try {
+            await nav.share({ files: [archivo], title: `Viajes del ${desde} al ${hasta} de ${mesNombre}`, text: `Viajes del ${desde} al ${hasta} de ${mesNombre} de ${anio} (MAKAND)` });
+          } catch (e: any) {
+            // Cerrar el menú sin elegir no es un error.
+            if (e?.name !== 'AbortError') throw e;
+          }
+          return;
+        }
+        doc.save(nombreArchivo);
+        this.ui.mostrarToast('Este navegador no deja compartir directo: el PDF quedó en Descargas. Adjúntalo en WhatsApp con 📎.', 'info');
+        return;
+      }
+      doc.save(nombreArchivo);
       this.ui.mostrarToast(`PDF de la semana listo: ${total} viaje${total === 1 ? '' : 's'}, una hoja por día.`, 'ok');
     } catch (e) {
       console.error('Error creando el PDF de la semana:', e);
@@ -2974,6 +3025,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     // pudo cambiar el mismo viaje en medio.
     const ok = await this.ds.guardarViaje({ ...this.selectedViaje }, false, {
       protegerDeChoques: true,
+      revisarChoquesAgenda: true,
       baseOriginal: this.viajeOriginalEdicion,
       baseVista: this.vistaInicialEdicion
     });
