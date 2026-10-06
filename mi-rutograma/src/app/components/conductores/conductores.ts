@@ -1,4 +1,5 @@
 import { Component, inject, OnInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
+import { armarCargaConductores, RACHA_ALERTA, ResumenCarga } from '../../services/carga-conductores';
 import { errorConductor, normalizarPlaca } from '../../services/validaciones';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -257,60 +258,35 @@ export class ConductoresComponent implements OnInit, OnDestroy {
     return entrada ? entrada.viajes : [];
   }
 
+  /** Carga de trabajo del mes (ver services/carga-conductores.ts). */
+  public carga: ResumenCarga | null = null;
+  public readonly rachaAlerta = RACHA_ALERTA;
+
   private recalcularConductoresConViajesCache(): void {
-    if (!this.dataService?.S?.conductores) { this.conductoresConViajesCache = []; return; }
-
-    const mesTexto = this.meses[this.dataService.S.mes];
-    const anioActivo = Number(this.dataService.S.anio);
-
-    this.conductoresConViajesCache = this.dataService.S.conductores
-      .map((c: any) => {
-        const nombre = String(c.nom || c.nombre || '').trim();
-        const placaAsignada = String(c.veh || c.placa || '').toUpperCase().trim();
-
-        const coincidenPorNombre = (vj: any) => {
-          const condViaje = String(vj.cond || '').trim();
-          return !!nombre && condViaje.toLowerCase() === nombre.toLowerCase();
-        };
-
-        // RESPALDO: si el viaje no tiene un "cond" que coincida con este
-        // conductor (ej. quedó vacío, o con un nombre de prueba de un
-        // respaldo viejo — caso real encontrado), se empareja por la
-        // PLACA que el conductor tiene asignada AHORA. No es tan preciso
-        // como el nombre (no sabe quién manejó ESE día en particular si
-        // el conductor de esa placa cambió), pero es mucho mejor que
-        // mostrar "0 viajes" cuando en realidad la placa sí salió.
-        const coincidenPorPlaca = (vj: any) => {
-          if (!placaAsignada) return false;
-          const placaViaje = String(vj.p || vj.placa || '').toUpperCase().trim();
-          return placaViaje === placaAsignada;
-        };
-
-        const viajesDelConductor = (this.dataService.S.viajes || [])
-          .filter((vj: any) => {
-            if (!coincidenPorNombre(vj) && !coincidenPorPlaca(vj)) return false;
-            if (String(vj.estado || '').toLowerCase() === 'cancelado') return false;
-            if (vj.mes !== undefined && vj.mes !== mesTexto) return false;
-            if (vj.anio !== undefined && Number(vj.anio) !== anioActivo) return false;
-            if (this.diaEnMantenimiento(vj)) return false;
-
-            return true;
-          })
-          .sort((a: any, b: any) => {
-            return Number(a.dia ?? a.salida ?? 0) - Number(b.dia ?? b.salida ?? 0);
-          })
-          .map((vj: any) => ({
-            dia: vj.dia ?? vj.salida ?? '—',
-            codigo: vj.codigo || vj.ruta || 'Sin código',
-            destino: vj.destino || vj.dest || 'Sin destino'
-          }));
-
-        return {
-          nombre: c.nom || c.nombre || 'Sin nombre',
-          viajes: viajesDelConductor
-        };
-      })
+    if (!this.dataService?.S?.conductores) { this.conductoresConViajesCache = []; this.carga = null; return; }
+    const S = this.dataService.S;
+    // Un viaje es del conductor si lo tiene anotado; si no tiene conductor,
+    // del titular de la placa (antes contaba para los dos a la vez).
+    this.carga = armarCargaConductores(S.conductores, S.viajes || [], S.rutas || [], Number(S.anio), Number(S.mes),
+      (vj: any) => this.diaEnMantenimiento(vj));
+    this.conductoresConViajesCache = [...this.carga.conductores]
+      .map(c => ({
+        nombre: c.nombre,
+        viajes: c.viajes.map((vj: any) => ({
+          dia: vj.dia ?? vj.salida ?? '—',
+          codigo: vj.codigo || vj.ruta || 'Sin código',
+          destino: vj.destino || vj.dest || 'Sin destino'
+        }))
+      }))
       .sort((a: any, b: any) => a.nombre.localeCompare(b.nombre));
+  }
+
+  public get maxViajesCarga(): number {
+    return Math.max(1, ...(this.carga?.conductores || []).map(c => c.totalViajes));
+  }
+
+  public textoNivel(n: string): string {
+    return n === 'sobrecargado' ? 'Sobrecargado' : n === 'poca' ? 'Poca carga' : n === 'sin-viajes' ? 'Sin viajes' : 'Normal';
   }
 
   /**
