@@ -1,3 +1,4 @@
+const compression = require('compression');
 const express = require('express');
 const cors = require('cors');
 const XLSX = require('xlsx');
@@ -21,7 +22,7 @@ const { ROLES_VALIDOS, rolDeCuenta, requiereAprobacion, describirCambio, solicit
 // vuelva a ejecutar la petición de un auxiliar cuando un jefe la aprueba.
 // Solo vive en memoria: nadie de afuera puede conocerla.
 const TOKEN_REPLAY_APROBACION = crypto.randomBytes(32).toString('hex');
-const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, listarAuditoriaViajeDB, importarAuditoriaJSONLSiHaceFalta } = require('./migracion/db.js');
+const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB, crearRespaldoDB, listarRespaldosDB, limpiarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, listarAuditoriaViajeDB, importarAuditoriaJSONLSiHaceFalta } = require('./migracion/db.js');
 const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
 const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar } = require('./dias-cerrados');
@@ -62,6 +63,9 @@ function rutaPermitidaParaVehiculo(placa, ruta) {
 }
 
 app.use(cors());
+// Todo viaja comprimido (la app pesa ~2 MB y los datos ~1 MB; comprimidos,
+// unas 5 veces menos): se nota sobre todo en los celulares por Tailscale.
+app.use(compression());
 // Cabeceras de seguridad básicas (y sin anunciar que es Express).
 app.disable('x-powered-by');
 app.use((req, res, next) => {
@@ -2019,6 +2023,7 @@ const leerExcel = () => {
     }
 };
 
+const ultimoRespaldoAutomatico = { real: 0, pruebas: 0 };
 const guardarEnExcel = (datosActualizados) => {
     console.log("Iniciando proceso de escritura...");
 
@@ -2026,7 +2031,12 @@ const guardarEnExcel = (datosActualizados) => {
     // fondo, nunca debe retrasar el guardado real que el usuario está
     // esperando ver reflejado. Ahora respalda el archivo .db real (con
     // la API nativa de backup de SQLite), no el Excel viejo.
-    crearRespaldoDB(modoActual, ultimaAccionParaRespaldo).catch(err => console.error('⚠️ Error inesperado en el respaldo:', err.message));
+    // Como mucho una copia automática por minuto: una cascada de guardados
+    // (reacomodar, reasignar...) no llena la carpeta con copias casi iguales.
+    if (Date.now() - ultimoRespaldoAutomatico[modoActual] >= 60000) {
+        ultimoRespaldoAutomatico[modoActual] = Date.now();
+        crearRespaldoDB(modoActual, ultimaAccionParaRespaldo).catch(err => console.error('⚠️ Error inesperado en el respaldo:', err.message));
+    }
 
     try {
         // Actualizamos el caché INMEDIATAMENTE — mismo motivo que
@@ -4920,6 +4930,8 @@ const crearServidorDual = (aplicacion, credenciales, esperaPrimerByteMs = 10000)
 const alArrancar = (conHttps) => {
     console.log(`🚀 Servidor backend corriendo en: http://localhost:${PORT}`);
     if (conHttps) console.log(`🔒 Y también por HTTPS en: https://localhost:${PORT}`);
+    // Limpieza de respaldos acumulados (de antes de existir la regla).
+    setTimeout(() => { limpiarRespaldosDB('real'); limpiarRespaldosDB('pruebas'); }, 5000);
     console.log(hayAppCompilada
         ? `🖥️  La app se abre en http://localhost:${PORT} (o con la IP de este equipo / Tailscale, puerto ${PORT}).`
         : '⚠️  La app no está compilada: corre "actualizar-rutograma.bat" (o "npx ng build" en mi-rutograma). Mientras tanto solo funciona la API.');
