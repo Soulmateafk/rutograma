@@ -26,11 +26,31 @@
     <strong>{{ novedadesConductores.length === 1 ? 'Un conductor reportó una novedad' : novedadesConductores.length + ' novedades de conductores sin resolver' }}</strong>
     <div *ngFor="let n of novedadesConductores.slice(0, 3)" class="ruto-novedad-fila">
       <span><b>{{ n.titulo }}</b> · {{ haceCuanto(n.ts) }}<br><span class="ruto-novedad-desc">{{ n.desc }}</span></span>
+      <app-foto-novedad *ngIf="n.foto" [id]="n.id"></app-foto-novedad>
       <button *ngIf="auth.puedeEditar" class="ruto-aviso-btn" [disabled]="resolviendoNovedad === n.id" (click)="resolverNovedadConductor(n)">
         <i class="bi bi-check2"></i> Resuelta
       </button>
     </div>
     <span *ngIf="novedadesConductores.length > 3">y {{ novedadesConductores.length - 3 }} más (en el Dashboard).</span>
+  </div>
+</div>
+
+<!-- Revisión del mes: documentos vencidos y choques de agenda (services/revision-viajes.ts). -->
+<div *ngIf="problemasDelMes.length" class="ruto-aviso-aprobaciones ruto-aviso-revision" data-guia="ruto-revision">
+  <i class="bi bi-shield-exclamation ruto-aviso-icono"></i>
+  <div class="ruto-aviso-texto ruto-novedades-lista">
+    <strong>{{ problemasDelMes.length === 1 ? 'Un viaje por revisar' : problemasDelMes.length + ' viajes por revisar' }} este mes
+      <span class="ruto-revision-sub">(documentos vencidos o se cruzan con otro viaje)</span></strong>
+    <div class="ruto-revision-lista" [class.abierta]="revisionAbierta">
+      <div *ngFor="let p of (revisionAbierta ? problemasDelMes : problemasDelMes.slice(0, 3))" class="ruto-novedad-fila">
+        <span><b>{{ p.viaje.fecha | date:'EEE d':'':'es' }} · {{ p.viaje.p || p.viaje.placa }} · {{ p.viaje.ruta || p.viaje.codigo }}</b><br>
+          <span class="ruto-novedad-desc">{{ textoProblema(p) }}</span></span>
+        <button class="ruto-aviso-btn" (click)="verDetalle(p.viaje.id)"><i class="bi bi-box-arrow-up-right"></i> Abrir</button>
+      </div>
+    </div>
+    <button *ngIf="problemasDelMes.length > 3" class="ruto-revision-mas" (click)="revisionAbierta = !revisionAbierta">
+      {{ revisionAbierta ? 'Ver menos' : 'Ver los ' + problemasDelMes.length }}
+    </button>
   </div>
 </div>
 
@@ -418,6 +438,10 @@
       <button class="ruto-resumen-semana-tab ruto-btn-pdf-semana" data-guia="ruto-pdf-semana" [disabled]="generandoPdfSemana" (click)="exportarSemanaPDF()"
               title="Descarga la semana elegida en PDF: una hoja por día, lista para imprimir o mandar por WhatsApp">
         <i class="bi bi-file-earmark-pdf"></i> {{ generandoPdfSemana ? 'Creando…' : 'PDF de la semana' }}
+      </button>
+      <button class="ruto-resumen-semana-tab ruto-btn-compartir-semana" data-guia="ruto-compartir-semana" [disabled]="generandoPdfSemana" (click)="exportarSemanaPDF('compartir')"
+              title="Abre el menú de compartir con el PDF de la semana: elige WhatsApp y el chat o grupo">
+        <i class="bi bi-whatsapp"></i> Compartir
       </button>
     </div>
 

@@ -1074,6 +1074,22 @@ export class DataService {
    *  actual en vez de dejar abierto un formulario con datos descartados. */
   public ultimoChoqueDescartado: { tipo: string; clave: string } | null = null;
 
+  // Choque de agenda (ver backend/revision-viajes.js): el mismo vehículo
+  // o conductor ya tiene otro viaje esos días. Se pregunta en app.html.
+  private _choqueAgenda = signal<{ choques: string[]; resolver: (seguir: boolean) => void } | null>(null);
+  public get choqueAgenda() { return this._choqueAgenda(); }
+
+  public resolverChoqueAgenda(seguir: boolean): void {
+    const c = this._choqueAgenda();
+    this._choqueAgenda.set(null);
+    if (c) c.resolver(seguir);
+  }
+
+  private preguntarChoqueAgenda(choques: string[]): Promise<boolean> {
+    this.resolverChoqueAgenda(false);
+    return new Promise(resolver => this._choqueAgenda.set({ choques, resolver }));
+  }
+
   public resolverConflictoEdicion(decision: 'sobrescribir' | 'descartar'): void {
     const c = this._conflictoEdicion();
     this._conflictoEdicion.set(null);
@@ -1187,7 +1203,7 @@ export class DataService {
   public async guardarViaje(
     viaje: any,
     sinRegistrar: boolean = false,
-    opciones: { protegerDeChoques?: boolean; baseOriginal?: any; baseVista?: any } = {}
+    opciones: { protegerDeChoques?: boolean; baseOriginal?: any; baseVista?: any; revisarChoquesAgenda?: boolean } = {}
   ): Promise<boolean> {
     this.ultimoChoqueDescartado = null;
 
@@ -1201,6 +1217,11 @@ export class DataService {
     // de guardados se omite y el servidor guarda como siempre.
     const cuerpo: any = { ...viaje };
     if (!opciones.protegerDeChoques) delete cuerpo.version;
+    // El aviso de choque de agenda solo se pide donde la persona asigna a
+    // mano (editar o crear un viaje). Los movimientos de varios pasos
+    // (arrastrar, intercambiar, deshacer) pasan por estados intermedios
+    // que chocarían un momento: esos lo saltan.
+    if (!opciones.revisarChoquesAgenda) cuerpo.confirmarChoque = true;
 
     const aplicarLocalYRegistrar = async (guardado: any, mensajeExito: string, tipoToast: string) => {
       if (this.S.viajes) {
@@ -1248,6 +1269,12 @@ export class DataService {
         this.ui.mostrarToast(`Se descartó tu cambio: quedó la versión de ${actual.editadoPor || 'la otra persona'}.`, 'ok');
         return false;
       }
+      if (e?.status === 409 && e?.error?.codigo === 'choque_agenda') {
+        const seguir = await this.preguntarChoqueAgenda(e.error.choques || [e.error.msg]);
+        if (seguir) return this.guardarViaje(viaje, sinRegistrar, { ...opciones, revisarChoquesAgenda: false });
+        this.ui.mostrarToast('No se guardó el viaje: cambia el vehículo, el conductor o las fechas.', 'info');
+        return false;
+      }
       if (e?.status === 0) {
         // Sin conexión de verdad (el navegador no logró ni contactar al
         // servidor) — se guarda en este dispositivo y se encola para
@@ -1255,7 +1282,7 @@ export class DataService {
         // el cambio o solo mostrar un error. Se encola CON la versión
         // base, para que al reenviarse se detecte si otra persona lo
         // modificó mientras tanto.
-        this.encolarCambioPendiente(url, { ...viaje }, `Viaje ${viaje.ruta || viaje.codigo || 'sin ruta'} (placa ${viaje.p || viaje.placa || '?'})`);
+        this.encolarCambioPendiente(url, { ...viaje, confirmarChoque: true }, `Viaje ${viaje.ruta || viaje.codigo || 'sin ruta'} (placa ${viaje.p || viaje.placa || '?'})`);
         await aplicarLocalYRegistrar({ ...viaje }, '<i class="bi bi-cloud-arrow-up-fill"></i> Sin conexión — guardado en este dispositivo, se sincronizará solo cuando vuelva la conexión.', 'err');
         return true;
       }

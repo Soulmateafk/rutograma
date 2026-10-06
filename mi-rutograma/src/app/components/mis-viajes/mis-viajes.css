@@ -87,3 +87,8 @@
 .mv-modal-botones > * { flex: 1; }
 
 .mv-nota-viaje { margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: rgba(250, 204, 21, 0.12); border-left: 3px solid #facc15; color: #fde68a; font-size: 13px; line-height: 1.4; }
+
+/* Foto de la novedad */
+.mv-foto { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mv-foto-vista { width: 100%; max-height: 180px; object-fit: contain; border-radius: 8px; background: rgba(0, 0, 0, 0.25); }
+.mv-foto-btn { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }

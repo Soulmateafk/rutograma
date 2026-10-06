@@ -231,8 +231,46 @@ export class MisViajesComponent implements OnInit, OnDestroy {
     { valor: 'Accidente', nombre: 'Accidente', icono: 'bi-exclamation-octagon' },
     { valor: 'Otro', nombre: 'Otra cosa', icono: 'bi-chat-dots' }
   ];
-  reporte: { tipo: string; viajeId: string; desc: string } | null = null;
+  reporte: { tipo: string; viajeId: string; desc: string; foto?: string } | null = null;
   enviandoReporte = false;
+  procesandoFoto = false;
+
+  /** Foto opcional: se reduce aquí (máx. 1280 px, JPEG) para que suba rápido con poca señal. */
+  async elegirFoto(evento: Event): Promise<void> {
+    const input = evento.target as HTMLInputElement;
+    const archivo = input.files?.[0];
+    input.value = '';
+    if (!archivo || !this.reporte) return;
+    if (!archivo.type.startsWith('image/')) {
+      this.ui.mostrarToast('Eso no es una foto.', 'err');
+      return;
+    }
+    this.procesandoFoto = true;
+    this.cdr.markForCheck();
+    try {
+      const url = URL.createObjectURL(archivo);
+      try {
+        const img = await new Promise<HTMLImageElement>((ok, mal) => {
+          const i = new Image();
+          i.onload = () => ok(i);
+          i.onerror = () => mal(new Error('no carga'));
+          i.src = url;
+        });
+        const escala = Math.min(1, 1280 / Math.max(img.naturalWidth, img.naturalHeight));
+        const lienzo = document.createElement('canvas');
+        lienzo.width = Math.round(img.naturalWidth * escala);
+        lienzo.height = Math.round(img.naturalHeight * escala);
+        lienzo.getContext('2d')!.drawImage(img, 0, 0, lienzo.width, lienzo.height);
+        if (this.reporte) this.reporte.foto = lienzo.toDataURL('image/jpeg', 0.72);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      this.ui.mostrarToast('No se pudo leer la foto. Intenta con otra.', 'err');
+    }
+    this.procesandoFoto = false;
+    this.cdr.markForCheck();
+  }
 
   /** Los viajes de ayer a mañana (con los que más probablemente pasa algo). */
   get viajesParaReporte(): any[] {
@@ -256,7 +294,7 @@ export class MisViajesComponent implements OnInit, OnDestroy {
       const res = await this.auth.fetchAutenticado(`${API_URL}/mis-viajes/novedad`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tipo: this.reporte.tipo, desc: this.reporte.desc, viajeId: this.reporte.viajeId || undefined, ...(this.elegido || {}) })
+        body: JSON.stringify({ tipo: this.reporte.tipo, desc: this.reporte.desc, viajeId: this.reporte.viajeId || undefined, foto: this.reporte.foto || undefined, ...(this.elegido || {}) })
       });
       const data = await res.json();
       if (data?.ok) {

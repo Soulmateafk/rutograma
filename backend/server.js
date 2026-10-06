@@ -26,6 +26,7 @@ const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, 
 const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
 const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar } = require('./dias-cerrados');
+const { documentosVencidos, choquesDeAgenda, cambioLoQueSeRevisa } = require('./revision-viajes');
 const { armarHojaDeVida } = require('./hoja-vida');
 const { armarCumplimiento, horaDelViaje } = require('./cumplimiento');
 const { compararConVisto, armarVisto } = require('./avisos-conductor');
@@ -79,6 +80,8 @@ app.use((req, res, next) => {
 app.use('/api/importar', express.json({ limit: '30mb' }));
 // El cierre de mes trae todos los viajes del mes (la foto que se guarda).
 app.use('/api/cerrar-mes', express.json({ limit: '20mb' }));
+// La foto de una novedad (ya reducida en el celular a ~300 KB).
+app.use('/api/mis-viajes/novedad', express.json({ limit: '8mb' }));
 app.use(express.json());
 
 // ============================================================================
@@ -111,7 +114,7 @@ const registrarAuditoria = (usuario, metodo, ruta, cuerpo, modo) => {
             // auditoría (y de ahí, en los respaldos). Se listan aquí todos
             // los nombres posibles para que no vuelva a pasar con otro.
             // "archivo": el Excel completo de la importación (megas de texto).
-            ['pass', 'passHash', 'nuevaClave', 'actual', 'nueva', 'password', 'clave', 'contrasena', 'token', 'archivo']
+            ['pass', 'passHash', 'nuevaClave', 'actual', 'nueva', 'password', 'clave', 'contrasena', 'token', 'archivo', 'foto']
                 .forEach(campo => delete resumen[campo]);
         }
 
@@ -1113,6 +1116,45 @@ const RUTAS_SIN_RESTRICCION_DE_ROL = [
     '/api/sesiones/cerrar-actual'
 ];
 const RUTAS_CON_PERMISO_PROPIO = ['/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
+
+// ============================================================
+// REVISIÓN AL ASIGNAR UN VIAJE (ver revision-viajes.js) — para todos,
+// también el administrador, y antes de la cola de aprobaciones (así el
+// auxiliar se entera al momento). Solo si el viaje es nuevo o cambió de
+// vehículo, conductor o fechas:
+//  - documentos vencidos (SOAT, tecnomecánica, licencia): no se guarda;
+//  - choque de agenda: se avisa y se guarda solo si la persona confirma
+//    (confirmarChoque: true), porque a veces es a propósito.
+// ============================================================
+app.use((req, res, next) => {
+    if (req.method !== 'POST' || req.path !== '/api/viajes' || req.esReplayAprobado) return next();
+    try {
+        const viaje = req.body || {};
+        const data = leerExcel();
+        const previo = viaje.id !== undefined && viaje.id !== null ? (data.viajes || []).find(v => v.id === viaje.id) : null;
+        if (!cambioLoQueSeRevisa(previo, viaje)) return next();
+        const vencidos = documentosVencidos(viaje, data);
+        if (vencidos.length) {
+            res.locals.auditoriaOmitir = true;
+            return res.status(400).json({
+                ok: false, codigo: 'documentos_vencidos', vencidos,
+                msg: `No se puede asignar este viaje: ${vencidos.join('; ')}. Actualiza la fecha en Vehículos o Conductores si ya se renovó, o elige otro.`
+            });
+        }
+        const choques = choquesDeAgenda(viaje, data.viajes, data.conductores);
+        if (choques.length && viaje.confirmarChoque !== true) {
+            res.locals.auditoriaOmitir = true;
+            return res.status(409).json({
+                ok: false, codigo: 'choque_agenda', choques: choques.map(c => c.texto),
+                msg: `Este viaje se cruza con otro: ${choques.map(c => c.texto).join('; ')}.`
+            });
+        }
+    } catch (err) {
+        // Un fallo revisando nunca debe impedir guardar.
+        console.error('⚠️ Error revisando el viaje:', err.message);
+    }
+    next();
+});
 
 app.use((req, res, next) => {
     if (!req.path.startsWith('/api/') || req.method === 'GET') return next();
@@ -2728,7 +2770,19 @@ app.post('/api/vehiculos', (req, res) => {
                 // Urbano / Viajero / Tercero — mismo patrón que arriba:
                 // si el frontend no lo manda, se conserva lo que ya
                 // hubiera guardado (o "Viajero" si es un vehículo nuevo).
-                categoria: vehFront.categoria || (data.vehiculos?.find(v => String(v.p || v.placa || '').toUpperCase().trim() === placa)?.categoria) || 'Viajero'
+                categoria: vehFront.categoria || (data.vehiculos?.find(v => String(v.p || v.placa || '').toUpperCase().trim() === placa)?.categoria) || 'Viajero',
+                // Vencimientos de SOAT y tecnomecánica: también se perdían aquí
+                // (el objeto se arma de cero), así que las fechas escritas en
+                // Vehículos nunca quedaban guardadas. Mismo patrón: si llegan
+                // se usan (null = borrarlas); si no, se conserva lo guardado.
+                soatVence: vehFront.soatVence !== undefined
+                    ? (vehFront.soatVence || null)
+                    : (data.vehiculos?.find(v => String(v.p || v.placa || '').toUpperCase().trim() === placa)?.soatVence || null),
+                tecnoVence: vehFront.tecnoVence !== undefined
+                    ? (vehFront.tecnoVence || null)
+                    : (data.vehiculos?.find(v => String(v.p || v.placa || '').toUpperCase().trim() === placa)?.tecnoVence || null),
+                um: vehFront.um !== undefined ? vehFront.um : (data.vehiculos?.find(v => String(v.p || v.placa || '').toUpperCase().trim() === placa)?.um || ''),
+                origenAuto: vehFront.origenAuto !== undefined ? vehFront.origenAuto : data.vehiculos?.find(v => String(v.p || v.placa || '').toUpperCase().trim() === placa)?.origenAuto
             };
 
             {
@@ -3057,6 +3111,21 @@ app.get('/api/mis-viajes', (req, res) => {
 // novedades (id "cond-<cédula>-<hora>") y la oficina la ve en el Rutograma.
 const TIPOS_NOVEDAD_CONDUCTOR = { Varado: 'Avería', Retraso: 'Retraso', Accidente: 'Incidente', Otro: 'Aviso' };
 const MAX_NOVEDADES_CONDUCTOR_DIA = 10;
+// Fotos de las novedades: data/fotos-novedades/<id de la novedad>.jpg
+const CARPETA_FOTOS_NOVEDADES = path.join(CARPETA_DATOS, 'fotos-novedades');
+const MAX_BYTES_FOTO_NOVEDAD = 5 * 1024 * 1024;
+const rutaFotoNovedad = (id) => path.join(CARPETA_FOTOS_NOVEDADES, `${String(id).replace(/[^A-Za-z0-9-]/g, '')}.jpg`);
+
+// La oficina ve la foto (con sesión; los conductores no tienen esta ruta).
+app.get('/api/novedades/foto/:id', (req, res) => {
+    const ruta = rutaFotoNovedad(req.params.id);
+    if (!String(req.params.id).startsWith('cond-') || !fs.existsSync(ruta)) {
+        return res.status(404).json({ ok: false, msg: 'Esa novedad no tiene foto.' });
+    }
+    res.setHeader('Cache-Control', 'private, max-age=86400');
+    res.type('image/jpeg').sendFile(ruta);
+});
+
 app.post('/api/mis-viajes/novedad', (req, res) => {
     try {
         const data = leerExcel();
@@ -3079,14 +3148,32 @@ app.post('/api/mis-viajes/novedad', (req, res) => {
         if (hoyDelConductor.length >= MAX_NOVEDADES_CONDUCTOR_DIA) {
             return res.status(429).json({ ok: false, msg: 'Ya reportaste muchas novedades hoy. Llama a la oficina.' });
         }
+        // Foto opcional: JPEG en base64 (el celular ya la reduce). Se guarda
+        // como archivo aparte (no en la base, que viaja entera a cada pantalla).
+        let fotoJpeg = null;
+        if (b.foto) {
+            const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(b.foto));
+            fotoJpeg = m ? Buffer.from(m[1], 'base64') : null;
+            if (!fotoJpeg || fotoJpeg.length < 100 || fotoJpeg[0] !== 0xFF || fotoJpeg[1] !== 0xD8 || fotoJpeg[2] !== 0xFF) {
+                return res.status(400).json({ ok: false, msg: 'La foto no se pudo leer. Toma otra o envía sin foto.' });
+            }
+            if (fotoJpeg.length > MAX_BYTES_FOTO_NOVEDAD) return res.status(400).json({ ok: false, msg: 'La foto es muy pesada. Toma otra.' });
+        }
+
         const placa = (viaje?.placa || r.conductor.placa || '').toUpperCase();
+        const idNovedad = `${prefijo}${Date.now()}`;
+        if (fotoJpeg) {
+            fs.mkdirSync(CARPETA_FOTOS_NOVEDADES, { recursive: true });
+            fs.writeFileSync(rutaFotoNovedad(idNovedad), fotoJpeg);
+        }
         const nueva = {
-            id: `${prefijo}${Date.now()}`,
+            id: idNovedad,
             tipo: TIPOS_NOVEDAD_CONDUCTOR[tipo],
             titulo: [tipo, placa, r.conductor.nombre].filter(Boolean).join(' · '),
             desc: desc + (viaje ? ` — Viaje del ${viaje.fecha}, ruta ${viaje.ruta}${viaje.destino ? ' a ' + viaje.destino : ''}.` : ''),
             fecha: new Date().toLocaleString('es-CO'),
-            resuelta: false
+            resuelta: false,
+            ...(fotoJpeg ? { foto: true } : {})
         };
         data.novedades.push(nueva);
         guardarEnExcel(data);
@@ -3365,6 +3452,8 @@ app.post('/api/viajes', (req, res) => {
         console.log("\n📥 [PETICIÓN] POST /api/viajes");
         const data = leerExcel();
         const viaje = req.body;
+        // Marca de "guardar aunque choque" (ya se revisó antes): no se guarda.
+        if (viaje) delete viaje.confirmarChoque;
 
         if (!viaje || !viaje.placa && !viaje.p) {
             return res.status(400).json({ ok: false, msg: 'Falta la placa del vehículo' });

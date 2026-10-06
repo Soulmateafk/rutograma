@@ -154,9 +154,18 @@
     </select>
     <label class="mv-label">¿Qué pasó?</label>
     <textarea class="mv-input" rows="4" maxlength="500" [(ngModel)]="reporte.desc" placeholder="Ej: Se pinchó una llanta en La Línea, ya viene la grúa."></textarea>
+    <label class="mv-label">Foto (opcional)</label>
+    <div class="mv-foto">
+      <img *ngIf="reporte.foto" [src]="reporte.foto" alt="Foto de la novedad" class="mv-foto-vista">
+      <label class="mv-secundario mv-foto-btn" data-guia="mv-foto">
+        <input type="file" accept="image/*" hidden (change)="elegirFoto($event)">
+        <i class="bi bi-camera-fill"></i> {{ procesandoFoto ? 'Preparando…' : (reporte.foto ? 'Cambiar foto' : 'Tomar o elegir foto') }}
+      </label>
+      <button *ngIf="reporte.foto" class="mv-secundario" (click)="reporte.foto = undefined"><i class="bi bi-x-lg"></i> Quitar</button>
+    </div>
     <div class="mv-modal-botones">
       <button class="mv-secundario" (click)="reporte = null">Cancelar</button>
-      <button class="mv-primario" [disabled]="!reporte.tipo || (reporte.desc || '').trim().length < 5 || enviandoReporte" (click)="enviarReporte()">
+      <button class="mv-primario" [disabled]="!reporte.tipo || (reporte.desc || '').trim().length < 5 || enviandoReporte || procesandoFoto" (click)="enviarReporte()">
         {{ enviandoReporte ? 'Enviando…' : 'Enviar a la oficina' }}
       </button>
     </div>

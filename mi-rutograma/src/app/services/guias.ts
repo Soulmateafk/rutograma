@@ -68,6 +68,7 @@ export const GUIAS: Record<string, Guia> = {
     titulo: 'Rutograma',
     pasos: [
       { el: 'ruto-novedades-conductores', titulo: 'Novedades de conductores', texto: 'Lo que reportan los conductores desde el celular (varado, retraso, accidente) sale aquí hasta que alguien lo marque como resuelto.' },
+      { el: 'ruto-revision', titulo: 'Viajes por revisar', texto: 'Viajes de aquí en adelante con el SOAT, la tecnomecánica o la licencia vencidos en las fechas del viaje, o que se cruzan con otro viaje del mismo vehículo o conductor. "Abrir" lleva al viaje para corregirlo. Al guardar un viaje con documentos vencidos, la app no lo deja.' },
       { el: 'ruto-aprobaciones', titulo: 'Cambios por aprobar', texto: 'Si alguien pidió cambios que esperan tu aprobación, aquí lo ves. Los viajes afectados llevan la marca "Cambio por aprobar".' },
       { el: '.ruto-mes-selector', titulo: 'Mes', texto: 'Elige qué mes ver en la matriz.' },
       { el: '.ruto-table-responsive', titulo: 'La matriz', texto: 'Cada fila es un vehículo y cada columna un día. Haz clic en un viaje para ver o editar sus detalles; un día vacío dice si el vehículo está disponible o su conductor descansa.' },
@@ -76,6 +77,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: '.btn-import', titulo: 'Importar Operación', texto: 'Carga la operación desde un archivo de Excel.' },
       { el: '.btn-export', titulo: 'Exportar y Foto del mes', texto: 'Descarga el Rutograma en Excel, o saca una imagen del mes para compartir.' },
       { el: 'ruto-pdf-semana', titulo: 'PDF de la semana', texto: 'Descarga la semana elegida en PDF: una hoja por día con vehículo, conductor, ruta, cliente y hora. Listo para imprimir o mandar por WhatsApp.' },
+      { el: 'ruto-compartir-semana', titulo: 'Compartir por WhatsApp', texto: 'Crea el mismo PDF y abre el menú de compartir del equipo: eliges WhatsApp y el chat o grupo, sin buscar el archivo en Descargas. Si el navegador no lo permite, el PDF se descarga.' },
       { el: '.btn-zoom', titulo: 'Zoom', texto: 'Acerca o aleja la matriz para ver más días o más detalle.' },
       { el: '.ruto-card-viaje', titulo: 'Detalle, notas e historial', texto: 'Al abrir un viaje ves sus datos; en "Editar viaje" le puedes poner una nota para el conductor (la ve en su celular). Con "Ver historial de cambios" ves quién lo cambió, qué y cuándo.' },
       { el: '.ruto-tr-cupo-header', titulo: 'Arsitrans y Polar', texto: 'Los cupos de terceros. "+ Confirmar cupo" agrega uno; "Reacomodar" junta los viajes del mes en los menos cupos posibles, sin tocar nada más.' }
@@ -121,6 +123,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'cond-acciones', titulo: 'Histórico y nuevo conductor', texto: '"Ver histórico" muestra meses anteriores; "Nuevo Conductor" registra uno.' },
       { el: 'input[placeholder^="Buscar por nombre"]', titulo: 'Buscar', texto: 'Filtra por nombre, cédula o vehículo.' },
       { el: '.actions-group', titulo: 'Acciones de cada conductor', texto: 'Ver detalles, editar (aquí se ponen la placa y los días de descanso), cambiar estado o eliminar. Al asignarle una placa, los viajes de esa placa desde mañana pasan a su nombre.' },
+      { el: 'cond-whatsapp', titulo: 'Avisar por WhatsApp', texto: 'Abre el chat de WhatsApp del conductor con sus viajes de los próximos 7 días ya escritos (fecha, vehículo, ruta, hora y nota). Solo revisas y tocas Enviar. Necesita su celular guardado.' },
       { el: 'cond-carga', titulo: 'Carga de trabajo', texto: 'Quién lleva más y menos viajes en el mes, cuántos días en ruta, kilómetros, descansos y cuántos días seguidos ha manejado sin descansar. Rojo: sobrecargado; amarillo: poca carga.' },
       { el: 'cond-viajes', titulo: 'Viajes por conductor', texto: 'Los viajes de cada conductor en el mes.' }
     ]
@@ -193,7 +196,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'mv-identificar', titulo: 'Identifícate', texto: 'Escribe tu nombre y la placa del vehículo. Luego confirmas que la información sea correcta.' },
       { el: 'mv-cabecera', titulo: 'Tu cuenta', texto: 'Tu nombre y tu vehículo. Con los botones actualizas o cierras sesión.' },
       { el: 'mv-foto', titulo: 'Foto de tus viajes', texto: 'Descarga una imagen con tus viajes para tenerla a mano o compartirla.' },
-      { el: 'mv-reportar', titulo: 'Reportar novedad', texto: 'Si quedas varado, te retrasas o pasa algo, avísale a la oficina desde aquí. Si es urgente, llama también.' },
+      { el: 'mv-reportar', titulo: 'Reportar novedad', texto: 'Si quedas varado, te retrasas o pasa algo, avísale a la oficina desde aquí. Puedes adjuntar una foto (llanta, golpe, carga). Si es urgente, llama también.' },
       { el: 'mv-avisos', titulo: 'Cambios en tus viajes', texto: 'Si te agregan, cambian o quitan un viaje, aquí te avisa y el viaje sale marcado. Toca "Entendido" cuando lo hayas visto.' },
       { el: '.mv-acciones-viaje', titulo: 'Ya salí / Ya llegué', texto: 'Cuando arranques, toca "Ya salí"; al llegar al destino, "Ya llegué". La oficina lo ve al instante. Si tocaste por error, tienes 15 minutos para deshacerlo.' },
       { el: 'mv-dias', titulo: 'Tus viajes por día', texto: 'Hoy y los próximos días, con destino, hora, vehículo y cuándo regresas. Los días de descanso salen marcados. Se actualiza sola cada minuto.' },

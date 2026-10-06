@@ -1,6 +1,7 @@
 import { Component, inject, OnInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
 import { armarCargaConductores, RACHA_ALERTA, ResumenCarga } from '../../services/carga-conductores';
 import { errorConductor, normalizarPlaca } from '../../services/validaciones';
+import { enlaceWhatsApp, mensajeViajes, numeroWhatsApp, proximosViajes } from '../../services/whatsapp';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
@@ -220,6 +221,24 @@ export class ConductoresComponent implements OnInit, OnDestroy {
   // no la placa que el conductor tiene asignada ahora mismo). Así, si
   // cambió de vehículo a mitad de mes, o si un respaldo cubrió un
   // viaje de otro, el conteo sigue siendo el correcto para cada quien.
+  // Avisar por WhatsApp (services/whatsapp.ts): abre el chat del conductor
+  // con sus viajes de los próximos 7 días ya escritos.
+  public tieneWhatsApp(c: any): boolean {
+    return !!numeroWhatsApp(c?.tel);
+  }
+
+  public avisarPorWhatsApp(c: any): void {
+    const mensaje = mensajeViajes(c, this.dataService.S.viajes || [], this.dataService.S.rutas || [], new Date());
+    const enlace = enlaceWhatsApp(c?.tel, mensaje);
+    if (!enlace) {
+      this.ui.mostrarToast('Este conductor no tiene un celular válido. Edítalo y escribe su número (ej. 300 123 4567).', 'err');
+      return;
+    }
+    window.open(enlace, '_blank', 'noopener');
+    const n = proximosViajes(c, this.dataService.S.viajes || [], new Date()).length;
+    this.ui.mostrarToast(`Se abrió WhatsApp con ${n} viaje${n === 1 ? '' : 's'} de los próximos 7 días. Revisa y toca Enviar.`, 'info');
+  }
+
   public viajesDelMesConductor(c: any): number {
     const nombre = String(c.nom || c.nombre || '').trim();
     if (!nombre) return 0;
