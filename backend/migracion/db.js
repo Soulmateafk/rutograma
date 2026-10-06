@@ -17,6 +17,7 @@
 // INSTALAR PRIMERO: npm install better-sqlite3
 // ============================================================
 
+const { respaldosParaBorrar } = require('../limpieza-respaldos');
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
@@ -590,7 +591,25 @@ async function crearRespaldoDB(modo = 'real', etiqueta = '') {
   const sufijoEtiqueta = etiqueta ? `_${etiqueta}` : '';
   const rutaDestino = path.join(CARPETA_RESPALDOS, `${prefijo}_${marcaTiempo}${sufijoEtiqueta}.db`);
   await db.backup(rutaDestino);
+  limpiarRespaldosDB(modo);
   return rutaDestino;
+}
+
+// Borra los respaldos que sobran según la regla de limpieza-respaldos.js
+// (sin esto se acumulaban gigas: una copia completa por cada guardado).
+function limpiarRespaldosDB(modo = 'real') {
+  try {
+    const lista = listarRespaldosDB(modo).map(r => ({ nombre: r.nombre, ms: new Date(r.fecha).getTime() }));
+    const borrar = respaldosParaBorrar(lista);
+    for (const nombre of borrar) {
+      try { fs.unlinkSync(path.join(CARPETA_RESPALDOS, nombre)); } catch { /* ya no estaba */ }
+    }
+    if (borrar.length) console.log(`🧹 Respaldos (${modo}): se borraron ${borrar.length} que sobraban; quedan ${lista.length - borrar.length}.`);
+    return borrar.length;
+  } catch (err) {
+    console.error('⚠️ No se pudieron limpiar los respaldos viejos:', err.message);
+    return 0;
+  }
 }
 
 function listarRespaldosDB(modo = 'real') {
@@ -671,6 +690,6 @@ function guardarConfigCompartidaDB(modo, clave, valor, editadoPor) {
 module.exports = {
   leerConfigCompartidaDB, guardarConfigCompartidaDB,
   listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB,
-  leerDB, guardarEnDB, conectar, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB,
+  leerDB, guardarEnDB, conectar, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB, limpiarRespaldosDB,
   registrarAuditoriaDB, listarAuditoriaDB, listarAuditoriaViajeDB, importarAuditoriaJSONLSiHaceFalta
 };

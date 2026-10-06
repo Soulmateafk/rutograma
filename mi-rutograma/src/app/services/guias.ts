@@ -121,6 +121,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'cond-acciones', titulo: 'Histórico y nuevo conductor', texto: '"Ver histórico" muestra meses anteriores; "Nuevo Conductor" registra uno.' },
       { el: 'input[placeholder^="Buscar por nombre"]', titulo: 'Buscar', texto: 'Filtra por nombre, cédula o vehículo.' },
       { el: '.actions-group', titulo: 'Acciones de cada conductor', texto: 'Ver detalles, editar (aquí se ponen la placa y los días de descanso), cambiar estado o eliminar. Al asignarle una placa, los viajes de esa placa desde mañana pasan a su nombre.' },
+      { el: 'cond-carga', titulo: 'Carga de trabajo', texto: 'Quién lleva más y menos viajes en el mes, cuántos días en ruta, kilómetros, descansos y cuántos días seguidos ha manejado sin descansar. Rojo: sobrecargado; amarillo: poca carga.' },
       { el: 'cond-viajes', titulo: 'Viajes por conductor', texto: 'Los viajes de cada conductor en el mes.' }
     ]
   },

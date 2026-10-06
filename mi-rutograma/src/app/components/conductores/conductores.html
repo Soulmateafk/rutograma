@@ -164,6 +164,40 @@
   <!-- VIAJES POR CONDUCTOR (mes activo) — mismo patrón que la     -->
   <!-- sección equivalente en Vehículos.                           -->
   <!-- ========================================================= -->
+  <!-- Carga de trabajo del mes (services/carga-conductores.ts). -->
+  <div data-guia="cond-carga" class="table-card carga-card" *ngIf="carga">
+    <div class="carga-head">
+      <h2>Carga de trabajo del mes</h2>
+      <div class="carga-resumen">
+        <span>Promedio: <b>{{ carga.promedioViajes }}</b> viajes</span>
+        <span class="carga-chip sobrecargado" *ngIf="carga.sobrecargados">{{ carga.sobrecargados }} sobrecargado{{ carga.sobrecargados === 1 ? '' : 's' }}</span>
+        <span class="carga-chip poca" *ngIf="carga.pocaCarga">{{ carga.pocaCarga }} con poca carga</span>
+        <span class="carga-chip racha" *ngIf="carga.conRachaLarga">{{ carga.conRachaLarga }} con {{ rachaAlerta }}+ días seguidos en ruta</span>
+      </div>
+    </div>
+    <div class="carga-scroll">
+      <table class="carga-tabla">
+        <tr>
+          <th>Conductor</th><th>Viajes</th><th title="Días del mes que estuvo en ruta (de la salida al regreso)">Días en ruta</th>
+          <th title="Suma de los km de las rutas que hizo">Km</th><th>Descansos</th><th title="Días seguidos en ruta sin descansar">Racha máx.</th><th></th>
+        </tr>
+        <tr *ngFor="let c of carga.conductores" [class.carga-inactivo]="c.estado !== 'activo' && !c.totalViajes">
+          <td><b>{{ c.nombre }}</b><div class="carga-sub">{{ c.placa || 'Sin placa' }}<span *ngIf="c.estado !== 'activo'"> · {{ c.estado }}</span></div></td>
+          <td class="carga-barra-celda">
+            <div class="carga-barra"><div [ngClass]="c.nivel" [style.width.%]="c.totalViajes / maxViajesCarga * 100"></div></div>
+            <span>{{ c.totalViajes }}</span>
+          </td>
+          <td>{{ c.diasEnRuta }}</td>
+          <td>{{ c.km ? (c.km | number:'1.0-0':'es') : '—' }}</td>
+          <td>{{ c.diasDescanso || '—' }}</td>
+          <td [class.carga-racha-alta]="c.rachaMax >= rachaAlerta">{{ c.rachaMax ? c.rachaMax + ' días' : '—' }}</td>
+          <td><span class="carga-chip" [ngClass]="c.nivel">{{ textoNivel(c.nivel) }}</span></td>
+        </tr>
+      </table>
+    </div>
+    <p class="carga-nota">Sobrecargado: 25 % o más por encima del promedio. Un viaje sin conductor anotado cuenta para el titular de la placa.</p>
+  </div>
+
   <div data-guia="cond-viajes" class="table-card" style="margin-top: 20px; padding: 16px;">
     <h2 style="font-size: 16px; margin: 0 0 12px 0; color: var(--color-texto-principal);">Viajes por Conductor (mes activo)</h2>
 
