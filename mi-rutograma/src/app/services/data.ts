@@ -138,7 +138,7 @@ export class DataService {
       }
       if (conflictos.length > 0) {
         const c = conflictos[0];
-        const quien = c.actual?.editadoPor || 'otra persona';
+        const quien = this.nombreDe(c.actual?.editadoPor) || 'otra persona';
         this.ui.mostrarToast(`<i class="bi bi-people-fill"></i> ${conflictos.length} cambio(s) hechos sin conexión no se aplicaron porque ${quien} modificó ese viaje mientras tanto (por ejemplo: ${c.item.descripcion}). Quedó la versión más reciente.`, 'err');
       }
       if (rechazados.length > 0) {
@@ -841,7 +841,7 @@ export class DataService {
           return this.guardarVehiculo({ ...vehiculo, version: actual.version }, index, sinRegistrar, opciones);
         }
         this.ultimoChoqueDescartado = { tipo: 'vehiculo', clave: String(actual.p) };
-        this.ui.mostrarToast(`Se descartó tu cambio: quedó la versión de ${actual.editadoPor || 'la otra persona'}.`, 'ok');
+        this.ui.mostrarToast(`Se descartó tu cambio: quedó la versión de ${this.nombreDe(actual.editadoPor) || 'la otra persona'}.`, 'ok');
         return false;
       }
       if (e?.status === 0) {
@@ -1066,6 +1066,31 @@ export class DataService {
   // guardarConductorValidado por igual: un solo aviso, con "tipo" para
   // que el modal en app.html arme la frase con el artículo/sustantivo
   // correcto ("Este vehículo...", "Esta ruta...").
+  // Primer nombre de cada cuenta (GET /api/usuarios/nombres), para mostrar
+  // "Carlos" en vez de "carlos.bocanegra@makand.com". Se pide una vez,
+  // la primera vez que hace falta; mientras llega se muestra el correo.
+  private _nombres = signal<Record<string, string>>({});
+  private pidiendoNombres = false;
+  private nombresPedidosEn = 0;
+
+  public nombreDe(email: any): string {
+    const e = String(email || '').trim().toLowerCase();
+    if (!e) return '';
+    const nombre = this._nombres()[e];
+    if (!nombre && !this.pidiendoNombres && Date.now() - this.nombresPedidosEn > 60000) this.cargarNombres();
+    return nombre || e;
+  }
+
+  private async cargarNombres(): Promise<void> {
+    this.pidiendoNombres = true;
+    this.nombresPedidosEn = Date.now();
+    try {
+      const r: any = await firstValueFrom(this.http.get(`${this.API_URL}/usuarios/nombres`, this.headersAuditoria()));
+      if (r?.ok) this._nombres.set(r.nombres || {});
+    } catch { /* sin nombres: se sigue mostrando el correo */ }
+    this.pidiendoNombres = false;
+  }
+
   private _conflictoEdicion = signal<any>(null);
   public get conflictoEdicion(): any { return this._conflictoEdicion(); }
 
@@ -1173,7 +1198,7 @@ export class DataService {
     mio: any, actual: any, bases: any
   ): Promise<'sobrescribir' | 'descartar'> {
     const { tuyas, suyas } = this.calcularDiferenciasChoque(campos, bases?.original, bases?.vista, mio, actual);
-    const quien = actual?.editadoPor || 'otra persona';
+    const quien = this.nombreDe(actual?.editadoPor) || 'otra persona';
     const cuando = actual?.editadoEn
       ? `a las ${new Date(actual.editadoEn).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`
       : 'hace un momento';
@@ -1266,7 +1291,7 @@ export class DataService {
           return this.guardarViaje({ ...viaje, version: actual.version }, sinRegistrar, opciones);
         }
         this.ultimoChoqueDescartado = { tipo: 'viaje', clave: String(viaje.id) };
-        this.ui.mostrarToast(`Se descartó tu cambio: quedó la versión de ${actual.editadoPor || 'la otra persona'}.`, 'ok');
+        this.ui.mostrarToast(`Se descartó tu cambio: quedó la versión de ${this.nombreDe(actual.editadoPor) || 'la otra persona'}.`, 'ok');
         return false;
       }
       if (e?.status === 409 && e?.error?.codigo === 'choque_agenda') {
@@ -1662,7 +1687,7 @@ export class DataService {
             return this.guardarRuta({ ...nuevaRuta, version: actual.version }, codOriginal, sinRegistrar, opciones);
           }
           this.ultimoChoqueDescartado = { tipo: 'ruta', clave: String(actual.cod) };
-          this.ui.mostrarToast(`Se descartó tu cambio: quedó la versión de ${actual.editadoPor || 'la otra persona'}.`, 'ok');
+          this.ui.mostrarToast(`Se descartó tu cambio: quedó la versión de ${this.nombreDe(actual.editadoPor) || 'la otra persona'}.`, 'ok');
           return false;
         }
         if (e?.status === 0) {
@@ -1752,7 +1777,7 @@ export class DataService {
           return this.guardarConductorValidado({ ...dataConductor, version: actual.version }, index, sinRegistrar, opciones);
         }
         this.ultimoChoqueDescartado = { tipo: 'conductor', clave: cedulaActual };
-        this.ui.mostrarToast(`Se descartó tu cambio: quedó la versión de ${actual.editadoPor || 'la otra persona'}.`, 'ok');
+        this.ui.mostrarToast(`Se descartó tu cambio: quedó la versión de ${this.nombreDe(actual.editadoPor) || 'la otra persona'}.`, 'ok');
         return null;
       }
       if (e?.status === 0) {

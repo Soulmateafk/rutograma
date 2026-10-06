@@ -145,6 +145,7 @@
                 <td>
                   <div class="actions-group">
                     <button type="button" class="action-btn" (click)="verDetalles(c)" title="Ver detalles"><i class="bi bi-eye-fill" style="color:#60a5fa;"></i></button>
+                    <a class="action-btn" data-guia="cond-agenda" [routerLink]="['/agenda', c.nom || c.nombre]" title="Agenda del mes: viajes, descansos y días libres"><i class="bi bi-calendar3" style="color:#a78bfa;"></i></a>
                     <button type="button" class="action-btn" data-guia="cond-whatsapp" (click)="avisarPorWhatsApp(c)" [disabled]="!tieneWhatsApp(c)"
                             [title]="tieneWhatsApp(c) ? 'Avisar por WhatsApp sus viajes de los próximos 7 días' : 'Sin celular válido: edita el conductor para poner su número'"><i class="bi bi-whatsapp" [style.color]="tieneWhatsApp(c) ? '#22c55e' : '#64748b'"></i></button>
                     <ng-container *ngIf="auth.puedeEditar">
@@ -233,6 +234,7 @@
 <div class="mbg hide" id="m-cond">
   <div class="modal">
     <h3 id="m-cond-title">{{ indexEdicion !== null ? 'Editar Conductor' : 'Registrar Conductor Completo' }}</h3>
+    <app-otros-aqui *ngIf="indexEdicion !== null" que="este conductor"></app-otros-aqui>
     <div class="form-row">
       <div class="form-group">
         <label>Nombre completo</label>
@@ -319,11 +321,15 @@
 <div class="mbg hide" id="m-vista">
   <div class="modal">
     <h3>Información del Conductor</h3>
+    <app-otros-aqui que="este conductor"></app-otros-aqui>
     @if (conductorSeleccionado) {
       <div class="card-info" style="text-align: left; line-height: 2;">
         <p><strong>Nombre:</strong> {{ conductorSeleccionado.nom || conductorSeleccionado.nombre }}</p>
         <p><strong>Cédula:</strong> {{ conductorSeleccionado.ced || conductorSeleccionado.cedula }}</p>
         <p><strong>Teléfono:</strong> {{ conductorSeleccionado.tel }}
+          <a class="btn-wa btn-agenda" [routerLink]="['/agenda', conductorSeleccionado.nom || conductorSeleccionado.nombre]" (click)="cerrarModal('m-vista')">
+            <i class="bi bi-calendar3"></i> Ver agenda
+          </a>
           <button type="button" class="btn-wa" *ngIf="tieneWhatsApp(conductorSeleccionado)" (click)="avisarPorWhatsApp(conductorSeleccionado)">
             <i class="bi bi-whatsapp"></i> Avisar sus viajes
           </button>

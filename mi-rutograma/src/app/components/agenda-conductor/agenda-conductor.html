@@ -1,0 +1,72 @@
+<div class="ag-page">
+  <div class="ag-top ag-no-imprimir">
+    <a routerLink="/conductores" class="ag-volver"><i class="bi bi-arrow-left"></i> Conductores</a>
+    <div class="ag-acciones">
+      <select class="ag-select" [ngModel]="conductor?.nom || conductor?.nombre || ''" (ngModelChange)="elegirConductor($event)" aria-label="Cambiar de conductor">
+        <option *ngFor="let c of conductores" [value]="c.nom || c.nombre">{{ c.nom || c.nombre }}</option>
+      </select>
+      <button class="ag-btn ag-wa" *ngIf="tieneWhatsApp" (click)="avisarPorWhatsApp()"><i class="bi bi-whatsapp"></i> Avisar sus viajes</button>
+      <button class="ag-btn" *ngIf="agenda" (click)="imprimir()"><i class="bi bi-printer"></i> Imprimir / PDF</button>
+    </div>
+  </div>
+
+  <p *ngIf="!conductor" class="ag-msg">
+    {{ (ds.S?.conductores || []).length ? 'No se encontró el conductor "' + nombre + '".' : 'Cargando…' }}
+  </p>
+
+  <ng-container *ngIf="conductor && agenda as a">
+    <header class="ag-cabecera" data-guia="ag-cabecera">
+      <div>
+        <div class="ag-etiqueta">Agenda del conductor</div>
+        <h1>{{ conductor.nom || conductor.nombre }}</h1>
+        <p>{{ conductor.veh || 'Sin vehículo' }} · {{ (conductor.est || 'activo') | titlecase }}<span *ngIf="conductor.tel"> · {{ conductor.tel }}</span></p>
+      </div>
+      <div class="ag-mes">
+        <button class="ag-flecha ag-no-imprimir" (click)="cambiarMes(-1)" aria-label="Mes anterior"><i class="bi bi-chevron-left"></i></button>
+        <b>{{ tituloMes }}</b>
+        <button class="ag-flecha ag-no-imprimir" (click)="cambiarMes(1)" aria-label="Mes siguiente"><i class="bi bi-chevron-right"></i></button>
+        <button class="ag-hoy ag-no-imprimir" (click)="irAHoy()">Hoy</button>
+      </div>
+    </header>
+
+    <section class="ag-kpis">
+      <div class="ag-kpi"><b>{{ a.resumen.viajes }}</b><span>viajes</span></div>
+      <div class="ag-kpi"><b>{{ a.resumen.diasEnRuta }}</b><span>días en ruta</span></div>
+      <div class="ag-kpi"><b>{{ a.resumen.descansos }}</b><span>descansos</span></div>
+      <div class="ag-kpi"><b>{{ a.resumen.libres }}</b><span>días libres</span></div>
+    </section>
+
+    <p class="ag-alerta" *ngIf="a.resumen.descansoConViaje">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      {{ a.resumen.descansoConViaje === 1 ? 'Un día de descanso tiene' : a.resumen.descansoConViaje + ' días de descanso tienen' }} viaje asignado. Revisa la programación.
+    </p>
+
+    <div class="ag-leyenda">
+      <span><i class="ag-cuadro sale"></i> Sale a viaje</span>
+      <span><i class="ag-cuadro en-ruta"></i> En ruta</span>
+      <span><i class="ag-cuadro descanso"></i> Descanso</span>
+      <span><i class="ag-cuadro libre"></i> Libre</span>
+    </div>
+
+    <div class="ag-calendario" data-guia="ag-calendario">
+      <div class="ag-cab" *ngFor="let d of diasSemana">{{ d }}</div>
+      <ng-container *ngFor="let semana of a.semanas">
+        <div *ngFor="let d of semana" class="ag-dia" [ngClass]="d.tipo" [class.fuera]="!d.enMes" [class.hoy]="d.hoy" [class.choque]="d.descanso && d.tipo !== 'descanso' && d.tipo !== 'libre'">
+          <div class="ag-num">
+            <span>{{ d.dia }}</span>
+            <span class="ag-dia-nombre">{{ d.fecha | date:'EEE':'':'es' }}</span>
+            <i *ngIf="d.descanso && d.tipo !== 'descanso'" class="bi bi-moon-fill" title="Era día de descanso"></i>
+          </div>
+          <ng-container *ngIf="d.enMes || d.salidas.length">
+            <div *ngFor="let v of d.salidas" class="ag-viaje">
+              <b>{{ v.ruta || v.codigo }}</b>
+              <span *ngIf="destino(v)">→ {{ destino(v) }}</span>
+              <span class="ag-meta">{{ v.placaReal || v.p || v.placa }}<ng-container *ngIf="hora(v)"> · {{ hora(v) }}</ng-container></span>
+            </div>
+            <div *ngIf="!d.salidas.length" class="ag-estado">{{ textoDia(d) }}</div>
+          </ng-container>
+        </div>
+      </ng-container>
+    </div>
+  </ng-container>
+</div>

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, HostListener, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, HostListener, ViewChild, ElementRef, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DataService } from '../../services/data';
@@ -14,6 +14,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { viajeCerrado } from '../../services/dias-cerrados';
 import { FotoNovedadComponent } from '../foto-novedad/foto-novedad';
+import { PresenciaService } from '../../services/presencia.service';
+import { OtrosAquiComponent } from '../en-linea/otros-aqui';
 import { revisarMes, rangoViaje, ProblemaViaje } from '../../services/revision-viajes';
 
 // IMPORTACIONES DEL MOTOR LÓGICO
@@ -43,7 +45,7 @@ interface Viaje {
   selector: 'app-rutograma',
   templateUrl: './rutograma.html',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, FotoNovedadComponent], 
+  imports: [CommonModule, FormsModule, RouterLink, FotoNovedadComponent, OtrosAquiComponent], 
   styleUrls: ['./rutograma.css']
 })
 export class RutogramaComponent implements OnInit, OnDestroy {
@@ -82,7 +84,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   // cada guardado (ver guardarViajeVersionado en server.js). Un viaje que
   // nadie ha guardado desde que se activó ese registro no tiene el dato.
   public textoUltimaEdicion(v: any): string {
-    const quien = String(v?.editadoPor || '').trim();
+    const quien = this.ds.nombreDe(v?.editadoPor);
     const cuando = v?.editadoEn ? new Date(v.editadoEn) : null;
     const fechaValida = !!cuando && !isNaN(cuando.getTime());
 
@@ -183,6 +185,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
         this.cargarPendientesAprobacion();
         this.cargarNovedadesConductores();
       }, 20000);
+
     }
     this.ds.cargarEstadoLocal(); 
     
@@ -242,6 +245,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.subDataChanged?.unsubscribe();
     if (this.relojAprobaciones) clearInterval(this.relojAprobaciones);
+    this.presencia.limpiar();
   }
 
   // ============================================================
@@ -1928,6 +1932,144 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     }
   }
 
+  // ============================================================
+  // HOJA DE RUTA — una hoja (A4 vertical) para entregarle al conductor
+  // con todo lo del viaje: fechas, ruta, cliente, carga, vehículo, sus
+  // datos, la nota y espacio para firmas de entrega.
+  // ============================================================
+  public generarHojaDeRuta(): void {
+    const v = this.selectedViaje;
+    if (!v) return;
+    try {
+      const S = this.ds.S;
+      const placa = String(v.p || v.placa || '').toUpperCase();
+      const mayus = (t: any) => String(t ?? '').toUpperCase().trim();
+      const ruta = (S.rutas || []).find((r: any) => mayus(r.cod || r.codigo) === mayus(v.ruta || v.codigo)) || {};
+      const vehiculo = (S.vehiculos || []).find((x: any) => mayus(x.p || x.placa) === placa) || {};
+      const condAnotado = String(v.cond || '').trim();
+      const nombreCond = condAnotado && !['SIN ASIGNAR', 'ASIGNADO', 'SIN CONDUCTOR'].includes(condAnotado.toUpperCase())
+        ? condAnotado : (this.conductoresMap[placa] || '');
+      const sinTildes = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+      const conductor = (S.conductores || []).find((c: any) => sinTildes(String(c.nom || c.nombre || '')) === sinTildes(nombreCond)) || {};
+      const fechaLarga = (f: Date) => f.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      const salida = v.fecha ? new Date(v.fecha + 'T00:00:00') : null;
+      const dias = Number(v.retorno) > Number(v.salida) ? Number(v.retorno) - Number(v.salida) : 0;
+      const regreso = salida && dias ? new Date(salida.getFullYear(), salida.getMonth(), salida.getDate() + dias) : null;
+      const valor = (x: any) => (x === undefined || x === null || String(x).trim() === '' || x === 'No definido') ? '—' : String(x);
+
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const ancho = doc.internal.pageSize.getWidth();
+      const alto = doc.internal.pageSize.getHeight();
+
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, ancho, 22, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
+      doc.text('MAKAND · Hoja de ruta', 14, 14);
+      doc.setFontSize(9);
+      doc.text(`Generada ${new Date().toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}`, ancho - 14, 14, { align: 'right' });
+
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(18);
+      // (La fuente del PDF no tiene la flecha "→": se usa ">".)
+      doc.text(`${valor(v.ruta || v.codigo)}  >  ${valor(v.destino || ruta.dest)}`, 14, 34);
+      doc.setFontSize(11);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`${placa}${nombreCond ? ' · ' + nombreCond : ''}${salida ? ' · ' + fechaLarga(salida) : ''}`, 14, 41);
+
+      const tabla = (titulo: string, filas: [string, string][], y: number): number => {
+        autoTable(doc, {
+          startY: y,
+          head: [[{ content: titulo, colSpan: 4 }]],
+          body: Array.from({ length: Math.ceil(filas.length / 2) }, (_, i) => [
+            filas[i * 2]?.[0] || '', filas[i * 2]?.[1] || '', filas[i * 2 + 1]?.[0] || '', filas[i * 2 + 1]?.[1] || ''
+          ]),
+          theme: 'grid',
+          styles: { fontSize: 10, cellPadding: 2.4, textColor: [15, 23, 42] },
+          headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold' },
+          // Mismas columnas en las tres tablas (ancho útil: la hoja menos 28 mm de márgenes).
+          columnStyles: {
+            0: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 32 },
+            1: { cellWidth: (ancho - 28) / 2 - 32 },
+            2: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 32 },
+            3: { cellWidth: (ancho - 28) / 2 - 32 }
+          },
+          margin: { left: 14, right: 14 }
+        });
+        return (doc as any).lastAutoTable.finalY + 6;
+      };
+
+      let y = tabla('Viaje', [
+        ['Salida', salida ? fechaLarga(salida) : '—'],
+        ['Hora', valor(this.horaDelViajeParaPdf(v))],
+        ['Regreso estimado', regreso ? fechaLarga(regreso) : '—'],
+        ['Estado', valor(v.estado || 'Planificado')],
+        ['Ruta', valor(v.ruta || v.codigo)],
+        ['Destino', valor(v.destino || ruta.dest)],
+        ['Cliente', valor(v.cliente || v.cli || ruta.clientes)],
+        ['Distancia', ruta.km ? `${ruta.km} km` : '—'],
+        ['Cajas', valor(v.cajas)],
+        ['Peso', v.peso || v.pesoKg ? `${v.peso || v.pesoKg} kg` : '—'],
+        ['Volumen', v.volumen || v.volM3 ? `${v.volumen || v.volM3} m³` : '—'],
+        ['Manifiesto', valor(v.manifiesto || v.manif)]
+      ], 48);
+      y = tabla('Vehículo', [
+        ['Placa', v.placaReal ? `${placa} (real: ${v.placaReal})` : placa],
+        ['Tipo', valor(vehiculo.tipo || vehiculo.t)],
+        ['Transportadora', valor(v.tr || vehiculo.tr || 'Makand')],
+        ['Capacidad', vehiculo.cajas || vehiculo.cap ? `${vehiculo.cajas || vehiculo.cap} cajas` : '—']
+      ], y);
+      y = tabla('Conductor', [
+        ['Nombre', valor(nombreCond)],
+        ['Cédula', valor(conductor.ced || conductor.cedula)],
+        ['Celular', valor(conductor.tel || conductor.telefono)],
+        ['Licencia vence', valor(conductor.licVence)]
+      ], y);
+
+      const nota = String(v.obs || '').trim();
+      if (nota) {
+        const lineas = doc.splitTextToSize(nota, ancho - 36);
+        const altoNota = 10 + lineas.length * 5;
+        doc.setFillColor(254, 249, 195);
+        doc.setDrawColor(234, 179, 8);
+        doc.rect(14, y, ancho - 28, altoNota, 'FD');
+        doc.setFontSize(10);
+        doc.setTextColor(113, 63, 18);
+        doc.text('Nota para el conductor', 18, y + 6);
+        doc.setTextColor(15, 23, 42);
+        doc.text(lineas, 18, y + 12);
+        y += altoNota + 6;
+      }
+
+      // Novedades en ruta: renglones para escribir a mano.
+      doc.setFontSize(11);
+      doc.setTextColor(15, 23, 42);
+      doc.text('Novedades en ruta', 14, y + 2);
+      doc.setDrawColor(203, 213, 225);
+      for (let i = 1; i <= 4; i++) doc.line(14, y + 2 + i * 8, ancho - 14, y + 2 + i * 8);
+      y += 44;
+
+      // Firmas (al pie si cabe; si no, en una hoja nueva).
+      if (y > alto - 50) { doc.addPage(); y = 30; }
+      const yFirma = Math.max(y + 10, alto - 42);
+      const mitad = (ancho - 28) / 2;
+      doc.setDrawColor(15, 23, 42);
+      doc.line(14, yFirma, 14 + mitad - 10, yFirma);
+      doc.line(14 + mitad + 10, yFirma, ancho - 14, yFirma);
+      doc.setFontSize(9);
+      doc.setTextColor(71, 85, 105);
+      doc.text('Firma del conductor', 14, yFirma + 5);
+      doc.text('Recibido por (nombre, firma, fecha y hora)', 14 + mitad + 10, yFirma + 5);
+
+      const archivo = `Hoja-de-ruta-${placa.replace(/\s+/g, '')}-${v.fecha || ''}-${String(v.ruta || v.codigo || '').replace(/[^A-Za-z0-9-]/g, '')}.pdf`;
+      doc.save(archivo);
+      this.ui.mostrarToast('Hoja de ruta lista para imprimir o enviar.', 'ok');
+    } catch (e) {
+      console.error('Error creando la hoja de ruta:', e);
+      this.ui.mostrarToast('No se pudo crear la hoja de ruta.', 'err');
+    }
+  }
+
   /** Hora del viaje; si no la tiene, la de su ruta para ese día de la semana. */
   private horaDelViajeParaPdf(v: any): string {
     if (/^\d{1,2}:\d{2}$/.test(String(v.hora || '').trim())) return String(v.hora).trim();
@@ -2370,6 +2512,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
       this.editandoViaje = false;
       this.isModalDetalleOpen = true; 
       document.body.style.overflow = 'hidden'; 
+      this.latirPresencia();
     }); 
   }
 
@@ -2377,7 +2520,24 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     this.isModalDetalleOpen = false;
     this.editandoViaje = false;
     document.body.style.overflow = 'auto'; 
+    this.latirPresencia();
   }
+
+  // ============================================================
+  // QUIÉN MÁS TIENE ABIERTO ESTE VIAJE (services/presencia.service.ts):
+  // se avisa qué viaje se está viendo o editando; los demás lo ven en
+  // "En línea" y aquí sale "Carlos está editando este viaje".
+  // ============================================================
+  private presencia = inject(PresenciaService);
+
+  private latirPresencia(): void {
+    const v = this.selectedViaje;
+    if (!this.isModalDetalleOpen || v?.id == null) { this.presencia.limpiar(); return; }
+    const fecha = v.fecha ? new Date(v.fecha + 'T00:00:00').toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+    const que = `el viaje ${v.ruta || v.codigo || ''} de ${v.p || v.placa || ''}${fecha ? ' (' + fecha + ')' : ''}`.replace(/\s+/g, ' ');
+    this.presencia.establecer(`${this.editandoViaje ? 'editando' : 'viendo'} ${que}`, `viaje:${v.id}`, this.editandoViaje);
+  }
+
 
   // ============================================================
   // VEHÍCULO VARADO — el vehículo de este viaje se averió a mitad de
@@ -2885,6 +3045,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   public abrirEdicion(): void {
     if (!this.selectedViaje) return;
     this.editandoViaje = true;
+    this.latirPresencia();
     this.vehiculosMakandCache = this.calcularVehiculosMakandParaEdicion();
   }
 

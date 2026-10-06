@@ -590,6 +590,7 @@
         {{ selectedViaje.veh }} &gt; {{ selectedViaje.destino || selectedViaje.ruta }}
       </h2>
     </div>
+    <app-otros-aqui que="este viaje"></app-otros-aqui>
     <div class="ruto-aviso-dia-cerrado" *ngIf="viajeSeleccionadoBloqueado">
       <i class="bi bi-lock-fill"></i>
       <span><strong>Día cerrado.</strong> Este viaje ya terminó: solo puedes cambiar el estado y lo que pasó después (placa real, observaciones). Para cambiar lo demás o eliminarlo hace falta el permiso "Cambiar o borrar viajes de días ya cerrados".</span>
@@ -769,6 +770,7 @@
     <div class="ruto-modal-footer">
       <button class="btn-delete" *ngIf="auth.puede('eliminar') && !editandoViaje && !viajeSeleccionadoBloqueado" (click)="eliminarViaje()">Eliminar viaje</button>
       <button class="btn-edit" style="background:#b45309;color: var(--color-texto-principal);border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" *ngIf="auth.puedeEditar && !editandoViaje && selectedViaje.estado !== 'Cancelado'" (click)="abrirVarado()"><i class="bi bi-cone-striped"></i> Vehículo varado</button>
+      <button class="btn-edit" style="background:#334155;color: var(--color-texto-principal);border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" *ngIf="!editandoViaje" data-guia="ruto-hoja-ruta" (click)="generarHojaDeRuta()" title="PDF para entregarle al conductor: datos del viaje, vehículo, conductor, nota y firmas"><i class="bi bi-file-earmark-text"></i> Hoja de ruta</button>
       <button class="btn-edit" style="background:#2563eb;color: var(--color-texto-principal);border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" *ngIf="auth.puedeEditar && !editandoViaje" data-guia="ruto-editar" (click)="abrirEdicion()"><i class="bi bi-pencil-square"></i> Editar viaje</button>
       <button class="btn-save" style="background:#10b981;color: var(--color-texto-principal);border:none;padding:8px 14px;border-radius:6px;cursor:pointer;" *ngIf="editandoViaje" data-guia="ruto-guardar" (click)="guardarCambiosViaje()"><i class="bi bi-save-fill"></i> Guardar cambios</button>
       <button class="btn-close" data-guia="ruto-cerrar" (click)="cerrarDetalle()">Cerrar</button>

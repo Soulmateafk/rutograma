@@ -11,10 +11,12 @@ import { UiService } from '../../services/ui.service';
 import { viajesEnMantenimiento, ViajeEnMantenimiento } from '../../services/mantenimiento';
 import { reprogramarViajesDesde, buscarViajesTercerosRobables, tomarViajeTerceroParaVehiculo, obtenerViajesEnConflicto, reprogramarViajeConflictivo, buscarVehiculosDisponiblesParaVarado, transferirViajeAOtroVehiculo } from '../rutograma/rutograma.utils.js';
 
+import { PresenciaService } from '../../services/presencia.service';
+import { OtrosAquiComponent } from '../en-linea/otros-aqui';
 @Component({
   selector: 'app-vehiculos',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, OtrosAquiComponent],
   templateUrl: './vehiculos.html',
   styleUrls: ['./vehiculos.css']
 })
@@ -22,6 +24,7 @@ export class VehiculosComponent implements OnInit, OnDestroy {
 
   public ds = inject(DataService);
   public modal = inject(ModalService);
+  private presencia = inject(PresenciaService);
   public auth = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
   private zone = inject(NgZone);
@@ -412,6 +415,7 @@ export class VehiculosComponent implements OnInit, OnDestroy {
 
     this.vehMantIdx = originalIndex;
     this.vehMantPlaca = vehiculoEnriquecido.placa;
+    this.presencia.establecer(`registrando mantenimiento de ${vehiculoEnriquecido.placa}`, `vehiculo:${vehiculoEnriquecido.placa}`, true);
 
     const estaEnMantenimiento = (v.est || 'Disponible').toLowerCase().trim() === 'mantenimiento';
     if (estaEnMantenimiento) {
@@ -424,6 +428,7 @@ export class VehiculosComponent implements OnInit, OnDestroy {
 
   public cerrarModalMant() {
     this.isModalMantOpen = false;
+    this.presencia.limpiar();
     this.vehMantIdx = -1;
   }
 
@@ -976,6 +981,7 @@ export class VehiculosComponent implements OnInit, OnDestroy {
     };
     this.isModalVehiculoOpen = true;
     this.modal.abrir('m-veh');
+    this.presencia.establecer(`editando el vehículo ${v.p}`, `vehiculo:${v.p}`, true);
   }
 
   // "Tercero" (Arsitrans/Polar u otro que se agregue) vs flota propia
@@ -1111,11 +1117,13 @@ export class VehiculosComponent implements OnInit, OnDestroy {
     };
     this.isModalVehiculoOpen = true;
     this.modal.abrir('m-veh');
+    this.presencia.establecer('registrando un vehículo nuevo', '', true);
   }
   
   public cerrarModal(id: string) {
     this.isModalVehiculoOpen = false;
     this.modal.cerrar(id);
+    this.presencia.limpiar();
   }
 
   // --- Nueva sección al final de la página: placas Makand, cuántos

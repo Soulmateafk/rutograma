@@ -13,10 +13,12 @@ import { mantenimientoQueChoca, rangosMantenimiento } from '../../services/mante
 import { obtenerDiasViaje, obtenerViajesEnConflicto, reprogramarViajeConflictivo, siguienteNumeroCupo, buscarCupoLibre, reprogramarViajesDesde } from '../rutograma/rutograma.utils.js';
 import { fechaLocal } from '../../services/dias-cerrados';
 
+import { EnLineaComponent } from '../en-linea/en-linea';
+
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive],
+  imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive, EnLineaComponent],
   templateUrl: './navbar.html',
   styleUrls: ['./navbar.css']
 })

@@ -1,0 +1,69 @@
+.ag-page { padding: 20px; max-width: 1200px; margin: 0 auto; color: var(--color-texto-principal); }
+.ag-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.ag-volver { color: var(--color-texto-secundario); text-decoration: none; font-size: 14px; display: inline-flex; gap: 6px; align-items: center; }
+.ag-volver:hover { color: var(--color-texto-principal); }
+.ag-acciones { display: flex; gap: 8px; flex-wrap: wrap; }
+.ag-select { background: var(--color-fondo-input, #0f172a); color: var(--color-texto-principal); border: 1px solid var(--color-borde, #334155); border-radius: 8px; padding: 7px 10px; font-family: inherit; font-size: 13px; max-width: 100%; }
+.ag-btn { background: var(--color-fondo-tarjeta-hover, #1e293b); color: var(--color-texto-principal); border: 1px solid var(--color-borde, #334155); border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; display: inline-flex; gap: 6px; align-items: center; }
+.ag-wa { background: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.45); color: #86efac; }
+.ag-msg { color: var(--color-texto-secundario); }
+
+.ag-cabecera { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; background: var(--color-fondo-tarjeta, #0f172a); border: 1px solid var(--color-borde, #1e293b); border-radius: 14px; padding: 16px 20px; }
+.ag-etiqueta { font-size: 11px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #60a5fa; }
+.ag-cabecera h1 { margin: 2px 0 4px; font-size: 24px; }
+.ag-cabecera p { margin: 0; color: var(--color-texto-secundario); font-size: 13px; }
+.ag-mes { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+.ag-flecha, .ag-hoy { background: none; border: 1px solid var(--color-borde, #334155); color: var(--color-texto-principal); border-radius: 8px; height: 32px; min-width: 32px; cursor: pointer; font-family: inherit; }
+.ag-hoy { padding: 0 10px; font-size: 13px; }
+
+.ag-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
+.ag-kpi { background: var(--color-fondo-tarjeta, #0f172a); border: 1px solid var(--color-borde, #1e293b); border-radius: 12px; padding: 10px; text-align: center; }
+.ag-kpi b { display: block; font-size: 22px; }
+.ag-kpi span { font-size: 12px; color: var(--color-texto-secundario); }
+
+.ag-alerta { margin: 0 0 12px; padding: 8px 12px; border-radius: 8px; background: rgba(245, 158, 11, 0.14); border: 1px solid rgba(245, 158, 11, 0.5); color: #fde68a; font-size: 13px; }
+
+.ag-leyenda { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--color-texto-secundario); margin-bottom: 8px; }
+.ag-leyenda span { display: inline-flex; align-items: center; gap: 5px; }
+.ag-cuadro { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+
+.ag-calendario { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.ag-cab { text-align: center; font-size: 12px; font-weight: 700; color: var(--color-texto-secundario); padding: 4px 0; }
+.ag-dia { min-height: 92px; border-radius: 10px; padding: 6px 7px; border: 1px solid var(--color-borde, #1e293b); background: var(--color-fondo-tarjeta, #0f172a); font-size: 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ag-num { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; }
+.ag-dia-nombre { display: none; font-weight: 400; color: var(--color-texto-secundario); text-transform: capitalize; }
+.ag-num i { margin-left: auto; color: #a78bfa; font-size: 11px; }
+.ag-viaje { display: flex; flex-direction: column; padding: 4px 6px; border-radius: 6px; background: rgba(37, 99, 235, 0.25); border-left: 3px solid #3b82f6; overflow-wrap: anywhere; }
+.ag-viaje b { font-size: 12px; }
+.ag-meta { color: var(--color-texto-secundario); font-size: 11px; }
+.ag-estado { color: var(--color-texto-secundario); font-size: 11.5px; }
+
+.sale, .ag-cuadro.sale { border-color: rgba(59, 130, 246, 0.6); }
+.ag-cuadro.sale { background: #3b82f6; }
+.ag-dia.en-ruta { background: rgba(59, 130, 246, 0.1); }
+.ag-cuadro.en-ruta { background: rgba(59, 130, 246, 0.35); }
+.ag-dia.descanso { background: rgba(139, 92, 246, 0.14); border-color: rgba(139, 92, 246, 0.45); }
+.ag-dia.descanso .ag-estado { color: #c4b5fd; font-weight: 600; }
+.ag-cuadro.descanso { background: rgba(139, 92, 246, 0.6); }
+.ag-cuadro.libre { background: var(--color-fondo-tarjeta, #0f172a); border: 1px solid var(--color-borde, #334155); }
+.ag-dia.libre .ag-estado { color: #4ade80; }
+.ag-dia.fuera { opacity: 0.35; }
+.ag-dia.hoy { outline: 2px solid #f59e0b; outline-offset: -1px; }
+.ag-dia.choque { border-color: #f59e0b; }
+
+/* Celular: un día por fila, solo los del mes. */
+@media (max-width: 700px) {
+  .ag-page { padding: 12px; }
+  .ag-kpis { grid-template-columns: repeat(2, 1fr); }
+  .ag-calendario { grid-template-columns: 1fr; gap: 5px; }
+  .ag-cab, .ag-dia.fuera { display: none; }
+  .ag-dia { min-height: 0; flex-direction: row; align-items: flex-start; gap: 10px; }
+  .ag-num { min-width: 64px; }
+  .ag-dia-nombre { display: inline; }
+  .ag-dia > .ag-viaje, .ag-dia > .ag-estado { flex: 1; }
+}
+
+@media print {
+  .ag-no-imprimir { display: none !important; }
+  .ag-page { color: #000; }
+}

@@ -79,6 +79,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'ruto-pdf-semana', titulo: 'PDF de la semana', texto: 'Descarga la semana elegida en PDF: una hoja por día con vehículo, conductor, ruta, cliente y hora. Listo para imprimir o mandar por WhatsApp.' },
       { el: 'ruto-compartir-semana', titulo: 'Compartir por WhatsApp', texto: 'Crea el mismo PDF y abre el menú de compartir del equipo: eliges WhatsApp y el chat o grupo, sin buscar el archivo en Descargas. Si el navegador no lo permite, el PDF se descarga.' },
       { el: '.btn-zoom', titulo: 'Zoom', texto: 'Acerca o aleja la matriz para ver más días o más detalle.' },
+      { el: 'ruto-hoja-ruta', titulo: 'Hoja de ruta', texto: 'Dentro del detalle de un viaje, "Hoja de ruta" crea un PDF para entregarle al conductor: salida, hora, regreso, ruta, cliente, carga, vehículo, sus datos, la nota y espacio para firmas de entrega.' },
       { el: '.ruto-card-viaje', titulo: 'Detalle, notas e historial', texto: 'Al abrir un viaje ves sus datos; en "Editar viaje" le puedes poner una nota para el conductor (la ve en su celular). Con "Ver historial de cambios" ves quién lo cambió, qué y cuándo.' },
       { el: '.ruto-tr-cupo-header', titulo: 'Arsitrans y Polar', texto: 'Los cupos de terceros. "+ Confirmar cupo" agrega uno; "Reacomodar" junta los viajes del mes en los menos cupos posibles, sin tocar nada más.' }
     ]
@@ -105,6 +106,15 @@ export const GUIAS: Record<string, Guia> = {
     ]
   },
 
+  agenda: {
+    titulo: 'Agenda del conductor',
+    pasos: [
+      { el: 'ag-cabecera', titulo: 'El conductor y el mes', texto: 'Con las flechas cambias de mes; arriba eliges otro conductor.' },
+      { el: '.ag-kpis', titulo: 'En números', texto: 'Viajes del mes, días en ruta, descansos y días libres.' },
+      { el: 'ag-calendario', titulo: 'El calendario', texto: 'Azul: el día que sale a un viaje (ruta, destino, vehículo y hora) y los días que sigue en ruta. Morado: descanso. Si un descanso tiene viaje, el día se marca en naranja.' }
+    ]
+  },
+
   rutas: {
     titulo: 'Rutas',
     pasos: [
@@ -123,6 +133,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'cond-acciones', titulo: 'Histórico y nuevo conductor', texto: '"Ver histórico" muestra meses anteriores; "Nuevo Conductor" registra uno.' },
       { el: 'input[placeholder^="Buscar por nombre"]', titulo: 'Buscar', texto: 'Filtra por nombre, cédula o vehículo.' },
       { el: '.actions-group', titulo: 'Acciones de cada conductor', texto: 'Ver detalles, editar (aquí se ponen la placa y los días de descanso), cambiar estado o eliminar. Al asignarle una placa, los viajes de esa placa desde mañana pasan a su nombre.' },
+      { el: 'cond-agenda', titulo: 'Agenda del conductor', texto: 'Su mes en un calendario: qué día sale a cada viaje (ruta, destino, vehículo y hora), los días en ruta, sus descansos y los días libres. Se puede imprimir.' },
       { el: 'cond-whatsapp', titulo: 'Avisar por WhatsApp', texto: 'Abre el chat de WhatsApp del conductor con sus viajes de los próximos 7 días ya escritos (fecha, vehículo, ruta, hora y nota). Solo revisas y tocas Enviar. Necesita su celular guardado.' },
       { el: 'cond-carga', titulo: 'Carga de trabajo', texto: 'Quién lleva más y menos viajes en el mes, cuántos días en ruta, kilómetros, descansos y cuántos días seguidos ha manejado sin descansar. Rojo: sobrecargado; amarillo: poca carga.' },
       { el: 'cond-viajes', titulo: 'Viajes por conductor', texto: 'Los viajes de cada conductor en el mes.' }
