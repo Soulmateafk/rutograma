@@ -100,7 +100,8 @@ export class GuiaService {
     if (!this.auth.currentUser || ['login', 'register', 'pending'].includes(pagina)) return;
     if (!(await this.cargarVistas()) || intento !== this.intento) return;
 
-    if (!PAGINAS_SIN_NAVBAR.includes(pagina) && !this.vistas!.has('navegacion')) this.cola.push('navegacion');
+    // La cuenta de despachos no tiene la barra de arriba: no se le explica.
+    if (!PAGINAS_SIN_NAVBAR.includes(pagina) && !this.auth.esDespachos && !this.vistas!.has('navegacion')) this.cola.push('navegacion');
     if (GUIAS[pagina] && !this.vistas!.has(pagina)) this.cola.push(pagina);
     this.mostrarSiguienteDeCola(intento);
   }

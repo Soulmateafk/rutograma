@@ -23,7 +23,7 @@ const { ROLES_VALIDOS, rolDeCuenta, requiereAprobacion, describirCambio, solicit
 // Solo vive en memoria: nadie de afuera puede conocerla.
 const TOKEN_REPLAY_APROBACION = crypto.randomBytes(32).toString('hex');
 const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB, crearRespaldoDB, listarRespaldosDB, limpiarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, listarAuditoriaViajeDB, importarAuditoriaJSONLSiHaceFalta, listarDespachosDB, leerDespachoDB, guardarDespachoDB, eliminarDespachoDB, mesesDespachosDB } = require('./migracion/db.js');
-const { minutosDeCargue, textoMinutos, rangoPeriodo, validarDespacho, resumenDespachos, filasExcel, nombreArchivo, fechaBonita } = require('./despachos');
+const { TIPOS_CARGA, totalesCarga, minutosDelRegistro, textoMinutos, rangoPeriodo, validarDespacho, resumenDespachos, filasExcel, nombreArchivo, fechaBonita } = require('./despachos');
 const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
 const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar } = require('./dias-cerrados');
@@ -3340,7 +3340,7 @@ app.get('/api/despachos/opciones', (req, res) => {
             })
             .sort((a, b) => a.fecha.localeCompare(b.fecha) || String(a.hora).localeCompare(String(b.hora)) || a.placa.localeCompare(b.placa));
         res.setHeader('Cache-Control', 'no-store');
-        res.json({ ok: true, fecha, vehiculos, viajes });
+        res.json({ ok: true, fecha, vehiculos, viajes, tiposCarga: TIPOS_CARGA });
     } catch (error) {
         console.error('🚨 Error en /api/despachos/opciones:', error);
         res.status(500).json({ ok: false, msg: error.message });
@@ -3361,7 +3361,7 @@ app.get('/api/despachos', (req, res) => {
         const nombreDe = nombresDeCuentas();
         const registros = listarDespachosDB(modoActual, rango.desde, rango.hasta).map(r => ({
             ...r, creadoPorNombre: nombreDe(r.creadoPor), editadoPorNombre: nombreDe(r.editadoPor),
-            minutos: minutosDeCargue(r.horaLlegada, r.horaFinCargue),
+            minutos: minutosDelRegistro(r), totalCajas: totalesCarga(r.cargas).cajas, totalEstibas: totalesCarga(r.cargas).estibas,
             puedeCorregir: acceso.corregir(r.fecha), puedeEliminar: acceso.eliminar(r.fecha)
         }));
         res.setHeader('Cache-Control', 'no-store');
@@ -3402,15 +3402,19 @@ app.post('/api/despachos', (req, res) => {
             const cond = String(v.cond || '').trim();
             registro.conductor = COND_GENERICOS.includes(sinTildes(cond)) ? titular(v.p || v.placa) : cond;
         } else {
-            registro.ruta = '';
+            // Otro lugar: la ruta la escribe quien despacha (si la sabe).
             registro.conductor = titular(registro.placa);
         }
         const guardado = guardarDespachoDB(modoActual, registro, acceso.email);
-        const min = minutosDeCargue(guardado.horaLlegada, guardado.horaFinCargue);
+        const min = minutosDelRegistro(guardado);
+        const carga = totalesCarga(guardado.cargas);
         res.locals.auditoriaResumen = {
             id: guardado.id, fecha: guardado.fecha, placa: guardado.placa, destino: guardado.destino, ruta: guardado.ruta,
             horaLlegada: guardado.horaLlegada, horaFinCargue: guardado.horaFinCargue, corregido: !!previo,
-            descripcion: `${previo ? 'Corrigió' : 'Anotó'} el despacho de ${guardado.placa} hacia ${guardado.destino} (${fechaBonita(guardado.fecha)}): llegó ${guardado.horaLlegada}`
+            despachador: guardado.despachador, cargas: guardado.cargas, totalCajas: carga.cajas,
+            descripcion: `${previo ? 'Corrigió' : 'Anotó'} el despacho de ${guardado.placa} hacia ${guardado.destino} (${fechaBonita(guardado.fecha)}, despachó ${guardado.despachador}): llegó ${guardado.horaLlegada}`
+                + (carga.cajas || carga.estibas ? `, ${carga.cajas} cajas${carga.estibas ? ` y ${carga.estibas} estibas` : ''}` : '')
+                + (guardado.horaSalida ? `, salió ${guardado.horaSalida}` : '')
                 + (guardado.horaFinCargue ? `, terminó de cargar ${guardado.horaFinCargue} (${textoMinutos(min)})` : ', cargando')
         };
         res.status(previo ? 200 : 201).json({ ok: true, registro: { ...guardado, minutos: min } });
@@ -3453,7 +3457,7 @@ app.get('/api/despachos/excel', (req, res) => {
         const filas = filasExcel(registros);
         const wb = XLSX.utils.book_new();
         const ws = filas.length ? XLSX.utils.json_to_sheet(filas) : XLSX.utils.aoa_to_sheet([[`Sin despachos anotados del ${fechaBonita(rango.desde)} al ${fechaBonita(rango.hasta)}`]]);
-        ws['!cols'] = [12, 11, 11, 24, 12, 24, 10, 12, 10, 14, 30, 26, 17, 30].map(wch => ({ wch }));
+        ws['!cols'] = [12, 11, 20, 11, 24, 12, 24, 10, 10, 10, 10, 10, 10, 14, 40, 10, 8, ...TIPOS_CARGA.map(t => Math.max(9, t.length + 1)), 30, 26, 17, 30].map(wch => ({ wch }));
         XLSX.utils.book_append_sheet(wb, ws, 'Despachos');
         // Resumen: totales y tiempo de cargue por vehículo.
         const r = resumenDespachos(registros);
@@ -3465,15 +3469,20 @@ app.get('/api/despachos/excel', (req, res) => {
             ['Siguen cargando (sin hora de fin)', r.enCargue],
             ['Tiempo promedio de cargue', textoMinutos(r.promedioMin)],
             ['Cargue más largo', textoMinutos(r.maximoMin)],
+            ['Total de cajas', r.totalCajas],
+            ['Estibas', r.totalEstibas],
             [],
-            ['Vehículo', 'Despachos', 'Promedio de cargue', 'Promedio (min)'],
+            ['Tipo de carga', 'Cantidad'],
+            ...TIPOS_CARGA.map(tipo => [tipo, registros.reduce((s, x) => s + ((x.cargas || []).find(c => c.tipo === tipo)?.cantidad || 0), 0)]).filter(f => f[1] > 0),
+            [],
+            ['Vehículo', 'Despachos', 'Promedio de cargue', 'Promedio (min)', 'Total cajas'],
             ...[...porVehiculo.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([placa, l]) => {
-                const p = resumenDespachos(l).promedioMin;
-                return [placa, l.length, textoMinutos(p), p ?? ''];
+                const rv = resumenDespachos(l);
+                return [placa, l.length, textoMinutos(rv.promedioMin), rv.promedioMin ?? '', rv.totalCajas];
             })
         ];
         const wsR = XLSX.utils.aoa_to_sheet(resumen);
-        wsR['!cols'] = [{ wch: 32 }, { wch: 24 }, { wch: 20 }, { wch: 15 }];
+        wsR['!cols'] = [{ wch: 32 }, { wch: 24 }, { wch: 20 }, { wch: 15 }, { wch: 12 }];
         XLSX.utils.book_append_sheet(wb, wsR, 'Resumen');
         const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

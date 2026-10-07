@@ -19,30 +19,33 @@
 
   <div class="dp-columnas">
     <!-- ===== Formulario ===== -->
-    <form class="dp-card dp-form" (ngSubmit)="guardar()" autocomplete="off">
-      <h2>{{ form.id ? 'Corregir despacho' : 'Anotar llegada de un vehículo' }}</h2>
+    <form class="dp-card dp-form" (ngSubmit)="guardar()" autocomplete="off" novalidate>
+      <h2>{{ form.id ? 'Corregir despacho' : 'Anotar un despacho' }}</h2>
 
-      <div class="dp-fila">
+      <label data-guia="dp-despachador">Nombre de quien despacha
+        <input type="text" name="despachador" [(ngModel)]="form.despachador" maxlength="60" placeholder="Tu nombre"
+               [class.dp-error]="intentoGuardar && !form.despachador.trim()" autocomplete="name">
+      </label>
+
+      <div class="dp-fila" data-guia="dp-llegada">
         <label>Fecha
           <input type="date" name="fecha" [(ngModel)]="form.fecha" (change)="cambioFecha()" [min]="fechaMinima" [max]="esCuentaDespachos ? hoy : ''" required>
         </label>
-        <label>Hora de llegada
-          <span class="dp-hora">
-            <input type="time" name="horaLlegada" [(ngModel)]="form.horaLlegada" required>
-            <button type="button" class="dp-ahora" (click)="ahora('horaLlegada')">Ahora</button>
-          </span>
+        <label>Hora programada
+          <input type="time" name="horaProgramada" [(ngModel)]="form.horaProgramada">
         </label>
       </div>
 
-      <label>Vehículo
-        <input type="text" name="placa" [(ngModel)]="form.placa" (ngModelChange)="cambioPlaca()" list="dp-placas" placeholder="Ej: PRZ 065" autocapitalize="characters" required>
+      <label data-guia="dp-vehiculo">Placa
+        <input type="text" name="placa" [(ngModel)]="form.placa" (ngModelChange)="cambioPlaca()" list="dp-placas" placeholder="Ej: PRZ 065" autocapitalize="characters"
+               [class.dp-error]="intentoGuardar && !form.placa.trim()">
         <datalist id="dp-placas">
           <option *ngFor="let v of vehiculos" [value]="v.placa">{{ v.conductor }}</option>
         </datalist>
         <small *ngIf="conductorDe(form.placa)" class="dp-ayuda"><i class="bi bi-person"></i> {{ conductorDe(form.placa) }}</small>
       </label>
 
-      <label>¿A qué viaje va?
+      <label data-guia="dp-viaje">¿A qué viaje va?
         <select name="viajeId" [(ngModel)]="form.viajeId" (ngModelChange)="escogioViaje()">
           <option value="">— Escoge el viaje —</option>
           <option *ngFor="let v of viajesParaEscoger" [value]="'' + v.id">{{ etiquetaViaje(v) }}</option>
@@ -51,17 +54,74 @@
         <small *ngIf="vehiculoSinViajes" class="dp-ayuda dp-aviso"><i class="bi bi-info-circle"></i> {{ form.placa }} no tiene viajes programados estos días: escoge otro viaje o "Otro lugar".</small>
       </label>
 
-      <label>Lugar al que se dirige
-        <input type="text" name="destino" [(ngModel)]="form.destino" [readonly]="!!form.viajeId && form.viajeId !== 'otro'"
-               [placeholder]="form.viajeId === 'otro' ? 'Ej: Bodega Funza' : 'Se llena al escoger el viaje'" maxlength="80" required>
-      </label>
+      <div class="dp-fila">
+        <label>Ruta
+          <input type="text" name="ruta" [(ngModel)]="form.ruta" [readonly]="!!form.viajeId && form.viajeId !== 'otro'" maxlength="40"
+                 [placeholder]="form.viajeId === 'otro' ? 'Ej: BOG-FUN' : 'Del viaje'">
+        </label>
+        <label>Lugar al que se dirige
+          <input type="text" name="destino" [(ngModel)]="form.destino" [readonly]="!!form.viajeId && form.viajeId !== 'otro'"
+                 [placeholder]="form.viajeId === 'otro' ? 'Ej: Bodega Funza' : 'Del viaje'" maxlength="80"
+                 [class.dp-error]="intentoGuardar && !form.destino.trim()">
+        </label>
+      </div>
 
-      <label>Hora en que terminó de cargar <span class="dp-opcional">(si todavía está cargando, déjala vacía)</span>
-        <span class="dp-hora">
-          <input type="time" name="horaFinCargue" [(ngModel)]="form.horaFinCargue">
-          <button type="button" class="dp-ahora" (click)="ahora('horaFinCargue')">Ahora</button>
-        </span>
-      </label>
+      <div class="dp-fila" data-guia="dp-horas">
+        <label>Hora de llegada
+          <span class="dp-hora">
+            <input type="time" name="horaLlegada" [(ngModel)]="form.horaLlegada" [class.dp-error]="intentoGuardar && !form.horaLlegada">
+            <button type="button" class="dp-ahora" (click)="ahora('horaLlegada')">Ahora</button>
+          </span>
+        </label>
+        <label>Hora inicio de cargue
+          <span class="dp-hora">
+            <input type="time" name="horaInicioCargue" [(ngModel)]="form.horaInicioCargue">
+            <button type="button" class="dp-ahora" (click)="ahora('horaInicioCargue')">Ahora</button>
+          </span>
+        </label>
+        <label data-guia="dp-fin">Terminó de cargar
+          <span class="dp-hora">
+            <input type="time" name="horaFinCargue" [(ngModel)]="form.horaFinCargue">
+            <button type="button" class="dp-ahora" (click)="ahora('horaFinCargue')">Ahora</button>
+          </span>
+        </label>
+        <label>Hora de salida
+          <span class="dp-hora">
+            <input type="time" name="horaSalida" [(ngModel)]="form.horaSalida">
+            <button type="button" class="dp-ahora" (click)="ahora('horaSalida')">Ahora</button>
+          </span>
+        </label>
+      </div>
+      <small class="dp-ayuda">Las horas que todavía no pasan, déjalas vacías: el vehículo queda en "En el cargue" y las pones con un toque.</small>
+
+      <!-- Carga: lista desplegable de varias opciones; cada una escogida pide su cantidad -->
+      <div class="dp-carga" data-guia="dp-carga">
+        <span class="dp-etq">Carga</span>
+        <button type="button" class="dp-desplegable" (click)="listaCargaAbierta = !listaCargaAbierta" [attr.aria-expanded]="listaCargaAbierta">
+          <span>{{ form.cargas.length ? form.cargas.length + (form.cargas.length === 1 ? ' tipo escogido' : ' tipos escogidos') : 'Escoge qué se carga (puedes escoger varios)' }}</span>
+          <i class="bi" [ngClass]="listaCargaAbierta ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+        </button>
+        <div *ngIf="listaCargaAbierta" class="dp-opciones">
+          <label *ngFor="let t of tiposCarga" class="dp-opcion" [class.activa]="estaEscogido(t)">
+            <input type="checkbox" [checked]="estaEscogido(t)" (change)="alternarTipo(t)"> {{ t }}
+          </label>
+          <button type="button" class="dp-secundario dp-chico dp-listo" (click)="listaCargaAbierta = false">Listo</button>
+        </div>
+
+        <div *ngFor="let c of form.cargas" class="dp-cantidad" [class.falta]="intentoGuardar && faltaCantidad(c)">
+          <span class="dp-cantidad-tipo">{{ c.tipo }}</span>
+          <input #cant type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="Cantidad"
+                 [value]="c.cantidad" (keydown)="teclaNumerica($event)" (input)="soloNumeros(c, cant.value, cant)"
+                 [attr.aria-label]="'Cantidad de ' + c.tipo">
+          <button type="button" class="dp-quitar" (click)="quitarTipo(c.tipo)" [title]="'Quitar ' + c.tipo"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <small *ngIf="intentoGuardar && cargasSinCantidad.length" class="dp-ayuda dp-mal">
+          <i class="bi bi-exclamation-triangle"></i> Escribe la cantidad de cada tipo escogido, o quítalo con la ✕ si lo escogiste por error.
+        </small>
+        <div *ngIf="form.cargas.length" class="dp-total" data-guia="dp-total">
+          Total: <strong>{{ totalCajas }}</strong> cajas<span *ngIf="totalEstibas"> · <strong>{{ totalEstibas }}</strong> estibas</span>
+        </div>
+      </div>
 
       <label>Observación <span class="dp-opcional">(opcional)</span>
         <input type="text" name="observacion" [(ngModel)]="form.observacion" maxlength="300" placeholder="Ej: esperó montacargas">
@@ -76,16 +136,23 @@
     </form>
 
     <!-- ===== Cargando ahora ===== -->
-    <section class="dp-card dp-en-cargue">
-      <h2><i class="bi bi-hourglass-split"></i> Cargando ahora <span class="dp-contador">{{ enCargue.length }}</span></h2>
-      <p *ngIf="!enCargue.length" class="dp-vacio">Ningún vehículo está cargando.</p>
+    <section class="dp-card dp-en-cargue" data-guia="dp-en-cargue">
+      <h2><i class="bi bi-hourglass-split"></i> En el cargue <span class="dp-contador">{{ enCargue.length }}</span></h2>
+      <p *ngIf="!enCargue.length" class="dp-vacio">No hay vehículos en el cargue.</p>
       <div *ngFor="let r of enCargue; trackBy: trackId" class="dp-cargando">
         <div>
           <div class="dp-placa">{{ r.placa }} <span class="dp-destino">→ {{ r.destino }}</span></div>
-          <div class="dp-sub">Llegó {{ r.fecha !== hoy ? fechaCorta(r.fecha) + ' ' : '' }}a las {{ r.horaLlegada }} · lleva {{ llevaCargando(r) }}</div>
+          <div class="dp-sub">
+            Llegó {{ r.fecha !== hoy ? fechaCorta(r.fecha) + ' ' : '' }}{{ r.horaLlegada }}
+            <span *ngIf="r.horaInicioCargue"> · inició {{ r.horaInicioCargue }}</span>
+            <span *ngIf="r.horaFinCargue"> · terminó {{ r.horaFinCargue }}</span>
+            <span *ngIf="!r.horaFinCargue"> · lleva {{ llevaCargando(r) }}</span>
+            <span *ngIf="r.totalCajas"> · {{ r.totalCajas }} cajas</span>
+          </div>
         </div>
-        <button class="dp-terminar" (click)="terminarCargue(r)" [disabled]="terminandoId === r.id || !r.puedeCorregir">
-          <i class="bi bi-check2-circle"></i> {{ terminandoId === r.id ? 'Guardando…' : 'Terminó de cargar' }}
+        <button class="dp-terminar" [class.dp-salio]="siguientePaso(r).campo === 'horaSalida'" (click)="terminarCargue(r)" [disabled]="terminandoId === r.id || !r.puedeCorregir">
+          <i class="bi" [ngClass]="siguientePaso(r).campo === 'horaSalida' ? 'bi-truck' : 'bi-check2-circle'"></i>
+          {{ terminandoId === r.id ? 'Guardando…' : siguientePaso(r).texto }}
         </button>
       </div>
     </section>
@@ -95,7 +162,7 @@
   <section class="dp-card dp-registro">
     <div class="dp-registro-top">
       <h2><i class="bi bi-journal-text"></i> Registro</h2>
-      <div class="dp-periodos">
+      <div class="dp-periodos" data-guia="dp-periodos">
         <button [class.activo]="periodo === 'dia'" (click)="verPeriodo('dia')">Día</button>
         <button [class.activo]="periodo === 'semana'" (click)="verPeriodo('semana')">Semana</button>
         <button [class.activo]="periodo === 'mes'" (click)="verPeriodo('mes')">Mes</button>
@@ -120,11 +187,12 @@
     <div class="dp-resumen">
       <div><strong>{{ resumen.total }}</strong><span>vehículos</span></div>
       <div><strong>{{ resumen.enCargue }}</strong><span>sin terminar</span></div>
+      <div><strong>{{ resumen.totalCajas || 0 }}</strong><span>cajas{{ resumen.totalEstibas ? ' · ' + resumen.totalEstibas + ' estibas' : '' }}</span></div>
       <div><strong>{{ textoMinutos(resumen.promedioMin) || '—' }}</strong><span>cargue promedio</span></div>
       <div><strong>{{ textoMinutos(resumen.maximoMin) || '—' }}</strong><span>el más largo</span></div>
     </div>
 
-    <div class="dp-excel">
+    <div class="dp-excel" data-guia="dp-excel">
       <span><i class="bi bi-file-earmark-excel"></i> Descargar Excel:</span>
       <button (click)="descargarExcel('dia')" [disabled]="!!descargando">{{ descargando === 'dia' ? 'Descargando…' : 'Del día ' + fechaCorta(fechaVer) }}</button>
       <button (click)="descargarExcel('semana')" [disabled]="!!descargando">{{ descargando === 'semana' ? 'Descargando…' : 'De la semana' }}</button>
@@ -134,32 +202,43 @@
     <p *ngIf="cargando" class="dp-vacio">Cargando…</p>
     <p *ngIf="!cargando && !registros.length" class="dp-vacio">No hay despachos anotados en este periodo.</p>
 
-    <div class="dp-tabla-scroll" *ngIf="!cargando && registros.length">
+    <div class="dp-tabla-scroll" data-guia="dp-tabla" *ngIf="!cargando && registros.length">
       <table class="dp-tabla">
         <thead>
           <tr>
             <th *ngIf="periodo !== 'dia'">Fecha</th>
-            <th>Vehículo</th>
-            <th>Lugar</th>
+            <th>Placa</th>
+            <th>Ruta / lugar</th>
+            <th>Despachó</th>
+            <th>Prog.</th>
             <th>Llegó</th>
+            <th>Inicio</th>
             <th>Terminó</th>
+            <th>Salió</th>
             <th>Cargue</th>
-            <th>Anotó</th>
+            <th>Cajas</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           <tr *ngFor="let r of registros; trackBy: trackId" [class.dp-pendiente]="!r.horaFinCargue">
             <td *ngIf="periodo !== 'dia'" class="dp-nowrap" data-label="Fecha">{{ fechaCorta(r.fecha, true) }}</td>
-            <td class="dp-nowrap dp-td-placa" data-label="Vehículo"><strong>{{ r.placa }}</strong><div class="dp-sub" *ngIf="r.conductor">{{ r.conductor }}</div></td>
-            <td data-label="Lugar">{{ r.destino }}<div class="dp-sub" *ngIf="r.ruta">{{ r.ruta }}</div><div class="dp-sub dp-obs" *ngIf="r.observacion">“{{ r.observacion }}”</div></td>
+            <td class="dp-nowrap dp-td-placa" data-label="Placa"><strong>{{ r.placa }}</strong><div class="dp-sub" *ngIf="r.conductor">{{ r.conductor }}</div></td>
+            <td data-label="Ruta / lugar">{{ r.destino }}<div class="dp-sub" *ngIf="r.ruta">{{ r.ruta }}</div><div class="dp-sub dp-obs" *ngIf="r.observacion">“{{ r.observacion }}”</div></td>
+            <td data-label="Despachó">{{ r.despachador || '—' }}<div class="dp-sub" *ngIf="r.editadoPor && r.editadoPor !== r.creadoPor">corrigió {{ r.editadoPorNombre }}</div></td>
+            <td data-label="Prog.">{{ r.horaProgramada || '—' }}</td>
             <td data-label="Llegó">{{ r.horaLlegada }}</td>
+            <td data-label="Inicio">{{ r.horaInicioCargue || '—' }}</td>
             <td data-label="Terminó">
               <span *ngIf="r.horaFinCargue">{{ r.horaFinCargue }}<small *ngIf="pasoMedianoche(r)" class="dp-sub"> (+1 día)</small></span>
               <span *ngIf="!r.horaFinCargue" class="dp-etiqueta">Cargando</span>
             </td>
+            <td data-label="Salió">{{ r.horaSalida || '—' }}</td>
             <td class="dp-nowrap" data-label="Cargue">{{ textoMinutos(r.minutos) || '—' }}</td>
-            <td class="dp-sub" data-label="Anotó">{{ r.creadoPorNombre }}<div *ngIf="r.editadoPor && r.editadoPor !== r.creadoPor">corrigió {{ r.editadoPorNombre }}</div></td>
+            <td data-label="Cajas" [title]="textoCarga(r)">
+              <strong>{{ r.totalCajas || '—' }}</strong><span *ngIf="r.totalEstibas" class="dp-sub"> + {{ r.totalEstibas }} est.</span>
+              <div class="dp-sub dp-detalle-carga" *ngIf="r.cargas?.length">{{ textoCarga(r) }}</div>
+            </td>
             <td class="dp-nowrap dp-td-acciones">
               <button *ngIf="r.puedeCorregir" class="dp-btn-icono" (click)="corregir(r)" title="Corregir"><i class="bi bi-pencil"></i></button>
               <button *ngIf="r.puedeEliminar" class="dp-btn-icono dp-salir" (click)="aBorrar = r" title="Borrar"><i class="bi bi-trash"></i></button>

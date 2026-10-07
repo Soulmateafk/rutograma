@@ -62,7 +62,7 @@
 .dp-mes { background: transparent; border: 1px solid var(--color-borde, #334155); color: var(--color-texto-principal, #e2e8f0); border-radius: 999px; padding: 3px 10px; cursor: pointer; font-family: inherit; font-size: 12px; }
 .dp-mes small { opacity: .7; margin-left: 2px; }
 .dp-mes.activo { background: #2563eb; border-color: #2563eb; color: #fff; }
-.dp-resumen { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+.dp-resumen { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
 .dp-resumen div { background: rgba(148, 163, 184, 0.08); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; }
 .dp-resumen strong { font-size: 17px; }
 .dp-resumen span { font-size: 11.5px; color: var(--color-texto-secundario, #94a3b8); }
@@ -83,17 +83,40 @@
 .dp-modal h3 { margin: 0 0 8px; font-size: 17px; }
 .dp-modal p { font-size: 14px; color: var(--color-texto-secundario, #cbd5e1); }
 
+/* Carga: lista desplegable de varias opciones y cantidad por tipo. */
+.dp-carga { display: flex; flex-direction: column; gap: 6px; }
+.dp-etq { font-size: 12.5px; color: var(--color-texto-secundario, #94a3b8); }
+.dp-desplegable { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; text-align: left; background: var(--color-fondo-input, #0b1222); color: var(--color-texto-principal, #f8fafc); border: 1px solid var(--color-borde, #334155); border-radius: 8px; padding: 10px; font-family: inherit; font-size: 15px; cursor: pointer; }
+.dp-opciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 4px; background: var(--color-fondo-input, #0b1222); border: 1px solid var(--color-borde, #334155); border-radius: 8px; padding: 8px; }
+.dp-form .dp-opcion { flex-direction: row; align-items: center; gap: 8px; font-size: 14px; color: var(--color-texto-principal, #e2e8f0); padding: 7px 8px; border-radius: 6px; cursor: pointer; }
+.dp-form .dp-opcion input { width: 18px; height: 18px; flex: none; padding: 0; }
+.dp-opcion.activa { background: rgba(37, 99, 235, 0.18); }
+.dp-listo { grid-column: 1 / -1; justify-self: end; }
+.dp-cantidad { display: grid; grid-template-columns: minmax(0, 1fr) 110px 38px; gap: 6px; align-items: center; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 6px 6px 6px 10px; }
+.dp-cantidad.falta { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.6); }
+.dp-cantidad-tipo { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.dp-form .dp-cantidad input { padding: 8px; text-align: right; }
+.dp-quitar { height: 36px; border-radius: 8px; border: 1px solid rgba(248, 113, 113, 0.5); background: transparent; color: #f87171; cursor: pointer; }
+.dp-total { font-size: 15px; padding: 4px 2px; }
+.dp-total strong { font-size: 18px; }
+.dp-mal { color: #fca5a5; }
+.dp-form input.dp-error { border-color: #ef4444; }
+.dp-salio { background: #2563eb; }
+.dp-detalle-carga { max-width: 220px; }
+
 @media (max-width: 760px) {
   .dp-page { padding: 14px 16px 50px; }
   .dp-columnas { grid-template-columns: minmax(0, 1fr); }
   .dp-resumen { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dp-tabla td[data-label="Ruta / lugar"], .dp-tabla td[data-label="Despachó"], .dp-tabla td[data-label="Cajas"] { grid-column: 1 / -1; }
+  .dp-detalle-carga { max-width: none; }
   /* Registro en tarjetas: una por vehículo, con el nombre de cada dato. */
   .dp-tabla thead { display: none; }
   .dp-tabla, .dp-tabla tbody { display: block; }
   .dp-tabla tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; padding: 10px 0; border-bottom: 1px solid var(--color-borde, #1e293b); position: relative; }
   .dp-tabla td { padding: 0; border: none; background: none !important; white-space: normal; }
   .dp-tabla td[data-label]::before { content: attr(data-label); display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .3px; color: var(--color-texto-secundario, #94a3b8); }
-  .dp-tabla .dp-td-placa, .dp-tabla td[data-label="Lugar"], .dp-tabla td[data-label="Anotó"] { grid-column: 1 / -1; }
+  .dp-tabla .dp-td-placa { grid-column: 1 / -1; }
   .dp-tabla .dp-td-placa { padding-right: 76px; }
   .dp-tabla .dp-td-acciones { position: absolute; top: 10px; right: 0; }
   .dp-pendiente { background: rgba(245, 158, 11, 0.06); }
