@@ -6,7 +6,7 @@
 // Pruebas: test/aprobaciones.test.js
 // ============================================================
 
-const ROLES_VALIDOS = ['editor', 'lector', 'jefe', 'auxiliar', 'conductor'];
+const ROLES_VALIDOS = ['editor', 'lector', 'jefe', 'auxiliar', 'conductor', 'despachos'];
 
 /** Rol efectivo de una cuenta: el admin siempre es 'admin'; sin rol = 'editor'. */
 function rolDeCuenta(cuenta, esAdmin) {
@@ -54,6 +54,9 @@ const PERMISOS_POR_ROL = {
     lector: {},
     // Solo ve sus propios viajes (pantalla Mis viajes); no cambia nada.
     conductor: {},
+    // Solo la pantalla Despachos: anota cargues (con su propio permiso, ver
+    // accesoDespachos en server.js); nada más de la app.
+    despachos: {},
     jefe: { ...EDICION_COMPLETA, editarDiasPasados: true, aprobarCambios: true, verAdministracion: true, verSesionesTodas: true },
     // El auxiliar puede pedir casi todo; cada cambio espera aprobación.
     auxiliar: { editar: true, eliminar: true, generarMatriz: true, reacomodarCupos: true, editarConfiguracion: true }

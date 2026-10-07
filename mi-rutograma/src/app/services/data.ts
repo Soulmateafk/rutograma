@@ -626,9 +626,9 @@ export class DataService {
       return;
     }
 
-    // Las cuentas de conductor no reciben los datos generales (solo "Mis
-    // viajes", que se piden aparte): no se intenta cargarlos.
-    if (this.cuenta.rol === 'conductor') {
+    // Las cuentas de conductor y de despachos no reciben los datos generales
+    // (solo "Mis viajes" o "Despachos", que se piden aparte): no se intenta cargarlos.
+    if (this.cuenta.rol === 'conductor' || this.cuenta.rol === 'despachos') {
       this.cargado = true;
       return;
     }

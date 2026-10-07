@@ -691,7 +691,57 @@ function guardarConfigCompartidaDB(modo, clave, valor, editadoPor) {
     VALUES (?, ?, ?, ?)`).run(clave, JSON.stringify(valor), editadoPor || null, new Date().toISOString());
 }
 
+// ============================================================
+// DESPACHOS (pantalla Despachos, ver ../despachos.js): una fila por
+// vehículo que llegó a cargar. Se consulta por rango de fechas.
+// ============================================================
+const filaADespacho = (f) => ({
+  id: f.id, fecha: f.fecha, placa: f.placa, viajeId: f.viaje_id, ruta: f.ruta || '', conductor: f.conductor || '',
+  destino: f.destino, horaLlegada: f.hora_llegada, horaFinCargue: f.hora_fin_cargue || '', observacion: f.observacion || '',
+  creadoPor: f.creado_por || '', creadoEn: f.creado_en || '', editadoPor: f.editado_por || '', editadoEn: f.editado_en || ''
+});
+
+function listarDespachosDB(modo, desde, hasta) {
+  return conectar(modo).prepare('SELECT * FROM despachos WHERE fecha BETWEEN ? AND ? ORDER BY fecha DESC, hora_llegada DESC, id DESC')
+    .all(desde, hasta).map(filaADespacho);
+}
+
+function leerDespachoDB(modo, id) {
+  const f = conectar(modo).prepare('SELECT * FROM despachos WHERE id = ?').get(id);
+  return f ? filaADespacho(f) : null;
+}
+
+/** Crea (sin id) o corrige (con id) un registro. Devuelve el registro guardado. */
+function guardarDespachoDB(modo, r, usuario) {
+  const db = conectar(modo);
+  const ahora = new Date().toISOString();
+  const valores = {
+    fecha: r.fecha, placa: r.placa, viaje_id: r.viajeId ?? null, ruta: r.ruta || '', conductor: r.conductor || '',
+    destino: r.destino, hora_llegada: r.horaLlegada, hora_fin_cargue: r.horaFinCargue || '', observacion: r.observacion || ''
+  };
+  if (r.id) {
+    db.prepare(`UPDATE despachos SET fecha=@fecha, placa=@placa, viaje_id=@viaje_id, ruta=@ruta, conductor=@conductor, destino=@destino,
+      hora_llegada=@hora_llegada, hora_fin_cargue=@hora_fin_cargue, observacion=@observacion, editado_por=@usuario, editado_en=@ahora WHERE id=@id`)
+      .run({ ...valores, usuario, ahora, id: r.id });
+    return leerDespachoDB(modo, r.id);
+  }
+  const info = db.prepare(`INSERT INTO despachos (fecha, placa, viaje_id, ruta, conductor, destino, hora_llegada, hora_fin_cargue, observacion, creado_por, creado_en)
+    VALUES (@fecha, @placa, @viaje_id, @ruta, @conductor, @destino, @hora_llegada, @hora_fin_cargue, @observacion, @usuario, @ahora)`)
+    .run({ ...valores, usuario, ahora });
+  return leerDespachoDB(modo, Number(info.lastInsertRowid));
+}
+
+function eliminarDespachoDB(modo, id) {
+  return conectar(modo).prepare('DELETE FROM despachos WHERE id = ?').run(id).changes;
+}
+
+/** Meses con registros (para el histórico): [{ mes: 'AAAA-MM', total }], el más reciente primero. */
+function mesesDespachosDB(modo) {
+  return conectar(modo).prepare("SELECT substr(fecha, 1, 7) AS mes, COUNT(*) AS total FROM despachos GROUP BY mes ORDER BY mes DESC").all();
+}
+
 module.exports = {
+  listarDespachosDB, leerDespachoDB, guardarDespachoDB, eliminarDespachoDB, mesesDespachosDB,
   leerConfigCompartidaDB, guardarConfigCompartidaDB,
   listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB,
   leerDB, guardarEnDB, conectar, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB, limpiarRespaldosDB,

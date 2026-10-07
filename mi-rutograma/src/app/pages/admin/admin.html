@@ -36,6 +36,21 @@
       </p>
     </div>
 
+    <div *ngIf="auth.isAdmin" class="cuenta-conductores cuenta-despachos">
+      <div class="cuenta-conductores-texto">
+        <strong><i class="bi bi-box-seam"></i> Cuenta compartida de despachos</strong>
+        <span>Para quien está en el cargue: solo ve la pantalla Despachos, donde anota a qué hora llega cada vehículo, a qué viaje va y a qué hora terminó de cargar. Puede descargar el Excel del día, la semana o el mes. No ve nada más de la app.</span>
+      </div>
+      <div class="cuenta-conductores-form">
+        <input type="email" [(ngModel)]="despachosEmail" placeholder="despachos@makand.com">
+        <input type="text" [(ngModel)]="despachosClave" placeholder="Contraseña segura" maxlength="64">
+        <button class="btn-aprobar" (click)="guardarCuentaDespachos()">Crear / cambiar contraseña</button>
+      </div>
+      <p class="clave-faltas" *ngIf="faltasClave(despachosClave, despachosEmail).length">
+        <i class="bi bi-shield-exclamation"></i> Le falta: {{ faltasClave(despachosClave, despachosEmail).join(', ').toLowerCase() }}.
+      </p>
+    </div>
+
     <p *ngIf="cargando" class="admin-msg">Cargando cuentas...</p>
     <p *ngIf="!cargando && usuarios.length === 0" class="admin-msg">
       No hay cuentas registradas actualmente.

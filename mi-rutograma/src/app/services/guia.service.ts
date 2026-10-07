@@ -65,7 +65,7 @@ export class GuiaService {
 
   /** Tareas que esta cuenta puede hacer (no se enseña lo que no le está permitido). */
   public tareasDisponibles(): Tarea[] {
-    if (!this.auth.currentUser || this.auth.esConductor) return [];
+    if (!this.auth.currentUser || this.auth.esConductor || this.auth.esDespachos) return [];
     return TAREAS.filter(t =>
       t.requiere === 'editar' ? this.auth.puedeEditar
         : t.requiere === 'aprobar' ? this.auth.puedeAprobar

@@ -559,6 +559,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     { nombre: 'Comparendos', ruta: '/comparendos' },
     { nombre: 'Quejas', ruta: '/quejas' },
     { nombre: 'Mapa', ruta: '/mapa' },
+    { nombre: 'Despachos', ruta: '/despachos' },
     { nombre: 'Sesiones', ruta: '/sesiones' },
     { nombre: 'Aprobaciones', ruta: '/aprobaciones' },
     { nombre: 'Administrador', ruta: '/admin' }
@@ -585,6 +586,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     { nombre: 'Comparendos', ruta: '/comparendos' },
     { nombre: 'Quejas', ruta: '/quejas' },
     { nombre: 'Mapa', ruta: '/mapa' },
+    { nombre: 'Despachos', ruta: '/despachos' },
     { nombre: 'Sesiones', ruta: '/sesiones' },
     { nombre: 'Aprobaciones', ruta: '/aprobaciones' },
     { nombre: 'Administrador', ruta: '/admin' }

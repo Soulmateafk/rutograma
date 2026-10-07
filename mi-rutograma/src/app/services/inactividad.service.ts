@@ -49,7 +49,7 @@ export class InactividadService {
   }
 
   private get aplica(): boolean {
-    return !!this.auth.currentUser && !this.auth.esConductor;
+    return !!this.auth.currentUser && !this.auth.esConductor && !this.auth.esDespachos;
   }
 
   /** Movimiento del usuario. Mientras el aviso está en pantalla solo cuenta el botón. */

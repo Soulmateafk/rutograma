@@ -47,6 +47,8 @@ export class LoginComponent implements OnInit {
       detalle = 'Bienvenido, jefe. Puedes editar el Rutograma y aprobar o rechazar los cambios de tus auxiliares en la pestaña Aprobaciones.';
     } else if (this.auth.esConductor) {
       detalle = 'Bienvenido. Aquí ves tus viajes de los próximos días.';
+    } else if (this.auth.esDespachos) {
+      detalle = 'Bienvenido. Anota a qué hora llega y termina de cargar cada vehículo.';
     } else if (this.auth.esAuxiliar) {
       detalle = 'Bienvenido. Eres auxiliar: puedes hacer cambios, pero cada uno se aplica cuando un jefe lo aprueba. Revisa en qué quedaron en la pestaña Aprobaciones.';
     } else if (this.auth.rolActual === 'lector') {
@@ -55,7 +57,7 @@ export class LoginComponent implements OnInit {
       detalle = 'Bienvenido. Ya puedes gestionar el Rutograma.';
     }
     // Aviso del cierre por inactividad (no aplica a conductores).
-    const avisoInactividad = this.auth.esConductor ? ''
+    const avisoInactividad = this.auth.esConductor || this.auth.esDespachos ? ''
       : '<br><small>Si te ausentas 1 hora o más sin usar la app, tu sesión se cerrará sola por seguridad.</small>';
     return `${saludo}. ${detalle}${avisoInactividad}`;
   }
