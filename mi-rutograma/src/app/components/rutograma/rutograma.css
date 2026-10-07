@@ -1524,7 +1524,28 @@ tr.ruto-fila-resaltada > .ruto-td-vehicle-info {
   background: linear-gradient(90deg, rgba(245, 158, 11, 0.22), rgba(245, 158, 11, 0.08));
   border: 1px solid rgba(245, 158, 11, 0.6);
   color: #fde68a;
-  animation: ruto-aviso-latido 2.4s ease-in-out infinite;
+  /* El latido NO anima box-shadow sobre el aviso: eso obligaba a redibujar
+     toda la página del Rutograma 60 veces por segundo, sin parar (casi la
+     mitad del tiempo del navegador; en el computador del servidor trababa
+     todo). Ahora brilla una capa aparte (solo opacidad, la mueve la tarjeta
+     de video) y se detiene después de 4 latidos. */
+  position: relative;
+}
+.ruto-aviso-aprobaciones::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  will-change: opacity;
+  animation: ruto-aviso-latido 2.4s ease-in-out 4;
+}
+.ruto-aviso-urgente::after { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2); }
+.ruto-aviso-revision::after { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .ruto-aviso-aprobaciones::after { animation: none; }
 }
 .ruto-aviso-aprobaciones.ruto-aviso-urgente {
   background: linear-gradient(90deg, rgba(239, 68, 68, 0.25), rgba(239, 68, 68, 0.08));
@@ -1547,8 +1568,8 @@ tr.ruto-fila-resaltada > .ruto-td-vehicle-info {
 }
 .ruto-aviso-urgente .ruto-aviso-btn { background: #ef4444; color: #fff; }
 @keyframes ruto-aviso-latido {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
-  50% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.18); }
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
 }
 @media (max-width: 700px) {
   .ruto-aviso-aprobaciones { flex-wrap: wrap; }

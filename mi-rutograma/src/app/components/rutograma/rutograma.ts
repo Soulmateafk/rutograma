@@ -193,6 +193,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
 
     
     this.subDataChanged = this.ds.dataChanged.subscribe(() => {
+      this.versionDatos++;
       this.zone.run(() => {
         this.recalcularResumenPorVehiculoMes();
         this.cdr.detectChanges();
@@ -276,9 +277,12 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   // ============================================================
   // REVISIÓN DEL MES (services/revision-viajes.ts): viajes de hoy en
   // adelante con documentos vencidos o que se cruzan con otro (mismo
-  // vehículo o conductor). Se recalcula como mucho cada 2 s.
+  // vehículo o conductor). Se recalcula solo cuando cambian los datos (o el
+  // mes, o la cantidad de viajes) y, por si acaso, cada 30 s; antes se
+  // recalculaba cada 2 s y en computadores lentos trababa la página.
   // ============================================================
   private revisionCache: { clave: string; ts: number; lista: ProblemaViaje[] } = { clave: '', ts: 0, lista: [] };
+  private versionDatos = 0;
   /** Minimizado por defecto: solo la línea que explica; al abrirlo, la lista. */
   public revisionAbierta = false;
 
@@ -286,9 +290,9 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     const S = this.ds.S;
     if (!S?.viajes) return [];
     const prefijo = `${S.anio}-${String(Number(S.mes) + 1).padStart(2, '0')}`;
-    const clave = `${prefijo}|${S.viajes.length}`;
+    const clave = `${prefijo}|${S.viajes.length}|${this.versionDatos}`;
     const ahora = Date.now();
-    if (clave === this.revisionCache.clave && ahora - this.revisionCache.ts < 2000) return this.revisionCache.lista;
+    if (clave === this.revisionCache.clave && ahora - this.revisionCache.ts < 30000) return this.revisionCache.lista;
     const h = new Date();
     const hoy = `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`;
     let lista: ProblemaViaje[] = [];

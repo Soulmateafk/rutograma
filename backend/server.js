@@ -2627,7 +2627,14 @@ app.get('/api/dashboard-data', (req, res) => {
         // para todos los equipos (solo se mandan los que ya se guardaron
         // alguna vez; si no, cada equipo conserva lo suyo y lo sube).
         Object.assign(dataSegura, leerConfigCompartidaDB(modoActual));
-        res.json({ ok: true, data: dataSegura });
+        // Huella de los datos: cada pantalla pide esto cada 20 s; si nada
+        // cambió desde la última vez (manda la huella que ya tiene), se
+        // responde solo "sin cambios" en vez de 1 MB que el navegador tendría
+        // que volver a procesar (en computadores lentos trababa la página).
+        const texto = JSON.stringify(dataSegura);
+        const version = crypto.createHash('sha1').update(texto).digest('hex');
+        if (req.headers['x-version-previa'] === version) return res.json({ ok: true, sinCambios: true, version });
+        res.type('application/json').send(`{"ok":true,"version":"${version}","data":${texto}}`);
     } catch (error) {
         res.status(500).json({ ok: false, message: "Error al leer el archivo", error: error.message });
     }
