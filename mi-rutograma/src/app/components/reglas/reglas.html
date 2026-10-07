@@ -1,0 +1,53 @@
+<div class="rg-page">
+  <h1 class="rg-titulo">Reglas de asignación</h1>
+  <p class="rg-intro">Lo que la app revisa al guardar un viaje y en "Viajes por revisar" del Rutograma. Si un viaje no cumple, la app <b>avisa</b> y la persona decide si lo guarda igual.
+    <span *ngIf="!puedeEditar"> Solo quien tiene el permiso "Editar la configuración" puede cambiarlas.</span></p>
+
+  <section class="rg-card" data-guia="rg-reglas">
+    <h2><i class="bi bi-truck"></i> Por cliente o ruta</h2>
+    <p class="rg-ayuda">Ej.: "D1 solo en furgón refrigerado", "la ruta BOG-MON mínimo 600 cajas". El cliente se busca dentro del nombre (D1 sirve para "Tiendas D1").</p>
+    <div class="rg-lista">
+      <div *ngIf="!reglas.length" class="rg-vacio">Todavía no hay reglas.</div>
+      <div *ngFor="let r of reglas" class="rg-fila">
+        <span><b>{{ r.aplicaA === 'ruta' ? 'Ruta' : 'Cliente' }} {{ r.valor }}</b> → {{ textoRegla(r) }}<span class="rg-nota" *ngIf="r.nota"> · {{ r.nota }}</span></span>
+        <button *ngIf="puedeEditar" class="rg-quitar" [disabled]="guardando" (click)="quitar('reglasAsignacion', r.id)" title="Quitar"><i class="bi bi-trash"></i></button>
+      </div>
+    </div>
+    <div class="rg-form" *ngIf="puedeEditar">
+      <select [(ngModel)]="nuevaRegla.aplicaA" aria-label="A qué aplica">
+        <option value="cliente">Cliente</option>
+        <option value="ruta">Ruta</option>
+      </select>
+      <input [(ngModel)]="nuevaRegla.valor" [attr.list]="nuevaRegla.aplicaA === 'ruta' ? 'rg-rutas' : 'rg-clientes'" [placeholder]="nuevaRegla.aplicaA === 'ruta' ? 'Código (ej. BOG-MON)' : 'Cliente (ej. D1)'">
+      <input [(ngModel)]="nuevaRegla.tipoVehiculo" list="rg-tipos" placeholder="Tipo de vehículo (ej. refrigerado)">
+      <input type="number" min="0" [(ngModel)]="nuevaRegla.cajasMin" placeholder="Mín. cajas">
+      <input [(ngModel)]="nuevaRegla.nota" placeholder="Nota (opcional)">
+      <button class="rg-btn" [disabled]="guardando" (click)="agregarRegla()"><i class="bi bi-plus-lg"></i> Agregar</button>
+    </div>
+    <datalist id="rg-tipos"><option *ngFor="let t of tiposVehiculo" [value]="t"></option></datalist>
+    <datalist id="rg-clientes"><option *ngFor="let c of clientes" [value]="c"></option></datalist>
+    <datalist id="rg-rutas"><option *ngFor="let c of codigosRuta" [value]="c"></option></datalist>
+  </section>
+
+  <section class="rg-card" data-guia="rg-pico">
+    <h2><i class="bi bi-sign-stop"></i> Pico y placa</h2>
+    <p class="rg-ayuda">Placas que terminan en ciertos dígitos no pueden salir ciertos días en un horario. Se compara con la hora de salida del viaje (o la de su ruta para ese día). Ponlo como lo diga la norma vigente de la ciudad.</p>
+    <div class="rg-lista">
+      <div *ngIf="!picos.length" class="rg-vacio">Todavía no hay pico y placa.</div>
+      <div *ngFor="let p of picos" class="rg-fila">
+        <span><b>{{ textoDias(p) }}</b> · placas terminadas en <b>{{ p.digitos }}</b> · de {{ p.desde }} a {{ p.hasta }}<span class="rg-nota" *ngIf="p.nota"> · {{ p.nota }}</span></span>
+        <button *ngIf="puedeEditar" class="rg-quitar" [disabled]="guardando" (click)="quitar('picoPlaca', p.id)" title="Quitar"><i class="bi bi-trash"></i></button>
+      </div>
+    </div>
+    <div class="rg-form" *ngIf="puedeEditar">
+      <div class="rg-dias">
+        <button *ngFor="let d of dias" type="button" class="rg-dia" [class.on]="nuevoPico.dias.includes(d.clave)" (click)="alternarDia(d.clave)">{{ d.nombre }}</button>
+      </div>
+      <input [(ngModel)]="nuevoPico.digitos" placeholder="Dígitos (ej. 1, 2)" inputmode="numeric">
+      <label class="rg-hora">De <input type="time" [(ngModel)]="nuevoPico.desde"></label>
+      <label class="rg-hora">a <input type="time" [(ngModel)]="nuevoPico.hasta"></label>
+      <input [(ngModel)]="nuevoPico.nota" placeholder="Nota (opcional)">
+      <button class="rg-btn" [disabled]="guardando" (click)="agregarPico()"><i class="bi bi-plus-lg"></i> Agregar</button>
+    </div>
+  </section>
+</div>

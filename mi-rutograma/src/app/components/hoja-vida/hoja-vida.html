@@ -113,7 +113,15 @@
         <h2><i class="bi bi-lightning-charge"></i> Novedades que lo mencionan</h2>
         <div *ngFor="let n of h.novedades" class="hv-fila">
           <span><b>{{ n.titulo }}</b> <span class="hv-sub">{{ n.descripcion }}</span></span>
-          <span class="hv-sub">{{ n.fecha | date:'d MMM y':'':'es' }} · {{ n.tipo }}{{ n.resuelta ? ' · resuelta' : '' }}</span>
+          <span class="hv-sub">{{ fechaTexto(n.fecha) }} · {{ n.tipo }}{{ n.resuelta ? ' · resuelta' : '' }}</span>
+        </div>
+      </section>
+
+      <section class="hv-card hv-ancha" *ngIf="comparendos.length">
+        <h2><i class="bi bi-receipt"></i> Comparendos ({{ comparendos.length }})</h2>
+        <div *ngFor="let c of comparendos" class="hv-fila">
+          <span><b>{{ c.motivo }}</b> <span class="hv-sub">{{ c.conductor || 'Conductor sin saber' }}{{ c.numero ? ' · N.º ' + c.numero : '' }}</span></span>
+          <span class="hv-sub">{{ c.fecha | date:'d MMM y':'':'es' }} · $ {{ c.valor | number:'1.0-0':'es' }} · <span [class.hv-rojo]="!c.pagado">{{ c.pagado ? 'pagado' : 'sin pagar' }}</span></span>
         </div>
       </section>
     </div>

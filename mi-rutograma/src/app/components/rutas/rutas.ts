@@ -13,11 +13,12 @@ import * as _rutasUtils from './rutas.utils.js';
 
 const RutasUtils: any = (_rutasUtils as any).default || _rutasUtils;
 
+import { DuracionRutasComponent } from '../analisis/analisis';
 @Component({
   selector: 'app-rutas',
   templateUrl: './rutas.html',
   standalone: true,
-  imports: [CommonModule, CurrencyPipe, FormsModule]
+  imports: [CommonModule, CurrencyPipe, FormsModule, DuracionRutasComponent]
 })
 export class RutasComponent implements OnInit, OnDestroy {
   public modal = inject(ModalService);

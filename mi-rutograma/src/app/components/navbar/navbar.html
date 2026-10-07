@@ -129,6 +129,15 @@
       </div>
     </div>
 
+    <div class="nb-sugerencias" data-guia="ve-sugerencias" *ngIf="nuevoViaje.ruta && nuevoViaje.fecha">
+      <div class="nb-sug-titulo"><i class="bi bi-stars"></i> Sugeridos para esas fechas</div>
+      <div *ngIf="!sugerenciasViajeExtra().length" class="nb-sug-vacio">Ningún vehículo propio está libre, con documentos al día y cumpliendo las reglas esas fechas. Puedes elegir uno igual o usar un cupo de tercero.</div>
+      <button type="button" *ngFor="let s of sugerenciasViajeExtra()" class="nb-sug" [class.on]="nuevoViaje.placa === s.placa" (click)="elegirSugerencia(s)">
+        <b>{{ s.placa }}</b><span *ngIf="s.conductor"> · {{ s.conductor }}</span>
+        <small>{{ s.motivos.join(' · ') }}</small>
+      </button>
+    </div>
+
     <div class="nb-modal-footer">
       <button class="btn sm" data-guia="ve-cerrar" [disabled]="procesandoViajeExtra" (click)="cerrarModalViaje()">Cerrar</button>
       <button class="btn pri sm" data-guia="ve-guardar" [disabled]="procesandoViajeExtra" (click)="guardarViajeExtra()">{{ procesandoViajeExtra ? 'Guardando...' : 'Guardar viaje' }}</button>

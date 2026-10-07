@@ -16,6 +16,8 @@
 // Espejo de backend/revision-viajes.js (el servidor es el que manda).
 // ============================================================
 
+import { reglasIncumplidas } from './reglas-asignacion';
+
 function sumarDiasFecha(fecha: string, dias: number): string {
   const d = new Date(fecha + 'T00:00:00');
   d.setDate(d.getDate() + dias);
@@ -29,7 +31,7 @@ function diasOcupadoViaje(v: any): number {
 }
 
 export interface Choque { viaje: any; por: 'vehículo' | 'conductor'; texto: string; }
-export interface ProblemaViaje { viaje: any; vencidos: string[]; choques: Choque[]; }
+export interface ProblemaViaje { viaje: any; vencidos: string[]; choques: Choque[]; reglas: string[]; }
 interface Quien { clave: string; nombre: string; titular: boolean; }
 interface Indice { porNombre: Map<string, any>; porPlaca: Map<string, any>; }
 interface Preparado { v: any; rango: { desde: string; hasta: string }; placa: string; clavePlaca: string; quien: Quien | null; }
@@ -172,7 +174,8 @@ export function choquesDeAgenda(v: any, viajes: any[], conductores: any[]): Choq
 
 /**
  * Todos los problemas de los viajes de un mes ('AAAA-MM'), para el aviso
- * del Rutograma: [{ viaje, vencidos: [...], choques: [...] }].
+ * del Rutograma: [{ viaje, vencidos: [...], choques: [...], reglas: [...] }]
+ * (reglas: las de cliente/ruta y pico y placa, ver reglas-asignacion.ts).
  */
 export function revisarMes(data: any, prefijoMes: string): ProblemaViaje[] {
   const indice = indiceConductores(data.conductores);
@@ -180,14 +183,22 @@ export function revisarMes(data: any, prefijoMes: string): ProblemaViaje[] {
   const grupos = agrupar(preparados);
   return preparados
     .filter((p): p is Preparado => !!p && String(p.v.fecha).startsWith(prefijoMes))
-    .map(p => ({ viaje: p.v, vencidos: documentosVencidos(p.v, data, indice), choques: choquesEntre(p, candidatosDe(p, grupos)) }))
-    .filter(x => x.vencidos.length || x.choques.length)
+    .map(p => ({ viaje: p.v, vencidos: documentosVencidos(p.v, data, indice), choques: choquesEntre(p, candidatosDe(p, grupos)), reglas: reglasIncumplidas(p.v, data) }))
+    .filter(x => x.vencidos.length || x.choques.length || x.reglas.length)
     .sort((a, b) => String(a.viaje.fecha).localeCompare(String(b.viaje.fecha)));
 }
 
+/** Un dato que ya tenía valor y cambió. Llenar uno que estaba vacío no cuenta:
+ * la pantalla de edición rellena sola la hora o el cliente de la ruta. */
+const VACIOS = ['', '--:--', 'NO DEFINIDO'];
+const cambioDeDato = (antes: any, despues: any): boolean => {
+  const a = limpiar(antes), d = limpiar(despues);
+  return !VACIOS.includes(a) && a !== d;
+};
+
 /**
- * ¿Cambió algo que obliga a revisar? (nuevo, o cambió vehículo, conductor
- * o fechas). Así marcar Entregado o cancelar un viaje viejo nunca se frena.
+ * ¿Cambió algo que obliga a revisar? (nuevo, o cambió vehículo, conductor,
+ * fechas, ruta, hora o cliente — estos tres por las reglas de la oficina). Así marcar Entregado o cancelar un viaje viejo nunca se frena.
  */
 export function cambioLoQueSeRevisa(previo: any, nuevo: any): boolean {
   if (!previo) return true;
@@ -196,6 +207,9 @@ export function cambioLoQueSeRevisa(previo: any, nuevo: any): boolean {
     || previo.fecha !== nuevo.fecha
     || Number(previo.salida || 0) !== Number(nuevo.salida || 0)
     || Number(previo.retorno || 0) !== Number(nuevo.retorno || 0)
+    || limpiar(previo.ruta || previo.codigo) !== limpiar(nuevo.ruta || nuevo.codigo)
+    || cambioDeDato(previo.hora, nuevo.hora)
+    || cambioDeDato(previo.cliente || previo.cli, nuevo.cliente || nuevo.cli)
     || (ESTADOS_SIN_VIAJE.includes(previo.estado) && !ESTADOS_SIN_VIAJE.includes(nuevo.estado));
 }
 

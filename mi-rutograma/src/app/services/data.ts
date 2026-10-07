@@ -1322,7 +1322,7 @@ export class DataService {
       if (e?.status === 409 && e?.error?.codigo === 'choque_agenda') {
         const seguir = await this.preguntarChoqueAgenda(e.error.choques || [e.error.msg]);
         if (seguir) return this.guardarViaje(viaje, sinRegistrar, { ...opciones, revisarChoquesAgenda: false });
-        this.ui.mostrarToast('No se guardó el viaje: cambia el vehículo, el conductor o las fechas.', 'info');
+        this.ui.mostrarToast('No se guardó el viaje: cambia el vehículo, el conductor, las fechas o la hora.', 'info');
         return false;
       }
       if (e?.status === 0) {
@@ -1467,7 +1467,7 @@ export class DataService {
   // cambiaba en otro computador nunca llegaba al principal). Ahora se
   // guardan en el servidor y llegan a todos con la sincronización.
   // ============================================================
-  public static readonly CLAVES_CONFIG_COMPARTIDA = ['transportadoras', 'cuposExt', 'festivos'];
+  public static readonly CLAVES_CONFIG_COMPARTIDA = ['transportadoras', 'cuposExt', 'festivos', 'reglasAsignacion', 'picoPlaca', 'anuncios', 'comparendos'];
 
   public async guardarConfigCompartida(clave: string): Promise<void> {
     const url = `${this.API_URL}/configuracion/compartida`;

@@ -55,9 +55,18 @@
 
   <!-- Viajes -->
   <ng-container *ngIf="!cargando && paso === 'viajes'">
+    <div class="mv-anuncios" *ngIf="anuncios.length" data-guia="mv-anuncios">
+      <div class="mv-anuncios-titulo"><i class="bi bi-pin-angle-fill"></i> Avisos de la oficina</div>
+      <div *ngFor="let a of anuncios" class="mv-anuncio" [class.importante]="a.importante">
+        <i *ngIf="a.importante" class="bi bi-exclamation-triangle-fill"></i> {{ a.texto }}
+      </div>
+    </div>
     <div class="mv-barra">
       <button class="mv-secundario" (click)="descargarFoto()" [disabled]="descargando" data-guia="mv-foto">
         <i class="bi bi-camera-fill"></i> {{ descargando ? 'Creando foto…' : 'Descargar foto de mis viajes' }}
+      </button>
+      <button class="mv-secundario" (click)="agregarAlCalendario()" data-guia="mv-calendario">
+        <i class="bi bi-calendar-plus"></i> Agregar a mi calendario
       </button>
       <button *ngIf="compartida" class="mv-secundario" (click)="cambiarConductor()"><i class="bi bi-person-x"></i> No soy yo</button>
       <button class="mv-secundario mv-reportar" data-guia="mv-reportar" (click)="abrirReporte()"><i class="bi bi-exclamation-triangle-fill"></i> Reportar novedad</button>

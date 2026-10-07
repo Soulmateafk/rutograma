@@ -345,6 +345,11 @@
         </p>
         <p><strong>Descanso:</strong> {{ descansoResumenTexto(conductorSeleccionado) }}</p>
         <p><strong>Observaciones:</strong> {{ conductorSeleccionado.obs || 'Ninguna' }}</p>
+        <p *ngIf="comparendosDe(conductorSeleccionado).length as n">
+          <strong>Comparendos:</strong> {{ n }}
+          <span [style.color]="pendienteDe(conductorSeleccionado) ? '#f87171' : ''">· $ {{ pendienteDe(conductorSeleccionado) | number:'1.0-0':'es' }} sin pagar</span>
+          · <a routerLink="/comparendos" (click)="cerrarModal('m-vista')">Ver</a>
+        </p>
       </div>
 
       <div style="margin-top: 16px;">

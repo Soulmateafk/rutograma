@@ -1,0 +1,23 @@
+.rg-page { padding: 20px; max-width: 1000px; margin: 0 auto; color: var(--color-texto-principal); }
+.rg-titulo { font-size: 22px; margin: 0 0 4px; }
+.rg-intro { color: var(--color-texto-secundario); font-size: 13.5px; margin: 0 0 14px; }
+.rg-card { background: var(--color-fondo-tarjeta, #0f172a); border: 1px solid var(--color-borde, #1e293b); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+.rg-card h2 { font-size: 15px; margin: 0 0 4px; display: flex; gap: 8px; align-items: center; }
+.rg-ayuda { color: var(--color-texto-secundario); font-size: 12.5px; margin: 0 0 10px; }
+.rg-lista { display: flex; flex-direction: column; margin-bottom: 10px; }
+.rg-vacio { color: var(--color-texto-apagado, #64748b); font-size: 13px; padding: 4px 0; }
+.rg-fila { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--color-borde, #1e293b); font-size: 13.5px; }
+.rg-fila:first-child { border-top: none; }
+.rg-nota { color: var(--color-texto-secundario); }
+.rg-quitar { background: none; border: 1px solid rgba(248, 113, 113, 0.4); color: #f87171; border-radius: 6px; padding: 3px 8px; cursor: pointer; flex-shrink: 0; }
+.rg-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 10px; border-top: 1px dashed var(--color-borde, #334155); }
+.rg-form input, .rg-form select { background: var(--color-fondo-input, #0f172a); color: var(--color-texto-principal); border: 1px solid var(--color-borde, #334155); border-radius: 7px; padding: 7px 9px; font-family: inherit; font-size: 13px; min-width: 0; }
+.rg-form input:not([type=time]):not([type=number]) { flex: 1 1 160px; }
+.rg-form input[type=number] { width: 110px; }
+.rg-btn { background: #2563eb; color: #fff; border: none; border-radius: 7px; padding: 8px 14px; font-weight: 600; cursor: pointer; font-family: inherit; display: inline-flex; gap: 6px; align-items: center; }
+.rg-btn:disabled, .rg-quitar:disabled { opacity: .6; cursor: wait; }
+.rg-dias { display: flex; gap: 4px; flex-wrap: wrap; }
+.rg-dia { border: 1px solid var(--color-borde, #334155); background: none; color: var(--color-texto-principal); border-radius: 6px; padding: 5px 8px; cursor: pointer; font-size: 12.5px; font-family: inherit; }
+.rg-dia.on { background: #2563eb; border-color: #2563eb; color: #fff; }
+.rg-hora { display: inline-flex; gap: 5px; align-items: center; font-size: 13px; color: var(--color-texto-secundario); }
+@media (max-width: 600px) { .rg-page { padding: 12px; } }

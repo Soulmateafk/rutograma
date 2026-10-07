@@ -66,4 +66,11 @@ test('solo se revisa si cambió vehículo, conductor o fechas', () => {
     assert.strictEqual(cambioLoQueSeRevisa(previo, { ...previo, cond: 'Pedro Pérez' }), true);
     assert.strictEqual(cambioLoQueSeRevisa(previo, { ...previo, retorno: 8 }), true);
     assert.strictEqual(cambioLoQueSeRevisa(null, previo), true);
+    // Hora, ruta y cliente importan por las reglas (pico y placa, cliente).
+    assert.strictEqual(cambioLoQueSeRevisa({ ...previo, hora: '06:00' }, { ...previo, hora: '14:00' }), true);
+    assert.strictEqual(cambioLoQueSeRevisa({ ...previo, cliente: 'Éxito' }, { ...previo, cliente: 'D1' }), true);
+    // Lo que la pantalla rellena (vacío antes) no cuenta.
+    assert.strictEqual(cambioLoQueSeRevisa(previo, { ...previo, hora: '14:00', cliente: 'D1', estado: 'Entregado' }), false);
+    assert.strictEqual(cambioLoQueSeRevisa({ ...previo, hora: '--:--' }, { ...previo, hora: '14:00' }), false);
+    assert.strictEqual(cambioLoQueSeRevisa(previo, { ...previo, ruta: 'BOG-MED' }), true);
 });

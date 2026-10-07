@@ -13,10 +13,11 @@ import { reprogramarViajesDesde, buscarViajesTercerosRobables, tomarViajeTercero
 
 import { PresenciaService } from '../../services/presencia.service';
 import { OtrosAquiComponent } from '../en-linea/otros-aqui';
+import { OcupacionCargaComponent } from '../analisis/analisis';
 @Component({
   selector: 'app-vehiculos',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, OtrosAquiComponent],
+  imports: [CommonModule, FormsModule, RouterLink, OtrosAquiComponent, OcupacionCargaComponent],
   templateUrl: './vehiculos.html',
   styleUrls: ['./vehiculos.css']
 })

@@ -307,7 +307,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   }
 
   public textoProblema(p: ProblemaViaje): string {
-    return [...p.vencidos, ...p.choques.map(c => c.texto)].join(' · ');
+    return [...p.vencidos, ...p.choques.map(c => c.texto), ...(p.reglas || [])].join(' · ');
   }
   public resolviendoNovedad: string | null = null;
 
