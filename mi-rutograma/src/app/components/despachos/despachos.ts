@@ -14,10 +14,27 @@ const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', '
 
 type Periodo = 'dia' | 'semana' | 'mes';
 
+/** Tipos de carga (igual que backend/despachos.js; el servidor manda la lista). Las estibas no son cajas. */
+const TIPOS_CARGA = [
+  'Makand x25', 'Makand x13', 'Cajas de espinaca', 'Cajas cargadas Olímpica', 'Cajas cargadas Gabriel',
+  'Alkosto', 'Mario', 'Azul Makand', 'Rojas Makand', 'Ifco x25', 'Ifco x18', 'Ifco x13',
+  'Cajas cartón tomate', 'Cajones', 'Estibas'
+];
+const NO_SON_CAJAS = ['Estibas'];
+const CLAVE_DESPACHADOR = 'despachos-nombre';
+
+interface Carga { tipo: string; cantidad: string; }
+
 interface Formulario {
   id: number | null;
   fecha: string;
+  despachador: string;
+  horaProgramada: string;
   horaLlegada: string;
+  horaInicioCargue: string;
+  horaSalida: string;
+  ruta: string;
+  cargas: Carga[];
   placa: string;
   viajeId: string;          // '' = sin escoger, 'otro' = otro lugar
   destino: string;
@@ -52,6 +69,10 @@ export class DespachosComponent implements OnInit, OnDestroy {
   // Formulario
   form: Formulario = this.formVacio();
   guardando = false;
+  tiposCarga: string[] = TIPOS_CARGA;
+  listaCargaAbierta = false;
+  /** Se intentó guardar: se marcan en rojo las cantidades que faltan. */
+  intentoGuardar = false;
   vehiculos: Array<{ placa: string; conductor: string }> = [];
   viajes: any[] = [];
   private fechaOpciones = '';
@@ -83,6 +104,7 @@ export class DespachosComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     if (!this.esNavegador) return;
+    this.form.despachador = this.nombreRecordado();
     this.cargarOpciones();
     this.cargarRegistro();
     // Se refresca solo (otro equipo pudo anotar algo). Si hay un formulario
@@ -99,7 +121,64 @@ export class DespachosComponent implements OnInit, OnDestroy {
   }
 
   private formVacio(): Formulario {
-    return { id: null, fecha: hoyTexto(), horaLlegada: horaAhora(), placa: '', viajeId: '', destino: '', horaFinCargue: '', observacion: '' };
+    return {
+      id: null, fecha: hoyTexto(), despachador: this.nombreRecordado(), horaProgramada: '', horaLlegada: horaAhora(), horaInicioCargue: '',
+      horaSalida: '', ruta: '', cargas: [], placa: '', viajeId: '', destino: '', horaFinCargue: '', observacion: ''
+    };
+  }
+
+  /** El nombre de quien despacha se recuerda en este equipo (no hay que escribirlo cada vez). */
+  private nombreRecordado(): string {
+    try { return localStorage.getItem(CLAVE_DESPACHADOR) || ''; } catch { return ''; }
+  }
+
+  // ---------- Carga: varios tipos, cada uno con su cantidad ----------
+
+  estaEscogido(tipo: string): boolean {
+    return this.form.cargas.some(c => c.tipo === tipo);
+  }
+
+  /** Marcar o desmarcar un tipo en la lista (desmarcar = "me equivoqué"). */
+  alternarTipo(tipo: string): void {
+    if (this.estaEscogido(tipo)) this.quitarTipo(tipo);
+    else this.form.cargas = [...this.form.cargas, { tipo, cantidad: '' }];
+  }
+
+  quitarTipo(tipo: string): void {
+    this.form.cargas = this.form.cargas.filter(c => c.tipo !== tipo);
+  }
+
+  /** Solo números: se borra al instante cualquier otra cosa. */
+  soloNumeros(c: Carga, valor: string, input: HTMLInputElement): void {
+    const limpio = String(valor || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 6);
+    c.cantidad = limpio;
+    if (input.value !== limpio) input.value = limpio;
+  }
+
+  /** Bloquea letras y signos al teclear (también "e", "+", "-", "." que un campo numérico sí deja). */
+  teclaNumerica(ev: KeyboardEvent): void {
+    if (ev.ctrlKey || ev.metaKey || ev.key.length > 1) return; // flechas, borrar, tab, pegar...
+    if (!/^\d$/.test(ev.key)) ev.preventDefault();
+  }
+
+  faltaCantidad(c: Carga): boolean {
+    return !(Number(c.cantidad) > 0);
+  }
+
+  get cargasSinCantidad(): Carga[] {
+    return this.form.cargas.filter(c => this.faltaCantidad(c));
+  }
+
+  get totalCajas(): number {
+    return this.form.cargas.filter(c => !NO_SON_CAJAS.includes(c.tipo)).reduce((s, c) => s + (Number(c.cantidad) || 0), 0);
+  }
+
+  get totalEstibas(): number {
+    return this.form.cargas.filter(c => NO_SON_CAJAS.includes(c.tipo)).reduce((s, c) => s + (Number(c.cantidad) || 0), 0);
+  }
+
+  textoCarga(r: any): string {
+    return (r.cargas || []).map((c: any) => `${c.tipo}: ${c.cantidad}`).join(' · ');
   }
 
   // ---------- Opciones: vehículos y viajes ----------
@@ -113,6 +192,7 @@ export class DespachosComponent implements OnInit, OnDestroy {
       if (data?.ok && this.fechaOpciones === fecha) {
         this.vehiculos = data.vehiculos || [];
         this.viajes = data.viajes || [];
+        if (Array.isArray(data.tiposCarga) && data.tiposCarga.length) this.tiposCarga = data.tiposCarga;
       }
     } catch { /* sin conexión: se escribe a mano */ }
     this.cdr.markForCheck();
@@ -149,12 +229,15 @@ export class DespachosComponent implements OnInit, OnDestroy {
   /** Al escoger un viaje: el lugar es su destino y el vehículo, el del viaje. */
   escogioViaje(): void {
     if (this.form.viajeId === 'otro' || !this.form.viajeId) {
-      if (this.form.viajeId === 'otro') this.form.destino = '';
+      if (this.form.viajeId === 'otro') { this.form.destino = ''; this.form.ruta = ''; }
       return;
     }
     const v = this.viajes.find(x => String(x.id) === this.form.viajeId);
     if (!v) return;
     this.form.destino = v.destino || v.ruta || '';
+    this.form.ruta = v.ruta || '';
+    // La hora programada del viaje (se puede cambiar).
+    if (v.hora && v.hora !== '--:--') this.form.horaProgramada = v.hora;
     if (pegada(v.placa) !== pegada(this.form.placa)) this.form.placa = v.placa;
   }
 
@@ -162,14 +245,14 @@ export class DespachosComponent implements OnInit, OnDestroy {
   cambioPlaca(): void {
     this.form.placa = this.form.placa.toUpperCase();
     const v = this.viajes.find(x => String(x.id) === this.form.viajeId);
-    if (v && pegada(v.placa) !== pegada(this.form.placa)) { this.form.viajeId = ''; this.form.destino = ''; }
+    if (v && pegada(v.placa) !== pegada(this.form.placa)) { this.form.viajeId = ''; this.form.destino = ''; this.form.ruta = ''; }
   }
 
   conductorDe(placa: string): string {
     return this.vehiculos.find(v => pegada(v.placa) === pegada(placa))?.conductor || '';
   }
 
-  ahora(campo: 'horaLlegada' | 'horaFinCargue'): void {
+  ahora(campo: 'horaLlegada' | 'horaInicioCargue' | 'horaFinCargue' | 'horaSalida' | 'horaProgramada'): void {
     this.form[campo] = horaAhora();
   }
 
@@ -178,15 +261,28 @@ export class DespachosComponent implements OnInit, OnDestroy {
   async guardar(): Promise<void> {
     if (this.guardando) return;
     const f = this.form;
-    const faltan = [!f.horaLlegada && 'la hora de llegada', !f.placa.trim() && 'el vehículo', !f.destino.trim() && 'a qué lugar se dirige'].filter(Boolean);
-    if (faltan.length) { this.ui.mostrarToast(`Falta ${faltan.join(', ')}.`, 'err'); return; }
+    this.intentoGuardar = true;
+    const faltan = [
+      !f.despachador.trim() && 'el nombre de quien despacha', !f.horaLlegada && 'la hora de llegada',
+      !f.placa.trim() && 'el vehículo', !f.destino.trim() && 'a qué lugar se dirige'
+    ].filter(Boolean);
+    // Cada tipo de carga escogido tiene que llevar su cantidad: si no, no se envía.
+    const sinCantidad = this.cargasSinCantidad.map(c => c.tipo);
+    if (sinCantidad.length) faltan.push(`la cantidad de ${sinCantidad.join(', ')}`);
+    if (faltan.length) {
+      this.ui.mostrarToast(`Falta ${faltan.join('; ')}.${sinCantidad.length ? ' Si escogiste un tipo por error, quítalo con la ✕.' : ''}`, 'err');
+      return;
+    }
     const viaje = this.viajes.find(x => String(x.id) === f.viajeId);
     const cuerpo = {
       id: f.id, fecha: f.fecha, placa: f.placa.trim(), destino: f.destino.trim(),
+      despachador: f.despachador.trim(), horaProgramada: f.horaProgramada, horaInicioCargue: f.horaInicioCargue, horaSalida: f.horaSalida,
+      cargas: f.cargas.map(c => ({ tipo: c.tipo, cantidad: c.cantidad })),
       horaLlegada: f.horaLlegada, horaFinCargue: f.horaFinCargue, observacion: f.observacion,
       viajeId: viaje ? viaje.id : null,
-      ruta: viaje?.ruta || '', conductor: viaje?.conductor || this.conductorDe(f.placa)
+      ruta: viaje?.ruta || f.ruta.trim(), conductor: viaje?.conductor || this.conductorDe(f.placa)
     };
+    try { localStorage.setItem(CLAVE_DESPACHADOR, cuerpo.despachador); } catch { /* sin almacenamiento: se escribe cada vez */ }
     this.guardando = true;
     try {
       const data = await this.enviar('', cuerpo);
@@ -196,6 +292,8 @@ export class DespachosComponent implements OnInit, OnDestroy {
           : r.horaFinCargue ? `Anotado: ${r.placa} hacia ${r.destino}, cargó en ${this.textoMinutos(r.minutos)}.`
             : `Anotado: ${r.placa} llegó a las ${r.horaLlegada}. Cuando termine de cargar, toca "Terminó de cargar".`, 'ok');
         const fecha = f.fecha;
+        this.intentoGuardar = false;
+        this.listaCargaAbierta = false;
         this.form = this.formVacio();
         this.form.fecha = fecha;
         if (fecha !== this.fechaOpciones) this.cargarOpciones();
@@ -219,14 +317,25 @@ export class DespachosComponent implements OnInit, OnDestroy {
     return res.json();
   }
 
-  /** "Terminó de cargar": pone la hora de ahora en un vehículo que sigue cargando. */
+  /** Siguiente paso de un vehículo en el cargue: empezó a cargar, terminó o salió. */
+  siguientePaso(r: any): { campo: 'horaInicioCargue' | 'horaFinCargue' | 'horaSalida'; texto: string } {
+    if (!r.horaInicioCargue && !r.horaFinCargue) return { campo: 'horaInicioCargue', texto: 'Empezó a cargar' };
+    if (!r.horaFinCargue) return { campo: 'horaFinCargue', texto: 'Terminó de cargar' };
+    return { campo: 'horaSalida', texto: 'Salió' };
+  }
+
+  /** Botón rápido: pone la hora de ahora en el siguiente paso del vehículo. */
   async terminarCargue(r: any): Promise<void> {
     if (this.terminandoId) return;
     this.terminandoId = r.id;
+    const paso = this.siguientePaso(r);
     try {
-      const data = await this.enviar('', { ...r, horaFinCargue: horaAhora() });
+      const data = await this.enviar('', { ...r, [paso.campo]: horaAhora() });
       if (data?.ok) {
-        this.ui.mostrarToast(`${r.placa} terminó de cargar a las ${data.registro.horaFinCargue} (${this.textoMinutos(data.registro.minutos)}).`, 'ok');
+        const g = data.registro;
+        this.ui.mostrarToast(paso.campo === 'horaInicioCargue' ? `${r.placa} empezó a cargar a las ${g.horaInicioCargue}.`
+          : paso.campo === 'horaFinCargue' ? `${r.placa} terminó de cargar a las ${g.horaFinCargue} (${this.textoMinutos(g.minutos)}).`
+            : `${r.placa} salió a las ${g.horaSalida}.`, 'ok');
         await this.cargarRegistro(true);
       } else {
         this.ui.mostrarToast(data?.msg || 'No se pudo guardar.', 'err');
@@ -239,8 +348,11 @@ export class DespachosComponent implements OnInit, OnDestroy {
   }
 
   corregir(r: any): void {
+    this.intentoGuardar = false;
     this.form = {
       id: r.id, fecha: r.fecha, horaLlegada: r.horaLlegada, placa: r.placa,
+      despachador: r.despachador || this.nombreRecordado(), horaProgramada: r.horaProgramada || '', horaInicioCargue: r.horaInicioCargue || '',
+      horaSalida: r.horaSalida || '', ruta: r.ruta || '', cargas: (r.cargas || []).map((c: any) => ({ tipo: c.tipo, cantidad: String(c.cantidad) })),
       viajeId: r.viajeId ? String(r.viajeId) : 'otro', destino: r.destino,
       horaFinCargue: r.horaFinCargue || '', observacion: r.observacion || ''
     };
@@ -249,6 +361,7 @@ export class DespachosComponent implements OnInit, OnDestroy {
   }
 
   cancelarCorreccion(): void {
+    this.intentoGuardar = false;
     this.form = this.formVacio();
     this.cargarOpciones();
   }
@@ -292,7 +405,8 @@ export class DespachosComponent implements OnInit, OnDestroy {
         this.ui.mostrarToast(data?.msg || 'No se pudo cargar el registro.', 'err');
       }
       if (dataHoy?.ok) {
-        this.enCargue = (dataHoy.registros || []).filter((r: any) => !r.horaFinCargue)
+        // Siguen en el cargue: sin terminar de cargar, o cargados y sin salir.
+        this.enCargue = (dataHoy.registros || []).filter((r: any) => !r.horaFinCargue || !r.horaSalida)
           .sort((a: any, b: any) => (a.fecha + a.horaLlegada).localeCompare(b.fecha + b.horaLlegada));
       }
     } catch {

@@ -223,6 +223,11 @@ CREATE TABLE IF NOT EXISTS despachos (
   hora_llegada        TEXT NOT NULL,      -- HH:MM
   hora_fin_cargue     TEXT DEFAULT '',    -- HH:MM; vacío = sigue cargando
   observacion         TEXT DEFAULT '',
+  despachador         TEXT DEFAULT '',    -- nombre de quien despacha
+  hora_programada     TEXT DEFAULT '',
+  hora_inicio_cargue  TEXT DEFAULT '',
+  hora_salida         TEXT DEFAULT '',
+  cargas_json         TEXT DEFAULT '[]',  -- [{ tipo, cantidad }]
   creado_por          TEXT,
   creado_en           TEXT,
   editado_por         TEXT,

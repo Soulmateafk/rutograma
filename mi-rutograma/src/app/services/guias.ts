@@ -258,13 +258,16 @@ export const GUIAS: Record<string, Guia> = {
   despachos: {
     titulo: 'Despachos',
     pasos: [
-      { el: 'dp-llegada', titulo: 'Cuando llega un vehículo', texto: 'Anota la fecha y la hora de llegada. "Ahora" pone la hora de este momento.' },
-      { el: 'dp-vehiculo', titulo: 'Vehículo', texto: 'Escribe la placa; la app te sugiere las de la flota y muestra el conductor.' },
-      { el: 'dp-viaje', titulo: 'A qué viaje va', texto: 'Escoge el viaje programado y el lugar se llena solo. Si va a otra parte, escoge "Otro lugar" y escríbelo.' },
-      { el: 'dp-fin', titulo: 'Terminó de cargar', texto: 'Si ya terminó, pon la hora. Si todavía está cargando, déjala vacía y guarda: queda en "Cargando ahora".' },
-      { el: 'dp-en-cargue', titulo: 'Cargando ahora', texto: 'Los vehículos que siguen cargando y cuánto llevan. Cuando uno termine, toca "Terminó de cargar" y queda con la hora de ese momento.' },
+      { el: 'dp-despachador', titulo: 'Quién despacha', texto: 'Escribe tu nombre. Este equipo lo recuerda para la próxima vez; si despacha otra persona, cámbialo.' },
+      { el: 'dp-llegada', titulo: 'Fecha y hora programada', texto: 'La fecha del despacho. La hora programada se llena sola al escoger el viaje, y la puedes cambiar.' },
+      { el: 'dp-vehiculo', titulo: 'Placa', texto: 'Escribe la placa; la app te sugiere las de la flota y muestra el conductor.' },
+      { el: 'dp-viaje', titulo: 'A qué viaje va', texto: 'Escoge el viaje programado y la ruta y el lugar se llenan solos. Si va a otra parte, escoge "Otro lugar" y escríbelos.' },
+      { el: 'dp-horas', titulo: 'Las horas', texto: 'Llegada, inicio de cargue, fin de cargue y salida. "Ahora" pone la hora de este momento. Las que todavía no pasan, déjalas vacías.' },
+      { el: 'dp-carga', titulo: 'Qué se carga', texto: 'Abre la lista y marca uno o varios tipos (Makand x25, Ifco x13, estibas...). Por cada uno sale una casilla para la cantidad: solo acepta números. Si marcaste uno por error, quítalo con la ✕ o desmárcalo.' },
+      { el: 'dp-total', titulo: 'Total', texto: 'La suma de las cajas escogidas (las estibas se cuentan aparte). Si a algún tipo le falta la cantidad, no deja guardar y lo marca en rojo.' },
+      { el: 'dp-en-cargue', titulo: 'En el cargue', texto: 'Los vehículos que siguen en el cargue. El botón cambia según el paso: "Empezó a cargar", "Terminó de cargar" y "Salió", y pone la hora de ese momento.' },
       { el: 'dp-periodos', titulo: 'Registro', texto: 'Lo anotado por día, semana o mes, con las flechas para ir atrás. "Histórico" lleva a cada mes guardado.' },
-      { el: 'dp-excel', titulo: 'Excel', texto: 'Descarga en Excel el día, la semana o el mes que estás viendo, con el tiempo de cargue de cada vehículo.' },
+      { el: 'dp-excel', titulo: 'Excel', texto: 'Descarga en Excel el día, la semana o el mes que estás viendo: horas, tiempo de cargue, cantidad por tipo y total de cajas.' },
       { el: 'dp-tabla', titulo: 'Corregir o borrar', texto: 'Con el lápiz corriges un registro y con la caneca lo borras. La cuenta de despachos puede hacerlo con lo de hoy y ayer; lo anterior, la oficina. Todo queda en la auditoría.' },
       PASO_AYUDA
     ]
