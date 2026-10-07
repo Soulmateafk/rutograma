@@ -9,7 +9,7 @@ import { AuthService } from '../../services/auth.service';
 import { GuiaService } from '../../services/guia.service';
 import { errorEmail, faltasDeClave, mensajeClave } from '../../services/validaciones';
 
-type RolAsignable = 'editor' | 'lector' | 'jefe' | 'auxiliar' | 'conductor';
+type RolAsignable = 'editor' | 'lector' | 'jefe' | 'auxiliar' | 'conductor' | 'despachos';
 
 @Component({
   selector: 'app-admin',
@@ -29,7 +29,8 @@ export class Admin implements OnInit, OnDestroy {
     { valor: 'lector', nombre: 'Solo lectura' },
     { valor: 'jefe', nombre: 'Jefe' },
     { valor: 'auxiliar', nombre: 'Auxiliar' },
-    { valor: 'conductor', nombre: 'Conductor' }
+    { valor: 'conductor', nombre: 'Conductor' },
+    { valor: 'despachos', nombre: 'Despachos' }
   ];
 
   /** Conductores para enlazar una cuenta de rol Conductor. */
@@ -464,6 +465,14 @@ export class Admin implements OnInit, OnDestroy {
       case '/api/auth/resetear-clave':
         return `Restableció la contraseña de ${r.email || 'una cuenta'}`;
 
+      case '/api/despachos':
+      case '/api/despachos/eliminar':
+        return r.descripcion || (ruta.endsWith('eliminar') ? 'Borró un despacho' : `Anotó el despacho de ${r.placa || 'un vehículo'}`);
+      case '/api/auth/cuenta-despachos':
+        return `${r.accion || 'Guardó'} de la cuenta de despachos ${r.email || ''}`.trim();
+      case '/api/auth/cuenta-conductores':
+        return `${r.accion || 'Guardó'} de la cuenta de conductores ${r.email || ''}`.trim();
+
       case '/api/vencimientos/enviar-ahora':
         return 'Envió el resumen de vencimientos por correo';
 
@@ -503,6 +512,25 @@ export class Admin implements OnInit, OnDestroy {
     if (r.ok) {
       this.ui.mostrarToast(r.creada ? `Cuenta ${this.conductoresEmail} creada. Comparte el correo y la contraseña con los conductores.` : `Contraseña de ${this.conductoresEmail} cambiada.`, 'ok');
       this.conductoresClave = '';
+      await this.cargarUsuarios();
+    } else {
+      this.ui.mostrarToast(r.msg || 'No se pudo guardar la cuenta.', 'err');
+    }
+  }
+
+  // --- Cuenta compartida de despachos ---
+  despachosEmail = 'despachos@makand.com';
+  despachosClave = '';
+
+  async guardarCuentaDespachos() {
+    const error = errorEmail(this.despachosEmail);
+    if (error) { this.ui.mostrarToast(error, 'err'); return; }
+    const faltas = faltasDeClave(this.despachosClave, { email: this.despachosEmail });
+    if (faltas.length) { this.ui.mostrarToast(mensajeClave(faltas), 'err'); return; }
+    const r = await this.account.cuentaConductores(this.despachosEmail.trim(), this.despachosClave, 'despachos');
+    if (r.ok) {
+      this.ui.mostrarToast(r.creada ? `Cuenta ${this.despachosEmail} creada. Comparte el correo y la contraseña con quien está en el cargue.` : `Contraseña de ${this.despachosEmail} cambiada.`, 'ok');
+      this.despachosClave = '';
       await this.cargarUsuarios();
     } else {
       this.ui.mostrarToast(r.msg || 'No se pudo guardar la cuenta.', 'err');

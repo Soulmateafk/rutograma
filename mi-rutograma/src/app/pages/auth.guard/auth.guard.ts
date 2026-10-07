@@ -36,6 +36,13 @@ export const authGuard: CanActivateFn = async (_route, state) => {
     if (authService.esConductor && !['/mis-viajes', '/sesiones'].includes(pagina)) {
       return router.createUrlTree(['/mis-viajes']);
     }
+    // Cuenta de despachos: solo "Despachos" (y sus sesiones).
+    if (authService.esDespachos && !['/despachos', '/sesiones'].includes(pagina)) {
+      return router.createUrlTree(['/despachos']);
+    }
+    if (authService.esConductor && pagina === '/despachos') {
+      return router.createUrlTree(['/mis-viajes']);
+    }
     if (!authService.esConductor && pagina === '/mis-viajes') {
       return router.createUrlTree(['/dashboard']);
     }

@@ -28,6 +28,7 @@ import { ReglasComponent } from './components/reglas/reglas';
 import { ComparendosComponent } from './components/comparendos/comparendos';
 import { QuejasComponent } from './components/quejas/quejas';
 import { MapaComponent } from './components/mapa/mapa';
+import { DespachosComponent } from './components/despachos/despachos';
 export const routes: Routes = [
   // 1. Redirección automática
   { path: '', redirectTo: '/login', pathMatch: 'full' },
@@ -49,6 +50,7 @@ export const routes: Routes = [
   { path: 'comparendos', component: ComparendosComponent, canActivate: [authGuard] },
   { path: 'quejas', component: QuejasComponent, canActivate: [authGuard] },
   { path: 'mapa', component: MapaComponent, canActivate: [authGuard] },
+  { path: 'despachos', component: DespachosComponent, canActivate: [authGuard] },
   { path: 'configuracion', component: Configuracion, canActivate: [authGuard] },
   { path: 'historico', component: Historico, canActivate: [authGuard] },
   { path: 'comparativo', component: Comparativo, canActivate: [authGuard] },

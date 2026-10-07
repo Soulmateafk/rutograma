@@ -209,3 +209,23 @@ CREATE TABLE IF NOT EXISTS configuracion_compartida (
   editado_por         TEXT,
   editado_en          TEXT
 );
+
+-- Despachos: a qué hora llega cada vehículo a cargar, a dónde va y a qué
+-- hora terminó de cargar (pantalla Despachos, ver despachos.js).
+CREATE TABLE IF NOT EXISTS despachos (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  fecha               TEXT NOT NULL,      -- AAAA-MM-DD, día en que llegó
+  placa               TEXT NOT NULL,
+  viaje_id            TEXT,               -- el viaje escogido (si se escogió uno)
+  ruta                TEXT DEFAULT '',
+  conductor           TEXT DEFAULT '',
+  destino             TEXT NOT NULL,
+  hora_llegada        TEXT NOT NULL,      -- HH:MM
+  hora_fin_cargue     TEXT DEFAULT '',    -- HH:MM; vacío = sigue cargando
+  observacion         TEXT DEFAULT '',
+  creado_por          TEXT,
+  creado_en           TEXT,
+  editado_por         TEXT,
+  editado_en          TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_despachos_fecha ON despachos (fecha);

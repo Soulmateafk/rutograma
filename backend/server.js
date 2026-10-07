@@ -22,11 +22,12 @@ const { ROLES_VALIDOS, rolDeCuenta, requiereAprobacion, describirCambio, solicit
 // vuelva a ejecutar la petición de un auxiliar cuando un jefe la aprueba.
 // Solo vive en memoria: nadie de afuera puede conocerla.
 const TOKEN_REPLAY_APROBACION = crypto.randomBytes(32).toString('hex');
-const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB, crearRespaldoDB, listarRespaldosDB, limpiarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, listarAuditoriaViajeDB, importarAuditoriaJSONLSiHaceFalta } = require('./migracion/db.js');
+const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB, crearRespaldoDB, listarRespaldosDB, limpiarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, listarAuditoriaViajeDB, importarAuditoriaJSONLSiHaceFalta, listarDespachosDB, leerDespachoDB, guardarDespachoDB, eliminarDespachoDB, mesesDespachosDB } = require('./migracion/db.js');
+const { minutosDeCargue, textoMinutos, rangoPeriodo, validarDespacho, resumenDespachos, filasExcel, nombreArchivo, fechaBonita } = require('./despachos');
 const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
 const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar } = require('./dias-cerrados');
-const { documentosVencidos, choquesDeAgenda, cambioLoQueSeRevisa } = require('./revision-viajes');
+const { documentosVencidos, choquesDeAgenda, cambioLoQueSeRevisa, esPlacaCupo } = require('./revision-viajes');
 const { reglasIncumplidas } = require('./reglas-asignacion');
 const { crearPresencia, primerNombre } = require('./presencia');
 const { armarHojaDeVida } = require('./hoja-vida');
@@ -573,23 +574,30 @@ const identificarUsuario = (req, res, next) => {
 app.use(identificarUsuario);
 
 // Cuentas de rol "conductor": solo su pantalla Mis viajes y lo básico de la
-// sesión. El resto de la información (otros viajes, vehículos, cuentas...)
+// sesión (y la de rol "despachos", solo la pantalla Despachos). El resto de la información (otros viajes, vehículos, cuentas...)
 // no se les entrega aunque la pidan directo.
 const RUTAS_PARA_CONDUCTOR = ['/api/mis-viajes', '/api/mis-viajes/validar', '/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/modo', '/api/sesiones', '/api/sesiones/cerrar',
     '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual', '/api/guias', '/api/guias/vista', '/api/guias/reiniciar'];
+const RUTAS_PARA_DESPACHOS = ['/api/despachos', '/api/despachos/opciones', '/api/despachos/eliminar', '/api/despachos/excel', '/api/presencia', '/api/modo',
+    '/api/sesiones', '/api/sesiones/cerrar', '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual', '/api/guias', '/api/guias/vista', '/api/guias/reiniciar'];
 app.use((req, res, next) => {
-    if (!req.path.startsWith('/api/') || req.path.startsWith('/api/auth/') || RUTAS_PARA_CONDUCTOR.includes(req.path)) return next();
+    if (!req.path.startsWith('/api/') || req.path.startsWith('/api/auth/')) return next();
     if (req.esReplayAprobado) return next();
     const email = normalizarEmail(req.headers['x-user-email']);
     if (!email || email === normalizarEmail(ADMIN_EMAIL)) return next();
     try {
         const cuenta = (leerExcel().usuarios || []).find(u => normalizarEmail(u.email) === email);
-        if (cuenta && rolDeCuenta(cuenta, false) === 'conductor') {
+        if (cuenta && rolDeCuenta(cuenta, false) === 'conductor' && !RUTAS_PARA_CONDUCTOR.includes(req.path)) {
             res.locals.auditoriaOmitir = true;
             return res.status(403).json({ ok: false, codigo: 'solo_conductor', msg: 'Tu cuenta de conductor solo puede ver "Mis viajes".' });
         }
+        // Cuenta de despachos: solo su pantalla (anotar cargues y descargar el Excel).
+        if (cuenta && rolDeCuenta(cuenta, false) === 'despachos' && !RUTAS_PARA_DESPACHOS.includes(req.path)) {
+            res.locals.auditoriaOmitir = true;
+            return res.status(403).json({ ok: false, codigo: 'solo_despachos', msg: 'Tu cuenta de despachos solo puede usar la pantalla Despachos.' });
+        }
     } catch (err) {
-        console.error('⚠️ Error revisando la cuenta de conductor:', err.message);
+        console.error('⚠️ Error revisando la cuenta de conductor/despachos:', err.message);
     }
     next();
 });
@@ -1117,7 +1125,7 @@ const RUTAS_SIN_RESTRICCION_DE_ROL = [
     '/api/sesiones/cerrar-otras',
     '/api/sesiones/cerrar-actual'
 ];
-const RUTAS_CON_PERMISO_PROPIO = ['/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
+const RUTAS_CON_PERMISO_PROPIO = ['/api/despachos', '/api/despachos/eliminar', '/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/cuenta-despachos', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
 
 // ============================================================
 // REVISIÓN AL ASIGNAR UN VIAJE (ver revision-viajes.js) — para todos,
@@ -1736,10 +1744,16 @@ app.post('/api/auth/eliminar', (req, res) => {
     }
 });
 
-// --- Cuenta compartida de conductores (solo admin): la crea o le cambia la
-// contraseña. Es una cuenta de rol "conductor" sin enlazar: al entrar,
-// cada conductor escribe su nombre y placa para ver sus viajes. ---
-app.post('/api/auth/cuenta-conductores', async (req, res) => {
+// --- Cuentas compartidas (solo admin): las crea o les cambia la contraseña.
+//  - Conductores: rol "conductor" sin enlazar; al entrar, cada conductor
+//    escribe su nombre y placa para ver sus viajes.
+//  - Despachos: rol "despachos"; solo ve la pantalla Despachos (a qué hora
+//    llega y termina de cargar cada vehículo). ---
+const CUENTAS_COMPARTIDAS = {
+    '/api/auth/cuenta-conductores': { rol: 'conductor', nombre: 'Conductores (cuenta compartida)', departamento: 'Transporte', ejemplo: 'conductores@makand.com', deQuien: 'de conductores' },
+    '/api/auth/cuenta-despachos': { rol: 'despachos', nombre: 'Despachos (cuenta compartida)', departamento: 'Despachos', ejemplo: 'despachos@makand.com', deQuien: 'de despachos' }
+};
+Object.entries(CUENTAS_COMPARTIDAS).forEach(([ruta, tipo]) => app.post(ruta, async (req, res) => {
     // La contraseña nunca va a la auditoría (ni si algo falla).
     res.locals.auditoriaResumen = { email: normalizarEmail(req.body?.email) };
     try {
@@ -1748,23 +1762,23 @@ app.post('/api/auth/cuenta-conductores', async (req, res) => {
         }
         const email = normalizarEmail(req.body?.email);
         const clave = String(req.body?.clave || '');
-        if (errorEmail(email)) return res.status(400).json({ ok: false, msg: 'Escribe un correo válido para la cuenta (ej. conductores@makand.com).' });
+        if (errorEmail(email)) return res.status(400).json({ ok: false, msg: `Escribe un correo válido para la cuenta (ej. ${tipo.ejemplo}).` });
         const faltas = faltasDeClave(clave, { email });
         if (faltas.length) return res.status(400).json({ ok: false, msg: mensajeClave(faltas), faltas });
         const data = leerExcel();
         if (!data.usuarios) data.usuarios = [];
         let cuenta = data.usuarios.find(u => normalizarEmail(u.email) === email);
         const existia = !!cuenta;
-        if (cuenta && rolDeCuenta(cuenta, false) !== 'conductor') {
-            return res.status(409).json({ ok: false, msg: 'Ese correo ya es de otra cuenta que no es de conductores.' });
+        if (cuenta && rolDeCuenta(cuenta, false) !== tipo.rol) {
+            return res.status(409).json({ ok: false, msg: `Ese correo ya es de otra cuenta que no es ${tipo.deQuien}.` });
         }
         if (!cuenta) {
-            cuenta = { email, nombre: 'Conductores (cuenta compartida)', departamento: 'Transporte', solicitadoEn: new Date().toISOString() };
+            cuenta = { email, nombre: tipo.nombre, departamento: tipo.departamento, solicitadoEn: new Date().toISOString() };
             data.usuarios.push(cuenta);
         }
         cuenta.passHash = await bcrypt.hash(clave, 10);
         cuenta.estado = 'APPROVED';
-        cuenta.rol = 'conductor';
+        cuenta.rol = tipo.rol;
         cuenta.permisos = null;
         cuenta.conductorCed = null;
         cuenta.actualizadoPor = normalizarEmail(req.headers['x-user-email']);
@@ -1773,10 +1787,10 @@ app.post('/api/auth/cuenta-conductores', async (req, res) => {
         res.locals.auditoriaResumen = { email, accion: existia ? 'Cambió la contraseña' : 'Creó la cuenta' };
         res.json({ ok: true, email, creada: !existia });
     } catch (error) {
-        console.error('🚨 Error en /api/auth/cuenta-conductores:', error);
+        console.error(`🚨 Error en ${ruta}:`, error);
         res.status(500).json({ ok: false, msg: error.message });
     }
-});
+}));
 
 // --- Asignar rol (y opcionalmente permisos personalizados) a una cuenta (solo admin) ---
 app.post('/api/auth/rol', (req, res) => {
@@ -3253,6 +3267,222 @@ app.get('/api/usuarios/nombres', (req, res) => {
         if (email) nombres[email] = primerNombre(u.nombre, email);
     });
     res.json({ ok: true, nombres });
+});
+
+// ============================================================
+// DESPACHOS (ver despachos.js) — a qué hora llega cada vehículo a cargar,
+// a qué viaje/lugar va y a qué hora terminó de cargar. Lo anota la cuenta
+// compartida de despachos (rol "despachos", que solo ve esta pantalla) o
+// la oficina. Queda en la base mes a mes, en la auditoría ("registro") y
+// se descarga en Excel por día, semana o mes.
+// ============================================================
+const hoyLocalTexto = (desplazarDias = 0) => {
+    const d = new Date(); d.setDate(d.getDate() + desplazarDias);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+/** Quién pide y qué puede hacer en Despachos. */
+function accesoDespachos(req) {
+    const email = correoDeQuienPide(req);
+    const esAdmin = !!email && email === normalizarEmail(ADMIN_EMAIL);
+    const cuenta = (leerExcel().usuarios || []).find(u => normalizarEmail(u.email) === email) || null;
+    const rol = rolDeCuenta(cuenta, esAdmin);
+    const permisos = cuenta || esAdmin ? permisosDeCuenta(cuenta, esAdmin) : {};
+    const esDespachos = rol === 'despachos';
+    return {
+        email, esDespachos,
+        ver: esAdmin || (!!cuenta && rol !== 'conductor'),
+        anotar: esAdmin || esDespachos || !!permisos.editar,
+        // La cuenta de despachos corrige o borra lo de hoy y ayer (un cargue
+        // que pasó la medianoche); la oficina, cualquier día.
+        corregir: (fecha) => esAdmin || !!permisos.editar || (esDespachos && fecha >= hoyLocalTexto(-1)),
+        eliminar: (fecha) => esAdmin || !!permisos.eliminar || (esDespachos && fecha >= hoyLocalTexto(-1))
+    };
+}
+
+const FECHA_DESPACHO = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Correo -> nombre de la cuenta ("Anotado por" muestra el nombre, no el correo). */
+const nombresDeCuentas = () => {
+    const nombres = new Map((leerExcel().usuarios || []).map(u => [normalizarEmail(u.email), String(u.nombre || '').trim()]));
+    return (email) => email ? (nombres.get(normalizarEmail(email)) || email) : '';
+};
+
+// Vehículos y viajes para escoger en el formulario: los de ayer a pasado
+// mañana alrededor de la fecha (un vehículo carga la víspera de salir).
+app.get('/api/despachos/opciones', (req, res) => {
+    try {
+        if (!accesoDespachos(req).ver) return res.status(403).json({ ok: false, msg: 'Sin acceso a Despachos.' });
+        const fecha = FECHA_DESPACHO.test(String(req.query.fecha || '')) ? String(req.query.fecha) : hoyLocalTexto();
+        const data = leerExcel();
+        const rutas = data.rutas || [];
+        const mover = (dias) => { const [a, m, d] = fecha.split('-').map(Number); const x = new Date(a, m - 1, d + dias); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+        const desde = mover(-1), hasta = mover(2);
+        const titulares = new Map();
+        (data.conductores || []).forEach(c => { const p = placaLimpia(c.veh || c.placa); if (p && !titulares.has(p)) titulares.set(p, String(c.nom || c.nombre || '').trim()); });
+        const vehiculos = (data.vehiculos || [])
+            .map(v => String(v.p || v.placa || '').toUpperCase().trim())
+            .filter(p => p && !esPlacaCupo(p))
+            .sort()
+            .map(placa => ({ placa, conductor: titulares.get(placaLimpia(placa)) || '' }));
+        const viajes = (data.viajes || [])
+            .filter(v => v.fecha >= desde && v.fecha <= hasta && !['Cancelado', 'Mantenimiento'].includes(v.estado))
+            .map(v => {
+                const ruta = rutas.find(r => String(r.cod || r.codigo || '').toUpperCase() === String(v.ruta || v.codigo || '').toUpperCase()) || {};
+                const placa = String(v.p || v.placa || '').toUpperCase().trim();
+                const cond = String(v.cond || '').trim();
+                return {
+                    id: v.id, fecha: v.fecha, placa, ruta: v.ruta || v.codigo || '',
+                    destino: (v.destino && v.destino !== 'No definido' ? v.destino : '') || ruta.dest || ruta.destino || '',
+                    cliente: v.cliente || '', hora: horaDelViaje(v, rutas),
+                    conductor: COND_GENERICOS.includes(sinTildes(cond)) ? (titulares.get(placaLimpia(placa)) || '') : cond
+                };
+            })
+            .sort((a, b) => a.fecha.localeCompare(b.fecha) || String(a.hora).localeCompare(String(b.hora)) || a.placa.localeCompare(b.placa));
+        res.setHeader('Cache-Control', 'no-store');
+        res.json({ ok: true, fecha, vehiculos, viajes });
+    } catch (error) {
+        console.error('🚨 Error en /api/despachos/opciones:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+/** Rango pedido: ?desde&hasta, o ?periodo=dia|semana|mes&fecha=. */
+const rangoPedido = (q) => {
+    if (FECHA_DESPACHO.test(String(q.desde || '')) && FECHA_DESPACHO.test(String(q.hasta || ''))) return { desde: String(q.desde), hasta: String(q.hasta) };
+    return rangoPeriodo(['dia', 'semana', 'mes'].includes(q.periodo) ? q.periodo : 'dia', FECHA_DESPACHO.test(String(q.fecha || '')) ? String(q.fecha) : hoyLocalTexto());
+};
+
+app.get('/api/despachos', (req, res) => {
+    try {
+        const acceso = accesoDespachos(req);
+        if (!acceso.ver) return res.status(403).json({ ok: false, msg: 'Sin acceso a Despachos.' });
+        const rango = rangoPedido(req.query);
+        const nombreDe = nombresDeCuentas();
+        const registros = listarDespachosDB(modoActual, rango.desde, rango.hasta).map(r => ({
+            ...r, creadoPorNombre: nombreDe(r.creadoPor), editadoPorNombre: nombreDe(r.editadoPor),
+            minutos: minutosDeCargue(r.horaLlegada, r.horaFinCargue),
+            puedeCorregir: acceso.corregir(r.fecha), puedeEliminar: acceso.eliminar(r.fecha)
+        }));
+        res.setHeader('Cache-Control', 'no-store');
+        res.json({ ok: true, ...rango, registros, resumen: resumenDespachos(registros), meses: mesesDespachosDB(modoActual), hoy: hoyLocalTexto() });
+    } catch (error) {
+        console.error('🚨 Error en /api/despachos:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+app.post('/api/despachos', (req, res) => {
+    try {
+        const acceso = accesoDespachos(req);
+        if (!acceso.anotar) { res.locals.auditoriaOmitir = true; return res.status(403).json({ ok: false, msg: 'Tu cuenta no puede anotar despachos.' }); }
+        const { errores, registro } = validarDespacho(req.body);
+        if (errores.length) { res.locals.auditoriaOmitir = true; return res.status(400).json({ ok: false, msg: `Falta ${errores.join(', ')}.` }); }
+        const previo = registro.id ? leerDespachoDB(modoActual, registro.id) : null;
+        if (registro.id && !previo) { res.locals.auditoriaOmitir = true; return res.status(404).json({ ok: false, msg: 'Ese registro ya no existe (alguien lo borró).' }); }
+        if (previo && !(acceso.corregir(previo.fecha) && acceso.corregir(registro.fecha))) {
+            res.locals.auditoriaOmitir = true;
+            return res.status(403).json({ ok: false, msg: 'Solo se pueden corregir los registros de hoy y de ayer. Pide a la oficina que lo corrija.' });
+        }
+        if (!previo && !acceso.corregir(registro.fecha)) {
+            res.locals.auditoriaOmitir = true;
+            return res.status(403).json({ ok: false, msg: 'Solo se puede anotar con fecha de hoy o de ayer.' });
+        }
+        // El viaje escogido manda la ruta y el conductor (no lo que diga el
+        // formulario); sin conductor anotado, el titular de la placa.
+        const data = leerExcel();
+        const titular = (placa) => {
+            const c = (data.conductores || []).find(x => placaLimpia(x.veh || x.placa) === placaLimpia(placa));
+            return c ? String(c.nom || c.nombre || '').trim() : '';
+        };
+        const v = registro.viajeId ? (data.viajes || []).find(x => String(x.id) === registro.viajeId) : null;
+        if (registro.viajeId && !v) registro.viajeId = null;
+        if (v) {
+            registro.ruta = String(v.ruta || v.codigo || '');
+            const cond = String(v.cond || '').trim();
+            registro.conductor = COND_GENERICOS.includes(sinTildes(cond)) ? titular(v.p || v.placa) : cond;
+        } else {
+            registro.ruta = '';
+            registro.conductor = titular(registro.placa);
+        }
+        const guardado = guardarDespachoDB(modoActual, registro, acceso.email);
+        const min = minutosDeCargue(guardado.horaLlegada, guardado.horaFinCargue);
+        res.locals.auditoriaResumen = {
+            id: guardado.id, fecha: guardado.fecha, placa: guardado.placa, destino: guardado.destino, ruta: guardado.ruta,
+            horaLlegada: guardado.horaLlegada, horaFinCargue: guardado.horaFinCargue, corregido: !!previo,
+            descripcion: `${previo ? 'Corrigió' : 'Anotó'} el despacho de ${guardado.placa} hacia ${guardado.destino} (${fechaBonita(guardado.fecha)}): llegó ${guardado.horaLlegada}`
+                + (guardado.horaFinCargue ? `, terminó de cargar ${guardado.horaFinCargue} (${textoMinutos(min)})` : ', cargando')
+        };
+        res.status(previo ? 200 : 201).json({ ok: true, registro: { ...guardado, minutos: min } });
+    } catch (error) {
+        console.error('🚨 Error en /api/despachos:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+app.post('/api/despachos/eliminar', (req, res) => {
+    try {
+        const acceso = accesoDespachos(req);
+        const previo = leerDespachoDB(modoActual, Number(req.body?.id));
+        if (!previo) { res.locals.auditoriaOmitir = true; return res.status(404).json({ ok: false, msg: 'Ese registro ya no existe.' }); }
+        if (!acceso.eliminar(previo.fecha)) {
+            res.locals.auditoriaOmitir = true;
+            return res.status(403).json({ ok: false, msg: 'Solo se pueden borrar los registros de hoy y de ayer. Pide a la oficina que lo borre.' });
+        }
+        eliminarDespachoDB(modoActual, previo.id);
+        res.locals.auditoriaResumen = {
+            id: previo.id, fecha: previo.fecha, placa: previo.placa, destino: previo.destino,
+            descripcion: `Borró el despacho de ${previo.placa} hacia ${previo.destino} (${fechaBonita(previo.fecha)}, llegó ${previo.horaLlegada})`
+        };
+        res.json({ ok: true });
+    } catch (error) {
+        console.error('🚨 Error en /api/despachos/eliminar:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// Excel del día, la semana (lunes a domingo) o el mes.
+app.get('/api/despachos/excel', (req, res) => {
+    try {
+        if (!accesoDespachos(req).ver) return res.status(403).json({ ok: false, msg: 'Sin acceso a Despachos.' });
+        const periodo = ['dia', 'semana', 'mes'].includes(req.query.periodo) ? req.query.periodo : 'dia';
+        const rango = rangoPeriodo(periodo, FECHA_DESPACHO.test(String(req.query.fecha || '')) ? String(req.query.fecha) : hoyLocalTexto());
+        const nombreDe = nombresDeCuentas();
+        const registros = listarDespachosDB(modoActual, rango.desde, rango.hasta)
+            .map(r => ({ ...r, creadoPor: nombreDe(r.creadoPor), editadoPor: nombreDe(r.editadoPor) }));
+        const filas = filasExcel(registros);
+        const wb = XLSX.utils.book_new();
+        const ws = filas.length ? XLSX.utils.json_to_sheet(filas) : XLSX.utils.aoa_to_sheet([[`Sin despachos anotados del ${fechaBonita(rango.desde)} al ${fechaBonita(rango.hasta)}`]]);
+        ws['!cols'] = [12, 11, 11, 24, 12, 24, 10, 12, 10, 14, 30, 26, 17, 30].map(wch => ({ wch }));
+        XLSX.utils.book_append_sheet(wb, ws, 'Despachos');
+        // Resumen: totales y tiempo de cargue por vehículo.
+        const r = resumenDespachos(registros);
+        const porVehiculo = new Map();
+        registros.forEach(x => { const l = porVehiculo.get(x.placa) || []; l.push(x); porVehiculo.set(x.placa, l); });
+        const resumen = [
+            ['Periodo', `${fechaBonita(rango.desde)} al ${fechaBonita(rango.hasta)}`],
+            ['Vehículos despachados', r.total],
+            ['Siguen cargando (sin hora de fin)', r.enCargue],
+            ['Tiempo promedio de cargue', textoMinutos(r.promedioMin)],
+            ['Cargue más largo', textoMinutos(r.maximoMin)],
+            [],
+            ['Vehículo', 'Despachos', 'Promedio de cargue', 'Promedio (min)'],
+            ...[...porVehiculo.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([placa, l]) => {
+                const p = resumenDespachos(l).promedioMin;
+                return [placa, l.length, textoMinutos(p), p ?? ''];
+            })
+        ];
+        const wsR = XLSX.utils.aoa_to_sheet(resumen);
+        wsR['!cols'] = [{ wch: 32 }, { wch: 24 }, { wch: 20 }, { wch: 15 }];
+        XLSX.utils.book_append_sheet(wb, wsR, 'Resumen');
+        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo(periodo, rango)}"`);
+        res.send(buffer);
+    } catch (error) {
+        console.error('🚨 Error en /api/despachos/excel:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
 });
 
 // Novedades reportadas por conductores sin resolver (últimos 3 días), para

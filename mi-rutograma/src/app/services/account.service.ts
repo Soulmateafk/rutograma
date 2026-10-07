@@ -5,7 +5,7 @@ import { UiService } from './ui.service';
 
 export type UserStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'NOT_FOUND';
 
-export type RolCuenta = 'admin' | 'editor' | 'lector' | 'jefe' | 'auxiliar' | 'conductor';
+export type RolCuenta = 'admin' | 'editor' | 'lector' | 'jefe' | 'auxiliar' | 'conductor' | 'despachos';
 
 /** Lo que puede hacer una cuenta. Misma lista y reglas que backend/aprobaciones.js. */
 export interface Permisos {
@@ -59,6 +59,7 @@ const PERMISOS_POR_ROL: Record<string, Partial<Permisos>> = {
   editor: { ...EDICION_COMPLETA, editarHistorico: true },
   lector: {},
   conductor: {},
+  despachos: {},
   jefe: { ...EDICION_COMPLETA, editarDiasPasados: true, aprobarCambios: true, verAdministracion: true, verSesionesTodas: true },
   auxiliar: { editar: true, eliminar: true, generarMatriz: true, reacomodarCupos: true, editarConfiguracion: true }
 };
@@ -142,7 +143,7 @@ export class AccountService {
   public static normalizarRol(rol: any, esAdmin: boolean): RolCuenta {
     if (esAdmin) return 'admin';
     const r = String(rol || '').toLowerCase();
-    return (['lector', 'editor', 'jefe', 'auxiliar', 'conductor'] as const).includes(r as any) ? r as RolCuenta : 'editor';
+    return (['lector', 'editor', 'jefe', 'auxiliar', 'conductor', 'despachos'] as const).includes(r as any) ? r as RolCuenta : 'editor';
   }
   /** Motivo que escribió el admin al rechazar la cuenta — solo tiene
    *  valor cuando el último login/verificación devolvió estado REJECTED. */
@@ -398,7 +399,7 @@ export class AccountService {
   }
 
   /** Cambia el rol de una cuenta y, opcionalmente, le pone permisos a medida (null = los del rol). Solo admin. */
-  async cambiarRol(email: string, rol: 'editor' | 'lector' | 'jefe' | 'auxiliar' | 'conductor', permisos: Permisos | null = null, conductorCed: string | null = null): Promise<void> {
+  async cambiarRol(email: string, rol: 'editor' | 'lector' | 'jefe' | 'auxiliar' | 'conductor' | 'despachos', permisos: Permisos | null = null, conductorCed: string | null = null): Promise<void> {
     const url = `${this.API_URL}/auth/rol`;
     const body = { email, rol, permisos, conductorCed };
     try {
@@ -490,10 +491,10 @@ export class AccountService {
     }
   }
 
-  /** Crea (o le cambia la contraseña a) la cuenta compartida de conductores. Solo admin. */
-  async cuentaConductores(email: string, clave: string): Promise<{ ok: boolean; msg?: string; creada?: boolean }> {
+  /** Crea (o le cambia la contraseña a) una cuenta compartida: la de conductores o la de despachos. Solo admin. */
+  async cuentaConductores(email: string, clave: string, tipo: 'conductores' | 'despachos' = 'conductores'): Promise<{ ok: boolean; msg?: string; creada?: boolean }> {
     try {
-      return await firstValueFrom(this.http.post<any>(`${this.API_URL}/auth/cuenta-conductores`, { email, clave }, {
+      return await firstValueFrom(this.http.post<any>(`${this.API_URL}/auth/cuenta-${tipo}`, { email, clave }, {
         headers: { 'x-user-email': this.emailActivo }
       }));
     } catch (e: any) {

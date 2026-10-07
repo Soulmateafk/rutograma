@@ -341,6 +341,11 @@ public get isConfigured(): boolean { return true;
     return this.account.rol === 'conductor';
   }
 
+  /** Cuenta de despachos: solo ve la pantalla Despachos (cargue de vehículos). */
+  public get esDespachos(): boolean {
+    return this.account.rol === 'despachos';
+  }
+
   /** Sus cambios quedan pendientes hasta que alguien los apruebe. */
   public get necesitaAprobacion(): boolean {
     return this.account.permisos.editar && !this.account.permisos.sinAprobacion;

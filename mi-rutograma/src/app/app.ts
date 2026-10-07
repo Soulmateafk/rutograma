@@ -64,6 +64,7 @@ export class App implements OnInit {
     { prefijo: '/cumplimiento', titulo: 'Cumplimiento · Makand' },
     { prefijo: '/resumen', titulo: 'Bienvenido · Makand' },
     { prefijo: '/admin', titulo: 'Administrador · Makand' },
+    { prefijo: '/despachos', titulo: 'Despachos · Makand' },
   ];
 
   private actualizarTitulo(url: string): void {
@@ -107,7 +108,8 @@ export class App implements OnInit {
         const rutasSinNavbar = ['/login', '/register', '/pending', '/resumen', '/mis-viajes'];
         
         // Si la URL actual está en nuestra lista, ocultamos el navbar (false)
-        this.mostrarNavbar.set(!rutasSinNavbar.includes(event.url));
+        // La cuenta de despachos tiene una sola pantalla: sin menú arriba.
+        this.mostrarNavbar.set(!rutasSinNavbar.includes(event.url) && !this.authService.esDespachos);
         this.rutaActual.set(event.urlAfterRedirects);
 
         // "En línea": se avisa desde cualquier pantalla con sesión (también
