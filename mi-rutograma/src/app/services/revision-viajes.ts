@@ -9,6 +9,10 @@
 // Las filas de cupo (ARSITRANS 1, POLAR 2...) no son vehículos reales y
 // no se revisan. Un viaje es del conductor anotado; si no tiene, del
 // titular de la placa. Funciones puras.
+// Rendimiento: el Rutograma revisa el mes entero (cientos de viajes contra
+// más de mil). Por eso cada viaje se "prepara" UNA vez (fechas, placa,
+// conductor) y solo se comparan los viajes de la misma placa o del mismo
+// conductor — antes se comparaba todo contra todo y tardaba ~0,5 s.
 // Espejo de backend/revision-viajes.js (el servidor es el que manda).
 // ============================================================
 
@@ -26,12 +30,16 @@ function diasOcupadoViaje(v: any): number {
 
 export interface Choque { viaje: any; por: 'vehículo' | 'conductor'; texto: string; }
 export interface ProblemaViaje { viaje: any; vencidos: string[]; choques: Choque[]; }
+interface Quien { clave: string; nombre: string; titular: boolean; }
+interface Indice { porNombre: Map<string, any>; porPlaca: Map<string, any>; }
+interface Preparado { v: any; rango: { desde: string; hasta: string }; placa: string; clavePlaca: string; quien: Quien | null; }
+interface Grupos { porPlaca: Map<string, Preparado[]>; porConductor: Map<string, Preparado[]>; }
 
 const SIN_CONDUCTOR = ['', 'SIN ASIGNAR', 'ASIGNADO', 'SIN CONDUCTOR'];
 const ESTADOS_SIN_VIAJE = ['Cancelado', 'Mantenimiento'];
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 
-const limpiar = (t: any): string => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim().replace(/\s+/g, ' ');
+const limpiar = (t: any): string => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim().replace(/\s+/g, ' ');
 const pegada = (p: any): string => String(p ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 export const esPlacaCupo = (p: any): boolean => /^(ARSITRANS|POLAR)\s*\d+$/i.test(String(p || '').trim());
 const placaDe = (v: any): string => String(v.p ?? v.placa ?? '').toUpperCase().trim();
@@ -42,22 +50,37 @@ export function rangoViaje(v: any): { desde: string; hasta: string } | null {
   return { desde: v.fecha, hasta: sumarDiasFecha(v.fecha, Math.max(1, diasOcupadoViaje(v))) };
 }
 
-const seCruzan = (a: any, b: any): boolean => a.desde < b.hasta && b.desde < a.hasta;
+const seCruzan = (a: { desde: string; hasta: string }, b: { desde: string; hasta: string }): boolean => a.desde < b.hasta && b.desde < a.hasta;
 
 /** ¿Este viaje cuenta? (no cancelado, con fecha, no es mantenimiento) */
 const cuenta = (v: any): boolean => v && !ESTADOS_SIN_VIAJE.includes(v.estado) && !!rangoViaje(v);
 
-/** Quién hace el viaje: clave para comparar, nombre para mostrar y si es por ser titular de la placa. */
-export function conductorDelViaje(v: any, conductores: any[]): { clave: string; nombre: string; titular: boolean } | null {
+/** Conductores por nombre y por placa, para no buscarlos uno por uno. */
+function indiceConductores(conductores: any[]): Indice {
+  const porNombre = new Map<string, any>(), porPlaca = new Map<string, any>();
+  (conductores || []).forEach((c: any) => {
+    const nombre = limpiar(c.nom ?? c.nombre);
+    if (nombre && !porNombre.has(nombre)) porNombre.set(nombre, c);
+    const placa = pegada(c.veh ?? c.placa);
+    if (placa && !porPlaca.has(placa)) porPlaca.set(placa, c);
+  });
+  return { porNombre, porPlaca };
+}
+
+function quienHace(v: any, indice: Indice): Quien | null {
   const anotado = limpiar(v.cond ?? v.conductor);
   if (!SIN_CONDUCTOR.includes(anotado)) {
-    const c = (conductores || []).find((x: any) => limpiar(x.nom ?? x.nombre) === anotado);
+    const c = indice.porNombre.get(anotado);
     return { clave: anotado, nombre: String(c?.nom ?? c?.nombre ?? v.cond ?? v.conductor).trim(), titular: false };
   }
   const placa = pegada(placaDe(v));
-  if (!placa) return null;
-  const titular = (conductores || []).find((c: any) => pegada(c.veh ?? c.placa) === placa);
+  const titular = placa ? indice.porPlaca.get(placa) : null;
   return titular ? { clave: limpiar(titular.nom ?? titular.nombre), nombre: String(titular.nom ?? titular.nombre).trim(), titular: true } : null;
+}
+
+/** Quién hace el viaje: clave para comparar, nombre para mostrar y si es por ser titular de la placa. */
+export function conductorDelViaje(v: any, conductores: any[]): Quien | null {
+  return quienHace(v, indiceConductores(conductores));
 }
 
 const fechaBonita = (f: string): string => { const [a, m, d] = f.split('-'); return `${d}/${m}/${a}`; };
@@ -66,7 +89,7 @@ const fechaBonita = (f: string): string => { const [a, m, d] = f.split('-'); ret
  * Documentos vencidos en algún día del viaje. Devuelve una lista de textos
  * (vacía = todo al día). data: { vehiculos, conductores }.
  */
-export function documentosVencidos(v: any, data: any): string[] {
+export function documentosVencidos(v: any, data: any, indice: Indice = indiceConductores(data.conductores)): string[] {
   const rango = rangoViaje(v);
   if (!rango || ESTADOS_SIN_VIAJE.includes(v.estado)) return [];
   const ultimoDia = sumarDiasFecha(rango.hasta, -1);
@@ -81,9 +104,9 @@ export function documentosVencidos(v: any, data: any): string[] {
       });
     }
   }
-  const quien = conductorDelViaje(v, data.conductores);
+  const quien = quienHace(v, indice);
   if (quien) {
-    const conductor = (data.conductores || []).find((c: any) => limpiar(c.nom ?? c.nombre) === quien.clave);
+    const conductor = indice.porNombre.get(quien.clave);
     const vence = String(conductor?.licVence || '').trim();
     if (conductor && FECHA.test(vence) && vence < ultimoDia) {
       faltas.push(`${String(conductor.nom ?? conductor.nombre).trim()}: la licencia venció o vence el ${fechaBonita(vence)}`);
@@ -92,36 +115,59 @@ export function documentosVencidos(v: any, data: any): string[] {
   return faltas;
 }
 
+/** Lo que hace falta de cada viaje para compararlo (se calcula una vez). */
+function preparar(v: any, indice: Indice): Preparado | null {
+  if (!cuenta(v)) return null;
+  const placa = placaDe(v);
+  return { v, rango: rangoViaje(v)!, placa, clavePlaca: esPlacaCupo(placa) ? '' : pegada(placa), quien: quienHace(v, indice) };
+}
+
+function choquesEntre(a: Preparado, candidatos: Preparado[]): Choque[] {
+  const choques: Choque[] = [];
+  const vistos = new Set<Preparado>();
+  candidatos.forEach(b => {
+    if (!b || b === a || vistos.has(b)) return;
+    vistos.add(b);
+    const o = b.v;
+    if (a.v.id !== undefined && a.v.id !== null && o.id === a.v.id) return;
+    if (!seCruzan(a.rango, b.rango)) return;
+    const nombreRuta = `${o.ruta || o.codigo || ''} del ${fechaBonita(o.fecha)}`.trim();
+    if (a.clavePlaca && b.clavePlaca === a.clavePlaca) {
+      choques.push({ viaje: o, por: 'vehículo', texto: `${a.placa} ya tiene el viaje ${nombreRuta}` });
+      return;
+    }
+    const quien = a.quien, otro = b.quien;
+    if (!quien || !otro || otro.clave !== quien.clave) return;
+    const texto = quien.titular
+      ? `${a.placa} no tiene conductor anotado y su titular, ${quien.nombre}, va en ${b.placa} (viaje ${nombreRuta})`
+      : otro.titular
+        ? `${quien.nombre} es el titular de ${b.placa}, que tiene el viaje ${nombreRuta} sin conductor anotado`
+        : `${quien.nombre} ya tiene el viaje ${nombreRuta} (en ${b.placa})`;
+    choques.push({ viaje: o, por: 'conductor', texto });
+  });
+  return choques;
+}
+
+/** Agrupa los viajes preparados por placa y por conductor. */
+function agrupar(preparados: (Preparado | null)[]): Grupos {
+  const porPlaca = new Map<string, Preparado[]>(), porConductor = new Map<string, Preparado[]>();
+  const meter = (mapa: Map<string, Preparado[]>, clave: string | undefined, p: Preparado) => { if (!clave) return; const l = mapa.get(clave); if (l) l.push(p); else mapa.set(clave, [p]); };
+  preparados.forEach(p => { if (!p) return; meter(porPlaca, p.clavePlaca, p); meter(porConductor, p.quien?.clave, p); });
+  return { porPlaca, porConductor };
+}
+
+const candidatosDe = (a: Preparado, grupos: Grupos): Preparado[] => [...(grupos.porPlaca.get(a.clavePlaca) || []), ...(a.quien ? grupos.porConductor.get(a.quien.clave) || [] : [])];
+
 /**
  * Otros viajes que se cruzan con este: mismo vehículo o mismo conductor.
  * Devuelve [{ viaje, por: 'vehículo' | 'conductor', texto }].
  */
 export function choquesDeAgenda(v: any, viajes: any[], conductores: any[]): Choque[] {
-  if (!cuenta(v)) return [];
-  const rango = rangoViaje(v);
-  const placa = pegada(placaDe(v));
-  const revisarPlaca = placa && !esPlacaCupo(placaDe(v));
-  const quien = conductorDelViaje(v, conductores);
-  const choques: Choque[] = [];
-  (viajes || []).forEach((o: any) => {
-    if (o === v || (v.id !== undefined && v.id !== null && o.id === v.id) || !cuenta(o)) return;
-    const r = rangoViaje(o);
-    if (!r || !seCruzan(rango, r)) return;
-    const nombreRuta = `${o.ruta || o.codigo || ''} del ${fechaBonita(o.fecha)}`.trim();
-    if (revisarPlaca && pegada(placaDe(o)) === placa) {
-      choques.push({ viaje: o, por: 'vehículo', texto: `${placaDe(v)} ya tiene el viaje ${nombreRuta}` });
-      return;
-    }
-    const otro = quien ? conductorDelViaje(o, conductores) : null;
-    if (!quien || !otro || otro.clave !== quien.clave) return;
-    const texto = quien.titular
-      ? `${placaDe(v)} no tiene conductor anotado y su titular, ${quien.nombre}, va en ${placaDe(o)} (viaje ${nombreRuta})`
-      : otro.titular
-        ? `${quien.nombre} es el titular de ${placaDe(o)}, que tiene el viaje ${nombreRuta} sin conductor anotado`
-        : `${quien.nombre} ya tiene el viaje ${nombreRuta} (en ${placaDe(o)})`;
-    choques.push({ viaje: o, por: 'conductor', texto });
-  });
-  return choques;
+  const indice = indiceConductores(conductores);
+  const a = preparar(v, indice);
+  if (!a) return [];
+  const otros = (viajes || []).filter((o: any) => o !== v).map((o: any) => preparar(o, indice));
+  return choquesEntre(a, candidatosDe(a, agrupar(otros)));
 }
 
 /**
@@ -129,12 +175,14 @@ export function choquesDeAgenda(v: any, viajes: any[], conductores: any[]): Choq
  * del Rutograma: [{ viaje, vencidos: [...], choques: [...] }].
  */
 export function revisarMes(data: any, prefijoMes: string): ProblemaViaje[] {
-  const viajes = data.viajes || [];
-  return viajes
-    .filter((v: any) => cuenta(v) && String(v.fecha).startsWith(prefijoMes))
-    .map((v: any) => ({ viaje: v, vencidos: documentosVencidos(v, data), choques: choquesDeAgenda(v, viajes, data.conductores) }))
-    .filter((x: ProblemaViaje) => x.vencidos.length || x.choques.length)
-    .sort((a: ProblemaViaje, b: ProblemaViaje) => String(a.viaje.fecha).localeCompare(String(b.viaje.fecha)));
+  const indice = indiceConductores(data.conductores);
+  const preparados: (Preparado | null)[] = (data.viajes || []).map((v: any) => preparar(v, indice));
+  const grupos = agrupar(preparados);
+  return preparados
+    .filter((p): p is Preparado => !!p && String(p.v.fecha).startsWith(prefijoMes))
+    .map(p => ({ viaje: p.v, vencidos: documentosVencidos(p.v, data, indice), choques: choquesEntre(p, candidatosDe(p, grupos)) }))
+    .filter(x => x.vencidos.length || x.choques.length)
+    .sort((a, b) => String(a.viaje.fecha).localeCompare(String(b.viaje.fecha)));
 }
 
 /**

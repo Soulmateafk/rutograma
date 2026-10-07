@@ -582,6 +582,10 @@ export class DataService {
    */
   public guardandoEnCurso: boolean = false;
 
+  /** Huella de los últimos datos completos que llegaron del servidor (ver inicializarApp). */
+  private versionDatos = '';
+  private ultimaCargaCompleta = 0;
+
   /**
    * Cada 20 segundos, en silencio (sin mostrar el spinner de carga),
    * vuelve a preguntarle al servidor si hay datos nuevos. Sin esto, si
@@ -635,6 +639,9 @@ export class DataService {
 
     if (!silencioso) this.ui.mostrarSpinner(mensaje);
 
+    // Nada cambió en el servidor: no se avisa a las pantallas (cada una
+    // recalcularía todo para nada).
+    let sinCambios = false;
     try {
       // El "?_=" con la hora actual evita que el navegador (o cualquier
       // capa intermedia) sirva una respuesta de red guardada en caché en
@@ -642,9 +649,27 @@ export class DataService {
       // navegador cachea la primera respuesta de esta misma URL, podía
       // seguir devolviendo esa misma foto vieja en cada sincronización,
       // aunque el servidor ya tuviera datos distintos.
-      const res: any = await firstValueFrom(this.http.get(`${this.API_URL}/dashboard-data?_=${Date.now()}`, {
-        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
-      }));
+      // En la sincronización de cada 20 s se manda la huella de lo que ya
+      // se tiene: si nada cambió, el servidor responde "sin cambios" y no
+      // se reprocesa nada (antes se reprocesaba más de 1 MB cada 20 s y en
+      // computadores lentos la página se trababa). Cada 2 minutos, o si hay
+      // cambios sin conexión por enviar, se pide todo igual.
+      const pedirTodo = !silencioso || !this.versionDatos || Date.now() - this.ultimaCargaCompleta > 120000
+        || this.leerColaPendiente().length > 0;
+      const cabeceras: Record<string, string> = { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' };
+      if (!pedirTodo) cabeceras['x-version-previa'] = this.versionDatos;
+      const res: any = await firstValueFrom(this.http.get(`${this.API_URL}/dashboard-data?_=${Date.now()}`, { headers: cabeceras }));
+      if (res?.ok && res.sinCambios) {
+        if (this.sinConexion) this.ui.mostrarToast('<i class="bi bi-wifi"></i> Conexión con el servidor recuperada.', 'ok');
+        this.sinConexion = false;
+        this.ultimoSyncExitoso = new Date();
+        sinCambios = true;
+        return;
+      }
+      if (res?.ok && res.data && !this.guardandoEnCurso) {
+        this.versionDatos = String(res.version || '');
+        this.ultimaCargaCompleta = Date.now();
+      }
       // Chequeo AQUÍ (justo antes de aplicar), no solo al arrancar la
       // sincronización — si esta petición ya estaba en camino desde antes
       // de que empezara un guardado, igual habría llegado y sobrescrito
@@ -721,7 +746,7 @@ export class DataService {
       // Avisamos SIEMPRE, sin importar si los datos vinieron del backend
       // o del respaldo local — así cualquier componente ya suscrito a
       // dataChanged sabe que ya puede recalcular con lo que haya en S.
-      this.dataChanged.next();
+      if (!sinCambios) this.dataChanged.next();
     }
   }
 
