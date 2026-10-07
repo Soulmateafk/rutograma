@@ -1,0 +1,55 @@
+<div class="cp-page">
+  <div class="cp-cab">
+    <div>
+      <h1>Multas y comparendos</h1>
+      <p class="cp-sub">{{ cantidadPendiente }} sin pagar · $ {{ totalPendiente | number:'1.0-0':'es' }} pendientes</p>
+    </div>
+    <button *ngIf="puedeEditar && !agregando" class="cp-btn" data-guia="cp-nuevo" (click)="agregando = true"><i class="bi bi-plus-lg"></i> Registrar comparendo</button>
+  </div>
+
+  <div class="cp-form" *ngIf="agregando">
+    <label>Fecha <input type="date" [(ngModel)]="nuevo.fecha"></label>
+    <label>Vehículo
+      <select [(ngModel)]="nuevo.placa" (ngModelChange)="alElegirPlaca()">
+        <option value="" disabled>Elige</option>
+        <option *ngFor="let p of placas" [value]="p">{{ p }}</option>
+      </select>
+    </label>
+    <label>Conductor
+      <select [(ngModel)]="nuevo.conductor">
+        <option value="">Sin saber</option>
+        <option *ngFor="let c of conductores" [value]="c">{{ c }}</option>
+      </select>
+    </label>
+    <label>N.º de comparendo <input [(ngModel)]="nuevo.numero" placeholder="Opcional"></label>
+    <label class="cp-ancho">Motivo <input [(ngModel)]="nuevo.motivo" placeholder="Ej. exceso de velocidad, pico y placa"></label>
+    <label>Valor <input type="number" min="0" [(ngModel)]="nuevo.valor" placeholder="0"></label>
+    <label class="cp-check"><input type="checkbox" [(ngModel)]="nuevo.pagado"> Ya se pagó</label>
+    <div class="cp-acciones">
+      <button class="cp-btn" [disabled]="guardando" (click)="agregar()">Guardar</button>
+      <button class="cp-sec" (click)="agregando = false">Cancelar</button>
+    </div>
+  </div>
+
+  <div class="cp-filtros">
+    <button [class.on]="filtro === 'pendientes'" (click)="filtro = 'pendientes'">Sin pagar ({{ cantidadPendiente }})</button>
+    <button [class.on]="filtro === 'todos'" (click)="filtro = 'todos'">Todos ({{ todos.length }})</button>
+    <input [(ngModel)]="buscar" placeholder="Buscar placa, conductor o motivo">
+  </div>
+
+  <div class="cp-lista" data-guia="cp-lista">
+    <div *ngIf="!lista.length" class="cp-vacio">{{ todos.length ? 'Nada con ese filtro.' : 'No hay comparendos registrados.' }}</div>
+    <div *ngFor="let c of lista" class="cp-fila" [class.pagado]="c.pagado">
+      <div class="cp-info">
+        <b>{{ c.placa }}</b> · {{ c.fecha | date:'d MMM y':'':'es' }}<span *ngIf="c.conductor"> · {{ c.conductor }}</span>
+        <div class="cp-motivo">{{ c.motivo }}<span *ngIf="c.numero" class="cp-tenue"> · N.º {{ c.numero }}</span></div>
+      </div>
+      <div class="cp-valor">$ {{ c.valor | number:'1.0-0':'es' }}</div>
+      <span class="cp-estado" [class.ok]="c.pagado">{{ c.pagado ? 'Pagado' + (c.pagadoEn ? ' ' + (c.pagadoEn | date:'d MMM':'':'es') : '') : 'Sin pagar' }}</span>
+      <div class="cp-botones" *ngIf="puedeEditar">
+        <button class="cp-sec" [disabled]="guardando" (click)="marcarPagado(c, !c.pagado)">{{ c.pagado ? 'Desmarcar' : 'Marcar pagado' }}</button>
+        <button class="cp-borrar" *ngIf="auth.puede('eliminar')" [disabled]="guardando" (click)="eliminar(c)" title="Borrar"><i class="bi bi-trash"></i></button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -27,6 +27,7 @@ const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
 const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar } = require('./dias-cerrados');
 const { documentosVencidos, choquesDeAgenda, cambioLoQueSeRevisa } = require('./revision-viajes');
+const { reglasIncumplidas } = require('./reglas-asignacion');
 const { crearPresencia, primerNombre } = require('./presencia');
 const { armarHojaDeVida } = require('./hoja-vida');
 const { armarCumplimiento, horaDelViaje } = require('./cumplimiento');
@@ -1142,12 +1143,18 @@ app.use((req, res, next) => {
                 msg: `No se puede asignar este viaje: ${vencidos.join('; ')}. Actualiza la fecha en Vehículos o Conductores si ya se renovó, o elige otro.`
             });
         }
-        const choques = choquesDeAgenda(viaje, data.viajes, data.conductores);
-        if (choques.length && viaje.confirmarChoque !== true) {
+        // Choques de agenda y reglas de la oficina (cliente/ruta, pico y
+        // placa): se avisan juntos y se puede guardar igual.
+        const config = leerConfigCompartidaDB(modoActual);
+        const avisos = [
+            ...choquesDeAgenda(viaje, data.viajes, data.conductores).map(c => c.texto),
+            ...reglasIncumplidas(viaje, { ...data, reglasAsignacion: config.reglasAsignacion || [], picoPlaca: config.picoPlaca || [] })
+        ];
+        if (avisos.length && viaje.confirmarChoque !== true) {
             res.locals.auditoriaOmitir = true;
             return res.status(409).json({
-                ok: false, codigo: 'choque_agenda', choques: choques.map(c => c.texto),
-                msg: `Este viaje se cruza con otro: ${choques.map(c => c.texto).join('; ')}.`
+                ok: false, codigo: 'choque_agenda', choques: avisos,
+                msg: `Revisa antes de guardar: ${avisos.join('; ')}.`
             });
         }
     } catch (err) {
@@ -2322,7 +2329,9 @@ app.post('/api/guias/reiniciar', (req, res) => {
 // CONFIGURACIÓN COMPARTIDA — lo que antes se guardaba solo en el navegador
 // de cada equipo. body: { clave, valor }
 // ============================================================
-const CLAVES_CONFIG_COMPARTIDA = { transportadoras: 'array', cuposExt: 'array', festivos: 'array' };
+// reglasAsignacion / picoPlaca: ver reglas-asignacion.js. anuncios: la pizarra.
+// comparendos: multas por vehículo y conductor.
+const CLAVES_CONFIG_COMPARTIDA = { transportadoras: 'array', cuposExt: 'array', festivos: 'array', reglasAsignacion: 'array', picoPlaca: 'array', anuncios: 'array', comparendos: 'array' };
 
 app.post('/api/configuracion/compartida', (req, res) => {
     try {
@@ -3107,7 +3116,7 @@ app.get('/api/mis-viajes', (req, res) => {
         const clave = claveVisto(r.conductor.ced);
         if (!viajesVistos[clave]) { viajesVistos[clave] = { ts: new Date().toISOString(), visto: armarVisto(r.viajes) }; guardarViajesVistos(); }
         const avisos = compararConVisto(r.viajes, viajesVistos[clave].visto, fechaLocal());
-        res.json({ ok: true, enlazado: true, compartida: !r.enlazada, conductor: r.conductor, viajes: avisos.viajes, quitados: avisos.quitados, hayAvisos: avisos.hayAvisos, buscadoPor: r.buscadoPor, placaBuscada: r.placaPedida.toUpperCase() });
+        res.json({ ok: true, enlazado: true, compartida: !r.enlazada, conductor: r.conductor, viajes: avisos.viajes, quitados: avisos.quitados, hayAvisos: avisos.hayAvisos, buscadoPor: r.buscadoPor, placaBuscada: r.placaPedida.toUpperCase(), anuncios: anunciosParaConductores() });
     } catch (error) {
         console.error('🚨 Error en /api/mis-viajes:', error);
         res.status(500).json({ ok: false, msg: error.message });
@@ -3119,6 +3128,15 @@ app.get('/api/mis-viajes', (req, res) => {
 // novedades (id "cond-<cédula>-<hora>") y la oficina la ve en el Rutograma.
 const TIPOS_NOVEDAD_CONDUCTOR = { Varado: 'Avería', Retraso: 'Retraso', Accidente: 'Incidente', Otro: 'Aviso' };
 const MAX_NOVEDADES_CONDUCTOR_DIA = 10;
+// Pizarra: los anuncios vigentes marcados "para todos" también los ven
+// los conductores en Mis viajes (los "solo oficina", no).
+function anunciosParaConductores() {
+    const hoy = fechaLocal();
+    return (leerConfigCompartidaDB(modoActual).anuncios || [])
+        .filter(a => a && a.para !== 'oficina' && (!a.vence || String(a.vence) >= hoy))
+        .map(a => ({ id: a.id, texto: a.texto, importante: !!a.importante, fecha: a.fecha }));
+}
+
 // Fotos de las novedades: data/fotos-novedades/<id de la novedad>.jpg
 const CARPETA_FOTOS_NOVEDADES = path.join(CARPETA_DATOS, 'fotos-novedades');
 const MAX_BYTES_FOTO_NOVEDAD = 5 * 1024 * 1024;

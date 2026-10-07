@@ -57,6 +57,8 @@ export const GUIAS: Record<string, Guia> = {
       { el: '.kgrid', titulo: 'Indicadores', texto: 'Vehículos disponibles hoy, en ruta, en mantenimiento, y los viajes de la semana y del mes.' },
       { el: 'dash-alertas', titulo: 'Alertas activas', texto: 'Lo que hay que revisar ya: documentos vencidos, conflictos, vehículos en taller...' },
       { el: 'dash-disponibles', titulo: 'Disponibles hoy', texto: 'Vehículos libres hoy para asignarles un viaje.' },
+      { el: 'pizarra', titulo: 'Pizarra', texto: 'Anuncios para todo el equipo (ej. "mañana cierre en la vía al Llano"). Quedan fijos hasta que se quitan o hasta su fecha. Los "para oficina y conductores" también los ven los conductores en Mis viajes.' },
+      { el: 'dash-capacidad', titulo: 'Capacidad de la semana', texto: 'Para cada uno de los próximos 7 días: cuántos viajes hay frente a los vehículos propios operativos. Si dice "faltan 2", esos viajes van en terceros o hay que conseguir cupo con tiempo.' },
       { el: 'dash-semanal', titulo: 'Resumen semanal', texto: 'Cómo va la semana: viajes por día y por transportadora.' },
       { el: 'dash-urgentes', titulo: 'Viajes urgentes', texto: 'Viajes marcados como prioridad que conviene vigilar.' },
       { el: '.card-tabla', titulo: 'Próximas salidas', texto: 'Los viajes que salen esta semana, con vehículo, ruta y hora.' },
@@ -93,7 +95,24 @@ export const GUIAS: Record<string, Guia> = {
       { el: '.header-actions', titulo: 'Histórico y nuevo vehículo', texto: '"Ver histórico" muestra cómo estaba la flota en meses anteriores. "+ Nuevo Vehículo" registra uno.' },
       { el: 'veh-tabla', titulo: 'La flota', texto: 'Cada vehículo con su conductor, estado, documentos y viajes del mes. "Editar" cambia sus datos; "Mant." lo manda a mantenimiento.' },
       { el: 'veh-hoja', titulo: 'Hoja de vida', texto: 'Todo lo de un vehículo en una pantalla: viajes por mes, conductores que lo han manejado, mantenimientos, veces que se ha varado, documentos y novedades. Se puede imprimir.' },
-      { el: 'veh-viajes', titulo: 'Viajes por vehículo', texto: 'Los viajes de cada vehículo de Makand en el mes.' }
+      { el: 'veh-viajes', titulo: 'Viajes por vehículo', texto: 'Los viajes de cada vehículo de Makand en el mes.' },
+      { el: 'veh-ocupacion', titulo: 'Qué tan lleno va cada camión', texto: 'Promedio de cajas por viaje frente a la capacidad de cada vehículo en el mes. En rojo los que van a menos de la mitad: se podría juntar carga o usar uno más pequeño.' }
+    ]
+  },
+
+  comparendos: {
+    titulo: 'Comparendos',
+    pasos: [
+      { el: 'cp-nuevo', titulo: 'Registrar', texto: 'Anota cada comparendo: fecha, vehículo, conductor (se propone el titular), motivo y valor.' },
+      { el: 'cp-lista', titulo: 'La lista', texto: 'Los sin pagar en rojo. "Marcar pagado" cuando se pague. También salen en la hoja de vida del vehículo y en el detalle del conductor.' }
+    ]
+  },
+
+  reglas: {
+    titulo: 'Reglas de asignación',
+    pasos: [
+      { el: 'rg-reglas', titulo: 'Por cliente o ruta', texto: 'Ej. "D1 solo en furgón refrigerado" o "BOG-MON mínimo 600 cajas". Si alguien asigna un vehículo que no cumple, la app avisa al guardar.' },
+      { el: 'rg-pico', titulo: 'Pico y placa', texto: 'Días, últimos dígitos de placa y horario en que no pueden circular. Se compara con la hora de salida del viaje.' }
     ]
   },
 
@@ -123,7 +142,8 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'rutas-acciones', titulo: 'Acciones', texto: 'Ver el histórico, crear una ruta nueva o confirmar un cupo externo.' },
       { el: '.tabla-rutas', titulo: 'Las rutas', texto: 'Cada ruta con sus días de salida, horas, tiempos y tarifas. Generar Matriz usa esta información para armar el mes.' },
       { el: '.ruta-check-card', titulo: 'Check de rutas', texto: 'Qué rutas salen y se entregan cada día, para revisarlas de un vistazo.' },
-      { el: 'rutas-prioridades', titulo: 'Prioridades de horario', texto: 'El orden en que se asignan las rutas de Makand cada día de la semana.' }
+      { el: 'rutas-prioridades', titulo: 'Prioridades de horario', texto: 'El orden en que se asignan las rutas de Makand cada día de la semana.' },
+      { el: 'rutas-duracion', titulo: 'Duración real', texto: 'Con el "Ya salí" y "Ya llegué" de los conductores: cuánto tarda de verdad cada ruta frente a los días en tránsito programados. Sirve para ajustar los días de la ruta.' }
     ]
   },
 
@@ -208,6 +228,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'mv-identificar', titulo: 'Identifícate', texto: 'Escribe tu nombre y la placa del vehículo. Luego confirmas que la información sea correcta.' },
       { el: 'mv-cabecera', titulo: 'Tu cuenta', texto: 'Tu nombre y tu vehículo. Con los botones actualizas o cierras sesión.' },
       { el: 'mv-foto', titulo: 'Foto de tus viajes', texto: 'Descarga una imagen con tus viajes para tenerla a mano o compartirla.' },
+      { el: 'mv-calendario', titulo: 'Tu calendario', texto: 'Descarga tus viajes de hoy en adelante para agregarlos al calendario del celular. Si te cambian un viaje, vuelve a descargarlo y se actualiza.' },
       { el: 'mv-reportar', titulo: 'Reportar novedad', texto: 'Si quedas varado, te retrasas o pasa algo, avísale a la oficina desde aquí. Puedes adjuntar una foto (llanta, golpe, carga). Si es urgente, llama también.' },
       { el: 'mv-avisos', titulo: 'Cambios en tus viajes', texto: 'Si te agregan, cambian o quitan un viaje, aquí te avisa y el viaje sale marcado. Toca "Entendido" cuando lo hayas visto.' },
       { el: '.mv-acciones-viaje', titulo: 'Ya salí / Ya llegué', texto: 'Cuando arranques, toca "Ya salí"; al llegar al destino, "Ya llegué". La oficina lo ve al instante. Si tocaste por error, tienes 15 minutos para deshacerlo.' },
@@ -271,6 +292,7 @@ export const TAREAS: Tarea[] = [
       { el: 've-cliente', titulo: 'Cliente', texto: 'Para quién es el viaje. Se llena solo al elegir la ruta; cámbialo si es otro.' },
       { el: 've-cajas', titulo: 'Cajas', texto: 'Cuántas cajas lleva. También se llena con las de la ruta; cámbialo si lleva otra cantidad.' },
       { el: 've-hora', titulo: 'Hora', texto: 'A qué hora sale.' },
+      { el: 've-sugerencias', titulo: 'Sugeridos', texto: 'Con la ruta y la fecha elegidas, la app propone hasta 3 vehículos propios: libres esos días, con documentos al día, que cumplen las reglas (cliente, ruta, pico y placa) y con capacidad; primero los que menos viajes llevan en el mes. Toca uno para elegirlo.' },
       { el: 've-guardar', titulo: 'Guardar viaje', texto: 'Cuando lo hagas de verdad, aquí lo guardas. Si el vehículo ya tiene un viaje ese día, la app te ofrece cómo resolverlo.' + AVISO_APROBACION },
       { el: '', titulo: '¡Listo!', texto: 'Ya sabes cómo agregar un viaje extra. Al terminar, este formulario se cierra sin guardar nada.' }
     ]

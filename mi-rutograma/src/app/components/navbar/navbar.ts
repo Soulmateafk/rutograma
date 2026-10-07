@@ -12,6 +12,7 @@ import { AccountService } from '../../services/account.service';
 import { mantenimientoQueChoca, rangosMantenimiento } from '../../services/mantenimiento';
 import { obtenerDiasViaje, obtenerViajesEnConflicto, reprogramarViajeConflictivo, siguienteNumeroCupo, buscarCupoLibre, reprogramarViajesDesde } from '../rutograma/rutograma.utils.js';
 import { fechaLocal } from '../../services/dias-cerrados';
+import { Sugerencia, sugerirVehiculos } from '../../services/sugerencias';
 
 import { EnLineaComponent } from '../en-linea/en-linea';
 
@@ -35,6 +36,37 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
   /** Sin permiso para días cerrados, el viaje extra no puede ser de un día que ya pasó. */
   public get fechaMinimaViajeExtra(): string {
     return this.authService.puede('editarDiasPasados') ? '' : fechaLocal();
+  }
+
+  // ============================================================
+  // SUGERENCIA DE VEHÍCULO (services/sugerencias.ts): con la ruta y la
+  // fecha elegidas, los 3 mejores vehículos propios. Se recalcula solo
+  // cuando cambia lo que importa (ruta, fecha, cajas, cliente, hora).
+  // ============================================================
+  private cacheSugerencias: { clave: string; lista: Sugerencia[] } = { clave: '', lista: [] };
+
+  public sugerenciasViajeExtra(): Sugerencia[] {
+    const n = this.nuevoViaje || {};
+    if (!n.ruta || !n.fecha) return [];
+    const S = this.dataService.S;
+    const clave = [n.ruta, n.fecha, n.cajas, n.cliente, n.hora, (S?.viajes || []).length, (S?.vehiculos || []).length].join('|');
+    if (clave === this.cacheSugerencias.clave) return this.cacheSugerencias.lista;
+    let lista: Sugerencia[] = [];
+    try {
+      const dia = Number(String(n.fecha).slice(8));
+      const rutaObj = (S?.rutas || []).find((r: any) => String(r.cod || r.codigo || '') === String(n.ruta));
+      // Mismo cálculo de días que usa guardarViajeExtraInterno para un vehículo propio.
+      const dias = obtenerDiasViaje({ ruta: n.ruta, salida: dia }, S) - 2 + Number(rutaObj?.diasDesc || 0);
+      lista = sugerirVehiculos(S, { fecha: n.fecha, dias, ruta: n.ruta, cliente: n.cliente, hora: n.hora, cajas: Number(n.cajas) || 0 });
+    } catch (e) {
+      console.error('Error sugiriendo vehículos:', e);
+    }
+    this.cacheSugerencias = { clave, lista };
+    return lista;
+  }
+
+  public elegirSugerencia(s: Sugerencia): void {
+    this.nuevoViaje.placa = s.placa;
   }
 
   public vehiculosParaViajeExtra(): any[] {
@@ -523,6 +555,8 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     { nombre: 'Histórico', ruta: '/historico' },
     { nombre: 'Comparativo', ruta: '/comparativo' },
     { nombre: 'Cumplimiento', ruta: '/cumplimiento' },
+    { nombre: 'Reglas', ruta: '/reglas' },
+    { nombre: 'Comparendos', ruta: '/comparendos' },
     { nombre: 'Sesiones', ruta: '/sesiones' },
     { nombre: 'Aprobaciones', ruta: '/aprobaciones' },
     { nombre: 'Administrador', ruta: '/admin' }
@@ -545,6 +579,8 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     { nombre: 'Histórico', ruta: '/historico' },
     { nombre: 'Comparativo', ruta: '/comparativo' },
     { nombre: 'Cumplimiento', ruta: '/cumplimiento' },
+    { nombre: 'Reglas', ruta: '/reglas' },
+    { nombre: 'Comparendos', ruta: '/comparendos' },
     { nombre: 'Sesiones', ruta: '/sesiones' },
     { nombre: 'Aprobaciones', ruta: '/aprobaciones' },
     { nombre: 'Administrador', ruta: '/admin' }

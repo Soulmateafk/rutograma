@@ -103,10 +103,15 @@ const PERMISO_POR_RUTA = {
     '/api/modo': 'cambiarModo'
 };
 
+const CLAVES_COMPARTIDAS_DEL_DIA = ['anuncios', 'comparendos'];
+
 /** Permiso que necesita esta petición, o null si basta con "Hacer cambios". */
 function permisoRequerido(metodo, ruta, cuerpo) {
     if (cuerpo && cuerpo.previsualizar === true) return null;
     if (RUTAS_ELIMINAR.includes(ruta) || (metodo === 'DELETE' && String(ruta).startsWith('/api/vehiculos/'))) return 'eliminar';
+    // La pizarra y los comparendos son trabajo del día, no configuración:
+    // basta con "Hacer cambios".
+    if (ruta === '/api/configuracion/compartida' && CLAVES_COMPARTIDAS_DEL_DIA.includes(cuerpo?.clave)) return null;
     return PERMISO_POR_RUTA[ruta] || null;
 }
 
@@ -167,7 +172,7 @@ function describirCambio(metodo, ruta, cuerpo = {}) {
         case '/api/cerrar-mes': return `Cerrar el mes ${txt(b.label)} en el histórico`;
         case '/api/limpiar-historial': return 'Borrar todo el histórico';
         case '/api/configuracion/compartida': {
-            const nombres = { transportadoras: 'las transportadoras', cuposExt: 'los cupos de Configuración', festivos: 'los festivos' };
+            const nombres = { transportadoras: 'las transportadoras', cuposExt: 'los cupos de Configuración', festivos: 'los festivos', reglasAsignacion: 'las reglas por cliente o ruta', picoPlaca: 'el pico y placa', anuncios: 'la pizarra de anuncios', comparendos: 'los comparendos' };
             return `Cambiar ${nombres[b.clave] || txt(b.clave)}`;
         }
         case '/api/cupos/reacomodar': return `Reacomodar los cupos de ${txt(b.tr)} (${Number(b.mes) + 1}/${txt(b.anio)})`;

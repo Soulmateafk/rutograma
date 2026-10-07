@@ -226,6 +226,16 @@ export class ConductoresComponent implements OnInit, OnDestroy {
   // viaje de otro, el conteo sigue siendo el correcto para cada quien.
   // Avisar por WhatsApp (services/whatsapp.ts): abre el chat del conductor
   // con sus viajes de los próximos 7 días ya escritos.
+  /** Comparendos anotados a este conductor (página Comparendos). */
+  public comparendosDe(c: any): any[] {
+    const nombre = String(c?.nom || c?.nombre || '').trim().toLowerCase();
+    return nombre ? (this.dataService.S?.comparendos || []).filter((x: any) => String(x.conductor || '').trim().toLowerCase() === nombre) : [];
+  }
+
+  public pendienteDe(c: any): number {
+    return this.comparendosDe(c).filter((x: any) => !x.pagado).reduce((s: number, x: any) => s + (Number(x.valor) || 0), 0);
+  }
+
   public tieneWhatsApp(c: any): boolean {
     return !!numeroWhatsApp(c?.tel);
   }

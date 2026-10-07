@@ -12,11 +12,12 @@ import { NavbarComponent } from './components/navbar/navbar';
 import { GuiaComponent } from './components/guia/guia';
 import { GuiaService } from './services/guia.service';
 import { AvisoInactividadComponent } from './components/aviso-inactividad/aviso-inactividad';
+import { PizarraComponent } from './components/pizarra/pizarra';
 
 @Component({
   selector: 'app-root',
   standalone: true, 
-  imports: [RouterOutlet, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent], 
+  imports: [RouterOutlet, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent, PizarraComponent], 
   templateUrl: './app.html'
 })
 export class App implements OnInit {
@@ -25,6 +26,7 @@ export class App implements OnInit {
   // de zone.js — evita el problema de que algo cambie en un setTimeout
   // pero la vista nunca se repinte sola.
   mostrarNavbar = signal(true);
+  rutaActual = signal('');
 
   // Pantalla de carga que se ve un momento ANTES de mostrar el login (o
   // cualquier otra página) — puramente visual, no depende de que termine
@@ -106,6 +108,7 @@ export class App implements OnInit {
         
         // Si la URL actual está en nuestra lista, ocultamos el navbar (false)
         this.mostrarNavbar.set(!rutasSinNavbar.includes(event.url));
+        this.rutaActual.set(event.urlAfterRedirects);
 
         // "En línea": se avisa desde cualquier pantalla con sesión (también
         // Resumen, que no tiene barra arriba) — antes lo arrancaba la barra

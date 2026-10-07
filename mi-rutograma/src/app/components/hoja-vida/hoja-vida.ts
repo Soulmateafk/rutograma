@@ -2,6 +2,7 @@ import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { DataService } from '../../services/data';
 
 const API_URL = (typeof window !== 'undefined')
   ? `${window.location.protocol}//${window.location.hostname}:5000/api`
@@ -23,6 +24,7 @@ export class HojaVidaComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private auth = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
+  private ds = inject(DataService);
 
   placa = '';
   cargando = true;
@@ -50,6 +52,27 @@ export class HojaVidaComponent implements OnInit {
     }
     this.cargando = false;
     this.cdr.markForCheck();
+  }
+
+  /**
+   * Fecha de una novedad para mostrar. Las que mandan los conductores
+   * guardan la fecha como texto ("6/10/2026, 4:59 p. m."): el pipe "date"
+   * fallaba con ella y dejaba de pintar el resto de la hoja. Lo que no es
+   * una fecha AAAA-MM-DD se muestra tal cual.
+   */
+  fechaTexto(f: any): string {
+    const t = String(f || '');
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t);
+    if (!m) return t;
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  /** Comparendos de esta placa (página Comparendos; configuración compartida). */
+  get comparendos(): any[] {
+    const placa = this.placa.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return (this.ds.S?.comparendos || [])
+      .filter((c: any) => String(c.placa || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === placa)
+      .sort((a: any, b: any) => String(b.fecha).localeCompare(String(a.fecha)));
   }
 
   get maxViajesMes(): number {

@@ -43,7 +43,7 @@
     <button type="button" class="ruto-revision-cabecera" (click)="revisionAbierta = !revisionAbierta" [attr.aria-expanded]="revisionAbierta">
       <span class="ruto-revision-titulo">
         <strong>{{ problemasDelMes.length === 1 ? 'Un viaje por revisar' : problemasDelMes.length + ' viajes por revisar' }} este mes</strong>
-        <span class="ruto-revision-sub">Viajes que aún no terminan con SOAT, tecnomecánica o licencia vencidos, o que se cruzan con otro viaje del mismo vehículo o conductor.</span>
+        <span class="ruto-revision-sub">Viajes que aún no terminan con SOAT, tecnomecánica o licencia vencidos, que se cruzan con otro viaje del mismo vehículo o conductor, o que no cumplen las reglas de la oficina (cliente, ruta, pico y placa).</span>
       </span>
       <span class="ruto-revision-toggle">{{ revisionAbierta ? 'Ocultar' : 'Ver' }} <i class="bi" [ngClass]="revisionAbierta ? 'bi-chevron-up' : 'bi-chevron-down'"></i></span>
     </button>

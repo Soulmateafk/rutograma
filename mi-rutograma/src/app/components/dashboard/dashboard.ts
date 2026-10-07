@@ -9,10 +9,11 @@ import { FotoNovedadComponent } from '../foto-novedad/foto-novedad';
 import { agruparViajes, obtenerDiasViaje } from '../../components/rutograma/rutograma.utils.js';
 import { AuthService } from '../../services/auth.service';
 
+import { CapacidadSemanaComponent } from '../analisis/analisis';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, Configuracion, FotoNovedadComponent],
+  imports: [CommonModule, FormsModule, Configuracion, FotoNovedadComponent, CapacidadSemanaComponent],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css']
 })

@@ -24,6 +24,7 @@ interface DiaConViajes { fecha: string; titulo: string; esHoy: boolean; descanso
  * se pide nombre y placa, se muestra lo encontrado para confirmar, y luego
  * los viajes de esa placa (o, si no tiene, los del conductor por nombre).
  */
+import { armarIcs } from '../../services/calendario-ics';
 @Component({
   selector: 'app-mis-viajes',
   standalone: true,
@@ -101,6 +102,7 @@ export class MisViajesComponent implements OnInit, OnDestroy {
           this.dias = this.agruparPorDia(data.viajes || []);
           this.quitados = data.quitados || [];
           this.hayAvisos = !!data.hayAvisos;
+          this.anuncios = data.anuncios || [];
           this.cuentaAvisos = (data.viajes || []).filter((v: any) => v.aviso).reduce((n: any, v: any) => { n[v.aviso.tipo] = (n[v.aviso.tipo] || 0) + 1; return n; }, {});
           this.ultimaActualizacion = new Date();
         }
@@ -221,6 +223,33 @@ export class MisViajesComponent implements OnInit, OnDestroy {
 
   private olvidarElegido(): void {
     try { sessionStorage.removeItem(MisViajesComponent.CLAVE_ELEGIDO); } catch { /* nada */ }
+  }
+
+  // ---------- Pizarra y calendario ----------
+
+  /** Anuncios de la oficina "para todos" (la pizarra). */
+  anuncios: any[] = [];
+
+  /** Descarga los viajes de hoy en adelante como .ics (services/calendario-ics.ts). */
+  agregarAlCalendario(): void {
+    const hoy = new Date();
+    const desde = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+    const viajes = this.dias.flatMap(d => d.viajes).filter((v: any) => String(v.fecha || '') >= desde);
+    if (!viajes.length) {
+      this.ui.mostrarToast('No tienes viajes de hoy en adelante para agregar.', 'info');
+      return;
+    }
+    const nombre = String(this.conductor?.nombre || '').trim();
+    const blob = new Blob([armarIcs(viajes, nombre)], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'mis-viajes-makand.ics';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    this.ui.mostrarToast(`${viajes.length} viaje${viajes.length === 1 ? '' : 's'} listos: ábrelo y elige "Agregar" en tu calendario. Si te cambian un viaje, vuelve a descargarlo.`, 'ok');
   }
 
   // ---------- Reportar novedad ----------
