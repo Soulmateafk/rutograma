@@ -26,6 +26,8 @@ import { CumplimientoComponent } from './components/cumplimiento/cumplimiento';
 import { AgendaConductorComponent } from './components/agenda-conductor/agenda-conductor';
 import { ReglasComponent } from './components/reglas/reglas';
 import { ComparendosComponent } from './components/comparendos/comparendos';
+import { QuejasComponent } from './components/quejas/quejas';
+import { MapaComponent } from './components/mapa/mapa';
 export const routes: Routes = [
   // 1. Redirección automática
   { path: '', redirectTo: '/login', pathMatch: 'full' },
@@ -45,6 +47,8 @@ export const routes: Routes = [
   { path: 'agenda/:nombre', component: AgendaConductorComponent, canActivate: [authGuard] },
   { path: 'reglas', component: ReglasComponent, canActivate: [authGuard] },
   { path: 'comparendos', component: ComparendosComponent, canActivate: [authGuard] },
+  { path: 'quejas', component: QuejasComponent, canActivate: [authGuard] },
+  { path: 'mapa', component: MapaComponent, canActivate: [authGuard] },
   { path: 'configuracion', component: Configuracion, canActivate: [authGuard] },
   { path: 'historico', component: Historico, canActivate: [authGuard] },
   { path: 'comparativo', component: Comparativo, canActivate: [authGuard] },

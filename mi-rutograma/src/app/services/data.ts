@@ -1467,7 +1467,7 @@ export class DataService {
   // cambiaba en otro computador nunca llegaba al principal). Ahora se
   // guardan en el servidor y llegan a todos con la sincronización.
   // ============================================================
-  public static readonly CLAVES_CONFIG_COMPARTIDA = ['transportadoras', 'cuposExt', 'festivos', 'reglasAsignacion', 'picoPlaca', 'anuncios', 'comparendos'];
+  public static readonly CLAVES_CONFIG_COMPARTIDA = ['transportadoras', 'cuposExt', 'festivos', 'reglasAsignacion', 'picoPlaca', 'anuncios', 'comparendos', 'quejas', 'ubicaciones'];
 
   public async guardarConfigCompartida(clave: string): Promise<void> {
     const url = `${this.API_URL}/configuracion/compartida`;

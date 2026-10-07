@@ -1,0 +1,70 @@
+<div class="qj-page">
+  <div class="qj-cab">
+    <div>
+      <h1>Quejas de clientes</h1>
+      <p class="qj-sub">{{ abiertas }} abierta{{ abiertas === 1 ? '' : 's' }} · {{ todas.length }} en total</p>
+    </div>
+    <button *ngIf="puedeEditar && !agregando" class="qj-btn" data-guia="qj-nueva" (click)="agregando = true"><i class="bi bi-plus-lg"></i> Registrar queja</button>
+  </div>
+
+  <section class="qj-card" data-guia="qj-ranking" *ngIf="ranking.length">
+    <h2><i class="bi bi-bar-chart-fill"></i> Clientes con más quejas (últimos 90 días)</h2>
+    <div *ngFor="let r of ranking" class="qj-rank">
+      <b class="qj-rank-nombre">{{ r.cliente }}</b>
+      <div class="qj-barra"><span [style.width.%]="(r.total / maxRanking) * 100"></span></div>
+      <span class="qj-rank-dato">{{ r.total }}<span *ngIf="r.abiertas" class="qj-rojo"> ({{ r.abiertas }} abierta{{ r.abiertas === 1 ? '' : 's' }})</span> · {{ r.tipos }}</span>
+    </div>
+  </section>
+
+  <div class="qj-form" *ngIf="agregando">
+    <div class="qj-viaje" *ngIf="nuevo.viajeId"><i class="bi bi-truck"></i> Viaje {{ nuevo.ruta }} del {{ nuevo.fechaViaje | date:'d MMM':'':'es' }} · {{ nuevo.placa }}<span *ngIf="nuevo.conductor"> · {{ nuevo.conductor }}</span></div>
+    <label>Fecha <input type="date" [(ngModel)]="nuevo.fecha"></label>
+    <label>Cliente <input [(ngModel)]="nuevo.cliente" list="qj-clientes" placeholder="Ej. D1"></label>
+    <label>Tipo
+      <select [(ngModel)]="nuevo.tipo"><option *ngFor="let t of tipos" [value]="t">{{ t }}</option></select>
+    </label>
+    <label>Valor (si hubo costo) <input type="number" min="0" [(ngModel)]="nuevo.valor" placeholder="0"></label>
+    <label class="qj-ancho">Qué pasó <textarea rows="3" maxlength="600" [(ngModel)]="nuevo.descripcion" placeholder="Ej. Devolvieron 20 cajas por temperatura alta al recibir."></textarea></label>
+    <datalist id="qj-clientes"><option *ngFor="let c of clientes" [value]="c"></option></datalist>
+    <div class="qj-acciones">
+      <button class="qj-btn" [disabled]="guardando" (click)="agregar()">Guardar</button>
+      <button class="qj-sec" (click)="agregando = false; nuevo.viajeId = ''">Cancelar</button>
+    </div>
+  </div>
+
+  <div class="qj-filtros">
+    <button [class.on]="filtro === 'abiertas'" (click)="filtro = 'abiertas'">Abiertas ({{ abiertas }})</button>
+    <button [class.on]="filtro === 'todas'" (click)="filtro = 'todas'">Todas ({{ todas.length }})</button>
+    <input [(ngModel)]="buscar" placeholder="Buscar cliente, tipo, placa o conductor">
+  </div>
+
+  <div class="qj-lista" data-guia="qj-lista">
+    <div *ngIf="!lista.length" class="qj-vacio">{{ todas.length ? 'Nada con ese filtro.' : 'No hay quejas registradas.' }}</div>
+    <div *ngFor="let q of lista" class="qj-fila" [class.cerrada]="q.estado === 'cerrada'">
+      <div class="qj-info">
+        <div><b>{{ q.cliente }}</b> · <span class="qj-tipo">{{ q.tipo }}</span> · {{ q.fecha | date:'d MMM y':'':'es' }}<span *ngIf="q.valor"> · $ {{ q.valor | number:'1.0-0':'es' }}</span></div>
+        <div class="qj-desc">{{ q.descripcion }}</div>
+        <div class="qj-meta" *ngIf="q.viajeId || q.placa">Viaje {{ q.ruta }}{{ q.fechaViaje ? ' del ' + (q.fechaViaje | date:'d MMM':'':'es') : '' }} · {{ q.placa }}{{ q.conductor ? ' · ' + q.conductor : '' }}</div>
+        <div class="qj-meta" *ngIf="q.estado === 'cerrada'"><i class="bi bi-check2-circle"></i> Cerrada{{ q.cerradaEn ? ' el ' + (q.cerradaEn | date:'d MMM':'':'es') : '' }}{{ q.solucion ? ': ' + q.solucion : '' }}</div>
+        <div class="qj-meta" *ngIf="q.registradoPor">Registró {{ quien(q.registradoPor) }}</div>
+      </div>
+      <div class="qj-botones" *ngIf="puedeEditar">
+        <button *ngIf="q.estado !== 'cerrada'" class="qj-sec" [disabled]="guardando" (click)="abrirCierre(q)">Cerrar</button>
+        <button *ngIf="q.estado === 'cerrada'" class="qj-sec" [disabled]="guardando" (click)="reabrir(q)">Reabrir</button>
+        <button *ngIf="auth.puede('eliminar')" class="qj-borrar" [disabled]="guardando" (click)="eliminar(q)" title="Borrar"><i class="bi bi-trash"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="qj-fondo" *ngIf="cerrando" (click)="cerrando = null">
+    <div class="qj-modal" (click)="$event.stopPropagation()">
+      <h3>Cerrar la queja de {{ cerrando.cliente }}</h3>
+      <label>¿Cómo se resolvió? (opcional)
+        <textarea rows="3" [(ngModel)]="solucion" placeholder="Ej. Se repuso la carga el día siguiente."></textarea></label>
+      <div class="qj-acciones">
+        <button class="qj-btn" (click)="cerrar()">Cerrar queja</button>
+        <button class="qj-sec" (click)="cerrando = null">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>

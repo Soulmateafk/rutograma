@@ -26,9 +26,10 @@
               }
             ],
             "styles": [
-              "src/styles.css"
+              "src/styles.css",
+              "node_modules/leaflet/dist/leaflet.css"
             ],
-            "allowedCommonJsDependencies": ["canvg", "core-js", "rgbcolor", "raf", "html2canvas", "xlsx", "file-saver", "jspdf", "jspdf-autotable", "dompurify", "stackblur-canvas"]
+            "allowedCommonJsDependencies": ["canvg", "core-js", "rgbcolor", "raf", "html2canvas", "xlsx", "file-saver", "jspdf", "jspdf-autotable", "dompurify", "stackblur-canvas", "leaflet"]
           },
           "configurations": {
             "production": {

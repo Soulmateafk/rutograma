@@ -1,0 +1,42 @@
+<div class="mp-page">
+  <div class="mp-cab">
+    <div>
+      <h1>Mapa de destinos</h1>
+      <p class="mp-sub">{{ totalViajes }} viajes a {{ destinos.length }} destinos · líneas desde Bogotá, más gruesas con más viajes</p>
+    </div>
+    <div class="mp-mes">
+      <button (click)="cambiarMes(-1)" aria-label="Mes anterior"><i class="bi bi-chevron-left"></i></button>
+      <b>{{ titulo }}</b>
+      <button (click)="cambiarMes(1)" aria-label="Mes siguiente"><i class="bi bi-chevron-right"></i></button>
+    </div>
+  </div>
+
+  <div class="mp-cuerpo">
+    <div class="mp-mapa-caja" data-guia="mp-mapa">
+      <div #contenedor class="mp-mapa" [class.ubicando]="ubicando"></div>
+      <div class="mp-aviso-ubicar" *ngIf="ubicando">
+        <i class="bi bi-geo-alt-fill"></i> Haz clic en el mapa donde queda <b>{{ ubicando.destino }}</b>
+        <button (click)="ubicando = null">Cancelar</button>
+      </div>
+      <p class="mp-aviso-fondo" *ngIf="sinFondo"><i class="bi bi-wifi-off"></i> Este equipo no pudo descargar el mapa de fondo (necesita internet). Los destinos y las líneas sí se ven.</p>
+      <p class="mp-error" *ngIf="errorMapa">{{ errorMapa }} El mapa de fondo necesita internet en este equipo.</p>
+    </div>
+
+    <aside class="mp-lista" data-guia="mp-lista">
+      <div class="mp-faltan" *ngIf="sinUbicar.length">
+        <i class="bi bi-question-circle-fill"></i> {{ sinUbicar.length }} destino{{ sinUbicar.length === 1 ? '' : 's' }} sin ubicar en el mapa
+      </div>
+      <div *ngIf="!destinos.length" class="mp-vacio">No hay viajes en {{ titulo }}.</div>
+      <div *ngFor="let d of destinos" class="mp-fila" [class.sin]="!d.punto">
+        <button class="mp-nombre" (click)="ver(d)" [disabled]="!d.punto">
+          <b>{{ d.destino }}</b>
+          <small>{{ d.clientes.slice(0, 3).join(', ') }}{{ d.clientes.length > 3 ? '…' : '' }}</small>
+        </button>
+        <span class="mp-num">{{ d.viajes }}</span>
+        <button *ngIf="puedeEditar" class="mp-ubicar" (click)="empezarUbicar(d)" [title]="d.punto ? 'Mover en el mapa' : 'Ubicar en el mapa'">
+          <i class="bi" [ngClass]="d.punto ? 'bi-arrows-move' : 'bi-geo-alt'"></i>{{ d.punto ? '' : ' Ubicar' }}
+        </button>
+      </div>
+    </aside>
+  </div>
+</div>

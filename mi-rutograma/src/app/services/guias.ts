@@ -82,6 +82,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'ruto-pdf-semana', titulo: 'PDF de la semana', texto: 'Descarga la semana elegida en PDF: una hoja por día con vehículo, conductor, ruta, cliente y hora. Listo para imprimir o mandar por WhatsApp.' },
       { el: 'ruto-compartir-semana', titulo: 'Compartir por WhatsApp', texto: 'Crea el mismo PDF y abre el menú de compartir del equipo: eliges WhatsApp y el chat o grupo, sin buscar el archivo en Descargas. Si el navegador no lo permite, el PDF se descarga.' },
       { el: '.btn-zoom', titulo: 'Zoom', texto: 'Acerca o aleja la matriz para ver más días o más detalle.' },
+      { el: 'ruto-queja', titulo: 'Queja del cliente', texto: 'Dentro del detalle de un viaje, "Queja" registra una queja del cliente sobre ese viaje (devolución, carga rechazada, reclamo...), con cliente, vehículo y conductor ya puestos.' },
       { el: 'ruto-hoja-ruta', titulo: 'Hoja de ruta', texto: 'Dentro del detalle de un viaje, "Hoja de ruta" crea un PDF para entregarle al conductor: salida, hora, regreso, ruta, cliente, carga, vehículo, sus datos, la nota y espacio para firmas de entrega.' },
       { el: '.ruto-card-viaje', titulo: 'Detalle, notas e historial', texto: 'Al abrir un viaje ves sus datos; en "Editar viaje" le puedes poner una nota para el conductor (la ve en su celular). Con "Ver historial de cambios" ves quién lo cambió, qué y cuándo.' },
       { el: '.ruto-tr-cupo-header', titulo: 'Arsitrans y Polar', texto: 'Los cupos de terceros. "+ Confirmar cupo" agrega uno; "Reacomodar" junta los viajes del mes en los menos cupos posibles, sin tocar nada más.' }
@@ -97,6 +98,23 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'veh-hoja', titulo: 'Hoja de vida', texto: 'Todo lo de un vehículo en una pantalla: viajes por mes, conductores que lo han manejado, mantenimientos, veces que se ha varado, documentos y novedades. Se puede imprimir.' },
       { el: 'veh-viajes', titulo: 'Viajes por vehículo', texto: 'Los viajes de cada vehículo de Makand en el mes.' },
       { el: 'veh-ocupacion', titulo: 'Qué tan lleno va cada camión', texto: 'Promedio de cajas por viaje frente a la capacidad de cada vehículo en el mes. En rojo los que van a menos de la mitad: se podría juntar carga o usar uno más pequeño.' }
+    ]
+  },
+
+  mapa: {
+    titulo: 'Mapa de destinos',
+    pasos: [
+      { el: 'mp-mapa', titulo: 'El mapa', texto: 'Líneas desde Bogotá a cada destino del mes: más gruesas mientras más viajes. Toca un círculo para ver cuántos viajes, de qué clientes y en qué vehículos. El mapa de fondo necesita internet.' },
+      { el: 'mp-lista', titulo: 'Los destinos', texto: 'De más a menos viajes. Toca uno para ir a él. Si alguno sale en amarillo ("Ubicar"), no se conoce: tócalo y haz clic en el mapa donde queda; queda guardado para todos.' }
+    ]
+  },
+
+  quejas: {
+    titulo: 'Quejas de clientes',
+    pasos: [
+      { el: 'qj-nueva', titulo: 'Registrar', texto: 'Anota cada devolución, carga rechazada, reclamo o demora: cliente, tipo y qué pasó. Desde el detalle de un viaje en el Rutograma ("Queja") llega con el viaje ya puesto.' },
+      { el: 'qj-ranking', titulo: 'Quiénes dan más problemas', texto: 'Los clientes con más quejas en los últimos 90 días y de qué tipo.' },
+      { el: 'qj-lista', titulo: 'La lista', texto: 'Las abiertas primero. "Cerrar" cuando se resuelva, con cómo se resolvió.' }
     ]
   },
 
