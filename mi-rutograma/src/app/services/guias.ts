@@ -255,11 +255,27 @@ export const GUIAS: Record<string, Guia> = {
     ]
   },
 
+  despachos: {
+    titulo: 'Despachos',
+    pasos: [
+      { el: 'dp-llegada', titulo: 'Cuando llega un vehículo', texto: 'Anota la fecha y la hora de llegada. "Ahora" pone la hora de este momento.' },
+      { el: 'dp-vehiculo', titulo: 'Vehículo', texto: 'Escribe la placa; la app te sugiere las de la flota y muestra el conductor.' },
+      { el: 'dp-viaje', titulo: 'A qué viaje va', texto: 'Escoge el viaje programado y el lugar se llena solo. Si va a otra parte, escoge "Otro lugar" y escríbelo.' },
+      { el: 'dp-fin', titulo: 'Terminó de cargar', texto: 'Si ya terminó, pon la hora. Si todavía está cargando, déjala vacía y guarda: queda en "Cargando ahora".' },
+      { el: 'dp-en-cargue', titulo: 'Cargando ahora', texto: 'Los vehículos que siguen cargando y cuánto llevan. Cuando uno termine, toca "Terminó de cargar" y queda con la hora de ese momento.' },
+      { el: 'dp-periodos', titulo: 'Registro', texto: 'Lo anotado por día, semana o mes, con las flechas para ir atrás. "Histórico" lleva a cada mes guardado.' },
+      { el: 'dp-excel', titulo: 'Excel', texto: 'Descarga en Excel el día, la semana o el mes que estás viendo, con el tiempo de cargue de cada vehículo.' },
+      { el: 'dp-tabla', titulo: 'Corregir o borrar', texto: 'Con el lápiz corriges un registro y con la caneca lo borras. La cuenta de despachos puede hacerlo con lo de hoy y ayer; lo anterior, la oficina. Todo queda en la auditoría.' },
+      PASO_AYUDA
+    ]
+  },
+
   admin: {
     titulo: 'Administración',
     pasos: [
       { el: '.admin-tabs', titulo: 'Secciones', texto: 'Cuentas, Auditoría (quién cambió qué y cuándo), y según tus permisos, Correo y Dispositivos.' },
       { el: '.cuenta-conductores', titulo: 'Cuenta de conductores', texto: 'Una cuenta compartida para todos los conductores: cada uno escribe su nombre y placa para ver sus viajes.' },
+      { el: '.cuenta-despachos', titulo: 'Cuenta de despachos', texto: 'Una cuenta para quien está en el cargue: solo ve la pantalla Despachos, donde anota llegada y fin de cargue de cada vehículo.' },
       { el: '.user-table', titulo: 'Cuentas', texto: 'Las solicitudes más recientes arriba. Aquí se aprueban, rechazan o eliminan, y el administrador elige el rol y los permisos de cada una.' }
     ]
   }
