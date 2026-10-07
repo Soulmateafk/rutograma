@@ -103,7 +103,7 @@ const PERMISO_POR_RUTA = {
     '/api/modo': 'cambiarModo'
 };
 
-const CLAVES_COMPARTIDAS_DEL_DIA = ['anuncios', 'comparendos'];
+const CLAVES_COMPARTIDAS_DEL_DIA = ['anuncios', 'comparendos', 'quejas', 'ubicaciones'];
 
 /** Permiso que necesita esta petición, o null si basta con "Hacer cambios". */
 function permisoRequerido(metodo, ruta, cuerpo) {
@@ -172,7 +172,7 @@ function describirCambio(metodo, ruta, cuerpo = {}) {
         case '/api/cerrar-mes': return `Cerrar el mes ${txt(b.label)} en el histórico`;
         case '/api/limpiar-historial': return 'Borrar todo el histórico';
         case '/api/configuracion/compartida': {
-            const nombres = { transportadoras: 'las transportadoras', cuposExt: 'los cupos de Configuración', festivos: 'los festivos', reglasAsignacion: 'las reglas por cliente o ruta', picoPlaca: 'el pico y placa', anuncios: 'la pizarra de anuncios', comparendos: 'los comparendos' };
+            const nombres = { transportadoras: 'las transportadoras', cuposExt: 'los cupos de Configuración', festivos: 'los festivos', reglasAsignacion: 'las reglas por cliente o ruta', picoPlaca: 'el pico y placa', anuncios: 'la pizarra de anuncios', comparendos: 'los comparendos', quejas: 'las quejas de clientes', ubicaciones: 'las ubicaciones del mapa' };
             return `Cambiar ${nombres[b.clave] || txt(b.clave)}`;
         }
         case '/api/cupos/reacomodar': return `Reacomodar los cupos de ${txt(b.tr)} (${Number(b.mes) + 1}/${txt(b.anio)})`;
