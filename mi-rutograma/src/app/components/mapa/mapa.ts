@@ -58,6 +58,12 @@ export class MapaComponent implements AfterViewInit, OnDestroy {
         this.mapa = this.L.map(this.contenedor!.nativeElement, { zoomControl: true, attributionControl: true }).setView([6.5, -74.5], 6);
         const fondo = this.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 18,
+          // OpenStreetMap rechaza ("not following the tile usage policy") los
+          // pedidos que llegan sin "Referer", y el servidor le dice al
+          // navegador que no lo mande nunca (Referrer-Policy: no-referrer, en
+          // server.js). Solo para estas imágenes se manda el origen
+          // (http://equipo:5000), sin la ruta ni datos de la página.
+          referrerPolicy: 'strict-origin-when-cross-origin',
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
         }).addTo(this.mapa);
         // Sin internet el fondo no carga, pero las líneas y los destinos sí.
