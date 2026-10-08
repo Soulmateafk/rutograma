@@ -38,6 +38,7 @@
 
 <!-- Pizarra de anuncios (components/pizarra): en todas las pantallas con
      barra si hay anuncios; en el Dashboard, también para agregarlos. -->
+<app-aviso-cargue *ngIf="mostrarNavbar() && !cargandoInicial() && !rutaActual().startsWith('/despachos')"></app-aviso-cargue>
 <app-pizarra *ngIf="mostrarNavbar() && !cargandoInicial()" [conFormulario]="rutaActual().startsWith('/dashboard')"></app-pizarra>
 
 <main *ngIf="!cargandoInicial()">

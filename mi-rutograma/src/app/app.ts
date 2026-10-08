@@ -13,11 +13,12 @@ import { GuiaComponent } from './components/guia/guia';
 import { GuiaService } from './services/guia.service';
 import { AvisoInactividadComponent } from './components/aviso-inactividad/aviso-inactividad';
 import { PizarraComponent } from './components/pizarra/pizarra';
+import { AvisoCargueComponent } from './components/aviso-cargue/aviso-cargue';
 
 @Component({
   selector: 'app-root',
   standalone: true, 
-  imports: [RouterOutlet, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent, PizarraComponent], 
+  imports: [RouterOutlet, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent, PizarraComponent, AvisoCargueComponent], 
   templateUrl: './app.html'
 })
 export class App implements OnInit {

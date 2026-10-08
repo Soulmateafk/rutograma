@@ -17,6 +17,26 @@
     <p>A qué hora llega cada vehículo a cargar, a dónde va y a qué hora terminó de cargar.</p>
   </div>
 
+  <!-- Sin conexión: lo anotado espera en este celular -->
+  <div *ngIf="!enLinea || pendientes.length" class="dp-sin-senal" data-guia="dp-sin-senal">
+    <i class="bi" [ngClass]="enLinea ? 'bi-cloud-arrow-up' : 'bi-wifi-off'"></i>
+    <div>
+      <strong>{{ enLinea ? 'Enviando lo que quedó en este celular…' : 'Sin conexión' }}</strong>
+      <span *ngIf="!pendientes.length"> Puedes seguir anotando: se guarda en este celular y se envía solo cuando vuelva la señal. No cierres la página.</span>
+      <span *ngIf="pendientes.length"> {{ pendientes.length === 1 ? '1 cambio espera' : pendientes.length + ' cambios esperan' }} para enviarse: {{ pendientes.map(p => p.descripcion).join(' · ') }}.</span>
+    </div>
+    <button *ngIf="pendientes.length" class="dp-secundario dp-chico" (click)="procesarCola()">Reintentar</button>
+  </div>
+  <div *ngIf="rechazados.length" class="dp-rechazados">
+    <i class="bi bi-exclamation-octagon"></i>
+    <div>
+      <strong>Algo anotado sin conexión no se pudo guardar:</strong>
+      <div *ngFor="let x of rechazados">{{ x.descripcion }} — {{ x.msg }}</div>
+      <small>Vuelve a anotarlo corrigiendo lo que dice.</small>
+    </div>
+    <button class="dp-secundario dp-chico" (click)="descartarRechazados()">Entendido</button>
+  </div>
+
   <div class="dp-columnas">
     <!-- ===== Formulario ===== -->
     <form class="dp-card dp-form" (ngSubmit)="guardar()" autocomplete="off" novalidate>
@@ -94,6 +114,18 @@
       </div>
       <small class="dp-ayuda">Las horas que todavía no pasan, déjalas vacías: el vehículo queda en "En el cargue" y las pones con un toque.</small>
 
+      <!-- El cargue pasó del límite: motivo obligatorio -->
+      <div *ngIf="pideMotivo" class="dp-motivo" data-guia="dp-motivo">
+        <div class="dp-motivo-titulo"><i class="bi bi-alarm"></i> El cargue tardó {{ textoMinutos(minutosForm) }} (el límite es {{ textoMinutos(limiteMin) }}). ¿Por qué se demoró?</div>
+        <select name="motivoDemora" [(ngModel)]="form.motivoDemora" [class.dp-error]="intentoGuardar && !form.motivoDemora">
+          <option value="">— Escoge el motivo —</option>
+          <option *ngFor="let m of motivosDemora" [value]="m">{{ m }}</option>
+        </select>
+        <input *ngIf="form.motivoDemora" type="text" name="motivoDemoraDetalle" [(ngModel)]="form.motivoDemoraDetalle" maxlength="200"
+               [placeholder]="form.motivoDemora === 'Otro' ? '¿Cuál? (obligatorio)' : 'Detalle (opcional)'"
+               [class.dp-error]="intentoGuardar && form.motivoDemora === 'Otro' && !form.motivoDemoraDetalle.trim()">
+      </div>
+
       <!-- Carga: lista desplegable de varias opciones; cada una escogida pide su cantidad -->
       <div class="dp-carga" data-guia="dp-carga">
         <span class="dp-etq">Carga</span>
@@ -137,9 +169,20 @@
 
     <!-- ===== Cargando ahora ===== -->
     <section class="dp-card dp-en-cargue" data-guia="dp-en-cargue">
-      <h2><i class="bi bi-hourglass-split"></i> En el cargue <span class="dp-contador">{{ enCargue.length }}</span></h2>
-      <p *ngIf="!enCargue.length" class="dp-vacio">No hay vehículos en el cargue.</p>
-      <div *ngFor="let r of enCargue; trackBy: trackId" class="dp-cargando">
+      <h2><i class="bi bi-hourglass-split"></i> En el cargue <span class="dp-contador">{{ enCargueVista.length }}</span></h2>
+      <div class="dp-limite" data-guia="dp-limite">
+        <i class="bi bi-alarm"></i> Si el cargue pasa de <strong>{{ textoMinutos(limiteMin) }}</strong>, se pide el motivo.
+        <ng-container *ngIf="puedeCambiarLimite && !esCuentaDespachos">
+          <button *ngIf="limiteEditando === null" class="dp-enlace" (click)="limiteEditando = limiteMin">Cambiar</button>
+          <span *ngIf="limiteEditando !== null" class="dp-limite-editar">
+            <input type="number" min="10" max="600" [(ngModel)]="limiteEditando" aria-label="Límite en minutos"> min
+            <button class="dp-secundario dp-chico" (click)="guardarLimite()">Guardar</button>
+            <button class="dp-enlace" (click)="limiteEditando = null">Cancelar</button>
+          </span>
+        </ng-container>
+      </div>
+      <p *ngIf="!enCargueVista.length" class="dp-vacio">No hay vehículos en el cargue.</p>
+      <div *ngFor="let r of enCargueVista; trackBy: trackId" class="dp-cargando" [class.dp-demorado]="estaDemorado(r)">
         <div>
           <div class="dp-placa">{{ r.placa }} <span class="dp-destino">→ {{ r.destino }}</span></div>
           <div class="dp-sub">
@@ -149,10 +192,12 @@
             <span *ngIf="!r.horaFinCargue"> · lleva {{ llevaCargando(r) }}</span>
             <span *ngIf="r.totalCajas"> · {{ r.totalCajas }} cajas</span>
           </div>
+          <div *ngIf="estaDemorado(r)" class="dp-aviso-demora"><i class="bi bi-alarm"></i> Demorado: pasó el límite de {{ textoMinutos(limiteMin) }}</div>
+          <div *ngIf="r.pendiente" class="dp-etiqueta-pend"><i class="bi bi-wifi-off"></i> En este celular, sin enviar</div>
         </div>
-        <button class="dp-terminar" [class.dp-salio]="siguientePaso(r).campo === 'horaSalida'" (click)="terminarCargue(r)" [disabled]="terminandoId === r.id || !r.puedeCorregir">
+        <button class="dp-terminar" [class.dp-salio]="siguientePaso(r).campo === 'horaSalida'" (click)="terminarCargue(r)" [disabled]="guardandoPaso(r) || !r.puedeCorregir">
           <i class="bi" [ngClass]="siguientePaso(r).campo === 'horaSalida' ? 'bi-truck' : 'bi-check2-circle'"></i>
-          {{ terminandoId === r.id ? 'Guardando…' : siguientePaso(r).texto }}
+          {{ guardandoPaso(r) ? 'Guardando…' : siguientePaso(r).texto }}
         </button>
       </div>
     </section>
@@ -234,7 +279,8 @@
               <span *ngIf="!r.horaFinCargue" class="dp-etiqueta">Cargando</span>
             </td>
             <td data-label="Salió">{{ r.horaSalida || '—' }}</td>
-            <td class="dp-nowrap" data-label="Cargue">{{ textoMinutos(r.minutos) || '—' }}</td>
+            <td data-label="Cargue"><span class="dp-nowrap">{{ textoMinutos(r.minutos) || '—' }}</span>
+              <div *ngIf="r.motivoDemora" class="dp-sub dp-motivo-tabla"><i class="bi bi-alarm"></i> {{ r.motivoDemora }}{{ r.motivoDemoraDetalle ? ': ' + r.motivoDemoraDetalle : '' }}</div></td>
             <td data-label="Cajas" [title]="textoCarga(r)">
               <strong>{{ r.totalCajas || '—' }}</strong><span *ngIf="r.totalEstibas" class="dp-sub"> + {{ r.totalEstibas }} est.</span>
               <div class="dp-sub dp-detalle-carga" *ngIf="r.cargas?.length">{{ textoCarga(r) }}</div>
@@ -248,6 +294,28 @@
       </table>
     </div>
   </section>
+
+  <!-- ¿Por qué se demoró? (al tocar "Terminó de cargar" pasado el límite) -->
+  <div *ngIf="demora" class="dp-modal-fondo">
+    <div class="dp-modal" (click)="$event.stopPropagation()">
+      <h3><i class="bi bi-alarm"></i> ¿Por qué se demoró {{ demora.r.placa }}?</h3>
+      <p>El cargue lleva {{ textoMinutos(demora.minutos) }} y el límite es {{ textoMinutos(limiteMin) }}. Para terminarlo, escoge el motivo.</p>
+      <select class="dp-modal-campo" [(ngModel)]="demora.motivo" [class.dp-error]="demora.intento && !demora.motivo">
+        <option value="">— Escoge el motivo —</option>
+        <option *ngFor="let m of motivosDemora" [value]="m">{{ m }}</option>
+      </select>
+      <input class="dp-modal-campo" type="text" [(ngModel)]="demora.detalle" maxlength="200"
+             [placeholder]="demora.motivo === 'Otro' ? '¿Cuál? (obligatorio)' : 'Detalle (opcional)'"
+             [class.dp-error]="demora.intento && demora.motivo === 'Otro' && !demora.detalle.trim()">
+      <p *ngIf="demora.intento && (!demora.motivo || (demora.motivo === 'Otro' && !demora.detalle.trim()))" class="dp-mal">
+        {{ !demora.motivo ? 'Escoge el motivo de la demora.' : 'Escribe cuál fue el motivo.' }}
+      </p>
+      <div class="dp-botones">
+        <button class="dp-primario" (click)="confirmarDemora()"><i class="bi bi-check2-circle"></i> Terminó de cargar</button>
+        <button class="dp-secundario" (click)="demora = null">Cancelar</button>
+      </div>
+    </div>
+  </div>
 
   <div *ngIf="aBorrar" class="dp-modal-fondo" (click)="aBorrar = null">
     <div class="dp-modal" (click)="$event.stopPropagation()">
