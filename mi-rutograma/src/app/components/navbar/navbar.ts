@@ -17,6 +17,8 @@ import { Sugerencia, sugerirVehiculos } from '../../services/sugerencias';
 
 import { EnLineaComponent } from '../en-linea/en-linea';
 
+interface ResultadoBusqueda { tipo: string; etiqueta: string; subtitulo: string; ruta: string; queryParams?: any; actual?: boolean; hacer?: () => void; }
+
 @Component({
   selector: 'app-navbar',
   standalone: true,
@@ -568,7 +570,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
   // ruta desde cualquier pantalla, y te lleva directo a donde vive.
   // ============================================================
   public busquedaGlobal: string = '';
-  public resultadosBusqueda: Array<{ tipo: string; etiqueta: string; subtitulo: string; ruta: string; queryParams?: any; actual?: boolean }> = [];
+  public resultadosBusqueda: ResultadoBusqueda[] = [];
   public mostrandoResultadosBusqueda: boolean = false;
 
   // Pantallas de la app que se pueden encontrar escribiendo su nombre
@@ -765,6 +767,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     if ((evento.ctrlKey || evento.metaKey) && evento.key.toLowerCase() === 'k') {
       evento.preventDefault(); // algunos navegadores usan Ctrl+K para su propia barra de direcciones
       this.inputBusquedaGlobal?.nativeElement.focus();
+      this.inputBusquedaGlobal?.nativeElement.select();
       return;
     }
 
@@ -791,42 +794,81 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  // ============================================================
+  // BÚSQUEDA RÁPIDA (Ctrl+K) — viajes, vehículos, conductores, rutas,
+  // novedades, pantallas y acciones ("viaje extra", "novedad", "diario",
+  // "despacho"). Varias palabras se buscan juntas ("prz 065 12", "cali
+  // d1"), sin importar tildes ni mayúsculas. Con el teclado: flechas para
+  // moverse, Enter para abrir, Esc para cerrar.
+  // ============================================================
+  public resultadoActivo = 0;
+
+  private readonly accionesBuscables: Array<{ nombre: string; claves: string; subtitulo: string; permitido: () => boolean; hacer: () => void }> = [
+    { nombre: 'Agregar viaje extra', claves: 'viaje extra agregar nuevo crear', subtitulo: 'Abre el formulario de Viaje Extra',
+      permitido: () => this.authService.puedeEditar, hacer: () => this.abrirModal('m-viaje') },
+    { nombre: 'Reportar novedad', claves: 'novedad reportar aviso varado retraso', subtitulo: 'Abre el formulario de Novedad',
+      permitido: () => this.authService.puedeEditar, hacer: () => this.abrirModal('m-novedad') },
+    { nombre: 'Descargar diario', claves: 'diario descargar excel hoy viajes de hoy', subtitulo: 'Excel con los viajes de hoy',
+      permitido: () => true, hacer: () => this.descargarDiario() },
+    { nombre: 'Anotar un despacho', claves: 'despacho despachos cargue anotar llegada', subtitulo: 'Pantalla Despachos',
+      permitido: () => true, hacer: () => this.router.navigate(['/despachos']) }
+  ];
+
   public buscarGlobal(): void {
-    const q = this.busquedaGlobal.trim().toLowerCase();
+    const sinTildes = (t: any) => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const q = sinTildes(this.busquedaGlobal.trim());
+    this.resultadoActivo = 0;
     if (!q) {
       this.resultadosBusqueda = [];
       this.mostrandoResultadosBusqueda = false;
       return;
     }
+    // Todas las palabras tienen que estar (en cualquier orden).
+    const palabras = q.split(/\s+/).filter(Boolean);
+    const coincide = (...campos: any[]) => { const texto = sinTildes(campos.join(' ')); return palabras.every(p => texto.includes(p)); };
 
     const S = this.dataService.S;
-    const resultados: Array<{ tipo: string; etiqueta: string; subtitulo: string; ruta: string; queryParams?: any; actual?: boolean }> = [];
+    const resultados: ResultadoBusqueda[] = [];
+    const pad = (n: number) => String(n).padStart(2, '0');
+
+    // Acciones
+    this.accionesBuscables.filter(a => a.permitido() && coincide(a.nombre, a.claves)).forEach(a =>
+      resultados.push({ tipo: 'Acción', etiqueta: a.nombre, subtitulo: a.subtitulo, ruta: '', hacer: a.hacer }));
+
+    // Viajes: de hace una semana a dentro de tres, los más cercanos a hoy primero.
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const aFecha = (f: string) => { const [a, m, d] = String(f).split('-').map(Number); return new Date(a, m - 1, d); };
+    const dias = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+    const viajes = (S.viajes || [])
+      .filter((v: any) => /^\d{4}-\d{2}-\d{2}$/.test(String(v.fecha || '')) && v.estado !== 'Cancelado')
+      .map((v: any) => ({ v, f: aFecha(v.fecha) }))
+      .filter((x: any) => { const d = (x.f.getTime() - hoy.getTime()) / 86400000; return d >= -7 && d <= 21; })
+      .filter(({ v, f }: any) => coincide(v.p || v.placa, v.ruta || v.codigo, v.destino, v.cliente || v.cli, v.cond,
+        `${f.getDate()} ${pad(f.getDate())}/${pad(f.getMonth() + 1)} ${dias[f.getDay()]}`))
+      .sort((a: any, b: any) => Math.abs(a.f.getTime() - hoy.getTime()) - Math.abs(b.f.getTime() - hoy.getTime()))
+      .slice(0, 4);
+    viajes.forEach(({ v, f }: any) => resultados.push({
+      tipo: 'Viaje',
+      etiqueta: `${String(v.p || v.placa || '').toUpperCase()} · ${v.ruta || v.codigo || 'Viaje'}${v.destino && v.destino !== 'No definido' ? ' → ' + v.destino : ''}`,
+      subtitulo: `${dias[f.getDay()]} ${pad(f.getDate())}/${pad(f.getMonth() + 1)}${v.cliente ? ' · ' + v.cliente : ''}${v.estado ? ' · ' + v.estado : ''}`,
+      ruta: '/rutograma', queryParams: { verViaje: v.id }
+    }));
 
     (S.vehiculos || []).forEach((v: any) => {
       const placa = String(v.p || v.placa || '');
       const conductor = String(v.cond || v.conductor || '');
-      if (placa.toLowerCase().includes(q) || conductor.toLowerCase().includes(q)) {
-        resultados.push({
-          tipo: 'Vehículo',
-          etiqueta: placa,
-          subtitulo: conductor || 'Sin asignar',
-          ruta: '/vehiculos',
-          queryParams: { buscarPlaca: placa }
-        });
+      if (coincide(placa, conductor)) {
+        resultados.push({ tipo: 'Vehículo', etiqueta: placa, subtitulo: conductor || 'Sin asignar', ruta: '/vehiculos', queryParams: { buscarPlaca: placa } });
+        resultados.push({ tipo: 'Hoja de vida', etiqueta: `Hoja de vida de ${placa}`, subtitulo: 'Viajes, mantenimientos y documentos', ruta: `/hoja-de-vida/${placa}` });
       }
     });
 
     (S.conductores || []).forEach((c: any) => {
       const nombre = String(c.nom || c.nombre || '');
       const cedula = String(c.ced || c.cedula || '');
-      if (nombre.toLowerCase().includes(q) || cedula.includes(q)) {
-        resultados.push({
-          tipo: 'Conductor',
-          etiqueta: nombre,
-          subtitulo: c.veh || c.placa || 'Sin vehículo',
-          ruta: '/conductores',
-          queryParams: { buscarCedula: cedula }
-        });
+      if (coincide(nombre, cedula)) {
+        resultados.push({ tipo: 'Conductor', etiqueta: nombre, subtitulo: c.veh || c.placa || 'Sin vehículo', ruta: '/conductores', queryParams: { buscarCedula: cedula } });
+        resultados.push({ tipo: 'Agenda', etiqueta: `Agenda de ${nombre}`, subtitulo: 'Sus viajes y descansos', ruta: `/agenda/${nombre}` });
       }
     });
 
@@ -834,66 +876,58 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
       const cod = String(r.cod || r.codigo || '');
       const destino = String(r.dest || r.destino || '');
       const clientes = String(r.clientes || '');
-      if (cod.toLowerCase().includes(q) || destino.toLowerCase().includes(q) || clientes.toLowerCase().includes(q)) {
-        resultados.push({
-          tipo: 'Ruta',
-          etiqueta: cod,
-          subtitulo: clientes ? `${destino} — ${clientes}` : destino,
-          ruta: '/rutas',
-          queryParams: { buscarCod: cod }
-        });
+      if (coincide(cod, destino, clientes)) {
+        resultados.push({ tipo: 'Ruta', etiqueta: cod, subtitulo: clientes ? `${destino} — ${clientes}` : destino, ruta: '/rutas', queryParams: { buscarCod: cod } });
       }
     });
 
     (S.novedades || []).forEach((n: any) => {
       const titulo = String(n.titulo || '');
-      const desc = String(n.desc || n.descripcion || '');
-      if (titulo.toLowerCase().includes(q) || desc.toLowerCase().includes(q)) {
-        resultados.push({
-          tipo: 'Novedad',
-          etiqueta: titulo || 'Sin título',
-          subtitulo: n.tipo || (n.resuelta ? 'Resuelta' : 'Pendiente'),
-          ruta: '/dashboard'
-        });
+      if (coincide(titulo, n.desc || n.descripcion)) {
+        resultados.push({ tipo: 'Novedad', etiqueta: titulo || 'Sin título', subtitulo: n.tipo || (n.resuelta ? 'Resuelta' : 'Pendiente'), ruta: '/dashboard' });
       }
     });
 
-    // Páginas de la app — para saltar directo escribiendo el nombre de
-    // la pantalla (ej. "config" encuentra Configuración).
-    // Sin tildes, para que "vehiculos" también encuentre "Vehículos".
-    // Si ya estás en esa pantalla, se muestra "Ya estás aquí" en vez de
-    // ofrecer ir a donde ya estás.
-    const sinTildes = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-    const qSinTildes = sinTildes(q);
+    // Pantallas de la app (ej. "config" encuentra Configuración). Si ya
+    // estás en esa pantalla, dice "Ya estás aquí".
     const rutaActual = this.router.url.split(/[?#]/)[0];
     this.paginasBuscables
       .filter(p => this.paginaPermitida(p.ruta))
-      .filter(p => sinTildes(p.nombre).includes(qSinTildes))
+      .filter(p => coincide(p.nombre))
       .forEach(p => {
         const actual = rutaActual === p.ruta || rutaActual.startsWith(p.ruta + '/');
-        resultados.push({
-          tipo: 'Página',
-          etiqueta: p.nombre,
-          subtitulo: actual ? 'Ya estás aquí' : 'Ir a la pantalla',
-          ruta: p.ruta,
-          actual
-        });
+        resultados.push({ tipo: 'Página', etiqueta: p.nombre, subtitulo: actual ? 'Ya estás aquí' : 'Ir a la pantalla', ruta: p.ruta, actual });
       });
 
-    // Máximo 8 resultados — una lista más larga que eso deja de ser
-    // "un vistazo rápido" y empieza a estorbar.
-    this.resultadosBusqueda = resultados.slice(0, 8);
+    // Máximo 10: más que eso deja de ser un vistazo rápido.
+    this.resultadosBusqueda = resultados.slice(0, 10);
     this.mostrandoResultadosBusqueda = true;
   }
 
-  public irAResultadoBusqueda(resultado: { ruta: string; queryParams?: any; actual?: boolean }): void {
+  /** Flechas, Enter y Esc dentro del buscador. */
+  public teclaBusqueda(evento: KeyboardEvent): void {
+    const n = this.resultadosBusqueda.length;
+    if (evento.key === 'ArrowDown' && n) { evento.preventDefault(); this.resultadoActivo = (this.resultadoActivo + 1) % n; }
+    else if (evento.key === 'ArrowUp' && n) { evento.preventDefault(); this.resultadoActivo = (this.resultadoActivo - 1 + n) % n; }
+    else if (evento.key === 'Enter' && n) { evento.preventDefault(); this.irAResultadoBusqueda(this.resultadosBusqueda[Math.min(this.resultadoActivo, n - 1)]); }
+    else if (evento.key === 'Escape') {
+      this.busquedaGlobal = '';
+      this.resultadosBusqueda = [];
+      this.mostrandoResultadosBusqueda = false;
+      this.inputBusquedaGlobal?.nativeElement.blur();
+    }
+  }
+
+  public irAResultadoBusqueda(resultado: ResultadoBusqueda): void {
+    if (resultado.hacer) resultado.hacer();
     // Ya estás en esa pantalla: solo se cierra el buscador.
-    if (!resultado.actual) {
+    else if (!resultado.actual) {
       this.router.navigate([resultado.ruta], resultado.queryParams ? { queryParams: resultado.queryParams } : {});
     }
     this.busquedaGlobal = '';
     this.resultadosBusqueda = [];
     this.mostrandoResultadosBusqueda = false;
+    this.inputBusquedaGlobal?.nativeElement.blur();
   }
 
   public cerrarResultadosBusqueda(): void {

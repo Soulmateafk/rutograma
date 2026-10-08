@@ -29,16 +29,20 @@
   <div class="nav-search">
     <input #inputBusquedaGlobal
            type="text"
-           placeholder="Buscar placa, conductor o ruta... (Ctrl+K)"
+           placeholder="Buscar viaje, placa, conductor, ruta o acción… (Ctrl+K)"
            [(ngModel)]="busquedaGlobal"
            (ngModelChange)="buscarGlobal()"
+           (keydown)="teclaBusqueda($event)"
            (blur)="cerrarResultadosBusqueda()"
            style="background: var(--color-fondo-input); border: 1px solid var(--color-borde); color: var(--color-texto-principal); padding: 6px 12px; border-radius: 6px; font-size: 12px;">
 
     <div *ngIf="mostrandoResultadosBusqueda && resultadosBusqueda.length"
-         style="position: absolute; top: calc(100% + 4px); left: 0; width: 280px; background: var(--color-fondo-tarjeta); border: 1px solid var(--color-borde); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); z-index: 9999; overflow: hidden;">
-      <div *ngFor="let r of resultadosBusqueda"
+         class="nb-resultados"
+         style="position: absolute; top: calc(100% + 4px); left: 0; width: 360px; max-width: calc(100vw - 24px); background: var(--color-fondo-tarjeta); border: 1px solid var(--color-borde); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); z-index: 9999; overflow: hidden;">
+      <div *ngFor="let r of resultadosBusqueda; let i = index"
            (mousedown)="irAResultadoBusqueda(r)"
+           (mouseenter)="resultadoActivo = i"
+           class="nb-resultado" [class.activo]="i === resultadoActivo"
            [style.cursor]="r.actual ? 'default' : 'pointer'"
            [style.opacity]="r.actual ? 0.7 : 1"
            style="padding: 8px 12px; border-bottom: 1px solid var(--color-borde-suave);">

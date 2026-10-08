@@ -210,6 +210,12 @@ export class RutogramaComponent implements OnInit, OnDestroy {
       if (params['enfocarBusqueda']) {
         setTimeout(() => this.inputBusquedaVehiculoRuto?.nativeElement.focus(), 0);
       }
+      // Búsqueda rápida (Ctrl+K) -> abrir ese viaje. Si los datos todavía
+      // no llegan, se abre apenas lleguen (ver abrirViajePedido).
+      if (params['verViaje']) {
+        this.viajePedido = String(params['verViaje']);
+        setTimeout(() => this.abrirViajePedido(), 0);
+      }
     });
 
     try {
@@ -237,6 +243,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     
     this.subDataChanged = this.ds.dataChanged.subscribe(() => {
       this.iniciarCarga();
+      this.abrirViajePedido();
       this.cdr.detectChanges();
     });
   }
@@ -2467,6 +2474,17 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     }
     this.historialViaje.cargando = false;
     this.cdr.detectChanges();
+  }
+
+  /** Viaje pedido desde la búsqueda rápida, esperando a que lleguen los datos. */
+  private viajePedido: string | null = null;
+
+  private abrirViajePedido(): void {
+    if (!this.viajePedido) return;
+    const vj = (this.ds.S?.viajes || []).find((v: any) => String(v.id) === this.viajePedido);
+    if (!vj) return;
+    this.viajePedido = null;
+    this.verDetalle(vj.id);
   }
 
   public verDetalle(id: number) { 
