@@ -110,7 +110,8 @@
 
       <div class="nb-field" data-guia="ve-fecha">
         <label>Fecha</label>
-        <input type="date" [(ngModel)]="nuevoViaje.fecha" [min]="fechaMinimaViajeExtra">
+        <input type="date" [(ngModel)]="nuevoViaje.fecha" (ngModelChange)="cambioFechaViajeExtra()" [class.nb-fecha-cerrada]="fechaViajeExtraCerrada">
+        <small *ngIf="fechaViajeExtraCerrada" class="nb-aviso-cerrado"><i class="bi bi-calendar-x"></i> No se permite añadir viajes en días ya cerrados.</small>
       </div>
 
       <div class="nb-field" data-guia="ve-cliente">

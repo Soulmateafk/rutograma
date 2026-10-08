@@ -38,6 +38,21 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     return this.authService.puede('editarDiasPasados') ? '' : fechaLocal();
   }
 
+  /** La fecha escogida ya pasó y la cuenta no puede cargar viajes en días cerrados. */
+  public get fechaViajeExtraCerrada(): boolean {
+    const f = String(this.nuevoViaje?.fecha || '');
+    return !!f && !!this.fechaMinimaViajeExtra && f < this.fechaMinimaViajeExtra;
+  }
+
+  private avisarDiaCerrado(): void {
+    this.ui.mostrarToast('<i class="bi bi-calendar-x"></i> No se permite añadir viajes en días ya cerrados: ese día ya pasó. Escoge hoy o un día siguiente.', 'err');
+  }
+
+  /** Aviso apenas se escoge un día que ya pasó (antes el calendario solo lo apagaba, sin decir por qué). */
+  public cambioFechaViajeExtra(): void {
+    if (this.fechaViajeExtraCerrada) this.avisarDiaCerrado();
+  }
+
   // ============================================================
   // SUGERENCIA DE VEHÍCULO (services/sugerencias.ts): con la ruta y la
   // fecha elegidas, los 3 mejores vehículos propios. Se recalcula solo
@@ -263,8 +278,8 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
       this.ui.mostrarToast('Completa vehículo, ruta y fecha.', 'err');
       return;
     }
-    if (this.fechaMinimaViajeExtra && this.nuevoViaje.fecha < this.fechaMinimaViajeExtra) {
-      this.ui.mostrarToast('No se pueden crear viajes en días que ya pasaron.', 'err');
+    if (this.fechaViajeExtraCerrada) {
+      this.avisarDiaCerrado();
       return;
     }
 
