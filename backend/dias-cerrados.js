@@ -97,7 +97,7 @@ function camposProtegidosCambiados(antes, despues) {
 function motivoBloqueoGuardar(previo, nuevo, hoy = fechaLocal()) {
     if (!previo) {
         return viajeCerrado(nuevo, hoy)
-            ? 'No se pueden crear viajes en días que ya pasaron.'
+            ? 'No se permite añadir viajes en días ya cerrados (ese día ya pasó). Escoge hoy o un día siguiente; para cargar un viaje de un día pasado hace falta el permiso "Cambiar o borrar viajes de días ya cerrados".'
             : '';
     }
     if (viajeCerrado(previo, hoy)) {

@@ -42,7 +42,7 @@ test('en un día cerrado no se cambia lo que define el viaje', () => {
 });
 
 test('no se crean viajes en el pasado ni se mueven al pasado', () => {
-    assert.match(motivoBloqueoGuardar(null, viaje(), HOY), /días que ya pasaron/);
+    assert.match(motivoBloqueoGuardar(null, viaje(), HOY), /no se permite añadir viajes en días ya cerrados/i);
     assert.strictEqual(motivoBloqueoGuardar(null, viaje({ fecha: HOY, salida: 5, retorno: 6 }), HOY), '');
     const abierto = viaje({ fecha: '2026-10-08', salida: 8, retorno: 9 });
     assert.match(motivoBloqueoGuardar(abierto, { ...abierto, fecha: '2026-10-02', salida: 2, retorno: 3 }, HOY), /ya pasó/);
