@@ -66,6 +66,7 @@ export class App implements OnInit {
     { prefijo: '/resumen', titulo: 'Bienvenido · Makand' },
     { prefijo: '/admin', titulo: 'Administrador · Makand' },
     { prefijo: '/despachos', titulo: 'Despachos · Makand' },
+    { prefijo: '/papelera', titulo: 'Papelera · Makand' },
   ];
 
   private actualizarTitulo(url: string): void {

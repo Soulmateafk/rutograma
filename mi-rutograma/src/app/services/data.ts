@@ -1367,7 +1367,7 @@ export class DataService {
 
     try {
       await firstValueFrom(this.http.post(url, body, this.headersAuditoria()));
-      await aplicarLocalYRegistrar('Viaje eliminado', 'ok');
+      await aplicarLocalYRegistrar('Viaje eliminado. Si fue un error, lo puedes recuperar en Más → Papelera durante 30 días.', 'ok');
       return true;
     } catch (e: any) {
       if (e?.status === 0) {
@@ -1407,7 +1407,7 @@ export class DataService {
             descripcion: `Eliminación del conductor ${nombreDesc}`
           });
         }
-        this.ui.mostrarToast('Conductor eliminado correctamente', 'ok');
+        this.ui.mostrarToast('Conductor eliminado. Si fue un error, lo puedes recuperar en Más → Papelera durante 30 días.', 'ok');
         await this.autoSave();
       }
     } catch (e: any) {
@@ -1445,7 +1445,7 @@ export class DataService {
             descripcion: `Eliminación de la ruta ${rutaEliminada.cod || 'sin código'}`
           });
         }
-        this.ui.mostrarToast('Ruta eliminada correctamente', 'ok');
+        this.ui.mostrarToast('Ruta eliminada. Si fue un error, la puedes recuperar en Más → Papelera durante 30 días.', 'ok');
         await this.autoSave();
       }
     } catch (e: any) {

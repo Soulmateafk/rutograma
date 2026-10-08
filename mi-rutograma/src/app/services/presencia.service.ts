@@ -11,7 +11,7 @@ const NOMBRES_PAGINA: Record<string, string> = {
   dashboard: 'Dashboard', rutograma: 'Rutograma', vehiculos: 'Vehículos', 'hoja-de-vida': 'Hoja de vida',
   rutas: 'Rutas', conductores: 'Conductores', agenda: 'Agenda de conductor', configuracion: 'Configuración',
   historico: 'Histórico', comparativo: 'Comparativo', cumplimiento: 'Cumplimiento', resumen: 'Resumen',
-  sesiones: 'Sesiones', aprobaciones: 'Aprobaciones', admin: 'Administración', reglas: 'Reglas', comparendos: 'Comparendos', quejas: 'Quejas', mapa: 'Mapa', despachos: 'Despachos'
+  sesiones: 'Sesiones', aprobaciones: 'Aprobaciones', admin: 'Administración', reglas: 'Reglas', comparendos: 'Comparendos', quejas: 'Quejas', mapa: 'Mapa', despachos: 'Despachos', papelera: 'Papelera'
 };
 
 export interface PersonaEnLinea { nombre: string; esYo: boolean; dispositivo: string; pagina: string; accion: string; editando: boolean; oculta: boolean; haceSeg: number; }

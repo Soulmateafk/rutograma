@@ -591,6 +591,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     { nombre: 'Quejas', ruta: '/quejas' },
     { nombre: 'Mapa', ruta: '/mapa' },
     { nombre: 'Despachos', ruta: '/despachos' },
+    { nombre: 'Papelera', ruta: '/papelera' },
     { nombre: 'Sesiones', ruta: '/sesiones' },
     { nombre: 'Aprobaciones', ruta: '/aprobaciones' },
     { nombre: 'Administrador', ruta: '/admin' }
@@ -618,6 +619,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     { nombre: 'Quejas', ruta: '/quejas' },
     { nombre: 'Mapa', ruta: '/mapa' },
     { nombre: 'Despachos', ruta: '/despachos' },
+    { nombre: 'Papelera', ruta: '/papelera' },
     { nombre: 'Sesiones', ruta: '/sesiones' },
     { nombre: 'Aprobaciones', ruta: '/aprobaciones' },
     { nombre: 'Administrador', ruta: '/admin' }
@@ -628,12 +630,13 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
   private paginaPermitida(ruta: string): boolean {
     if (ruta === '/admin') return this.authService.puedeVerAdministracion;
     if (ruta === '/aprobaciones') return this.authService.puedeAprobar || this.authService.necesitaAprobacion;
+    if (ruta === '/papelera') return this.authService.puede('eliminar');
     return true;
   }
 
   /** Pestañas de la derecha según el rol (misma lista mientras el rol no cambie). */
   public get paginasMenuMas(): Array<{ nombre: string; ruta: string }> {
-    const clave = `${this.authService.puedeVerAdministracion}-${this.authService.puedeAprobar}-${this.authService.necesitaAprobacion}`;
+    const clave = `${this.authService.puedeVerAdministracion}-${this.authService.puedeAprobar}-${this.authService.necesitaAprobacion}-${this.authService.puede('eliminar')}`;
     if (this.cachePaginas.clave !== clave) {
       this.cachePaginas = { clave, lista: this.todasPaginasMenuMas.filter(p => this.paginaPermitida(p.ruta)) };
       this.programarAjuste();

@@ -761,7 +761,38 @@ function mesesDespachosDB(modo) {
   return conectar(modo).prepare("SELECT substr(fecha, 1, 7) AS mes, COUNT(*) AS total FROM despachos GROUP BY mes ORDER BY mes DESC").all();
 }
 
+// ============================================================
+// PAPELERA (ver ../papelera.js): lo eliminado queda 30 días.
+// ============================================================
+const filaAPapelera = (f) => ({
+  id: f.id, tipo: f.tipo, clave: f.clave, etiqueta: f.etiqueta || '', datos: aJSON(f.datos_json, {}),
+  eliminadoPor: f.eliminado_por || '', eliminadoEn: f.eliminado_en, restauradoPor: f.restaurado_por || '', restauradoEn: f.restaurado_en || ''
+});
+
+function guardarEnPapeleraDB(modo, item, usuario) {
+  conectar(modo).prepare(`INSERT INTO papelera (tipo, clave, etiqueta, datos_json, eliminado_por, eliminado_en)
+    VALUES (?, ?, ?, ?, ?, ?)`).run(item.tipo, String(item.clave), item.etiqueta || '', JSON.stringify(item.datos || {}), usuario || null, new Date().toISOString());
+}
+
+/** Lo de los últimos "dias" días (lo más viejo se borra de verdad aquí mismo). */
+function listarPapeleraDB(modo, dias = 30) {
+  const db = conectar(modo);
+  const limite = new Date(Date.now() - dias * 86400000).toISOString();
+  db.prepare('DELETE FROM papelera WHERE eliminado_en < ?').run(limite);
+  return db.prepare('SELECT * FROM papelera ORDER BY eliminado_en DESC, id DESC').all().map(filaAPapelera);
+}
+
+function leerPapeleraDB(modo, id) {
+  const f = conectar(modo).prepare('SELECT * FROM papelera WHERE id = ?').get(id);
+  return f ? filaAPapelera(f) : null;
+}
+
+function marcarRestauradoDB(modo, id, usuario) {
+  conectar(modo).prepare('UPDATE papelera SET restaurado_por = ?, restaurado_en = ? WHERE id = ?').run(usuario || null, new Date().toISOString(), id);
+}
+
 module.exports = {
+  guardarEnPapeleraDB, listarPapeleraDB, leerPapeleraDB, marcarRestauradoDB,
   listarDespachosDB, leerDespachoDB, guardarDespachoDB, eliminarDespachoDB, mesesDespachosDB, despachoPorClienteDB,
   leerConfigCompartidaDB, guardarConfigCompartidaDB,
   listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB,
