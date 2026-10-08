@@ -153,6 +153,21 @@
         <div *ngIf="form.cargas.length" class="dp-total" data-guia="dp-total">
           Total: <strong>{{ totalCajas }}</strong> cajas<span *ngIf="totalEstibas"> · <strong>{{ totalEstibas }}</strong> estibas</span>
         </div>
+        <!-- Programadas en el viaje frente a lo cargado -->
+        <div *ngIf="cajasProgramadas && totalCajas" class="dp-comparar" [class.dp-comparar-mal]="totalCajas !== cajasProgramadas">
+          <i class="bi" [ngClass]="totalCajas === cajasProgramadas ? 'bi-check-circle' : 'bi-exclamation-triangle'"></i>
+          El viaje tenía programadas <strong>{{ cajasProgramadas }}</strong> cajas:
+          <ng-container *ngIf="totalCajas === cajasProgramadas">completo.</ng-container>
+          <ng-container *ngIf="totalCajas < cajasProgramadas">faltan <strong>{{ cajasProgramadas - totalCajas }}</strong>.</ng-container>
+          <ng-container *ngIf="totalCajas > cajasProgramadas">van <strong>{{ totalCajas - cajasProgramadas }}</strong> de más.</ng-container>
+        </div>
+        <!-- Carga de la última vez para este viaje -->
+        <div *ngIf="sugerida" class="dp-sugerida" data-guia="dp-sugerida">
+          <div><i class="bi bi-clock-history"></i> <strong>Carga de la última vez</strong>
+            <span class="dp-sub">({{ textoCriterio(sugerida) }}: {{ sugerida.dia | lowercase }} {{ fechaCorta(sugerida.fecha) }}, {{ sugerida.placa }})</span></div>
+          <div class="dp-sub">{{ textoCarga(sugerida) }} — total {{ sugerida.total.cajas }} cajas<span *ngIf="sugerida.total.estibas"> · {{ sugerida.total.estibas }} estibas</span></div>
+          <button type="button" class="dp-secundario dp-chico" (click)="usarSugerida()"><i class="bi bi-arrow-down-circle"></i> Usar esta carga</button>
+        </div>
       </div>
 
       <label>Observación <span class="dp-opcional">(opcional)</span>
@@ -283,6 +298,7 @@
               <div *ngIf="r.motivoDemora" class="dp-sub dp-motivo-tabla"><i class="bi bi-alarm"></i> {{ r.motivoDemora }}{{ r.motivoDemoraDetalle ? ': ' + r.motivoDemoraDetalle : '' }}</div></td>
             <td data-label="Cajas" [title]="textoCarga(r)">
               <strong>{{ r.totalCajas || '—' }}</strong><span *ngIf="r.totalEstibas" class="dp-sub"> + {{ r.totalEstibas }} est.</span>
+              <div *ngIf="r.cajasProgramadas && r.totalCajas && r.totalCajas !== r.cajasProgramadas" class="dp-sub dp-motivo-tabla">programadas {{ r.cajasProgramadas }} ({{ r.totalCajas > r.cajasProgramadas ? '+' : '' }}{{ r.totalCajas - r.cajasProgramadas }})</div>
               <div class="dp-sub dp-detalle-carga" *ngIf="r.cargas?.length">{{ textoCarga(r) }}</div>
             </td>
             <td class="dp-nowrap dp-td-acciones">

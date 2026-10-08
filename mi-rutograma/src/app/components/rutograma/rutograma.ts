@@ -241,17 +241,60 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     this.verificarEstadosExpirados();
 
     
+    this.cargarDespachos(true);
+    this.relojDespachos = setInterval(() => { if (document.visibilityState === 'visible') this.cargarDespachos(true); }, 60000);
     this.subDataChanged = this.ds.dataChanged.subscribe(() => {
       this.iniciarCarga();
       this.abrirViajePedido();
+      this.cargarDespachos();
       this.cdr.detectChanges();
     });
   }
 
   private subDataChanged?: Subscription;
 
+  // ============================================================
+  // DESPACHO DE CADA VIAJE — lo que se anotó en Despachos para ese viaje
+  // (cajas cargadas, horas, motivo de demora), en la tarjeta y en el
+  // detalle. Se pide el mes que se está viendo, al abrir y cada minuto.
+  // ============================================================
+  public despachosPorViaje = new Map<string, any>();
+  private mesDespachos = '';
+  private despachosPedidosEn = 0;
+  private relojDespachos: ReturnType<typeof setInterval> | null = null;
+
+  private async cargarDespachos(forzar = false): Promise<void> {
+    const S = this.ds?.S;
+    if (!S || S.anio === undefined || S.mes === undefined || typeof window === 'undefined') return;
+    const mes = `${S.anio}-${String(Number(S.mes) + 1).padStart(2, '0')}`;
+    if (!forzar && mes === this.mesDespachos && Date.now() - this.despachosPedidosEn < 30000) return;
+    this.despachosPedidosEn = Date.now();
+    const ultimo = new Date(Number(S.anio), Number(S.mes) + 1, 0).getDate();
+    try {
+      const base = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const res = await this.auth.fetchAutenticado(`${base}/despachos?desde=${mes}-01&hasta=${mes}-${String(ultimo).padStart(2, '0')}`);
+      const data = await res.json();
+      if (!data?.ok) return;
+      const mapa = new Map<string, any>();
+      // Si un viaje tiene varios despachos, queda el más reciente.
+      [...(data.registros || [])].reverse().forEach((r: any) => { if (r.viajeId) mapa.set(String(r.viajeId), r); });
+      this.despachosPorViaje = mapa;
+      this.mesDespachos = mes;
+      this.cdr.markForCheck();
+    } catch { /* sin conexión: se intenta en el próximo minuto */ }
+  }
+
+  public textoCargaDespacho(dsp: any): string {
+    return (dsp?.cargas || []).map((c: any) => `${c.tipo}: ${c.cantidad}`).join(' · ');
+  }
+
+  public despachoDe(vj: any): any {
+    return vj?.id !== undefined && vj?.id !== null ? this.despachosPorViaje.get(String(vj.id)) || null : null;
+  }
+
   ngOnDestroy() {
     this.subDataChanged?.unsubscribe();
+    if (this.relojDespachos) clearInterval(this.relojDespachos);
     if (this.relojAprobaciones) clearInterval(this.relojAprobaciones);
     this.presencia.limpiar();
   }

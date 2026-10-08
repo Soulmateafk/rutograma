@@ -125,6 +125,11 @@
 .dp-modal-campo { width: 100%; box-sizing: border-box; margin-bottom: 8px; background: var(--color-fondo-input, #0b1222); color: var(--color-texto-principal, #f8fafc); border: 1px solid var(--color-borde, #334155); border-radius: 8px; padding: 10px; font-family: inherit; font-size: 15px; }
 .dp-modal-campo.dp-error, .dp-motivo select.dp-error, .dp-motivo input.dp-error { border-color: #ef4444; }
 
+/* Cajas programadas vs cargadas y carga sugerida */
+.dp-comparar { font-size: 13px; color: #86efac; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.dp-comparar.dp-comparar-mal { color: #fcd34d; }
+.dp-sugerida { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; background: rgba(59, 130, 246, 0.08); border: 1px dashed rgba(59, 130, 246, 0.45); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+
 @media (max-width: 760px) {
   .dp-page { padding: 14px 16px 50px; }
   .dp-columnas { grid-template-columns: minmax(0, 1fr); }

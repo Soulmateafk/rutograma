@@ -415,6 +415,7 @@ export class DespachosComponent implements OnInit, OnDestroy {
   escogioViaje(): void {
     if (this.form.viajeId === 'otro' || !this.form.viajeId) {
       if (this.form.viajeId === 'otro') { this.form.destino = ''; this.form.ruta = ''; }
+      this.sugerida = null;
       return;
     }
     const v = this.viajes.find(x => String(x.id) === this.form.viajeId);
@@ -424,6 +425,45 @@ export class DespachosComponent implements OnInit, OnDestroy {
     // La hora programada del viaje (se puede cambiar).
     if (v.hora && v.hora !== '--:--') this.form.horaProgramada = v.hora;
     if (pegada(v.placa) !== pegada(this.form.placa)) this.form.placa = v.placa;
+    this.buscarCargaSugerida();
+  }
+
+  // ---------- Carga sugerida (la de la última vez para ese viaje) ----------
+
+  sugerida: any = null;
+
+  /** Busca la carga de la última vez para la ruta/destino del viaje escogido (ver backend cargaSugerida). */
+  async buscarCargaSugerida(): Promise<void> {
+    this.sugerida = null;
+    const ruta = this.form.ruta, destino = this.form.destino, fecha = this.form.fecha;
+    if (!ruta && !destino) return;
+    try {
+      const q = new URLSearchParams({ ruta, destino, fecha, ...(this.form.id ? { excluir: String(this.form.id) } : {}) });
+      const res = await this.auth.fetchAutenticado(`${API_URL}/despachos/carga-sugerida?${q}`);
+      const data = await res.json();
+      // Si mientras tanto se escogió otro viaje, esta respuesta ya no aplica.
+      if (data?.ok && this.form.ruta === ruta && this.form.destino === destino) this.sugerida = data.sugerida;
+    } catch { /* sin conexión: se escribe la carga a mano */ }
+    this.cdr.markForCheck();
+  }
+
+  /** Pone la carga sugerida en el formulario (se puede corregir antes de guardar). */
+  usarSugerida(): void {
+    if (!this.sugerida) return;
+    this.form.cargas = this.sugerida.cargas.map((c: any) => ({ tipo: c.tipo, cantidad: String(c.cantidad) }));
+    this.listaCargaAbierta = false;
+    this.ui.mostrarToast('Listo: revisa las cantidades y corrige lo que cambió.', 'ok');
+  }
+
+  textoCriterio(s: any): string {
+    return s.criterio === 'mismo día' ? `misma ruta, el ${String(s.dia).toLowerCase()} anterior`
+      : s.criterio === 'misma ruta' ? 'misma ruta' : 'mismo destino';
+  }
+
+  /** Cajas que tenía programadas el viaje escogido. */
+  get cajasProgramadas(): number | null {
+    const v = this.viajes.find(x => String(x.id) === this.form.viajeId);
+    return v?.cajas ? Number(v.cajas) : null;
   }
 
   /** Si cambia el vehículo y el viaje escogido era de otro, se suelta. */
@@ -486,9 +526,11 @@ export class DespachosComponent implements OnInit, OnDestroy {
         this.form.fecha = fecha;
       } else if (data?.ok) {
         const r = data.registro;
-        this.ui.mostrarToast(f.id ? `Corregido: ${r.placa}.`
+        this.ui.mostrarToast((f.id ? `Corregido: ${r.placa}.`
           : r.horaFinCargue ? `Anotado: ${r.placa} hacia ${r.destino}, cargó en ${this.textoMinutos(r.minutos)}.`
-            : `Anotado: ${r.placa} llegó a las ${r.horaLlegada}. Cuando termine de cargar, toca "Terminó de cargar".`, 'ok');
+            : `Anotado: ${r.placa} llegó a las ${r.horaLlegada}. Cuando termine de cargar, toca "Terminó de cargar".`)
+          + (data.viajeEnRuta ? ' El viaje quedó "En ruta" en el Rutograma.' : ''), 'ok');
+        this.sugerida = null;
         const fecha = f.fecha;
         this.intentoGuardar = false;
         this.listaCargaAbierta = false;
@@ -574,7 +616,7 @@ export class DespachosComponent implements OnInit, OnDestroy {
         const g = data.registro;
         this.ui.mostrarToast(paso.campo === 'horaInicioCargue' ? `${r.placa} empezó a cargar a las ${g.horaInicioCargue}.`
           : paso.campo === 'horaFinCargue' ? `${r.placa} terminó de cargar a las ${g.horaFinCargue} (${this.textoMinutos(g.minutos)}).`
-            : `${r.placa} salió a las ${g.horaSalida}.`, 'ok');
+            : `${r.placa} salió a las ${g.horaSalida}.${data.viajeEnRuta ? ' El viaje quedó "En ruta" en el Rutograma.' : ''}`, 'ok');
         await this.cargarRegistro(true);
       } else {
         this.ui.mostrarToast(data?.msg || 'No se pudo guardar.', 'err');
@@ -597,11 +639,13 @@ export class DespachosComponent implements OnInit, OnDestroy {
       horaFinCargue: r.horaFinCargue || '', observacion: r.observacion || ''
     };
     this.cargarOpciones();
+    this.buscarCargaSugerida();
     document.querySelector('.dp-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   cancelarCorreccion(): void {
     this.intentoGuardar = false;
+    this.sugerida = null;
     this.form = this.formVacio();
     this.cargarOpciones();
   }
