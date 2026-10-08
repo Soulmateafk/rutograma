@@ -251,6 +251,8 @@ function filasExcel(registros) {
                 'Tiempo de cargue': textoMinutos(min),
                 'Carga': (r.cargas || []).map(c => `${c.tipo}: ${c.cantidad}`).join('; '),
                 'Total cajas': t.cajas,
+                'Cajas programadas': r.cajasProgramadas || '',
+                'Diferencia de cajas': r.cajasProgramadas && t.cajas ? t.cajas - Number(r.cajasProgramadas) : '',
                 'Estibas': t.estibas
             };
             // Una columna por tipo (todas, para que se puedan sumar en Excel).
@@ -266,6 +268,52 @@ function filasExcel(registros) {
         });
 }
 
+// ============================================================
+// CARGA SUGERIDA — al escoger el viaje se propone la carga de la última
+// vez, para no escribirla de cero. Como los viajes de cada día cambian,
+// no se amarra al día de la semana: se busca por el VIAJE escogido.
+//  1. la misma ruta, el mismo día de la semana (la carga del lunes de esa ruta);
+//  2. si no hay, la misma ruta, cualquier día;
+//  3. si no hay, el mismo destino.
+// Es solo una propuesta: se aplica con un botón y se corrige.
+// ============================================================
+const sinTildes = (t) => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+
+function cargaSugerida(registros, pedido) {
+    const ruta = sinTildes(pedido?.ruta), destino = sinTildes(pedido?.destino);
+    const fecha = String(pedido?.fecha || '');
+    if (!ruta && !destino) return null;
+    const dia = FECHA.test(fecha) ? fechaLocal(fecha).getDay() : null;
+    const conCarga = (registros || [])
+        .filter(r => (r.cargas || []).length && r.id !== pedido?.excluirId && (!FECHA.test(fecha) || String(r.fecha) <= fecha))
+        .sort((a, b) => (String(b.fecha) + String(b.horaLlegada)).localeCompare(String(a.fecha) + String(a.horaLlegada)));
+    const criterios = [
+        ['mismo día', (r) => ruta && sinTildes(r.ruta) === ruta && dia !== null && FECHA.test(String(r.fecha)) && fechaLocal(r.fecha).getDay() === dia],
+        ['misma ruta', (r) => ruta && sinTildes(r.ruta) === ruta],
+        ['mismo destino', (r) => destino && sinTildes(r.destino) === destino]
+    ];
+    for (const [criterio, cumple] of criterios) {
+        const r = conCarga.find(cumple);
+        if (r) {
+            return {
+                criterio, fecha: r.fecha, dia: FECHA.test(String(r.fecha)) ? DIAS[fechaLocal(r.fecha).getDay()] : '',
+                placa: r.placa, ruta: r.ruta, destino: r.destino,
+                cargas: r.cargas.map(c => ({ tipo: c.tipo, cantidad: c.cantidad })), total: totalesCarga(r.cargas)
+            };
+        }
+    }
+    return null;
+}
+
+/** "2026-10-08" + "07:15" -> fecha y hora (ISO) para la salida real del viaje. */
+function salidaDelDespacho(fecha, hora) {
+    const h = normalizarHora(hora);
+    if (!FECHA.test(String(fecha)) || !h) return null;
+    const [a, m, d] = fecha.split('-').map(Number);
+    const [hh, mm] = h.split(':').map(Number);
+    return new Date(a, m - 1, d, hh, mm).toISOString();
+}
+
 /** Nombre del archivo: Despachos_dia_2026-10-07.xlsx, Despachos_semana_..., Despachos_mes_2026-10.xlsx */
 function nombreArchivo(periodo, rango) {
     if (periodo === 'mes') return `Despachos_mes_${rango.desde.slice(0, 7)}.xlsx`;
@@ -273,4 +321,4 @@ function nombreArchivo(periodo, rango) {
     return `Despachos_dia_${rango.desde}.xlsx`;
 }
 
-module.exports = { LIMITE_CARGUE_MIN, MOTIVOS_DEMORA, limiteValido, demorados, TIPOS_CARGA, totalesCarga, validarCargas, minutosDelRegistro, normalizarHora, minutosDeCargue, textoMinutos, rangoPeriodo, validarDespacho, resumenDespachos, filasExcel, nombreArchivo, fechaBonita };
+module.exports = { cargaSugerida, salidaDelDespacho, LIMITE_CARGUE_MIN, MOTIVOS_DEMORA, limiteValido, demorados, TIPOS_CARGA, totalesCarga, validarCargas, minutosDelRegistro, normalizarHora, minutosDeCargue, textoMinutos, rangoPeriodo, validarDespacho, resumenDespachos, filasExcel, nombreArchivo, fechaBonita };

@@ -112,3 +112,26 @@ test('demorados: siguen cargando y pasaron el límite', () => {
     ];
     assert.deepStrictEqual(demorados(regs, ahora, 90).map(r => [r.placa, r.minutos]), [['D', 660], ['A', 120]]);
 });
+
+test('carga sugerida: por el viaje escogido (misma ruta y día, luego ruta, luego destino)', () => {
+    const { cargaSugerida, salidaDelDespacho } = require('../despachos');
+    const c = (tipo, cantidad) => [{ tipo, cantidad }];
+    const regs = [
+        { id: 1, fecha: '2026-10-05', horaLlegada: '06:00', ruta: 'BOG-CAL-D1', destino: 'Cali', placa: 'A', cargas: c('Makand x25', 600) },   // lunes
+        { id: 2, fecha: '2026-10-07', horaLlegada: '06:00', ruta: 'BOG-CAL-D1', destino: 'Cali', placa: 'B', cargas: c('Ifco x13', 300) },     // miércoles
+        { id: 3, fecha: '2026-10-07', horaLlegada: '07:00', ruta: 'BOG-MED', destino: 'Medellín', placa: 'C', cargas: c('Mario', 50) },
+        { id: 4, fecha: '2026-10-08', horaLlegada: '07:00', ruta: 'BOG-CAL-D1', destino: 'Cali', placa: 'D', cargas: [] }                    // sin carga
+    ];
+    // Lunes 12: la del lunes 5 de esa ruta.
+    const lunes = cargaSugerida(regs, { ruta: 'bog-cal-d1', fecha: '2026-10-12' });
+    assert.deepStrictEqual([lunes.criterio, lunes.placa, lunes.dia, lunes.total.cajas], ['mismo día', 'A', 'Lunes', 600]);
+    // Viernes: no hay viernes de esa ruta -> la última de la ruta (miércoles).
+    assert.deepStrictEqual([cargaSugerida(regs, { ruta: 'BOG-CAL-D1', fecha: '2026-10-09' }).criterio, cargaSugerida(regs, { ruta: 'BOG-CAL-D1', fecha: '2026-10-09' }).placa], ['misma ruta', 'B']);
+    // Ruta nueva, mismo destino.
+    assert.strictEqual(cargaSugerida(regs, { ruta: 'BOG-MED-EX', destino: 'medellin', fecha: '2026-10-09' }).criterio, 'mismo destino');
+    assert.strictEqual(cargaSugerida(regs, { ruta: 'XXX', destino: 'Tunja', fecha: '2026-10-09' }), null);
+    // No usa despachos posteriores a la fecha.
+    assert.strictEqual(cargaSugerida(regs, { ruta: 'BOG-MED', fecha: '2026-10-06' }), null);
+    assert.strictEqual(salidaDelDespacho('2026-10-08', '7:15'), new Date(2026, 9, 8, 7, 15).toISOString());
+    assert.strictEqual(salidaDelDespacho('2026-10-08', ''), null);
+});

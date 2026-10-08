@@ -23,7 +23,7 @@ const { ROLES_VALIDOS, rolDeCuenta, requiereAprobacion, describirCambio, solicit
 // Solo vive en memoria: nadie de afuera puede conocerla.
 const TOKEN_REPLAY_APROBACION = crypto.randomBytes(32).toString('hex');
 const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB, crearRespaldoDB, listarRespaldosDB, limpiarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, listarAuditoriaViajeDB, importarAuditoriaJSONLSiHaceFalta, listarDespachosDB, leerDespachoDB, guardarDespachoDB, eliminarDespachoDB, mesesDespachosDB, despachoPorClienteDB } = require('./migracion/db.js');
-const { MOTIVOS_DEMORA, limiteValido, demorados, TIPOS_CARGA, totalesCarga, minutosDelRegistro, textoMinutos, rangoPeriodo, validarDespacho, resumenDespachos, filasExcel, nombreArchivo, fechaBonita } = require('./despachos');
+const { cargaSugerida, salidaDelDespacho, MOTIVOS_DEMORA, limiteValido, demorados, TIPOS_CARGA, totalesCarga, minutosDelRegistro, textoMinutos, rangoPeriodo, validarDespacho, resumenDespachos, filasExcel, nombreArchivo, fechaBonita } = require('./despachos');
 const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
 const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar, motivoFechaAnterior, motivoExtraEnElPasado, viajeEnRuta, textoEnRuta } = require('./dias-cerrados');
@@ -578,7 +578,7 @@ app.use(identificarUsuario);
 // no se les entrega aunque la pidan directo.
 const RUTAS_PARA_CONDUCTOR = ['/api/mis-viajes', '/api/mis-viajes/validar', '/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/modo', '/api/sesiones', '/api/sesiones/cerrar',
     '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual', '/api/guias', '/api/guias/vista', '/api/guias/reiniciar'];
-const RUTAS_PARA_DESPACHOS = ['/api/despachos', '/api/despachos/opciones', '/api/despachos/demorados', '/api/despachos/eliminar', '/api/despachos/excel', '/api/presencia', '/api/modo',
+const RUTAS_PARA_DESPACHOS = ['/api/despachos', '/api/despachos/opciones', '/api/despachos/demorados', '/api/despachos/carga-sugerida', '/api/despachos/eliminar', '/api/despachos/excel', '/api/presencia', '/api/modo',
     '/api/sesiones', '/api/sesiones/cerrar', '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual', '/api/guias', '/api/guias/vista', '/api/guias/reiniciar'];
 app.use((req, res, next) => {
     if (!req.path.startsWith('/api/') || req.path.startsWith('/api/auth/')) return next();
@@ -3323,6 +3323,12 @@ function accesoDespachos(req) {
 
 const FECHA_DESPACHO = /^\d{4}-\d{2}-\d{2}$/;
 
+/** Cajas que tenía programadas el viaje (para comparar con las cargadas). */
+const cajasProgramadasDe = () => {
+    const porId = new Map((leerExcel().viajes || []).map(v => [String(v.id), Number(v.cajas) || 0]));
+    return (viajeId) => porId.get(String(viajeId)) || null;
+};
+
 /** Minutos de cargue antes de pedir motivo de demora (los pone la oficina). */
 const limiteCargue = () => limiteValido(leerConfigCompartidaDB(modoActual).limiteCargueMin);
 
@@ -3358,7 +3364,7 @@ app.get('/api/despachos/opciones', (req, res) => {
                 return {
                     id: v.id, fecha: v.fecha, placa, ruta: v.ruta || v.codigo || '',
                     destino: (v.destino && v.destino !== 'No definido' ? v.destino : '') || ruta.dest || ruta.destino || '',
-                    cliente: v.cliente || '', hora: horaDelViaje(v, rutas),
+                    cliente: v.cliente || '', hora: horaDelViaje(v, rutas), cajas: Number(v.cajas) || null,
                     conductor: COND_GENERICOS.includes(sinTildes(cond)) ? (titulares.get(placaLimpia(placa)) || '') : cond
                 };
             })
@@ -3383,8 +3389,10 @@ app.get('/api/despachos', (req, res) => {
         if (!acceso.ver) return res.status(403).json({ ok: false, msg: 'Sin acceso a Despachos.' });
         const rango = rangoPedido(req.query);
         const nombreDe = nombresDeCuentas();
+        const cajasViaje = cajasProgramadasDe();
         const registros = listarDespachosDB(modoActual, rango.desde, rango.hasta).map(r => ({
             ...r, creadoPorNombre: nombreDe(r.creadoPor), editadoPorNombre: nombreDe(r.editadoPor),
+            cajasProgramadas: r.viajeId ? cajasViaje(r.viajeId) : null,
             minutos: minutosDelRegistro(r), totalCajas: totalesCarga(r.cargas).cajas, totalEstibas: totalesCarga(r.cargas).estibas,
             puedeCorregir: acceso.corregir(r.fecha), puedeEliminar: acceso.eliminar(r.fecha)
         }));
@@ -3437,6 +3445,17 @@ app.post('/api/despachos', (req, res) => {
             registro.conductor = titular(registro.placa);
         }
         const guardado = guardarDespachoDB(modoActual, registro, acceso.email);
+        // "Salió" en Despachos = el viaje arrancó: pasa a "En ruta" con la
+        // hora real de salida (si el conductor no había marcado "Ya salí").
+        let viajeEnRutaAhora = false;
+        if (v && guardado.horaSalida && guardado.horaSalida !== previo?.horaSalida && !['Cancelado', 'Entregado'].includes(v.estado)) {
+            if (!v.salidaReal) v.salidaReal = salidaDelDespacho(guardado.fecha, guardado.horaSalida);
+            if (['', 'Planificado', 'Programado', undefined, null].includes(v.estado)) v.estado = 'En ruta';
+            v.editadoPor = acceso.email;
+            v.editadoEn = new Date().toISOString();
+            guardarEnExcel(data);
+            viajeEnRutaAhora = true;
+        }
         const min = minutosDelRegistro(guardado);
         const carga = totalesCarga(guardado.cargas);
         res.locals.auditoriaResumen = {
@@ -3449,7 +3468,7 @@ app.post('/api/despachos', (req, res) => {
                 + (guardado.motivoDemora ? `. Demora: ${guardado.motivoDemora}${guardado.motivoDemoraDetalle ? ' (' + guardado.motivoDemoraDetalle + ')' : ''}` : '')
                 + (guardado.horaFinCargue ? `, terminó de cargar ${guardado.horaFinCargue} (${textoMinutos(min)})` : ', cargando')
         };
-        res.status(previo ? 200 : 201).json({ ok: true, registro: { ...guardado, minutos: min } });
+        res.status(previo ? 200 : 201).json({ ok: true, viajeEnRuta: viajeEnRutaAhora, registro: { ...guardado, minutos: min, cajasProgramadas: v ? Number(v.cajas) || null : null } });
     } catch (error) {
         console.error('🚨 Error en /api/despachos:', error);
         res.status(500).json({ ok: false, msg: error.message });
@@ -3473,6 +3492,25 @@ app.post('/api/despachos/eliminar', (req, res) => {
         res.json({ ok: true });
     } catch (error) {
         console.error('🚨 Error en /api/despachos/eliminar:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// Carga de la última vez para el viaje escogido (ver cargaSugerida en despachos.js).
+app.get('/api/despachos/carga-sugerida', (req, res) => {
+    try {
+        if (!accesoDespachos(req).ver) return res.status(403).json({ ok: false, msg: 'Sin acceso a Despachos.' });
+        const fecha = FECHA_DESPACHO.test(String(req.query.fecha || '')) ? String(req.query.fecha) : hoyLocalTexto();
+        const [a, m, d] = fecha.split('-').map(Number);
+        const x = new Date(a, m - 1, d - 120);
+        const desde = `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+        const sugerida = cargaSugerida(listarDespachosDB(modoActual, desde, fecha), {
+            ruta: String(req.query.ruta || ''), destino: String(req.query.destino || ''), fecha, excluirId: Number(req.query.excluir) || null
+        });
+        res.setHeader('Cache-Control', 'no-store');
+        res.json({ ok: true, sugerida });
+    } catch (error) {
+        console.error('🚨 Error en /api/despachos/carga-sugerida:', error);
         res.status(500).json({ ok: false, msg: error.message });
     }
 });
@@ -3516,8 +3554,9 @@ app.get('/api/despachos/excel', (req, res) => {
         const periodo = ['dia', 'semana', 'mes'].includes(req.query.periodo) ? req.query.periodo : 'dia';
         const rango = rangoPeriodo(periodo, FECHA_DESPACHO.test(String(req.query.fecha || '')) ? String(req.query.fecha) : hoyLocalTexto());
         const nombreDe = nombresDeCuentas();
+        const cajasViaje = cajasProgramadasDe();
         const registros = listarDespachosDB(modoActual, rango.desde, rango.hasta)
-            .map(r => ({ ...r, creadoPor: nombreDe(r.creadoPor), editadoPor: nombreDe(r.editadoPor) }));
+            .map(r => ({ ...r, creadoPor: nombreDe(r.creadoPor), editadoPor: nombreDe(r.editadoPor), cajasProgramadas: r.viajeId ? cajasViaje(r.viajeId) : null }));
         const filas = filasExcel(registros);
         const wb = XLSX.utils.book_new();
         const ws = filas.length ? XLSX.utils.json_to_sheet(filas) : XLSX.utils.aoa_to_sheet([[`Sin despachos anotados del ${fechaBonita(rango.desde)} al ${fechaBonita(rango.hasta)}`]]);

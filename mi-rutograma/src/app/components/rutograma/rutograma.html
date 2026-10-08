@@ -221,6 +221,7 @@
                   <div class="ruto-card-driver">{{ vj.cond || conductoresMap[v.p] || 'Sin Conductor' }}</div>
                   <div class="ruto-card-meta">{{ vj.estado || 'PROG' }} · {{ vj.hora || vj.horaEntrega || '--:--' }}</div>
                   <div class="ruto-card-cajas">{{ vj.cajas || 660 }} cj</div>
+                  <div *ngIf="despachoDe(vj) as dsp" class="ruto-card-despacho" [class.falta]="dsp.totalCajas && vj.cajas && dsp.totalCajas < vj.cajas" [title]="'Despacho: ' + (dsp.totalCajas || 0) + ' cajas cargadas' + (dsp.motivoDemora ? ' · demora: ' + dsp.motivoDemora : '')"><i class="bi bi-box-seam"></i> {{ dsp.totalCajas ? dsp.totalCajas + ' cargadas' : 'en cargue' }} · {{ dsp.horaSalida ? 'salió ' + dsp.horaSalida : (dsp.horaFinCargue ? 'cargado ' + dsp.horaFinCargue : 'llegó ' + dsp.horaLlegada) }}<i *ngIf="dsp.motivoDemora" class="bi bi-alarm"></i></div>
                   <div *ngIf="vj.viajeVaradoDe" style="font-size: 9px; color: #fbbf24; margin-top: 2px;"><i class="bi bi-cone-striped"></i> Cumple viaje de {{ vj.viajeVaradoDe }}</div>
                   <div *ngIf="vj.placaOriginal" style="font-size: 9px; color: #fbbf24; margin-top: 2px;"><i class="bi bi-tools"></i> Mantenimiento del vehículo {{ vj.placaOriginal }} — viaje reasignado aquí</div>
                   <div *ngIf="conductorEnDescanso(v.p, vj.dia)"
@@ -359,6 +360,7 @@
                     <div class="ruto-card-driver">{{ vj.cond || conductoresMap[v.p] || 'Sin Conductor' }}</div>
                     <div class="ruto-card-meta">{{ vj.estado || 'PROG' }} · {{ vj.hora || vj.horaEntrega || '--:--' }}</div>
                     <div class="ruto-card-cajas">{{ vj.cajas || 660 }} cj</div>
+                      <div *ngIf="despachoDe(vj) as dsp" class="ruto-card-despacho" [class.falta]="dsp.totalCajas && vj.cajas && dsp.totalCajas < vj.cajas" [title]="'Despacho: ' + (dsp.totalCajas || 0) + ' cajas cargadas' + (dsp.motivoDemora ? ' · demora: ' + dsp.motivoDemora : '')"><i class="bi bi-box-seam"></i> {{ dsp.totalCajas ? dsp.totalCajas + ' cargadas' : 'en cargue' }} · {{ dsp.horaSalida ? 'salió ' + dsp.horaSalida : (dsp.horaFinCargue ? 'cargado ' + dsp.horaFinCargue : 'llegó ' + dsp.horaLlegada) }}<i *ngIf="dsp.motivoDemora" class="bi bi-alarm"></i></div>
                       <div *ngIf="vj.viajeVaradoDe" style="font-size: 9px; color: #fbbf24; margin-top: 2px;"><i class="bi bi-cone-striped"></i> Cumple viaje de {{ vj.viajeVaradoDe }}</div>
                       <div *ngIf="vj.placaOriginal" style="font-size: 9px; color: #fbbf24; margin-top: 2px;"><i class="bi bi-tools"></i> Mantenimiento del vehículo {{ vj.placaOriginal }} — viaje reasignado aquí</div>
                     <div *ngIf="conductorEnDescanso(v.p, vj.dia)"
@@ -708,8 +710,22 @@
         </select>
       </div>
 
+      <div *ngIf="despachoDe(selectedViaje) as dsp" class="ruto-despacho-detalle">
+        <span class="ruto-grid-label"><i class="bi bi-box-seam"></i> Despacho:</span>
+        <div class="ruto-grid-value">
+          <div>Llegó {{ dsp.horaLlegada }}<span *ngIf="dsp.horaInicioCargue"> · inició {{ dsp.horaInicioCargue }}</span><span *ngIf="dsp.horaFinCargue"> · terminó {{ dsp.horaFinCargue }}</span><span *ngIf="dsp.horaSalida"> · salió {{ dsp.horaSalida }}</span><span *ngIf="!dsp.horaFinCargue"> · cargando</span></div>
+          <div *ngIf="dsp.totalCajas">
+            <strong>{{ dsp.totalCajas }} cajas cargadas</strong><span *ngIf="dsp.totalEstibas"> + {{ dsp.totalEstibas }} estibas</span>
+            <span *ngIf="selectedViaje.cajas && dsp.totalCajas !== +selectedViaje.cajas" class="ruto-despacho-dif"> (programadas {{ selectedViaje.cajas }}: {{ dsp.totalCajas < +selectedViaje.cajas ? 'faltan ' + (+selectedViaje.cajas - dsp.totalCajas) : (dsp.totalCajas - +selectedViaje.cajas) + ' de más' }})</span>
+          </div>
+          <div *ngIf="dsp.cargas?.length" class="ruto-despacho-sub">{{ textoCargaDespacho(dsp) }}</div>
+          <div *ngIf="dsp.motivoDemora" class="ruto-despacho-dif"><i class="bi bi-alarm"></i> Demora: {{ dsp.motivoDemora }}{{ dsp.motivoDemoraDetalle ? ' (' + dsp.motivoDemoraDetalle + ')' : '' }}</div>
+          <div class="ruto-despacho-sub">Despachó {{ dsp.despachador || '—' }}<span *ngIf="dsp.observacion"> · "{{ dsp.observacion }}"</span></div>
+        </div>
+      </div>
+
       <div *ngIf="selectedViaje.salidaReal || selectedViaje.llegadaReal">
-        <span class="ruto-grid-label">Marcado por el conductor:</span>
+        <span class="ruto-grid-label">Salida y llegada reales:</span>
         <span class="ruto-grid-value">
           <span *ngIf="selectedViaje.salidaReal"><i class="bi bi-play-fill"></i> Salió {{ selectedViaje.salidaReal | date:'d MMM, h:mm a' }}</span>
           <span *ngIf="selectedViaje.llegadaReal"> · <i class="bi bi-flag-fill"></i> Llegó {{ selectedViaje.llegadaReal | date:'d MMM, h:mm a' }}</span>
