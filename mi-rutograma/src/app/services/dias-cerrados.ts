@@ -64,3 +64,17 @@ export function motivoFechaAnterior(previo: any, nuevo: any, hoy: string = fecha
   }
   return '';
 }
+
+/** ¿El vehículo va en ruta con este viaje? (copia de backend/dias-cerrados.js) */
+export function viajeEnRuta(viaje: any, hoy: string = fechaLocal()): boolean {
+  if (!viaje || ['Cancelado', 'Entregado', 'Mantenimiento'].includes(viaje.estado) || viaje.llegadaReal) return false;
+  const fecha = String(viaje.fecha || '').slice(0, 10);
+  const salio = (fecha && fecha < hoy) || !!viaje.salidaReal;
+  const fin = ultimoDiaDeViaje(viaje);
+  return !!salio && !!fin && fin >= hoy;
+}
+
+export function textoEnRuta(viaje: any): string {
+  const placa = String(viaje.p || viaje.placa || '').toUpperCase();
+  return `${placa} va en ruta (${viaje.ruta || viaje.codigo || 'viaje'}, salió el ${fechaBonita(String(viaje.fecha).slice(0, 10))} y regresa el ${fechaBonita(ultimoDiaDeViaje(viaje))})`;
+}

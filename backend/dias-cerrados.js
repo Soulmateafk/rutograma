@@ -148,10 +148,42 @@ function motivoFechaAnterior(previo, nuevo, hoy = fechaLocal()) {
     return '';
 }
 
+/**
+ * ¿El vehículo va en ruta con este viaje? Ya salió (su fecha es anterior a
+ * hoy, o el conductor marcó "Ya salí") y todavía no termina: no se
+ * entregó, no se canceló y su último día es hoy o después.
+ */
+function viajeEnRuta(viaje, hoy = fechaLocal()) {
+    if (!viaje || ['Cancelado', 'Entregado', 'Mantenimiento'].includes(viaje.estado) || viaje.llegadaReal) return false;
+    const fecha = String(viaje.fecha || '').slice(0, 10);
+    const salio = (fecha && fecha < hoy) || !!viaje.salidaReal;
+    const fin = ultimoDiaDeViaje(viaje);
+    return !!salio && !!fin && fin >= hoy;
+}
+
+/**
+ * Un Viaje Extra nuevo: nunca en un día que ya pasó (para ninguna cuenta:
+ * no sería un dato real; los viajes reales de días pasados se cargan con
+ * "Importar viajes reales").
+ */
+function motivoExtraEnElPasado(previo, nuevo, hoy = fechaLocal()) {
+    if (previo || !nuevo || nuevo.tipo !== 'extra') return '';
+    const fecha = String(nuevo.fecha || '').slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(fecha) && fecha < hoy
+        ? `No se permite añadir viajes en días ya cerrados: el ${fechaBonita(fecha)} ya pasó (hoy es ${fechaBonita(hoy)}). Escoge hoy o un día siguiente.`
+        : '';
+}
+
+/** Texto para un viaje que va en ruta: "PRZ 065 va en ruta (BOG-CAL, salió el 07/10/2026 y regresa el 09/10/2026)". */
+function textoEnRuta(viaje) {
+    const placa = String(viaje.p || viaje.placa || '').toUpperCase();
+    return `${placa} va en ruta (${viaje.ruta || viaje.codigo || 'viaje'}, salió el ${fechaBonita(String(viaje.fecha).slice(0, 10))} y regresa el ${fechaBonita(ultimoDiaDeViaje(viaje))})`;
+}
+
 function motivoBloqueoEliminar(previo, hoy = fechaLocal()) {
     return previo && viajeCerrado(previo, hoy)
         ? 'Este viaje es de un día cerrado: no se puede eliminar. Si no se hizo, márcalo como Cancelado.'
         : '';
 }
 
-module.exports = { ultimoDiaDeViaje, motivoFechaAnterior, fechaLocal, finDeViaje, viajeCerrado, camposProtegidosCambiados, motivoBloqueoGuardar, motivoBloqueoEliminar };
+module.exports = { viajeEnRuta, motivoExtraEnElPasado, textoEnRuta, ultimoDiaDeViaje, motivoFechaAnterior, fechaLocal, finDeViaje, viajeCerrado, camposProtegidosCambiados, motivoBloqueoGuardar, motivoBloqueoEliminar };

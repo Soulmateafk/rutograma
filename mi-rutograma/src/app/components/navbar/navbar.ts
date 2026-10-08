@@ -11,7 +11,8 @@ import { AccountService } from '../../services/account.service';
 // @ts-ignore
 import { mantenimientoQueChoca, rangosMantenimiento } from '../../services/mantenimiento';
 import { obtenerDiasViaje, obtenerViajesEnConflicto, reprogramarViajeConflictivo, siguienteNumeroCupo, buscarCupoLibre, reprogramarViajesDesde } from '../rutograma/rutograma.utils.js';
-import { fechaLocal } from '../../services/dias-cerrados';
+import { fechaLocal, viajeEnRuta, textoEnRuta } from '../../services/dias-cerrados';
+import { choquesDeAgenda } from '../../services/revision-viajes';
 import { Sugerencia, sugerirVehiculos } from '../../services/sugerencias';
 
 import { EnLineaComponent } from '../en-linea/en-linea';
@@ -34,8 +35,9 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
   // y Tercero — las Urbano (entregas locales) no deben poder elegirse
   // aquí.
   /** Sin permiso para días cerrados, el viaje extra no puede ser de un día que ya pasó. */
+  /** Un Viaje Extra nunca va en un día que ya pasó, para ninguna cuenta (no sería un dato real). */
   public get fechaMinimaViajeExtra(): string {
-    return this.authService.puede('editarDiasPasados') ? '' : fechaLocal();
+    return fechaLocal();
   }
 
   /** La fecha escogida ya pasó y la cuenta no puede cargar viajes en días cerrados. */
@@ -335,6 +337,18 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
       this.ui.mostrarToast(`${this.nuevoViaje.placa} está en mantenimiento sin fechas registradas — ponle las fechas en Vehículos antes de asignarle viajes.`, 'err');
       return;
     }
+    // El vehículo va en ruta esos días (su viaje ya arrancó): no se le pone
+    // otro encima ni se le corre ese viaje. Antes se aceptaba y se
+    // intentaba mover el viaje que ya iba en camino.
+    const enRuta = choquesDeAgenda(
+      { p: this.nuevoViaje.placa, placa: this.nuevoViaje.placa, fecha: this.nuevoViaje.fecha, salida: diaIni, dia: diaIni, retorno: diaFin, estado: 'Programado' },
+      S?.viajes || [], S?.conductores || []
+    ).filter(c => c.por === 'vehículo' && viajeEnRuta(c.viaje));
+    if (enRuta.length) {
+      this.ui.mostrarToast(`<i class="bi bi-truck"></i> No se puede asignar: ${textoEnRuta(enRuta[0].viaje)}. Escoge otro vehículo o un día después de su regreso.`, 'err');
+      return;
+    }
+
     const choqueMant = mantenimientoQueChoca(rangosMantenimiento(vehiculo), this.nuevoViaje.fecha, diaFin - diaIni);
     if (choqueMant) {
       this.ui.mostrarToast(`${this.nuevoViaje.placa} está en mantenimiento del ${choqueMant.inicio} al ${choqueMant.fin}, y este viaje lo ocuparía esos días. Solo puede salir desde el ${choqueMant.fin}.`, 'err');

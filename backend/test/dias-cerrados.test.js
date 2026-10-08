@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { finDeViaje, viajeCerrado, motivoBloqueoGuardar, motivoBloqueoEliminar, motivoFechaAnterior, ultimoDiaDeViaje } = require('../dias-cerrados');
+const { finDeViaje, viajeCerrado, motivoBloqueoGuardar, motivoBloqueoEliminar, motivoFechaAnterior, ultimoDiaDeViaje, viajeEnRuta, motivoExtraEnElPasado, textoEnRuta } = require('../dias-cerrados');
 
 const HOY = '2026-10-05';
 const viaje = (extra) => ({ id: 'v1', fecha: '2026-10-01', salida: 1, retorno: 3, p: 'ABC123', ruta: 'BOG-CAL', cond: 'Pedro Pérez', estado: 'En ruta', ...extra });
@@ -74,4 +74,22 @@ test('editar: un viaje que no ha pasado no se manda a antes de hoy', () => {
     assert.strictEqual(motivoFechaAnterior(viejo, { ...viejo, fecha: '2026-10-01', salida: 1, retorno: 3 }, hoy), '');
     // Viaje nuevo: lo revisa la regla de días cerrados, no esta.
     assert.strictEqual(motivoFechaAnterior(null, v, hoy), '');
+});
+
+test('Viaje Extra: nunca en un día pasado; vehículo en ruta', () => {
+    const hoy = '2026-10-08';
+    assert.match(motivoExtraEnElPasado(null, { tipo: 'extra', fecha: '2026-10-07' }, hoy), /días ya cerrados: el 07\/10\/2026 ya pasó/);
+    assert.strictEqual(motivoExtraEnElPasado(null, { tipo: 'extra', fecha: '2026-10-08' }, hoy), '');
+    assert.strictEqual(motivoExtraEnElPasado({ id: 1 }, { tipo: 'extra', fecha: '2026-10-07' }, hoy), '');
+    // Salió el 7 y su último día es el 9 (retorno guardado 10): va en ruta.
+    const v = { p: 'PRZ 065', ruta: 'BOG-CAL', fecha: '2026-10-07', salida: 7, retorno: 10, estado: 'En ruta' };
+    assert.strictEqual(viajeEnRuta(v, hoy), true);
+    assert.strictEqual(textoEnRuta(v), 'PRZ 065 va en ruta (BOG-CAL, salió el 07/10/2026 y regresa el 09/10/2026)');
+    assert.strictEqual(viajeEnRuta({ ...v, estado: 'Entregado' }, hoy), false);
+    assert.strictEqual(viajeEnRuta({ ...v, llegadaReal: '2026-10-08T09:00' }, hoy), false);
+    // Ya regresó (último día el 7): no.
+    assert.strictEqual(viajeEnRuta({ ...v, retorno: 8 }, hoy), false);
+    // Sale hoy sin marcar "Ya salí": todavía no va en ruta; si lo marcó, sí.
+    assert.strictEqual(viajeEnRuta({ ...v, fecha: '2026-10-08', salida: 8 }, hoy), false);
+    assert.strictEqual(viajeEnRuta({ ...v, fecha: '2026-10-08', salida: 8, salidaReal: '2026-10-08T06:00' }, hoy), true);
 });
