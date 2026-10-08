@@ -26,7 +26,7 @@ const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, 
 const { TIPOS_CARGA, totalesCarga, minutosDelRegistro, textoMinutos, rangoPeriodo, validarDespacho, resumenDespachos, filasExcel, nombreArchivo, fechaBonita } = require('./despachos');
 const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
-const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar, motivoFechaAnterior } = require('./dias-cerrados');
+const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar, motivoFechaAnterior, motivoExtraEnElPasado, viajeEnRuta, textoEnRuta } = require('./dias-cerrados');
 const { documentosVencidos, choquesDeAgenda, cambioLoQueSeRevisa, esPlacaCupo } = require('./revision-viajes');
 const { reglasIncumplidas } = require('./reglas-asignacion');
 const { crearPresencia, primerNombre } = require('./presencia');
@@ -1143,7 +1143,7 @@ app.use((req, res, next) => {
         const data = leerExcel();
         const previo = viaje.id !== undefined && viaje.id !== null ? (data.viajes || []).find(v => v.id === viaje.id) : null;
         // Un viaje que todavía no pasa no se manda a antes de hoy (salida o retorno).
-        const anterior = motivoFechaAnterior(previo, viaje, fechaLocal());
+        const anterior = motivoFechaAnterior(previo, viaje, fechaLocal()) || motivoExtraEnElPasado(previo, viaje, fechaLocal());
         if (anterior) {
             res.locals.auditoriaOmitir = true;
             return res.status(400).json({ ok: false, codigo: 'dia_anterior', msg: anterior });
@@ -1161,6 +1161,16 @@ app.use((req, res, next) => {
         // placa): se avisan juntos y se puede guardar igual.
         const config = leerConfigCompartidaDB(modoActual);
         const choques = choquesDeAgenda(viaje, data.viajes, data.conductores);
+        // Un viaje nuevo no se le pone a un vehículo que va en ruta esos días
+        // (ese viaje ya arrancó: no se puede correr ni pasarle otro encima).
+        const enRuta = previo ? [] : choques.filter(c => c.por === 'vehículo' && viajeEnRuta(c.viaje, fechaLocal()));
+        if (enRuta.length) {
+            res.locals.auditoriaOmitir = true;
+            return res.status(400).json({
+                ok: false, codigo: 'vehiculo_en_ruta',
+                msg: `No se puede asignar este viaje: ${textoEnRuta(enRuta[0].viaje)}. Escoge otro vehículo o un día después de su regreso.`
+            });
+        }
         const avisos = [
             ...choques.map(c => c.texto),
             ...reglasIncumplidas(viaje, { ...data, reglasAsignacion: config.reglasAsignacion || [], picoPlaca: config.picoPlaca || [] })
