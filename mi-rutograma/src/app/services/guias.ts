@@ -31,7 +31,7 @@ export const GUIAS: Record<string, Guia> = {
     titulo: 'La barra de navegación',
     pasos: [
       { el: '.tabs', titulo: 'Pestañas', texto: 'Cada pestaña es una pantalla de la app. Si alguna no cabe, queda dentro de "Más".' },
-      { el: '.nav-search', titulo: 'Buscador', texto: 'Escribe una placa, un conductor, una ruta o el nombre de una pantalla y salta directo. Atajo: tecla "/".' },
+      { el: '.nav-search', titulo: 'Buscador (Ctrl + K)', texto: 'Escribe un viaje ("PRZ 065 12", "cali d1"), una placa, un conductor, una ruta, una pantalla o una acción ("viaje extra", "novedad", "diario") y salta directo. Con las flechas te mueves y con Enter abres.' },
       { el: 'nav-en-linea', titulo: 'En línea', texto: 'Quién más está usando la app ahora mismo, en qué página y qué está haciendo. También salen tus otras ventanas o equipos abiertos con tu cuenta, como "Tú". No queda en ningún historial.' },
       { el: 'nav-deshacer', titulo: 'Deshacer y Rehacer', texto: 'Revierte tus últimos cambios (hasta 30). Pasa el mouse por encima para ver qué cambio se va a deshacer.' },
       { el: 'button[title="Descargar Diario"]', titulo: 'Descargar Diario', texto: 'Descarga un archivo con los viajes de hoy, listo para abrir en Excel.' },

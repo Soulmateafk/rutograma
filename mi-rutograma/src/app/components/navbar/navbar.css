@@ -254,3 +254,6 @@
 /* Viaje Extra en un día que ya pasó (días cerrados). */
 .nb-field input.nb-fecha-cerrada { border-color: #ef4444 !important; }
 .nb-aviso-cerrado { display: block; margin-top: 4px; font-size: 12px; color: #fca5a5; }
+
+/* Búsqueda rápida (Ctrl+K): resultado elegido con el teclado. */
+.nb-resultado.activo { background: rgba(59, 130, 246, 0.16); box-shadow: inset 3px 0 0 #3b82f6; }
