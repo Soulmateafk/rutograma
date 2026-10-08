@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { validarCargas, totalesCarga, minutosDelRegistro, normalizarHora, minutosDeCargue, textoMinutos, rangoPeriodo, validarDespacho, resumenDespachos, filasExcel, nombreArchivo } = require('../despachos');
+const { demorados, limiteValido, validarCargas, totalesCarga, minutosDelRegistro, normalizarHora, minutosDeCargue, textoMinutos, rangoPeriodo, validarDespacho, resumenDespachos, filasExcel, nombreArchivo } = require('../despachos');
 
 test('horas: se aceptan formas comunes y se rechaza lo que no es hora', () => {
     assert.strictEqual(normalizarHora('7:05'), '07:05');
@@ -49,7 +49,7 @@ test('resumen y Excel', () => {
         { fecha: '2026-10-07', placa: 'PRZ 065', destino: 'Medellín', horaLlegada: '06:00', horaFinCargue: '08:00' },
         { fecha: '2026-10-07', placa: 'NOW 033', destino: 'Tunja', horaLlegada: '10:00', horaFinCargue: '' }
     ];
-    assert.deepStrictEqual(resumenDespachos(regs), { total: 3, totalCajas: 0, totalEstibas: 0, enCargue: 1, terminados: 2, promedioMin: 90, maximoMin: 120 });
+    assert.deepStrictEqual(resumenDespachos(regs), { total: 3, totalCajas: 0, totalEstibas: 0, enCargue: 1, terminados: 2, promedioMin: 90, maximoMin: 120, conDemora: 0 });
     const filas = filasExcel(regs);
     assert.deepStrictEqual(filas.map(f => f['Vehículo']), ['PRZ 065', 'LUN 428', 'NOW 033']);
     assert.strictEqual(filas[0]['Día'], 'Miércoles');
@@ -81,4 +81,34 @@ test('horas nuevas y tiempo de cargue desde el inicio de cargue', () => {
     assert.deepStrictEqual(validarDespacho({ despachador: 'L', fecha: '2026-10-07', placa: 'X', destino: 'C', horaLlegada: '06:00', horaSalida: 'ya' }).errores, ['una hora válida de salida (ej. 14:30)']);
     // Un registro viejo sin nombre se puede terminar.
     assert.deepStrictEqual(validarDespacho({ id: 3, fecha: '2026-10-07', placa: 'X', destino: 'C', horaLlegada: '06:00' }).errores, []);
+});
+
+test('cargue demorado: sin motivo no se guarda; "Otro" pide cuál', () => {
+    const base = { despachador: 'Luis', fecha: '2026-10-08', placa: 'X', destino: 'Cali', horaLlegada: '06:00', horaInicioCargue: '06:10' };
+    // 06:10 -> 08:00 = 110 min, límite 90.
+    assert.match(validarDespacho({ ...base, horaFinCargue: '08:00' }).errores[0], /motivo de la demora \(el cargue tardó 1 h 50 min, más del límite de 1 h 30 min\)/);
+    assert.deepStrictEqual(validarDespacho({ ...base, horaFinCargue: '08:00', motivoDemora: 'Esperando producto' }).errores, []);
+    assert.match(validarDespacho({ ...base, horaFinCargue: '08:00', motivoDemora: 'Otro' }).errores[0], /escogiste "Otro"/);
+    assert.deepStrictEqual(validarDespacho({ ...base, horaFinCargue: '08:00', motivoDemora: 'Otro', motivoDemoraDetalle: 'Se fue la luz' }).errores, []);
+    assert.match(validarDespacho({ ...base, horaFinCargue: '08:00', motivoDemora: 'Inventado' }).errores[0], /motivo de la demora/);
+    // A tiempo: no pide motivo y no deja uno viejo.
+    const aTiempo = validarDespacho({ ...base, horaFinCargue: '07:00', motivoDemora: 'Clima' });
+    assert.deepStrictEqual(aTiempo.errores, []);
+    assert.strictEqual(aTiempo.registro.motivoDemora, '');
+    // Límite de la oficina: 2 h.
+    assert.deepStrictEqual(validarDespacho({ ...base, horaFinCargue: '08:00' }, { limiteMin: 120 }).errores, []);
+    assert.strictEqual(limiteValido('45'), 45);
+    assert.strictEqual(limiteValido(3), 90);
+    assert.strictEqual(limiteValido('abc'), 90);
+});
+
+test('demorados: siguen cargando y pasaron el límite', () => {
+    const ahora = new Date(2026, 9, 8, 10, 0);
+    const regs = [
+        { id: 1, fecha: '2026-10-08', placa: 'A', horaLlegada: '08:00', horaFinCargue: '' },            // 120 min
+        { id: 2, fecha: '2026-10-08', placa: 'B', horaLlegada: '08:00', horaInicioCargue: '09:00' },    // 60 min
+        { id: 3, fecha: '2026-10-08', placa: 'C', horaLlegada: '07:00', horaFinCargue: '09:30' },       // ya terminó
+        { id: 4, fecha: '2026-10-07', placa: 'D', horaLlegada: '23:00' }                                // 11 h
+    ];
+    assert.deepStrictEqual(demorados(regs, ahora, 90).map(r => [r.placa, r.minutos]), [['D', 660], ['A', 120]]);
 });

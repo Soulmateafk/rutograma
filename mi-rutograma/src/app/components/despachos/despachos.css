@@ -104,6 +104,27 @@
 .dp-salio { background: #2563eb; }
 .dp-detalle-carga { max-width: 220px; }
 
+/* Sin conexión */
+.dp-sin-senal, .dp-rechazados { display: flex; gap: 10px; align-items: flex-start; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-size: 13.5px; }
+.dp-sin-senal { background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.5); color: #fde68a; }
+.dp-rechazados { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.5); color: #fecaca; }
+.dp-sin-senal > div, .dp-rechazados > div { flex: 1; min-width: 0; }
+.dp-sin-senal i, .dp-rechazados i { font-size: 18px; margin-top: 1px; }
+.dp-etiqueta-pend { font-size: 11.5px; color: #fcd34d; margin-top: 3px; }
+
+/* Cargue demorado */
+.dp-motivo { display: flex; flex-direction: column; gap: 6px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.45); border-radius: 8px; padding: 10px; }
+.dp-motivo-titulo { font-size: 13.5px; color: #fecaca; font-weight: 600; }
+.dp-limite { font-size: 12.5px; color: var(--color-texto-secundario, #94a3b8); margin: -4px 0 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.dp-limite-editar { display: inline-flex; gap: 6px; align-items: center; }
+.dp-limite-editar input { width: 70px; background: var(--color-fondo-input, #0b1222); color: var(--color-texto-principal, #f8fafc); border: 1px solid var(--color-borde, #334155); border-radius: 6px; padding: 4px 6px; font-family: inherit; }
+.dp-enlace { background: none; border: none; color: #60a5fa; cursor: pointer; padding: 0; font-family: inherit; font-size: 12.5px; text-decoration: underline; }
+.dp-cargando.dp-demorado { background: rgba(239, 68, 68, 0.08); border-radius: 8px; padding-left: 8px; padding-right: 8px; border-top-color: transparent; box-shadow: inset 3px 0 0 #ef4444; }
+.dp-aviso-demora { font-size: 12px; color: #fca5a5; font-weight: 600; margin-top: 3px; }
+.dp-motivo-tabla { color: #fca5a5; }
+.dp-modal-campo { width: 100%; box-sizing: border-box; margin-bottom: 8px; background: var(--color-fondo-input, #0b1222); color: var(--color-texto-principal, #f8fafc); border: 1px solid var(--color-borde, #334155); border-radius: 8px; padding: 10px; font-family: inherit; font-size: 15px; }
+.dp-modal-campo.dp-error, .dp-motivo select.dp-error, .dp-motivo input.dp-error { border-color: #ef4444; }
+
 @media (max-width: 760px) {
   .dp-page { padding: 14px 16px 50px; }
   .dp-columnas { grid-template-columns: minmax(0, 1fr); }

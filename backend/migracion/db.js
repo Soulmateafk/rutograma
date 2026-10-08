@@ -54,7 +54,8 @@ function conectar(modo = 'real') {
   agregarColumnaSiFalta('vehiculos', 'soat_vence', 'TEXT');
   // Despachos: quién despacha, horas programada/inicio/salida y la carga.
   [['despachador', "TEXT DEFAULT ''"], ['hora_programada', "TEXT DEFAULT ''"], ['hora_inicio_cargue', "TEXT DEFAULT ''"],
-    ['hora_salida', "TEXT DEFAULT ''"], ['cargas_json', "TEXT DEFAULT '[]'"]].forEach(([c, d]) => agregarColumnaSiFalta('despachos', c, d));
+    ['hora_salida', "TEXT DEFAULT ''"], ['cargas_json', "TEXT DEFAULT '[]'"],
+    ['motivo_demora', "TEXT DEFAULT ''"], ['motivo_demora_detalle', "TEXT DEFAULT ''"], ['cliente_id', 'TEXT']].forEach(([c, d]) => agregarColumnaSiFalta('despachos', c, d));
   agregarColumnaSiFalta('vehiculos', 'tecno_vence', 'TEXT');
   agregarColumnaSiFalta('conductores', 'licencia_vence', 'TEXT');
   agregarColumnaSiFalta('auditoria', 'modo', "TEXT NOT NULL DEFAULT 'real'");
@@ -703,6 +704,7 @@ const filaADespacho = (f) => ({
   destino: f.destino, horaLlegada: f.hora_llegada, horaFinCargue: f.hora_fin_cargue || '', observacion: f.observacion || '',
   despachador: f.despachador || '', horaProgramada: f.hora_programada || '', horaInicioCargue: f.hora_inicio_cargue || '',
   horaSalida: f.hora_salida || '', cargas: aJSON(f.cargas_json, []),
+  motivoDemora: f.motivo_demora || '', motivoDemoraDetalle: f.motivo_demora_detalle || '', clienteId: f.cliente_id || '',
   creadoPor: f.creado_por || '', creadoEn: f.creado_en || '', editadoPor: f.editado_por || '', editadoEn: f.editado_en || ''
 });
 
@@ -724,21 +726,30 @@ function guardarDespachoDB(modo, r, usuario) {
     fecha: r.fecha, placa: r.placa, viaje_id: r.viajeId ?? null, ruta: r.ruta || '', conductor: r.conductor || '',
     destino: r.destino, hora_llegada: r.horaLlegada, hora_fin_cargue: r.horaFinCargue || '', observacion: r.observacion || '',
     despachador: r.despachador || '', hora_programada: r.horaProgramada || '', hora_inicio_cargue: r.horaInicioCargue || '',
-    hora_salida: r.horaSalida || '', cargas_json: JSON.stringify(r.cargas || [])
+    hora_salida: r.horaSalida || '', cargas_json: JSON.stringify(r.cargas || []),
+    motivo_demora: r.motivoDemora || '', motivo_demora_detalle: r.motivoDemoraDetalle || ''
   };
   if (r.id) {
     db.prepare(`UPDATE despachos SET fecha=@fecha, placa=@placa, viaje_id=@viaje_id, ruta=@ruta, conductor=@conductor, destino=@destino,
       hora_llegada=@hora_llegada, hora_fin_cargue=@hora_fin_cargue, observacion=@observacion,
-      despachador=@despachador, hora_programada=@hora_programada, hora_inicio_cargue=@hora_inicio_cargue, hora_salida=@hora_salida, cargas_json=@cargas_json, editado_por=@usuario, editado_en=@ahora WHERE id=@id`)
+      despachador=@despachador, hora_programada=@hora_programada, hora_inicio_cargue=@hora_inicio_cargue, hora_salida=@hora_salida, cargas_json=@cargas_json,
+      motivo_demora=@motivo_demora, motivo_demora_detalle=@motivo_demora_detalle, editado_por=@usuario, editado_en=@ahora WHERE id=@id`)
       .run({ ...valores, usuario, ahora, id: r.id });
     return leerDespachoDB(modo, r.id);
   }
   const info = db.prepare(`INSERT INTO despachos (fecha, placa, viaje_id, ruta, conductor, destino, hora_llegada, hora_fin_cargue, observacion,
-      despachador, hora_programada, hora_inicio_cargue, hora_salida, cargas_json, creado_por, creado_en)
+      despachador, hora_programada, hora_inicio_cargue, hora_salida, cargas_json, motivo_demora, motivo_demora_detalle, cliente_id, creado_por, creado_en)
     VALUES (@fecha, @placa, @viaje_id, @ruta, @conductor, @destino, @hora_llegada, @hora_fin_cargue, @observacion,
-      @despachador, @hora_programada, @hora_inicio_cargue, @hora_salida, @cargas_json, @usuario, @ahora)`)
-    .run({ ...valores, usuario, ahora });
+      @despachador, @hora_programada, @hora_inicio_cargue, @hora_salida, @cargas_json, @motivo_demora, @motivo_demora_detalle, @cliente_id, @usuario, @ahora)`)
+    .run({ ...valores, cliente_id: r.clienteId || null, usuario, ahora });
   return leerDespachoDB(modo, Number(info.lastInsertRowid));
+}
+
+/** El registro que ya se creó con ese identificador del celular (reenvío tras perder la señal), o null. */
+function despachoPorClienteDB(modo, clienteId) {
+  if (!clienteId) return null;
+  const f = conectar(modo).prepare('SELECT * FROM despachos WHERE cliente_id = ?').get(clienteId);
+  return f ? filaADespacho(f) : null;
 }
 
 function eliminarDespachoDB(modo, id) {
@@ -751,7 +762,7 @@ function mesesDespachosDB(modo) {
 }
 
 module.exports = {
-  listarDespachosDB, leerDespachoDB, guardarDespachoDB, eliminarDespachoDB, mesesDespachosDB,
+  listarDespachosDB, leerDespachoDB, guardarDespachoDB, eliminarDespachoDB, mesesDespachosDB, despachoPorClienteDB,
   leerConfigCompartidaDB, guardarConfigCompartidaDB,
   listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB,
   leerDB, guardarEnDB, conectar, crearRespaldoDB, listarRespaldosDB, restaurarRespaldoDB, limpiarRespaldosDB,

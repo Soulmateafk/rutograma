@@ -266,8 +266,10 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'dp-carga', titulo: 'Qué se carga', texto: 'Abre la lista y marca uno o varios tipos (Makand x25, Ifco x13, estibas...). Por cada uno sale una casilla para la cantidad: solo acepta números. Si marcaste uno por error, quítalo con la ✕ o desmárcalo.' },
       { el: 'dp-total', titulo: 'Total', texto: 'La suma de las cajas escogidas (las estibas se cuentan aparte). Si a algún tipo le falta la cantidad, no deja guardar y lo marca en rojo.' },
       { el: 'dp-en-cargue', titulo: 'En el cargue', texto: 'Los vehículos que siguen en el cargue. El botón cambia según el paso: "Empezó a cargar", "Terminó de cargar" y "Salió", y pone la hora de ese momento.' },
+      { el: 'dp-limite', titulo: 'Cargue demorado', texto: 'Si un cargue pasa de este límite, sale en rojo como "Demorado" y la oficina ve el aviso. Para terminarlo hay que escoger el motivo de la demora (si es "Otro", escribir cuál).' },
       { el: 'dp-periodos', titulo: 'Registro', texto: 'Lo anotado por día, semana o mes, con las flechas para ir atrás. "Histórico" lleva a cada mes guardado.' },
       { el: 'dp-excel', titulo: 'Excel', texto: 'Descarga en Excel el día, la semana o el mes que estás viendo: horas, tiempo de cargue, cantidad por tipo y total de cajas.' },
+      { el: '', titulo: 'Sin señal', texto: 'Si se cae el internet, sigue anotando: lo anotado queda guardado en este celular (sale un aviso amarillo) y se envía solo cuando vuelve la señal. No cierres la página mientras tanto.' },
       { el: 'dp-tabla', titulo: 'Corregir o borrar', texto: 'Con el lápiz corriges un registro y con la caneca lo borras. La cuenta de despachos puede hacerlo con lo de hoy y ayer; lo anterior, la oficina. Todo queda en la auditoría.' },
       PASO_AYUDA
     ]

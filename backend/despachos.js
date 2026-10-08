@@ -102,6 +102,39 @@ function validarCargas(entrada) {
     return { errores, cargas };
 }
 
+// ============================================================
+// CARGUE DEMORADO — si el cargue pasa del límite (por defecto 90 minutos,
+// la oficina lo cambia en Despachos), hay que decir por qué: sin motivo
+// no se guarda el fin del cargue. Mientras sigue cargando y ya pasó el
+// límite, la oficina ve el aviso en pantalla (lista "demorados").
+// ============================================================
+const LIMITE_CARGUE_MIN = 90;
+const MOTIVOS_DEMORA = [
+    'Esperando producto', 'Producto en alistamiento o calidad', 'Falta de personal', 'Montacargas o equipo dañado',
+    'El vehículo llegó tarde o sin turno', 'Documentos o facturación', 'Problema con el vehículo', 'Clima', 'Otro'
+];
+
+/** Límite válido en minutos (entre 10 y 600); lo demás, el de por defecto. */
+const limiteValido = (n) => {
+    const v = Math.round(Number(n));
+    return v >= 10 && v <= 600 ? v : LIMITE_CARGUE_MIN;
+};
+
+/**
+ * Vehículos que siguen cargando y ya pasaron el límite: [{ ...registro, minutos }].
+ * El tiempo cuenta desde el inicio de cargue (o la llegada) hasta "ahora".
+ */
+function demorados(registros, ahora = new Date(), limiteMin = LIMITE_CARGUE_MIN) {
+    return (registros || []).filter(r => !r.horaFinCargue && FECHA.test(String(r.fecha))).map(r => {
+        const h = normalizarHora(r.horaInicioCargue || r.horaLlegada);
+        if (!h) return null;
+        const [a, m, d] = r.fecha.split('-').map(Number);
+        const [hh, mm] = h.split(':').map(Number);
+        const minutos = Math.round((ahora.getTime() - new Date(a, m - 1, d, hh, mm).getTime()) / 60000);
+        return minutos > limiteMin ? { ...r, minutos } : null;
+    }).filter(Boolean).sort((x, y) => y.minutos - x.minutos);
+}
+
 /**
  * Revisa lo que llega del formulario. Devuelve { errores: [...], registro }.
  * Obligatorio: fecha, nombre de quien despacha, vehículo, lugar (o viaje) y
@@ -109,8 +142,9 @@ function validarCargas(entrada) {
  * ir vacías (se llenan a medida que pasa). Cada tipo de carga escogido
  * tiene que llevar su cantidad.
  */
-function validarDespacho(cuerpo) {
+function validarDespacho(cuerpo, opciones = {}) {
     const b = cuerpo || {};
+    const limiteMin = limiteValido(opciones.limiteMin);
     const errores = [];
     const fecha = String(b.fecha || '').trim();
     const placa = corto(b.placa, 20).toUpperCase();
@@ -133,6 +167,17 @@ function validarDespacho(cuerpo) {
     errores.push(...carga.errores);
     const viajeId = b.viajeId === undefined || b.viajeId === null || b.viajeId === '' ? null : String(b.viajeId);
     const id = Number(b.id) > 0 ? Number(b.id) : null;
+    // Cargue que pasó del límite: motivo obligatorio (y si es "Otro", cuál).
+    const minutos = minutosDeCargue(horas.horaInicioCargue || horaLlegada, horaFinCargue);
+    let motivoDemora = MOTIVOS_DEMORA.find(m => m === String(b.motivoDemora || '').trim()) || '';
+    let motivoDemoraDetalle = corto(b.motivoDemoraDetalle, 200);
+    if (minutos !== null && minutos > limiteMin) {
+        if (!motivoDemora) errores.push(`el motivo de la demora (el cargue tardó ${textoMinutos(minutos)}, más del límite de ${textoMinutos(limiteMin)})`);
+        else if (motivoDemora === 'Otro' && !motivoDemoraDetalle) errores.push('cuál fue el motivo de la demora (escogiste "Otro")');
+    } else if (minutos !== null) {
+        // Terminó a tiempo: no queda un motivo viejo colgado.
+        motivoDemora = ''; motivoDemoraDetalle = '';
+    }
     return {
         errores,
         registro: {
@@ -142,7 +187,11 @@ function validarDespacho(cuerpo) {
             viajeId,
             ruta: corto(b.ruta, 40),
             conductor: corto(b.conductor, 80),
-            observacion: corto(b.observacion, 300)
+            observacion: corto(b.observacion, 300),
+            motivoDemora, motivoDemoraDetalle,
+            // Identificador que pone el celular al anotar: si el envío se
+            // repite (se fue la señal a mitad), no se duplica.
+            clienteId: corto(b.clienteId, 64)
         }
     };
 }
@@ -162,7 +211,8 @@ function resumenDespachos(registros) {
         enCargue: lista.filter(r => !r.horaFinCargue).length,
         terminados: tiempos.length,
         promedioMin: tiempos.length ? Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length) : null,
-        maximoMin: tiempos.length ? Math.max(...tiempos) : null
+        maximoMin: tiempos.length ? Math.max(...tiempos) : null,
+        conDemora: lista.filter(r => r.motivoDemora).length
     };
 }
 
@@ -207,6 +257,7 @@ function filasExcel(registros) {
             TIPOS_CARGA.forEach(tipo => { fila[tipo] = (r.cargas || []).find(c => c.tipo === tipo)?.cantidad || ''; });
             return {
                 ...fila,
+                'Motivo de demora': r.motivoDemora ? `${r.motivoDemora}${r.motivoDemoraDetalle ? ': ' + r.motivoDemoraDetalle : ''}` : '',
                 'Observación': r.observacion || '',
                 'Anotado por': r.creadoPor || '',
                 'Anotado el': fechaHoraLocal(r.creadoEn),
@@ -222,4 +273,4 @@ function nombreArchivo(periodo, rango) {
     return `Despachos_dia_${rango.desde}.xlsx`;
 }
 
-module.exports = { TIPOS_CARGA, totalesCarga, validarCargas, minutosDelRegistro, normalizarHora, minutosDeCargue, textoMinutos, rangoPeriodo, validarDespacho, resumenDespachos, filasExcel, nombreArchivo, fechaBonita };
+module.exports = { LIMITE_CARGUE_MIN, MOTIVOS_DEMORA, limiteValido, demorados, TIPOS_CARGA, totalesCarga, validarCargas, minutosDelRegistro, normalizarHora, minutosDeCargue, textoMinutos, rangoPeriodo, validarDespacho, resumenDespachos, filasExcel, nombreArchivo, fechaBonita };

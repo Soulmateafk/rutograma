@@ -228,6 +228,9 @@ CREATE TABLE IF NOT EXISTS despachos (
   hora_inicio_cargue  TEXT DEFAULT '',
   hora_salida         TEXT DEFAULT '',
   cargas_json         TEXT DEFAULT '[]',  -- [{ tipo, cantidad }]
+  motivo_demora       TEXT DEFAULT '',    -- si el cargue pasó del límite
+  motivo_demora_detalle TEXT DEFAULT '',
+  cliente_id          TEXT,               -- lo pone el celular: evita duplicados al reenviar
   creado_por          TEXT,
   creado_en           TEXT,
   editado_por         TEXT,

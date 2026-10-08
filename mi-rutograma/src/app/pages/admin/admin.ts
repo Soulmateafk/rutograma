@@ -465,6 +465,7 @@ export class Admin implements OnInit, OnDestroy {
       case '/api/auth/resetear-clave':
         return `Restableció la contraseña de ${r.email || 'una cuenta'}`;
 
+      case '/api/despachos/limite':
       case '/api/despachos':
       case '/api/despachos/eliminar':
         return r.descripcion || (ruta.endsWith('eliminar') ? 'Borró un despacho' : `Anotó el despacho de ${r.placa || 'un vehículo'}`);

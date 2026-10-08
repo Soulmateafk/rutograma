@@ -22,6 +22,45 @@ const TIPOS_CARGA = [
 ];
 const NO_SON_CAJAS = ['Estibas'];
 const CLAVE_DESPACHADOR = 'despachos-nombre';
+// Sin señal: lo anotado espera en este celular (localStorage) y se envía
+// solo cuando vuelve la conexión. También se guarda lo último que llegó
+// del servidor (vehículos, viajes, límite) para poder llenar el formulario.
+const CLAVE_PENDIENTES = 'despachos-pendientes-v1';
+const CLAVE_OPCIONES = 'despachos-opciones-v1';
+const CLAVE_CONFIG = 'despachos-config-v1';
+const MOTIVOS_DEMORA = [
+  'Esperando producto', 'Producto en alistamiento o calidad', 'Falta de personal', 'Montacargas o equipo dañado',
+  'El vehículo llegó tarde o sin turno', 'Documentos o facturación', 'Problema con el vehículo', 'Clima', 'Otro'
+];
+
+/** Algo anotado sin conexión, esperando a enviarse. */
+interface Pendiente { clave: string; ruta: string; cuerpo: any; descripcion: string; creadoEn: string; }
+
+const leerLocal = (clave: string, porDefecto: any): any => {
+  try { const t = localStorage.getItem(clave); return t ? JSON.parse(t) : porDefecto; } catch { return porDefecto; }
+};
+const guardarLocal = (clave: string, valor: any): void => {
+  try { localStorage.setItem(clave, JSON.stringify(valor)); } catch { /* sin almacenamiento */ }
+};
+const nuevoId = (): string => {
+  try { if (typeof crypto !== 'undefined' && (crypto as any).randomUUID) return (crypto as any).randomUUID(); } catch { /* nada */ }
+  return `d-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+};
+
+/** Minutos desde una fecha y hora (AAAA-MM-DD, HH:MM) hasta ahora. */
+const minutosDesde = (fecha: string, hora: string, ahora = Date.now()): number | null => {
+  const [a, m, d] = String(fecha).split('-').map(Number);
+  const [hh, mm] = String(hora || '').split(':').map(Number);
+  if (!a || !m || !d || !Number.isFinite(hh) || !Number.isFinite(mm)) return null;
+  return Math.round((ahora - new Date(a, m - 1, d, hh, mm).getTime()) / 60000);
+};
+const minutosEntre = (desde: string, hasta: string): number | null => {
+  if (!/^\d{2}:\d{2}$/.test(desde || '') || !/^\d{2}:\d{2}$/.test(hasta || '')) return null;
+  const [a, b] = desde.split(':').map(Number), [c, e] = hasta.split(':').map(Number);
+  let m = (c * 60 + e) - (a * 60 + b);
+  if (m < 0) m += 24 * 60;
+  return m;
+};
 
 interface Carga { tipo: string; cantidad: string; }
 
@@ -40,6 +79,8 @@ interface Formulario {
   destino: string;
   horaFinCargue: string;
   observacion: string;
+  motivoDemora: string;
+  motivoDemoraDetalle: string;
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -94,6 +135,25 @@ export class DespachosComponent implements OnInit, OnDestroy {
 
   private reloj: ReturnType<typeof setInterval> | null = null;
 
+  // Cargue demorado: límite (minutos) y motivos. Los manda el servidor.
+  limiteMin = 90;
+  motivosDemora: string[] = MOTIVOS_DEMORA;
+  puedeCambiarLimite = false;
+  limiteEditando: number | null = null;
+  /** Ventana "¿Por qué se demoró?" al tocar "Terminó de cargar" pasado el límite. */
+  demora: { r: any; minutos: number; motivo: string; detalle: string; intento: boolean } | null = null;
+
+  // Sin conexión
+  enLinea = typeof navigator === 'undefined' ? true : navigator.onLine;
+  pendientes: Pendiente[] = [];
+  rechazados: Array<{ descripcion: string; msg: string }> = [];
+  private enviandoCola = false;
+  private alCambiarConexion = () => {
+    this.enLinea = navigator.onLine;
+    if (this.enLinea) this.procesarCola();
+    this.cdr.markForCheck();
+  };
+
   get esCuentaDespachos(): boolean { return this.auth.esDespachos; }
   /** La cuenta de despachos anota con fecha de hoy o de ayer (la oficina, cualquiera). */
   get fechaMinima(): string {
@@ -105,12 +165,20 @@ export class DespachosComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     if (!this.esNavegador) return;
     this.form.despachador = this.nombreRecordado();
+    this.pendientes = leerLocal(CLAVE_PENDIENTES, []);
+    const config = leerLocal(CLAVE_CONFIG, null);
+    if (config?.limiteMin) this.limiteMin = config.limiteMin;
+    if (Array.isArray(config?.motivosDemora) && config.motivosDemora.length) this.motivosDemora = config.motivosDemora;
+    window.addEventListener('online', this.alCambiarConexion);
+    window.addEventListener('offline', this.alCambiarConexion);
     this.cargarOpciones();
     this.cargarRegistro();
+    this.procesarCola();
     // Se refresca solo (otro equipo pudo anotar algo). Si hay un formulario
     // a medio llenar, no se toca: solo cambian las listas.
     this.reloj = setInterval(() => {
       if (document.visibilityState !== 'visible') return;
+      this.procesarCola();
       this.cargarRegistro(true);
       if (hoyTexto() !== this.hoy) this.cargarOpciones();
     }, 30000);
@@ -118,12 +186,120 @@ export class DespachosComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     if (this.reloj) clearInterval(this.reloj);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('online', this.alCambiarConexion);
+      window.removeEventListener('offline', this.alCambiarConexion);
+    }
+  }
+
+  // ---------- Sin conexión: cola de envíos ----------
+
+  private guardarCola(): void {
+    guardarLocal(CLAVE_PENDIENTES, this.pendientes);
+  }
+
+  /**
+   * Envía; si no hay señal (el pedido ni siquiera llega al servidor), lo
+   * deja en la cola de este celular. Una corrección del mismo registro
+   * reemplaza la que ya esperaba (queda la última).
+   */
+  private async enviarOEncolar(ruta: string, cuerpo: any, descripcion: string): Promise<{ data?: any; encolado?: boolean }> {
+    try {
+      return { data: await this.enviar(ruta, cuerpo) };
+    } catch {
+      const clave = cuerpo.id ? `id:${cuerpo.id}` : `nuevo:${cuerpo.clienteId}`;
+      this.pendientes = [...this.pendientes.filter(p => p.clave !== clave), { clave, ruta, cuerpo, descripcion, creadoEn: new Date().toISOString() }];
+      this.guardarCola();
+      this.enLinea = false;
+      return { encolado: true };
+    }
+  }
+
+  /** Manda lo que quedó sin enviar, en el orden en que se anotó. */
+  async procesarCola(): Promise<void> {
+    if (this.enviandoCola || !this.pendientes.length) return;
+    this.enviandoCola = true;
+    let enviados = 0;
+    while (this.pendientes.length) {
+      const p = this.pendientes[0];
+      let data: any;
+      try {
+        data = await this.enviar(p.ruta, p.cuerpo);
+      } catch {
+        break; // sigue sin señal: se intenta en el próximo aviso
+      }
+      this.pendientes = this.pendientes.slice(1);
+      if (data?.ok) enviados++;
+      else this.rechazados = [...this.rechazados, { descripcion: p.descripcion, msg: data?.msg || 'El servidor no lo aceptó.' }];
+      this.guardarCola();
+    }
+    this.enviandoCola = false;
+    if (enviados) {
+      this.enLinea = true;
+      this.ui.mostrarToast(`<i class="bi bi-cloud-check"></i> Volvió la conexión: se ${enviados === 1 ? 'envió 1 despacho' : `enviaron ${enviados} despachos`} que estaban en este celular.`, 'ok');
+      await this.cargarRegistro(true);
+    }
+    this.cdr.markForCheck();
+  }
+
+  descartarRechazados(): void {
+    this.rechazados = [];
+  }
+
+  /** "En el cargue" con lo que espera en la cola (registros nuevos y correcciones sin enviar). */
+  get enCargueVista(): any[] {
+    const porId = new Map(this.pendientes.filter(p => p.cuerpo.id).map(p => [p.cuerpo.id, p.cuerpo]));
+    const delServidor = this.enCargue.map(r => porId.has(r.id) ? { ...r, ...porId.get(r.id), pendiente: true } : r);
+    const nuevos = this.pendientes.filter(p => !p.cuerpo.id && p.ruta === '').map(p => ({ ...p.cuerpo, pendiente: true, puedeCorregir: true }));
+    return [...delServidor, ...nuevos].filter(r => !r.horaFinCargue || !r.horaSalida);
+  }
+
+  // ---------- Cargue demorado ----------
+
+  /** Minutos que lleva cargando (desde el inicio de cargue o la llegada); null si ya terminó. */
+  minutosEnCargue(r: any): number | null {
+    if (r.horaFinCargue) return null;
+    return minutosDesde(r.fecha, r.horaInicioCargue || r.horaLlegada);
+  }
+
+  estaDemorado(r: any): boolean {
+    const m = this.minutosEnCargue(r);
+    return m !== null && m > this.limiteMin;
+  }
+
+  /** Minutos de cargue del formulario (inicio o llegada hasta fin). */
+  get minutosForm(): number | null {
+    return minutosEntre(this.form.horaInicioCargue || this.form.horaLlegada, this.form.horaFinCargue);
+  }
+
+  /** El cargue del formulario pasó del límite: hay que decir por qué. */
+  get pideMotivo(): boolean {
+    const m = this.minutosForm;
+    return m !== null && m > this.limiteMin;
+  }
+
+  async guardarLimite(): Promise<void> {
+    const minutos = Number(this.limiteEditando);
+    if (!(minutos >= 10 && minutos <= 600)) { this.ui.mostrarToast('Escribe un límite entre 10 y 600 minutos.', 'err'); return; }
+    try {
+      const data = await this.enviar('/limite', { minutos });
+      if (data?.ok) {
+        this.limiteMin = data.limiteMin;
+        this.limiteEditando = null;
+        guardarLocal(CLAVE_CONFIG, { limiteMin: this.limiteMin, motivosDemora: this.motivosDemora });
+        this.ui.mostrarToast(`Listo: se pide motivo cuando el cargue pasa de ${this.textoMinutos(this.limiteMin)}.`, 'ok');
+      } else this.ui.mostrarToast(data?.msg || 'No se pudo cambiar el límite.', 'err');
+    } catch {
+      this.ui.mostrarToast('Sin conexión: no se cambió el límite.', 'err');
+    }
+    this.cdr.markForCheck();
   }
 
   private formVacio(): Formulario {
     return {
       id: null, fecha: hoyTexto(), despachador: this.nombreRecordado(), horaProgramada: '', horaLlegada: horaAhora(), horaInicioCargue: '',
-      horaSalida: '', ruta: '', cargas: [], placa: '', viajeId: '', destino: '', horaFinCargue: '', observacion: ''
+      horaSalida: '', ruta: '', cargas: [], placa: '', viajeId: '', destino: '', horaFinCargue: '', observacion: '',
+      motivoDemora: '', motivoDemoraDetalle: ''
     };
   }
 
@@ -193,8 +369,17 @@ export class DespachosComponent implements OnInit, OnDestroy {
         this.vehiculos = data.vehiculos || [];
         this.viajes = data.viajes || [];
         if (Array.isArray(data.tiposCarga) && data.tiposCarga.length) this.tiposCarga = data.tiposCarga;
+        guardarLocal(CLAVE_OPCIONES, { fecha, vehiculos: this.vehiculos, viajes: this.viajes, tiposCarga: this.tiposCarga });
       }
-    } catch { /* sin conexión: se escribe a mano */ }
+    } catch {
+      // Sin conexión: lo último que llegó (las placas y los viajes de esos días).
+      const guardadas = leerLocal(CLAVE_OPCIONES, null);
+      if (guardadas && !this.vehiculos.length) {
+        this.vehiculos = guardadas.vehiculos || [];
+        this.viajes = guardadas.viajes || [];
+        if (guardadas.tiposCarga?.length) this.tiposCarga = guardadas.tiposCarga;
+      }
+    }
     this.cdr.markForCheck();
   }
 
@@ -269,6 +454,9 @@ export class DespachosComponent implements OnInit, OnDestroy {
     // Cada tipo de carga escogido tiene que llevar su cantidad: si no, no se envía.
     const sinCantidad = this.cargasSinCantidad.map(c => c.tipo);
     if (sinCantidad.length) faltan.push(`la cantidad de ${sinCantidad.join(', ')}`);
+    // Cargue que pasó del límite: el motivo es obligatorio.
+    if (this.pideMotivo && !f.motivoDemora) faltan.push(`el motivo de la demora (el cargue tardó ${this.textoMinutos(this.minutosForm)}, más de ${this.textoMinutos(this.limiteMin)})`);
+    else if (this.pideMotivo && f.motivoDemora === 'Otro' && !f.motivoDemoraDetalle.trim()) faltan.push('cuál fue el motivo de la demora');
     if (faltan.length) {
       this.ui.mostrarToast(`Falta ${faltan.join('; ')}.${sinCantidad.length ? ' Si escogiste un tipo por error, quítalo con la ✕.' : ''}`, 'err');
       return;
@@ -279,14 +467,24 @@ export class DespachosComponent implements OnInit, OnDestroy {
       despachador: f.despachador.trim(), horaProgramada: f.horaProgramada, horaInicioCargue: f.horaInicioCargue, horaSalida: f.horaSalida,
       cargas: f.cargas.map(c => ({ tipo: c.tipo, cantidad: c.cantidad })),
       horaLlegada: f.horaLlegada, horaFinCargue: f.horaFinCargue, observacion: f.observacion,
+      motivoDemora: this.pideMotivo ? f.motivoDemora : '', motivoDemoraDetalle: this.pideMotivo ? f.motivoDemoraDetalle.trim() : '',
+      // Identificador del celular: si se reenvía (sin señal), no se duplica.
+      clienteId: f.id ? undefined : nuevoId(),
       viajeId: viaje ? viaje.id : null,
       ruta: viaje?.ruta || f.ruta.trim(), conductor: viaje?.conductor || this.conductorDe(f.placa)
     };
     try { localStorage.setItem(CLAVE_DESPACHADOR, cuerpo.despachador); } catch { /* sin almacenamiento: se escribe cada vez */ }
     this.guardando = true;
     try {
-      const data = await this.enviar('', cuerpo);
-      if (data?.ok) {
+      const { data, encolado } = await this.enviarOEncolar('', cuerpo, `${cuerpo.placa} hacia ${cuerpo.destino} (llegó ${cuerpo.horaLlegada})`);
+      if (encolado) {
+        this.ui.mostrarToast(`<i class="bi bi-wifi-off"></i> Sin conexión: ${cuerpo.placa} quedó guardado en este celular y se enviará solo cuando vuelva la señal.`, 'info');
+        const fecha = f.fecha;
+        this.intentoGuardar = false;
+        this.listaCargaAbierta = false;
+        this.form = this.formVacio();
+        this.form.fecha = fecha;
+      } else if (data?.ok) {
         const r = data.registro;
         this.ui.mostrarToast(f.id ? `Corregido: ${r.placa}.`
           : r.horaFinCargue ? `Anotado: ${r.placa} hacia ${r.destino}, cargó en ${this.textoMinutos(r.minutos)}.`
@@ -317,6 +515,11 @@ export class DespachosComponent implements OnInit, OnDestroy {
     return res.json();
   }
 
+  /** Ese vehículo se está guardando (los anotados sin señal no tienen id todavía). */
+  guardandoPaso(r: any): boolean {
+    return this.terminandoId !== null && !!r.id && this.terminandoId === r.id;
+  }
+
   /** Siguiente paso de un vehículo en el cargue: empezó a cargar, terminó o salió. */
   siguientePaso(r: any): { campo: 'horaInicioCargue' | 'horaFinCargue' | 'horaSalida'; texto: string } {
     if (!r.horaInicioCargue && !r.horaFinCargue) return { campo: 'horaInicioCargue', texto: 'Empezó a cargar' };
@@ -324,14 +527,50 @@ export class DespachosComponent implements OnInit, OnDestroy {
     return { campo: 'horaSalida', texto: 'Salió' };
   }
 
-  /** Botón rápido: pone la hora de ahora en el siguiente paso del vehículo. */
+  /**
+   * Botón rápido: pone la hora de ahora en el siguiente paso del vehículo.
+   * Si termina de cargar pasado el límite, primero pide el motivo.
+   */
   async terminarCargue(r: any): Promise<void> {
     if (this.terminandoId) return;
-    this.terminandoId = r.id;
     const paso = this.siguientePaso(r);
+    if (paso.campo === 'horaFinCargue') {
+      const minutos = minutosEntre(r.horaInicioCargue || r.horaLlegada, horaAhora());
+      if (minutos !== null && minutos > this.limiteMin) {
+        this.demora = { r, minutos, motivo: '', detalle: '', intento: false };
+        return;
+      }
+    }
+    await this.aplicarPaso(r, {});
+  }
+
+  async confirmarDemora(): Promise<void> {
+    const d = this.demora;
+    if (!d) return;
+    d.intento = true;
+    if (!d.motivo || (d.motivo === 'Otro' && !d.detalle.trim())) return;
+    this.demora = null;
+    await this.aplicarPaso(d.r, { motivoDemora: d.motivo, motivoDemoraDetalle: d.detalle.trim() });
+  }
+
+  private async aplicarPaso(r: any, extra: any): Promise<void> {
+    const paso = this.siguientePaso(r);
+    const ahora = horaAhora();
+    // Anotado sin señal y todavía sin enviar: se completa en la cola.
+    if (r.pendiente && !r.id) {
+      const p = this.pendientes.find(x => x.cuerpo.clienteId === r.clienteId);
+      if (p) { p.cuerpo = { ...p.cuerpo, [paso.campo]: ahora, ...extra }; this.guardarCola(); }
+      this.ui.mostrarToast(`<i class="bi bi-wifi-off"></i> ${r.placa}: guardado en este celular (${paso.texto.toLowerCase()} ${ahora}). Se enviará cuando vuelva la señal.`, 'info');
+      this.cdr.markForCheck();
+      return;
+    }
+    this.terminandoId = r.id;
     try {
-      const data = await this.enviar('', { ...r, [paso.campo]: horaAhora() });
-      if (data?.ok) {
+      const { pendiente, puedeCorregir, puedeEliminar, minutos, totalCajas, totalEstibas, creadoPorNombre, editadoPorNombre, ...limpio } = r;
+      const { data, encolado } = await this.enviarOEncolar('', { ...limpio, [paso.campo]: ahora, ...extra }, `${r.placa}: ${paso.texto.toLowerCase()} ${ahora}`);
+      if (encolado) {
+        this.ui.mostrarToast(`<i class="bi bi-wifi-off"></i> Sin conexión: ${r.placa} (${paso.texto.toLowerCase()} ${ahora}) quedó en este celular y se enviará solo.`, 'info');
+      } else if (data?.ok) {
         const g = data.registro;
         this.ui.mostrarToast(paso.campo === 'horaInicioCargue' ? `${r.placa} empezó a cargar a las ${g.horaInicioCargue}.`
           : paso.campo === 'horaFinCargue' ? `${r.placa} terminó de cargar a las ${g.horaFinCargue} (${this.textoMinutos(g.minutos)}).`
@@ -350,6 +589,7 @@ export class DespachosComponent implements OnInit, OnDestroy {
   corregir(r: any): void {
     this.intentoGuardar = false;
     this.form = {
+      motivoDemora: r.motivoDemora || '', motivoDemoraDetalle: r.motivoDemoraDetalle || '',
       id: r.id, fecha: r.fecha, horaLlegada: r.horaLlegada, placa: r.placa,
       despachador: r.despachador || this.nombreRecordado(), horaProgramada: r.horaProgramada || '', horaInicioCargue: r.horaInicioCargue || '',
       horaSalida: r.horaSalida || '', ruta: r.ruta || '', cargas: (r.cargas || []).map((c: any) => ({ tipo: c.tipo, cantidad: String(c.cantidad) })),
@@ -401,6 +641,10 @@ export class DespachosComponent implements OnInit, OnDestroy {
         this.desde = data.desde;
         this.hasta = data.hasta;
         this.hoy = data.hoy || hoyTexto();
+        if (data.limiteMin) this.limiteMin = data.limiteMin;
+        if (Array.isArray(data.motivosDemora) && data.motivosDemora.length) this.motivosDemora = data.motivosDemora;
+        this.puedeCambiarLimite = !!data.puedeCambiarLimite;
+        guardarLocal(CLAVE_CONFIG, { limiteMin: this.limiteMin, motivosDemora: this.motivosDemora });
       } else if (!silencioso) {
         this.ui.mostrarToast(data?.msg || 'No se pudo cargar el registro.', 'err');
       }
@@ -471,12 +715,10 @@ export class DespachosComponent implements OnInit, OnDestroy {
     return r ? `${h} h ${r} min` : `${h} h`;
   }
 
-  /** Cuánto lleva cargando un vehículo que todavía no termina. */
+  /** Cuánto lleva cargando un vehículo que todavía no termina (desde el inicio de cargue o la llegada). */
   llevaCargando(r: any): string {
-    const [a, m, d] = String(r.fecha).split('-').map(Number);
-    const [hh, mm] = String(r.horaLlegada).split(':').map(Number);
-    const min = Math.round((Date.now() - new Date(a, m - 1, d, hh, mm).getTime()) / 60000);
-    return min >= 0 ? this.textoMinutos(min) : '';
+    const min = this.minutosEnCargue(r);
+    return min !== null && min >= 0 ? this.textoMinutos(min) : '';
   }
 
   /** Pasó la medianoche: terminó "antes" de la hora de llegada. */
@@ -512,5 +754,5 @@ export class DespachosComponent implements OnInit, OnDestroy {
     await this.auth.cerrarSesion();
   }
 
-  trackId = (_: number, r: any) => r.id;
+  trackId = (_: number, r: any) => r.id ?? r.clienteId;
 }

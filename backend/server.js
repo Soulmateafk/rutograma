@@ -22,8 +22,8 @@ const { ROLES_VALIDOS, rolDeCuenta, requiereAprobacion, describirCambio, solicit
 // vuelva a ejecutar la petición de un auxiliar cuando un jefe la aprueba.
 // Solo vive en memoria: nadie de afuera puede conocerla.
 const TOKEN_REPLAY_APROBACION = crypto.randomBytes(32).toString('hex');
-const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB, crearRespaldoDB, listarRespaldosDB, limpiarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, listarAuditoriaViajeDB, importarAuditoriaJSONLSiHaceFalta, listarDespachosDB, leerDespachoDB, guardarDespachoDB, eliminarDespachoDB, mesesDespachosDB } = require('./migracion/db.js');
-const { TIPOS_CARGA, totalesCarga, minutosDelRegistro, textoMinutos, rangoPeriodo, validarDespacho, resumenDespachos, filasExcel, nombreArchivo, fechaBonita } = require('./despachos');
+const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB, crearRespaldoDB, listarRespaldosDB, limpiarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, listarAuditoriaViajeDB, importarAuditoriaJSONLSiHaceFalta, listarDespachosDB, leerDespachoDB, guardarDespachoDB, eliminarDespachoDB, mesesDespachosDB, despachoPorClienteDB } = require('./migracion/db.js');
+const { MOTIVOS_DEMORA, limiteValido, demorados, TIPOS_CARGA, totalesCarga, minutosDelRegistro, textoMinutos, rangoPeriodo, validarDespacho, resumenDespachos, filasExcel, nombreArchivo, fechaBonita } = require('./despachos');
 const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
 const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar, motivoFechaAnterior, motivoExtraEnElPasado, viajeEnRuta, textoEnRuta } = require('./dias-cerrados');
@@ -578,7 +578,7 @@ app.use(identificarUsuario);
 // no se les entrega aunque la pidan directo.
 const RUTAS_PARA_CONDUCTOR = ['/api/mis-viajes', '/api/mis-viajes/validar', '/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/modo', '/api/sesiones', '/api/sesiones/cerrar',
     '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual', '/api/guias', '/api/guias/vista', '/api/guias/reiniciar'];
-const RUTAS_PARA_DESPACHOS = ['/api/despachos', '/api/despachos/opciones', '/api/despachos/eliminar', '/api/despachos/excel', '/api/presencia', '/api/modo',
+const RUTAS_PARA_DESPACHOS = ['/api/despachos', '/api/despachos/opciones', '/api/despachos/demorados', '/api/despachos/eliminar', '/api/despachos/excel', '/api/presencia', '/api/modo',
     '/api/sesiones', '/api/sesiones/cerrar', '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual', '/api/guias', '/api/guias/vista', '/api/guias/reiniciar'];
 app.use((req, res, next) => {
     if (!req.path.startsWith('/api/') || req.path.startsWith('/api/auth/')) return next();
@@ -1125,7 +1125,7 @@ const RUTAS_SIN_RESTRICCION_DE_ROL = [
     '/api/sesiones/cerrar-otras',
     '/api/sesiones/cerrar-actual'
 ];
-const RUTAS_CON_PERMISO_PROPIO = ['/api/despachos', '/api/despachos/eliminar', '/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/cuenta-despachos', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
+const RUTAS_CON_PERMISO_PROPIO = ['/api/despachos', '/api/despachos/eliminar', '/api/despachos/limite', '/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/cuenta-despachos', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
 
 // ============================================================
 // REVISIÓN AL ASIGNAR UN VIAJE (ver revision-viajes.js) — para todos,
@@ -3316,11 +3316,15 @@ function accesoDespachos(req) {
         // La cuenta de despachos corrige o borra lo de hoy y ayer (un cargue
         // que pasó la medianoche); la oficina, cualquier día.
         corregir: (fecha) => esAdmin || !!permisos.editar || (esDespachos && fecha >= hoyLocalTexto(-1)),
-        eliminar: (fecha) => esAdmin || !!permisos.eliminar || (esDespachos && fecha >= hoyLocalTexto(-1))
+        eliminar: (fecha) => esAdmin || !!permisos.eliminar || (esDespachos && fecha >= hoyLocalTexto(-1)),
+        cambiarLimite: esAdmin || !!permisos.editarConfiguracion
     };
 }
 
 const FECHA_DESPACHO = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Minutos de cargue antes de pedir motivo de demora (los pone la oficina). */
+const limiteCargue = () => limiteValido(leerConfigCompartidaDB(modoActual).limiteCargueMin);
 
 /** Correo -> nombre de la cuenta ("Anotado por" muestra el nombre, no el correo). */
 const nombresDeCuentas = () => {
@@ -3385,7 +3389,8 @@ app.get('/api/despachos', (req, res) => {
             puedeCorregir: acceso.corregir(r.fecha), puedeEliminar: acceso.eliminar(r.fecha)
         }));
         res.setHeader('Cache-Control', 'no-store');
-        res.json({ ok: true, ...rango, registros, resumen: resumenDespachos(registros), meses: mesesDespachosDB(modoActual), hoy: hoyLocalTexto() });
+        res.json({ ok: true, ...rango, registros, resumen: resumenDespachos(registros), meses: mesesDespachosDB(modoActual), hoy: hoyLocalTexto(),
+            limiteMin: limiteCargue(), motivosDemora: MOTIVOS_DEMORA, puedeCambiarLimite: acceso.cambiarLimite });
     } catch (error) {
         console.error('🚨 Error en /api/despachos:', error);
         res.status(500).json({ ok: false, msg: error.message });
@@ -3396,8 +3401,14 @@ app.post('/api/despachos', (req, res) => {
     try {
         const acceso = accesoDespachos(req);
         if (!acceso.anotar) { res.locals.auditoriaOmitir = true; return res.status(403).json({ ok: false, msg: 'Tu cuenta no puede anotar despachos.' }); }
-        const { errores, registro } = validarDespacho(req.body);
+        const { errores, registro } = validarDespacho(req.body, { limiteMin: limiteCargue() });
         if (errores.length) { res.locals.auditoriaOmitir = true; return res.status(400).json({ ok: false, msg: `Falta ${errores.join(', ')}.` }); }
+        // Reenvío de algo anotado sin señal que ya había llegado: no se duplica.
+        const repetido = !registro.id ? despachoPorClienteDB(modoActual, registro.clienteId) : null;
+        if (repetido) {
+            res.locals.auditoriaOmitir = true;
+            return res.json({ ok: true, repetido: true, registro: { ...repetido, minutos: minutosDelRegistro(repetido) } });
+        }
         const previo = registro.id ? leerDespachoDB(modoActual, registro.id) : null;
         if (registro.id && !previo) { res.locals.auditoriaOmitir = true; return res.status(404).json({ ok: false, msg: 'Ese registro ya no existe (alguien lo borró).' }); }
         if (previo && !(acceso.corregir(previo.fecha) && acceso.corregir(registro.fecha))) {
@@ -3435,6 +3446,7 @@ app.post('/api/despachos', (req, res) => {
             descripcion: `${previo ? 'Corrigió' : 'Anotó'} el despacho de ${guardado.placa} hacia ${guardado.destino} (${fechaBonita(guardado.fecha)}, despachó ${guardado.despachador}): llegó ${guardado.horaLlegada}`
                 + (carga.cajas || carga.estibas ? `, ${carga.cajas} cajas${carga.estibas ? ` y ${carga.estibas} estibas` : ''}` : '')
                 + (guardado.horaSalida ? `, salió ${guardado.horaSalida}` : '')
+                + (guardado.motivoDemora ? `. Demora: ${guardado.motivoDemora}${guardado.motivoDemoraDetalle ? ' (' + guardado.motivoDemoraDetalle + ')' : ''}` : '')
                 + (guardado.horaFinCargue ? `, terminó de cargar ${guardado.horaFinCargue} (${textoMinutos(min)})` : ', cargando')
         };
         res.status(previo ? 200 : 201).json({ ok: true, registro: { ...guardado, minutos: min } });
@@ -3465,6 +3477,38 @@ app.post('/api/despachos/eliminar', (req, res) => {
     }
 });
 
+// Vehículos que siguen cargando y ya pasaron el límite: el aviso que ve
+// la oficina en cualquier pantalla (componente aviso-cargue).
+app.get('/api/despachos/demorados', (req, res) => {
+    try {
+        if (!accesoDespachos(req).ver) return res.status(403).json({ ok: false, msg: 'Sin acceso a Despachos.' });
+        const limiteMin = limiteCargue();
+        const lista = demorados(listarDespachosDB(modoActual, hoyLocalTexto(-1), hoyLocalTexto()), new Date(), limiteMin)
+            .map(r => ({ id: r.id, placa: r.placa, destino: r.destino, fecha: r.fecha, horaLlegada: r.horaLlegada, horaInicioCargue: r.horaInicioCargue, minutos: r.minutos }));
+        res.setHeader('Cache-Control', 'no-store');
+        res.json({ ok: true, limiteMin, demorados: lista });
+    } catch (error) {
+        console.error('🚨 Error en /api/despachos/demorados:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// Límite de minutos de cargue (quien puede cambiar la configuración).
+app.post('/api/despachos/limite', (req, res) => {
+    try {
+        const acceso = accesoDespachos(req);
+        if (!acceso.cambiarLimite) { res.locals.auditoriaOmitir = true; return res.status(403).json({ ok: false, msg: 'Tu cuenta no puede cambiar el límite de cargue.' }); }
+        const minutos = Math.round(Number(req.body?.minutos));
+        if (!(minutos >= 10 && minutos <= 600)) { res.locals.auditoriaOmitir = true; return res.status(400).json({ ok: false, msg: 'Escribe un límite entre 10 y 600 minutos.' }); }
+        guardarConfigCompartidaDB(modoActual, 'limiteCargueMin', minutos, acceso.email);
+        res.locals.auditoriaResumen = { minutos, descripcion: `Cambió el límite de cargue a ${textoMinutos(minutos)}` };
+        res.json({ ok: true, limiteMin: minutos });
+    } catch (error) {
+        console.error('🚨 Error en /api/despachos/limite:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
 // Excel del día, la semana (lunes a domingo) o el mes.
 app.get('/api/despachos/excel', (req, res) => {
     try {
@@ -3489,6 +3533,8 @@ app.get('/api/despachos/excel', (req, res) => {
             ['Siguen cargando (sin hora de fin)', r.enCargue],
             ['Tiempo promedio de cargue', textoMinutos(r.promedioMin)],
             ['Cargue más largo', textoMinutos(r.maximoMin)],
+            ['Cargues con demora (con motivo)', r.conDemora],
+            ...[...new Set(registros.map(x => x.motivoDemora).filter(Boolean))].map(m => [`   ${m}`, registros.filter(x => x.motivoDemora === m).length]),
             ['Total de cajas', r.totalCajas],
             ['Estibas', r.totalEstibas],
             [],
