@@ -1,0 +1,46 @@
+<div class="pp-page">
+  <div class="pp-cab">
+    <div>
+      <h1><i class="bi bi-trash3"></i> Papelera</h1>
+      <p class="pp-sub">Lo que se elimina queda aquí {{ dias }} días y se puede recuperar. Después se borra para siempre.</p>
+    </div>
+    <button class="pp-sec" (click)="cargar()"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+  </div>
+
+  <div class="pp-filtros" data-guia="pp-filtros">
+    <button *ngFor="let t of tipos" [class.on]="filtro === t.valor" (click)="filtro = t.valor">
+      {{ t.nombre }} <small *ngIf="cuenta(t.valor)">{{ cuenta(t.valor) }}</small>
+    </button>
+  </div>
+
+  <p *ngIf="cargando" class="pp-vacio">Cargando…</p>
+  <p *ngIf="!cargando && error" class="pp-error"><i class="bi bi-info-circle"></i> {{ error }}</p>
+  <p *ngIf="!cargando && !error && !enPapelera.length" class="pp-vacio">La papelera está vacía.</p>
+  <p *ngIf="!cargando && !error && enPapelera.length && !puedeRecuperar" class="pp-aviso">
+    <i class="bi bi-info-circle"></i> Puedes ver lo eliminado, pero para recuperarlo pídeselo a un jefe o al administrador.
+  </p>
+
+  <div class="pp-lista" *ngIf="!cargando && enPapelera.length" data-guia="pp-lista">
+    <div *ngFor="let i of enPapelera" class="pp-item">
+      <i class="bi pp-icono" [ngClass]="icono(i.tipo)"></i>
+      <div class="pp-texto">
+        <div class="pp-titulo"><span class="pp-tipo">{{ i.tipoNombre }}</span> {{ i.etiqueta }}</div>
+        <div class="pp-meta">Eliminado {{ cuando(i.eliminadoEn) }}{{ i.eliminadoPor ? ' por ' + i.eliminadoPor : '' }} · se borra para siempre el {{ fecha(i.seBorraEl) }} (en {{ diasRestantes(i.seBorraEl) }} días)</div>
+      </div>
+      <button *ngIf="puedeRecuperar" class="pp-btn" (click)="recuperar(i)" [disabled]="recuperandoId === i.id">
+        <i class="bi bi-arrow-counterclockwise"></i> {{ recuperandoId === i.id ? 'Recuperando…' : 'Recuperar' }}
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="!cargando && recuperados.length" class="pp-recuperados">
+    <h2>Recuperados hace poco</h2>
+    <div *ngFor="let i of recuperados" class="pp-item pp-hecho">
+      <i class="bi pp-icono" [ngClass]="icono(i.tipo)"></i>
+      <div class="pp-texto">
+        <div class="pp-titulo"><span class="pp-tipo">{{ i.tipoNombre }}</span> {{ i.etiqueta }}</div>
+        <div class="pp-meta">Recuperado {{ cuando(i.restauradoEn) }}{{ i.restauradoPor ? ' por ' + i.restauradoPor : '' }}</div>
+      </div>
+    </div>
+  </div>
+</div>

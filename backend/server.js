@@ -22,7 +22,8 @@ const { ROLES_VALIDOS, rolDeCuenta, requiereAprobacion, describirCambio, solicit
 // vuelva a ejecutar la petición de un auxiliar cuando un jefe la aprueba.
 // Solo vive en memoria: nadie de afuera puede conocerla.
 const TOKEN_REPLAY_APROBACION = crypto.randomBytes(32).toString('hex');
-const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB, crearRespaldoDB, listarRespaldosDB, limpiarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, listarAuditoriaViajeDB, importarAuditoriaJSONLSiHaceFalta, listarDespachosDB, leerDespachoDB, guardarDespachoDB, eliminarDespachoDB, mesesDespachosDB, despachoPorClienteDB } = require('./migracion/db.js');
+const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB, crearRespaldoDB, listarRespaldosDB, limpiarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, listarAuditoriaViajeDB, importarAuditoriaJSONLSiHaceFalta, listarDespachosDB, leerDespachoDB, guardarDespachoDB, eliminarDespachoDB, mesesDespachosDB, despachoPorClienteDB, guardarEnPapeleraDB, listarPapeleraDB, leerPapeleraDB, marcarRestauradoDB } = require('./migracion/db.js');
+const { DIAS_EN_PAPELERA, TIPOS: TIPOS_PAPELERA, queSeElimina, restaurarEn, venceEl } = require('./papelera');
 const { cargaSugerida, salidaDelDespacho, MOTIVOS_DEMORA, limiteValido, demorados, TIPOS_CARGA, totalesCarga, minutosDelRegistro, textoMinutos, rangoPeriodo, validarDespacho, resumenDespachos, filasExcel, nombreArchivo, fechaBonita } = require('./despachos');
 const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
@@ -1125,7 +1126,7 @@ const RUTAS_SIN_RESTRICCION_DE_ROL = [
     '/api/sesiones/cerrar-otras',
     '/api/sesiones/cerrar-actual'
 ];
-const RUTAS_CON_PERMISO_PROPIO = ['/api/despachos', '/api/despachos/eliminar', '/api/despachos/limite', '/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/cuenta-despachos', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
+const RUTAS_CON_PERMISO_PROPIO = ['/api/papelera/restaurar', '/api/despachos', '/api/despachos/eliminar', '/api/despachos/limite', '/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/cuenta-despachos', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
 
 // ============================================================
 // REVISIÓN AL ASIGNAR UN VIAJE (ver revision-viajes.js) — para todos,
@@ -1272,6 +1273,87 @@ app.use((req, res, next) => {
         // (mismo criterio que ya se usa en registrarAuditoria).
         console.error('⚠️ Error revisando el rol de la cuenta:', err.message);
         next();
+    }
+});
+
+// ============================================================
+// PAPELERA (ver papelera.js) — justo antes de que se ejecute una
+// eliminación (ya pasó permisos y aprobaciones), se guarda una copia de
+// lo que se va a borrar; si la eliminación salió bien, queda en la
+// papelera 30 días.
+// ============================================================
+app.use((req, res, next) => {
+    if (req.method !== 'POST' && req.method !== 'DELETE') return next();
+    if (!/\/eliminar$|^\/api\/vehiculos\//.test(req.path)) return next();
+    try {
+        const item = queSeElimina(req.method, req.path, req.body, leerExcel(), (id) => leerDespachoDB(modoActual, id));
+        if (item) {
+            const usuario = normalizarEmail(req.headers['x-user-email']);
+            const modo = modoActual;
+            res.on('finish', () => {
+                if (res.statusCode !== 200) return;
+                try { guardarEnPapeleraDB(modo, item, usuario); } catch (err) { console.error('⚠️ No se pudo guardar en la papelera:', err.message); }
+            });
+        }
+    } catch (err) {
+        // La papelera nunca debe impedir eliminar.
+        console.error('⚠️ Error preparando la papelera:', err.message);
+    }
+    next();
+});
+
+/** Quién puede ver la papelera (eliminar) y recuperar (eliminar sin aprobación). */
+function accesoPapelera(req) {
+    const email = normalizarEmail(req.usuarioVerificado || req.headers['x-user-email']);
+    const esAdmin = email === normalizarEmail(ADMIN_EMAIL);
+    const cuenta = (leerExcel().usuarios || []).find(u => normalizarEmail(u.email) === email) || null;
+    const permisos = cuenta || esAdmin ? permisosDeCuenta(cuenta, esAdmin) : {};
+    return { email, ver: esAdmin || !!permisos.eliminar, recuperar: esAdmin || (!!permisos.eliminar && !necesitaAprobacion(permisos)) };
+}
+
+app.get('/api/papelera', (req, res) => {
+    try {
+        const acceso = accesoPapelera(req);
+        if (!acceso.ver) return res.status(403).json({ ok: false, msg: 'Tu cuenta no puede ver la papelera.' });
+        const nombres = new Map((leerExcel().usuarios || []).map(u => [normalizarEmail(u.email), String(u.nombre || '').trim()]));
+        const nombreDe = (e) => e ? (nombres.get(normalizarEmail(e)) || e) : '';
+        const items = listarPapeleraDB(modoActual, DIAS_EN_PAPELERA).map(i => ({
+            id: i.id, tipo: i.tipo, tipoNombre: TIPOS_PAPELERA[i.tipo] || i.tipo, etiqueta: i.etiqueta,
+            eliminadoPor: nombreDe(i.eliminadoPor), eliminadoEn: i.eliminadoEn, seBorraEl: venceEl(i.eliminadoEn, DIAS_EN_PAPELERA),
+            restauradoPor: nombreDe(i.restauradoPor), restauradoEn: i.restauradoEn
+        }));
+        res.setHeader('Cache-Control', 'no-store');
+        res.json({ ok: true, dias: DIAS_EN_PAPELERA, puedeRecuperar: acceso.recuperar, items });
+    } catch (error) {
+        console.error('🚨 Error en /api/papelera:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+app.post('/api/papelera/restaurar', (req, res) => {
+    try {
+        const acceso = accesoPapelera(req);
+        if (!acceso.recuperar) { res.locals.auditoriaOmitir = true; return res.status(403).json({ ok: false, msg: 'Tu cuenta no puede recuperar de la papelera.' }); }
+        const item = leerPapeleraDB(modoActual, Number(req.body?.id));
+        if (!item) { res.locals.auditoriaOmitir = true; return res.status(404).json({ ok: false, msg: 'Ya no está en la papelera (pasaron más de 30 días).' }); }
+        if (item.restauradoEn) { res.locals.auditoriaOmitir = true; return res.status(409).json({ ok: false, msg: 'Eso ya se recuperó.' }); }
+        let resultado;
+        if (item.tipo === 'despacho') {
+            const { id, clienteId, ...resto } = item.datos || {};
+            guardarDespachoDB(modoActual, { ...resto, id: null, clienteId: null }, item.datos?.creadoPor || acceso.email);
+            resultado = { ok: true, msg: `Se recuperó: ${item.etiqueta}.` };
+        } else {
+            const data = leerExcel();
+            resultado = restaurarEn(data, item);
+            if (resultado.ok) guardarEnExcel(data);
+        }
+        if (!resultado.ok) { res.locals.auditoriaOmitir = true; return res.status(409).json(resultado); }
+        marcarRestauradoDB(modoActual, item.id, acceso.email);
+        res.locals.auditoriaResumen = { tipo: item.tipo, clave: item.clave, descripcion: `Recuperó de la papelera: ${TIPOS_PAPELERA[item.tipo] || item.tipo} ${item.etiqueta}` };
+        res.json(resultado);
+    } catch (error) {
+        console.error('🚨 Error en /api/papelera/restaurar:', error);
+        res.status(500).json({ ok: false, msg: error.message });
     }
 });
 

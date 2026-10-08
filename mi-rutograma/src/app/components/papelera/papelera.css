@@ -1,0 +1,30 @@
+.pp-page { padding: 20px; max-width: 960px; margin: 0 auto; color: var(--color-texto-principal); }
+.pp-cab { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.pp-cab h1 { font-size: 22px; margin: 0; display: flex; gap: 8px; align-items: center; }
+.pp-sub { margin: 2px 0 0; color: var(--color-texto-secundario); font-size: 13px; }
+.pp-sec { background: none; border: 1px solid var(--color-borde, #334155); color: var(--color-texto-principal); border-radius: 7px; padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 13px; }
+.pp-filtros { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.pp-filtros button { background: none; border: 1px solid var(--color-borde, #334155); color: var(--color-texto-principal); border-radius: 999px; padding: 5px 12px; cursor: pointer; font-family: inherit; font-size: 12.5px; }
+.pp-filtros button.on { background: #2563eb; border-color: #2563eb; color: #fff; }
+.pp-filtros small { opacity: .75; margin-left: 2px; }
+.pp-vacio { color: var(--color-texto-secundario); font-size: 13px; padding: 14px 0; }
+.pp-error, .pp-aviso { font-size: 13px; border-radius: 8px; padding: 9px 12px; }
+.pp-error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.4); color: #fecaca; }
+.pp-aviso { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.35); color: #bfdbfe; }
+.pp-lista, .pp-recuperados { background: var(--color-fondo-tarjeta, #0f172a); border: 1px solid var(--color-borde, #1e293b); border-radius: 12px; padding: 4px 14px; margin-bottom: 12px; }
+.pp-recuperados h2 { font-size: 13px; margin: 10px 0 2px; color: var(--color-texto-secundario); text-transform: uppercase; letter-spacing: .4px; }
+.pp-item { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--color-borde, #1e293b); }
+.pp-lista .pp-item:first-child { border-top: none; }
+.pp-icono { font-size: 18px; color: var(--color-texto-secundario); flex: none; }
+.pp-texto { flex: 1; min-width: 0; }
+.pp-titulo { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.pp-tipo { font-size: 11px; font-weight: 700; background: rgba(148, 163, 184, 0.16); border-radius: 5px; padding: 1px 6px; margin-right: 4px; color: var(--color-texto-secundario); }
+.pp-meta { font-size: 12px; color: var(--color-texto-secundario); margin-top: 2px; }
+.pp-btn { flex: none; background: #2563eb; border: none; color: #fff; border-radius: 8px; padding: 7px 12px; font-weight: 600; cursor: pointer; font-family: inherit; display: inline-flex; gap: 6px; align-items: center; }
+.pp-btn:disabled { opacity: .6; cursor: wait; }
+.pp-hecho { opacity: .7; }
+@media (max-width: 600px) {
+  .pp-page { padding: 14px 16px 40px; }
+  .pp-item { flex-wrap: wrap; }
+  .pp-btn { margin-left: 30px; }
+}

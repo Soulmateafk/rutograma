@@ -255,6 +255,14 @@ export const GUIAS: Record<string, Guia> = {
     ]
   },
 
+  papelera: {
+    titulo: 'Papelera',
+    pasos: [
+      { el: 'pp-filtros', titulo: 'Qué se eliminó', texto: 'Viajes, vehículos, rutas, conductores, novedades y despachos eliminados en los últimos 30 días. Filtra por tipo.' },
+      { el: 'pp-lista', titulo: 'Recuperar', texto: 'Con "Recuperar" vuelve tal como estaba. Si después se creó otro igual (misma placa, mismo viaje), no se pisa: avisa. A los 30 días se borra para siempre.' }
+    ]
+  },
+
   despachos: {
     titulo: 'Despachos',
     pasos: [

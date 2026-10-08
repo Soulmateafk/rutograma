@@ -237,3 +237,17 @@ CREATE TABLE IF NOT EXISTS despachos (
   editado_en          TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_despachos_fecha ON despachos (fecha);
+
+-- Papelera: lo eliminado queda 30 días y se puede recuperar (ver papelera.js).
+CREATE TABLE IF NOT EXISTS papelera (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  tipo                TEXT NOT NULL,      -- viaje, vehiculo, ruta, conductor, novedad, despacho
+  clave               TEXT NOT NULL,
+  etiqueta            TEXT DEFAULT '',
+  datos_json          TEXT NOT NULL,
+  eliminado_por       TEXT,
+  eliminado_en        TEXT NOT NULL,
+  restaurado_por      TEXT,
+  restaurado_en       TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_papelera_fecha ON papelera (eliminado_en);

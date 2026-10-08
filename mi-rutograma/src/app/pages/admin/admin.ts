@@ -465,6 +465,7 @@ export class Admin implements OnInit, OnDestroy {
       case '/api/auth/resetear-clave':
         return `Restableció la contraseña de ${r.email || 'una cuenta'}`;
 
+      case '/api/papelera/restaurar':
       case '/api/despachos/limite':
       case '/api/despachos':
       case '/api/despachos/eliminar':

@@ -938,7 +938,7 @@ export class VehiculosComponent implements OnInit, OnDestroy {
           this.ds.S.vehiculos.splice(v.index, 1);
           this.ds.autoSave();
           this.prepararDatos();
-          this.ui.mostrarToast('Vehículo eliminado correctamente.', 'ok');
+          this.ui.mostrarToast('Vehículo eliminado. Si fue un error, lo puedes recuperar en Más → Papelera durante 30 días.', 'ok');
         }
       },
       error: (err: any) => {
