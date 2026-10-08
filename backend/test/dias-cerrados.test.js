@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { finDeViaje, viajeCerrado, motivoBloqueoGuardar, motivoBloqueoEliminar } = require('../dias-cerrados');
+const { finDeViaje, viajeCerrado, motivoBloqueoGuardar, motivoBloqueoEliminar, motivoFechaAnterior, ultimoDiaDeViaje } = require('../dias-cerrados');
 
 const HOY = '2026-10-05';
 const viaje = (extra) => ({ id: 'v1', fecha: '2026-10-01', salida: 1, retorno: 3, p: 'ABC123', ruta: 'BOG-CAL', cond: 'Pedro Pérez', estado: 'En ruta', ...extra });
@@ -53,4 +53,25 @@ test('eliminar', () => {
     assert.match(motivoBloqueoEliminar(viaje(), HOY), /Cancelado/);
     assert.strictEqual(motivoBloqueoEliminar(viaje({ fecha: HOY, salida: 5, retorno: 6 }), HOY), '');
     assert.strictEqual(motivoBloqueoEliminar(null, HOY), '');
+});
+
+test('editar: un viaje que no ha pasado no se manda a antes de hoy', () => {
+    const hoy = '2026-10-08';
+    // Sale hoy (8) y su último día es el 9 (retorno guardado 10).
+    const v = { id: 'v', fecha: '2026-10-08', salida: 8, retorno: 10 };
+    assert.strictEqual(ultimoDiaDeViaje(v), '2026-10-09');
+    assert.match(motivoFechaAnterior(v, { ...v, fecha: '2026-10-07', salida: 7, retorno: 9 }, hoy), /salida el 07\/10\/2026: es un día anterior a hoy \(08\/10\/2026\)/);
+    // Va en camino (salió el 5, último día el 9): el retorno no puede quedar el 7.
+    const enRuta = { id: 'r', fecha: '2026-10-05', salida: 5, retorno: 10 };
+    assert.match(motivoFechaAnterior(enRuta, { ...enRuta, retorno: 8 }, hoy), /retorno el 07\/10\/2026/);
+    // Retorno hoy o después, o un día siguiente: se puede.
+    assert.strictEqual(motivoFechaAnterior(enRuta, { ...enRuta, retorno: 9 }, hoy), '');
+    assert.strictEqual(motivoFechaAnterior(v, { ...v, fecha: '2026-10-12', salida: 12, retorno: 14 }, hoy), '');
+    // Cambiar otra cosa (estado, observación) sin tocar fechas: se puede.
+    assert.strictEqual(motivoFechaAnterior(v, { ...v, estado: 'Entregado' }, hoy), '');
+    // Un viaje que ya había pasado (corrección de algo real): lo decide el permiso de días cerrados.
+    const viejo = { id: 'x', fecha: '2026-10-02', salida: 2, retorno: 4 };
+    assert.strictEqual(motivoFechaAnterior(viejo, { ...viejo, fecha: '2026-10-01', salida: 1, retorno: 3 }, hoy), '');
+    // Viaje nuevo: lo revisa la regla de días cerrados, no esta.
+    assert.strictEqual(motivoFechaAnterior(null, v, hoy), '');
 });

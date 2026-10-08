@@ -26,7 +26,7 @@ const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, 
 const { TIPOS_CARGA, totalesCarga, minutosDelRegistro, textoMinutos, rangoPeriodo, validarDespacho, resumenDespachos, filasExcel, nombreArchivo, fechaBonita } = require('./despachos');
 const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
-const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar } = require('./dias-cerrados');
+const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar, motivoFechaAnterior } = require('./dias-cerrados');
 const { documentosVencidos, choquesDeAgenda, cambioLoQueSeRevisa, esPlacaCupo } = require('./revision-viajes');
 const { reglasIncumplidas } = require('./reglas-asignacion');
 const { crearPresencia, primerNombre } = require('./presencia');
@@ -1142,6 +1142,12 @@ app.use((req, res, next) => {
         const viaje = req.body || {};
         const data = leerExcel();
         const previo = viaje.id !== undefined && viaje.id !== null ? (data.viajes || []).find(v => v.id === viaje.id) : null;
+        // Un viaje que todavía no pasa no se manda a antes de hoy (salida o retorno).
+        const anterior = motivoFechaAnterior(previo, viaje, fechaLocal());
+        if (anterior) {
+            res.locals.auditoriaOmitir = true;
+            return res.status(400).json({ ok: false, codigo: 'dia_anterior', msg: anterior });
+        }
         if (!cambioLoQueSeRevisa(previo, viaje)) return next();
         const vencidos = documentosVencidos(viaje, data);
         if (vencidos.length) {

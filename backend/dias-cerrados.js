@@ -112,10 +112,46 @@ function motivoBloqueoGuardar(previo, nuevo, hoy = fechaLocal()) {
         : '';
 }
 
+// ============================================================
+// FECHAS ANTERIORES A HOY — al editar un viaje que todavía no ha pasado
+// (sale hoy o después, o regresa hoy o después), no se le puede poner una
+// salida ni un retorno anterior a hoy: no sería un dato real. Vale para
+// todas las cuentas (también con el permiso de días cerrados, que sirve
+// para corregir viajes que YA pasaron, no para mandar al pasado uno que
+// todavía no ocurre). El retorno es el último día del viaje, el que se ve
+// en pantalla ("retorno" guardado - 1).
+// ============================================================
+const fechaBonita = (f) => { const [a, m, d] = String(f).split('-'); return `${d}/${m}/${a}`; };
+
+/** Último día del viaje (el "Retorno" que se ve al editar). */
+function ultimoDiaDeViaje(viaje) {
+    const fecha = String(viaje?.fecha || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return '';
+    const salida = Number(viaje.salida || viaje.dia || 0);
+    const retorno = Number(viaje.retorno || 0);
+    return sumarDias(fecha, retorno > salida + 1 ? retorno - 1 - salida : 0);
+}
+
+/** Motivo para no guardar (o ''): salida o retorno movidos a antes de hoy. */
+function motivoFechaAnterior(previo, nuevo, hoy = fechaLocal()) {
+    if (!previo || !nuevo) return '';
+    const antes = String(previo.fecha || '').slice(0, 10);
+    const ahora = String(nuevo.fecha ?? previo.fecha ?? '').slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(ahora) && ahora !== antes && ahora < hoy && antes >= hoy) {
+        return `No se puede poner la salida el ${fechaBonita(ahora)}: es un día anterior a hoy (${fechaBonita(hoy)}) y no sería un dato real.`;
+    }
+    const finAntes = ultimoDiaDeViaje(previo);
+    const finAhora = ultimoDiaDeViaje({ ...previo, ...nuevo });
+    if (finAhora && finAhora !== finAntes && finAhora < hoy && finAntes >= hoy) {
+        return `No se puede poner el retorno el ${fechaBonita(finAhora)}: es un día anterior a hoy (${fechaBonita(hoy)}) y no sería un dato real.`;
+    }
+    return '';
+}
+
 function motivoBloqueoEliminar(previo, hoy = fechaLocal()) {
     return previo && viajeCerrado(previo, hoy)
         ? 'Este viaje es de un día cerrado: no se puede eliminar. Si no se hizo, márcalo como Cancelado.'
         : '';
 }
 
-module.exports = { fechaLocal, finDeViaje, viajeCerrado, camposProtegidosCambiados, motivoBloqueoGuardar, motivoBloqueoEliminar };
+module.exports = { ultimoDiaDeViaje, motivoFechaAnterior, fechaLocal, finDeViaje, viajeCerrado, camposProtegidosCambiados, motivoBloqueoGuardar, motivoBloqueoEliminar };
