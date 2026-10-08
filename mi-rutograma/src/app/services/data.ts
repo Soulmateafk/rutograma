@@ -1602,12 +1602,12 @@ export class DataService {
     this.ui.syncFechas(); 
   }
 
-  public async motorReasignar(nv: any): Promise<{ ok: boolean, msg: string }> {
+  public async motorReasignar(nv: any, confirmarChoque = false): Promise<{ ok: boolean, msg: string }> {
     const r = this.S.rutas.find((x: any) => x.cod === nv.ruta);
     if (!r) return { ok: false, msg: 'Ruta no encontrada' };
 
     try {
-      await firstValueFrom(this.http.post(`${this.API_URL}/viajes`, nv, this.headersAuditoria()));
+      await firstValueFrom(this.http.post(`${this.API_URL}/viajes`, confirmarChoque ? { ...nv, confirmarChoque: true } : nv, this.headersAuditoria()));
 
       // Antes esto no pasaba: se guardaba en el backend pero la memoria
       // local (S.viajes) no se enteraba, así que no se veía reflejado en
@@ -1618,7 +1618,21 @@ export class DataService {
 
       this.ui.mostrarToast('<i class="bi bi-check-circle-fill"></i> Viaje guardado en BD', 'ok');
       return { ok: true, msg: 'Asignado' };
-    } catch (err) {
+    } catch (err: any) {
+      // Choque de agenda (backend/revision-viajes.js). Que el MISMO
+      // vehículo ya tenga un viaje esos días es justo lo que el Viaje
+      // Extra resuelve: guarda el nuevo y corre los siguientes de esa placa
+      // (ej. sale el 6 y vuelve el 6, extra el 7 que se cruza con el del
+      // 8: el del 8 se corre). Antes este aviso lo frenaba y "no dejaba"
+      // poner el extra. Solo se pregunta por lo demás (conductor ocupado,
+      // pico y placa, reglas de la oficina), que correr viajes no arregla.
+      if (!confirmarChoque && err?.status === 409 && err?.error?.codigo === 'choque_agenda') {
+        const delVehiculo: string[] = err.error.choquesVehiculo || [];
+        const otros = (err.error.choques || []).filter((c: string) => !delVehiculo.includes(c));
+        const seguir = !otros.length || await this.preguntarChoqueAgenda(otros);
+        if (seguir) return this.motorReasignar(nv, true);
+        return { ok: false, msg: 'No se guardó el viaje extra: cambia el vehículo, el conductor, la fecha o la hora.' };
+      }
       console.error('No se pudo guardar el viaje en la BD:', err);
       // Se pasa el motivo real (por ejemplo, "está en mantenimiento...")
       // en vez de un "Error de servidor" genérico.

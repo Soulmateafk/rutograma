@@ -1154,14 +1154,18 @@ app.use((req, res, next) => {
         // Choques de agenda y reglas de la oficina (cliente/ruta, pico y
         // placa): se avisan juntos y se puede guardar igual.
         const config = leerConfigCompartidaDB(modoActual);
+        const choques = choquesDeAgenda(viaje, data.viajes, data.conductores);
         const avisos = [
-            ...choquesDeAgenda(viaje, data.viajes, data.conductores).map(c => c.texto),
+            ...choques.map(c => c.texto),
             ...reglasIncumplidas(viaje, { ...data, reglasAsignacion: config.reglasAsignacion || [], picoPlaca: config.picoPlaca || [] })
         ];
         if (avisos.length && viaje.confirmarChoque !== true) {
             res.locals.auditoriaOmitir = true;
             return res.status(409).json({
                 ok: false, codigo: 'choque_agenda', choques: avisos,
+                // Los del mismo vehículo, aparte: el Viaje Extra los resuelve
+                // corriendo los viajes siguientes de esa placa.
+                choquesVehiculo: choques.filter(c => c.por === 'vehículo').map(c => c.texto),
                 msg: `Revisa antes de guardar: ${avisos.join('; ')}.`
             });
         }
