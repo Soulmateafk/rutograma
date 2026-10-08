@@ -12,7 +12,7 @@ import { UiService } from '../../services/ui.service';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { viajeCerrado } from '../../services/dias-cerrados';
+import { viajeCerrado, motivoFechaAnterior, fechaDelDia } from '../../services/dias-cerrados';
 import { FotoNovedadComponent } from '../foto-novedad/foto-novedad';
 import { PresenciaService } from '../../services/presencia.service';
 import { OtrosAquiComponent } from '../en-linea/otros-aqui';
@@ -3038,6 +3038,41 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   private trOriginalEdicion: string = '';
   private retornoOriginalEdicion: number = 0;
 
+  /**
+   * Al editar Salida o Retorno: no se puede poner un día anterior a hoy a
+   * un viaje que todavía no ha pasado (no sería un dato real), ni un
+   * retorno antes de la salida. Mismo criterio que el servidor
+   * (backend/dias-cerrados.js, motivoFechaAnterior). '' = todo bien.
+   */
+  public get avisoFechasEdicion(): string {
+    const original = this.viajeOriginalEdicion;
+    if (!this.editandoViaje || !original || !this.selectedViaje) return '';
+    const salida = Number(this.selectedViaje.salida);
+    const retornoVisto = Number(this.selectedViaje.retorno) - 1;
+    if (!Number.isFinite(salida) || salida < 1) return 'Escribe un día de salida válido.';
+    if (Number.isFinite(retornoVisto) && retornoVisto < salida && Number(this.selectedViaje.retorno) !== Number(original.retorno)) {
+      return `El retorno (día ${retornoVisto}) no puede ser antes de la salida (día ${salida}).`;
+    }
+    return motivoFechaAnterior(original, this.viajeConFechasEditadas());
+  }
+
+  /** El viaje con la fecha de acuerdo a la Salida escrita (la Salida es un número de día del mes del viaje). */
+  private viajeConFechasEditadas(): any {
+    const original = this.viajeOriginalEdicion || {};
+    const salida = Number(this.selectedViaje.salida);
+    const cambioSalida = salida !== Number(original.salida ?? original.dia);
+    return {
+      ...this.selectedViaje,
+      fecha: cambioSalida && original.fecha ? fechaDelDia(original.fecha, salida) : (this.selectedViaje.fecha || original.fecha)
+    };
+  }
+
+  /** Aviso apenas se cambia la Salida o el Retorno a un día que no se puede. */
+  public revisarFechasEdicion(): void {
+    const aviso = this.avisoFechasEdicion;
+    if (aviso) this.ui.mostrarToast(`<i class="bi bi-calendar-x"></i> ${aviso}`, 'err');
+  }
+
   // Caché de "qué placas Makand hay y cuáles están libres" — se calcula
   // UNA SOLA VEZ al abrir la edición (abrirEdicion), NUNCA directo desde
   // la plantilla. Antes la plantilla llamaba a la función que arma esta
@@ -3065,6 +3100,20 @@ export class RutogramaComponent implements OnInit, OnDestroy {
 
   public async guardarCambiosViaje(): Promise<void> {
     if (!this.selectedViaje) return;
+
+    const avisoFechas = this.avisoFechasEdicion;
+    if (avisoFechas) {
+      this.ui.mostrarToast(`<i class="bi bi-calendar-x"></i> ${avisoFechas}`, 'err');
+      return;
+    }
+    // Si cambió la Salida, la fecha del viaje se mueve con ella (antes solo
+    // cambiaba el número: en la grilla se veía en el día nuevo, pero la
+    // fecha guardada seguía siendo la vieja).
+    const conFechas = this.viajeConFechasEditadas();
+    if (conFechas.fecha && conFechas.fecha !== this.selectedViaje.fecha) {
+      this.selectedViaje.fecha = conFechas.fecha;
+      this.selectedViaje.dia = Number(this.selectedViaje.salida);
+    }
 
     if (this.selectedViaje.estado === 'Cancelado' && !String(this.selectedViaje.motivoCancelacion || '').trim()) {
       this.ui.mostrarToast('Escribe el motivo de la cancelación antes de guardar.', 'err');

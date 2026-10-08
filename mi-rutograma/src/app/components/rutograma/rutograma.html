@@ -637,12 +637,15 @@
       <div>
         <span class="ruto-grid-label">Salida:</span>
         <span *ngIf="!editandoViaje" class="ruto-grid-value">{{ selectedViaje.salida }}</span>
-        <input *ngIf="editandoViaje" type="number" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.salida">
+        <input *ngIf="editandoViaje" type="number" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="selectedViaje.salida" (ngModelChange)="revisarFechasEdicion()" [style.border-color]="avisoFechasEdicion ? '#ef4444' : null">
       </div>
       <div>
         <span class="ruto-grid-label">Retorno:</span>
         <span *ngIf="!editandoViaje" class="ruto-grid-value">{{ retornoMostrado }}</span>
-        <input *ngIf="editandoViaje" type="number" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="retornoMostrado">
+        <input *ngIf="editandoViaje" type="number" class="ruto-input-edit" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:4px 8px;border-radius:6px;" [(ngModel)]="retornoMostrado" (ngModelChange)="revisarFechasEdicion()" [style.border-color]="avisoFechasEdicion ? '#ef4444' : null">
+      </div>
+      <div *ngIf="avisoFechasEdicion" style="grid-column: 1 / -1; font-size: 12px; color: #fca5a5; display: flex; gap: 6px; align-items: flex-start;">
+        <i class="bi bi-calendar-x"></i><span>{{ avisoFechasEdicion }}</span>
       </div>
 
       <div>
