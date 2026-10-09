@@ -29,6 +29,10 @@ export class AparienciaComponent {
     return this.account.cuentaCompartida;
   }
 
+  public get nombreAcento(): string {
+    return this.theme.acentos.find(a => a.valor === this.theme.ap.acento)?.nombre || '';
+  }
+
   public verAtajos(): void {
     this.theme.panelAbierto.set(false);
     this.atajos.panelAbierto.set(true);

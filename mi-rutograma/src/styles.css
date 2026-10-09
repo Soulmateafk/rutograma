@@ -100,7 +100,6 @@ body {
 body {
   background-color: var(--color-fondo-pagina);
   color: var(--color-texto-principal);
-  transition: background-color 1.5s ease, color 1.5s ease;
 }
 
 
@@ -134,7 +133,12 @@ main {
   --purple:#8B5CF6;--teal:#14B8A6;--cyan:#06B6D4;
   --r:8px;--r2:12px;
 }
-*{box-sizing:border-box;margin:0;padding:0;transition:background-color 1.5s ease, color 1.5s ease, border-color 1.5s ease;}
+/* Antes aquí TODOS los elementos animaban su color 1,5 s: al cambiar de
+   modo o de color principal el navegador animaba miles de elementos a la
+   vez y la app se veía trabada. Ahora el cambio es instantáneo (ver
+   "cambiando-apariencia" al final y theme.service.ts). Los botones y
+   pestañas conservan su propio efecto corto al pasar el mouse. */
+*{box-sizing:border-box;margin:0;padding:0;}
 
 /* Los modales (y todo lo de adentro) quedan FUERA de la transición
    larga de arriba — un modal aparece de golpe (no estaba en pantalla
@@ -565,12 +569,30 @@ body.tema-claro .ruto-cupo-header-inner .ruto-btn-confirmar-cupo { background: r
    COLOR PRINCIPAL de la cuenta (Apariencia, theme.service.ts):
    data-acento en <html>. Sin el atributo, el azul de siempre.
    ============================================================ */
-:root { --acento: #2563eb; --acento2: #1d4ed8; --acento-fondo: rgba(37, 99, 235, 0.15); }
-html[data-acento="verde"], html[data-acento="verde"] body { --acento: #16a34a; --acento2: #15803d; --acento-fondo: rgba(22, 163, 74, 0.15); --blue: #22c55e; --blue2: #15803d; }
-html[data-acento="morado"], html[data-acento="morado"] body { --acento: #7c3aed; --acento2: #6d28d9; --acento-fondo: rgba(124, 58, 237, 0.15); --blue: #8b5cf6; --blue2: #6d28d9; }
-html[data-acento="naranja"], html[data-acento="naranja"] body { --acento: #ea580c; --acento2: #c2410c; --acento-fondo: rgba(234, 88, 12, 0.15); --blue: #f97316; --blue2: #c2410c; }
-html[data-acento="rosa"], html[data-acento="rosa"] body { --acento: #db2777; --acento2: #be185d; --acento-fondo: rgba(219, 39, 119, 0.15); --blue: #ec4899; --blue2: #be185d; }
-html[data-acento="turquesa"], html[data-acento="turquesa"] body { --acento: #0d9488; --acento2: #0f766e; --acento-fondo: rgba(13, 148, 136, 0.15); --blue: #14b8a6; --blue2: #0f766e; }
+:root { --acento: #2563eb; --acento2: #1d4ed8; --acento-claro: #60a5fa; --acento-fondo: rgba(37, 99, 235, 0.15); --acento-texto: #60a5fa; }
+body.tema-claro { --acento-texto: #1d4ed8; }
+html[data-acento="indigo"], html[data-acento="indigo"] body { --acento: #4f46e5; --acento2: #4338ca; --acento-claro: #818cf8; --acento-fondo: rgba(79, 70, 229, 0.15); --acento-texto: #818cf8; --blue: #818cf8; --blue2: #4338ca; }
+html[data-acento="indigo"] body.tema-claro { --acento-texto: #4338ca; --blue: #4f46e5; }
+html[data-acento="morado"], html[data-acento="morado"] body { --acento: #7c3aed; --acento2: #6d28d9; --acento-claro: #a78bfa; --acento-fondo: rgba(124, 58, 237, 0.15); --acento-texto: #a78bfa; --blue: #a78bfa; --blue2: #6d28d9; }
+html[data-acento="morado"] body.tema-claro { --acento-texto: #6d28d9; --blue: #7c3aed; }
+html[data-acento="rosa"], html[data-acento="rosa"] body { --acento: #db2777; --acento2: #be185d; --acento-claro: #f472b6; --acento-fondo: rgba(219, 39, 119, 0.15); --acento-texto: #f472b6; --blue: #f472b6; --blue2: #be185d; }
+html[data-acento="rosa"] body.tema-claro { --acento-texto: #be185d; --blue: #db2777; }
+html[data-acento="rojo"], html[data-acento="rojo"] body { --acento: #dc2626; --acento2: #b91c1c; --acento-claro: #f87171; --acento-fondo: rgba(220, 38, 38, 0.15); --acento-texto: #f87171; --blue: #f87171; --blue2: #b91c1c; }
+html[data-acento="rojo"] body.tema-claro { --acento-texto: #b91c1c; --blue: #dc2626; }
+html[data-acento="naranja"], html[data-acento="naranja"] body { --acento: #ea580c; --acento2: #c2410c; --acento-claro: #fb923c; --acento-fondo: rgba(234, 88, 12, 0.15); --acento-texto: #fb923c; --blue: #fb923c; --blue2: #c2410c; }
+html[data-acento="naranja"] body.tema-claro { --acento-texto: #c2410c; --blue: #ea580c; }
+html[data-acento="ambar"], html[data-acento="ambar"] body { --acento: #d97706; --acento2: #b45309; --acento-claro: #fbbf24; --acento-fondo: rgba(217, 119, 6, 0.15); --acento-texto: #fbbf24; --blue: #fbbf24; --blue2: #b45309; }
+html[data-acento="ambar"] body.tema-claro { --acento-texto: #b45309; --blue: #d97706; }
+html[data-acento="lima"], html[data-acento="lima"] body { --acento: #65a30d; --acento2: #4d7c0f; --acento-claro: #a3e635; --acento-fondo: rgba(101, 163, 13, 0.15); --acento-texto: #a3e635; --blue: #a3e635; --blue2: #4d7c0f; }
+html[data-acento="lima"] body.tema-claro { --acento-texto: #4d7c0f; --blue: #65a30d; }
+html[data-acento="verde"], html[data-acento="verde"] body { --acento: #16a34a; --acento2: #15803d; --acento-claro: #4ade80; --acento-fondo: rgba(22, 163, 74, 0.15); --acento-texto: #4ade80; --blue: #4ade80; --blue2: #15803d; }
+html[data-acento="verde"] body.tema-claro { --acento-texto: #15803d; --blue: #16a34a; }
+html[data-acento="turquesa"], html[data-acento="turquesa"] body { --acento: #0d9488; --acento2: #0f766e; --acento-claro: #2dd4bf; --acento-fondo: rgba(13, 148, 136, 0.15); --acento-texto: #2dd4bf; --blue: #2dd4bf; --blue2: #0f766e; }
+html[data-acento="turquesa"] body.tema-claro { --acento-texto: #0f766e; --blue: #0d9488; }
+html[data-acento="cian"], html[data-acento="cian"] body { --acento: #0891b2; --acento2: #0e7490; --acento-claro: #22d3ee; --acento-fondo: rgba(8, 145, 178, 0.15); --acento-texto: #22d3ee; --blue: #22d3ee; --blue2: #0e7490; }
+html[data-acento="cian"] body.tema-claro { --acento-texto: #0e7490; --blue: #0891b2; }
+html[data-acento="grafito"], html[data-acento="grafito"] body { --acento: #475569; --acento2: #334155; --acento-claro: #cbd5e1; --acento-fondo: rgba(71, 85, 105, 0.15); --acento-texto: #cbd5e1; --blue: #475569; --blue2: #334155; }
+html[data-acento="grafito"] body.tema-claro { --acento-texto: #334155; --blue: #475569; }
 /* Botones principales y pestañas activas que tienen el azul escrito fijo. */
 html[data-acento] :is(.btn.pri, .tab.on, .dp-primario, .dp-periodos button.activo, .dp-mes.activo, .guia-btn-pri, .cc-btn-pri, .ap-instalar,
   .mv-primario, .mv-marcar-salida, .rg-btn, .rg-dia.on, .cp-btn, .cp-filtros button.on, .cu-tabs button.activo, .comp-analizar-btn,
@@ -603,4 +625,53 @@ body.alto-contraste :focus-visible { outline: 3px solid var(--acento) !important
    ============================================================ */
 html.sin-animaciones *, html.sin-animaciones *::before, html.sin-animaciones *::after {
   transition: none !important; animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important;
+}
+
+/* Mientras se aplica un cambio de apariencia (un instante), nada anima:
+   así ni los botones con su efecto corto se ven "a medio camino". */
+html.cambiando-apariencia *, html.cambiando-apariencia *::before, html.cambiando-apariencia *::after { transition: none !important; }
+
+/* ============================================================
+   EL COLOR PRINCIPAL SE NOTA MÁS (con cualquier color, también azul):
+   línea bajo la barra, logo, títulos de sección, texto seleccionado,
+   campos con el cursor, casillas y barra de desplazamiento.
+   ============================================================ */
+nav { border-bottom-color: var(--acento) !important; }
+.logo span { color: var(--acento-texto) !important; }
+.stitle, .comp-stitle, .ap-titulo { color: var(--acento-texto) !important; }
+::selection { background: var(--acento); color: #fff; }
+:is(input, select, textarea):focus { border-color: var(--acento) !important; outline: none; box-shadow: 0 0 0 3px var(--acento-fondo); }
+input[type="checkbox"], input[type="radio"], input[type="range"], progress { accent-color: var(--acento); }
+* { scrollbar-color: var(--acento2) transparent; }
+::-webkit-scrollbar-thumb { background: var(--acento2); border-radius: 6px; }
+.guia-ayuda-btn { border-color: var(--acento) !important; color: var(--acento-texto) !important; }
+
+/* ============================================================
+   ANIMACIONES (livianas: solo aparecer y moverse un poco). Las quita
+   "Menos animaciones" en Apariencia (html.sin-animaciones).
+   ============================================================ */
+@keyframes ap-aparecer { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ap-subir { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes ap-bajar { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes ap-pop { from { opacity: 0; transform: scale(0.96) translateY(6px); } to { opacity: 1; transform: none; } }
+/* Cada pantalla aparece suave al entrar. */
+router-outlet + * { animation: ap-aparecer 0.22s ease-out; }
+/* Ventanas: el fondo oscurece y la ventana aparece con un pequeño salto. */
+:is(.mbg, .nb-modal-backdrop, .ruto-modal-backdrop, .modal-overlay, .mv-modal-fondo, .dp-modal-fondo, .ap-fondo) { animation: ap-aparecer 0.18s ease-out; }
+:is(.mbg > .modal, .nb-modal, .ruto-modal-content, .modal-card, .mv-modal, .dp-modal, .qj-modal, .ap-panel) { animation: ap-pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+/* Menús y listas que se despliegan. */
+:is(.menu-mas, .nb-resultados, .guia-menu, .ruto-cambios-cierre, .comp-analisis, .ap-ir) { animation: ap-bajar 0.18s ease-out; }
+/* Avisos (abajo a la derecha) y cuadros de la guía. */
+#sp-toast, .guia-cuadro { animation: ap-subir 0.25s ease-out; }
+/* Botones: se hunden un poco al oprimirlos. */
+:is(button, .btn, a.btn):not(:disabled):active { transform: scale(0.97); }
+:is(button, .btn) { transition-property: background-color, border-color, color, transform, box-shadow; transition-duration: 0.15s; }
+/* Tarjetas de viaje del Rutograma: se levantan un poco con el mouse. */
+@media (hover: hover) {
+  :is(.bg-makand, .bg-arsitrans, .bg-polar, .bg-extra, .bg-entregado, .bg-en-ruta, .bg-conflicto) { transition: transform 0.12s ease, box-shadow 0.12s ease; }
+  :is(.bg-makand, .bg-arsitrans, .bg-polar, .bg-extra, .bg-entregado, .bg-en-ruta, .bg-conflicto):hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+}
+/* El sistema del equipo pide menos movimiento: se respeta igual. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }

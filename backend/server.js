@@ -4550,7 +4550,7 @@ app.post('/api/auth/login', async (req, res) => {
 // suya (lo hace la pantalla).
 const TEMAS = ['oscuro', 'claro', 'auto'];
 const TAMANOS_LETRA = ['pequena', 'normal', 'grande', 'muy-grande'];
-const ACENTOS = ['azul', 'verde', 'morado', 'naranja', 'rosa', 'turquesa'];
+const ACENTOS = ['azul', 'indigo', 'morado', 'rosa', 'rojo', 'naranja', 'ambar', 'lima', 'verde', 'turquesa', 'cian', 'grafito'];
 function preferenciasDe(usuario) {
     const p = usuario?.preferencias || {};
     return {
