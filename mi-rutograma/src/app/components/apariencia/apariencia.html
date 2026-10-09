@@ -150,3 +150,15 @@
 <div class="ap-saludo" *ngIf="theme.saludo() as sa" animate.leave="ap-ocultar" (click)="theme.saludo.set(null)">
   <span class="ap-saludo-icono">{{ sa.icono }}</span> {{ sa.texto }}
 </div>
+
+<!-- Conexión con el servidor (services/conexion.service.ts). -->
+<div class="ap-conexion sin" *ngIf="conexion.estado() === 'sin'" animate.leave="ap-ocultar" role="status">
+  <i class="bi bi-wifi-off ap-conexion-icono"></i>
+  <span><strong>Sin conexión con el servidor.</strong> Revisa la señal o Tailscale. Los cambios de viajes y despachos se guardan aquí y se envían solos al volver.</span>
+  <button class="ap-conexion-btn" (click)="conexion.revisar()" [disabled]="conexion.reintentando()">
+    <i class="bi bi-arrow-clockwise" [class.ap-girando]="conexion.reintentando()"></i> {{ conexion.reintentando() ? 'Probando…' : 'Reintentar' }}
+  </button>
+</div>
+<div class="ap-conexion volvio" *ngIf="conexion.estado() === 'volvio'" animate.leave="ap-ocultar" role="status" (click)="conexion.cerrarAviso()">
+  <i class="bi bi-check-circle-fill ap-conexion-icono"></i> <strong>Conectado de nuevo.</strong>
+</div>

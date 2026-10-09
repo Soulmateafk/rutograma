@@ -8,6 +8,7 @@ import { AccountService } from '../../services/account.service';
 import { COLORES_TR, Transportadora } from '../../services/theme.service';
 import { variantesAcento } from '../../services/colores';
 import { RuedaColorComponent } from './rueda-color';
+import { ConexionService } from '../../services/conexion.service';
 
 /**
  * Panel APARIENCIA (modo claro/oscuro, tamaño de letra, instalar la app) y
@@ -26,6 +27,7 @@ export class AparienciaComponent {
   public atajos = inject(AtajosService);
   public instalar = inject(InstalarService);
   public auth = inject(AuthService);
+  public conexion = inject(ConexionService);
   private account = inject(AccountService);
 
   public get compartida(): boolean {

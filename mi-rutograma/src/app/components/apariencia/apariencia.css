@@ -66,3 +66,26 @@ body.tema-claro .ap-saludo { background: #ffffff; }
 @keyframes ap-saludo-icono { 0%, 100% { transform: rotate(0) scale(1); } 30% { transform: rotate(-14deg) scale(1.15); } 60% { transform: rotate(10deg) scale(1.1); } }
 .ap-saludo.ap-ocultar { animation: ap-saludo-salir 0.35s ease-in forwards !important; }
 @keyframes ap-saludo-salir { to { opacity: 0; transform: translate(-50%, -20px) scale(0.95); } }
+
+.ap-conexion { position: fixed; top: 62px; left: 50%; transform: translateX(-50%); z-index: 10058; display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; justify-content: center; width: max-content;
+  padding: 10px 16px; line-height: 1.4; border-radius: 12px; font-size: 13px; max-width: calc(100vw - 24px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); animation: ap-conexion-entrar 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+.ap-conexion.sin { background: #451a03; border: 1px solid #f59e0b; color: #fde68a; }
+.ap-conexion.volvio { background: #052e16; border: 1px solid #22c55e; color: #bbf7d0; cursor: pointer; }
+body.tema-claro .ap-conexion.sin { background: #fffbeb; color: #92400e; }
+body.tema-claro .ap-conexion.volvio { background: #f0fdf4; color: #166534; }
+.ap-conexion-icono { font-size: 18px; }
+.ap-conexion.sin .ap-conexion-icono { animation: ap-conexion-latir 1.6s ease-in-out infinite; }
+.ap-conexion.volvio .ap-conexion-icono { animation: ap-conexion-ok 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.6); }
+.ap-conexion-btn { background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: inherit; border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; display: inline-flex; gap: 6px; align-items: center; }
+.ap-girando { display: inline-block; animation: ap-girar 0.8s linear infinite; }
+@keyframes ap-conexion-entrar { from { opacity: 0; transform: translate(-50%, -30px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes ap-conexion-latir { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@keyframes ap-conexion-ok { from { transform: scale(0.2) rotate(-90deg); } to { transform: none; } }
+@keyframes ap-girar { to { transform: rotate(360deg); } }
+.ap-conexion.ap-ocultar { animation: ap-conexion-salir 0.3s ease-in forwards !important; }
+@keyframes ap-conexion-salir { to { opacity: 0; transform: translate(-50%, -24px); } }
+@media (max-width: 480px) { .ap-conexion { top: 10px; width: calc(100vw - 24px); } }
+.ap-conexion.sin { width: min(680px, calc(100vw - 24px)); }
+.ap-conexion > span { flex: 1; min-width: 0; }
+.ap-conexion-icono, .ap-conexion-btn { flex-shrink: 0; }
+@media (max-width: 480px) { .ap-conexion.sin { flex-wrap: wrap; } .ap-conexion.sin .ap-conexion-btn { margin-left: auto; } }

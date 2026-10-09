@@ -178,7 +178,7 @@ try {
 // sesiones abiertas de esa cuenta).
 const EXIGIR_TOKEN = String(process.env.EXIGIR_TOKEN || '').trim().toLowerCase() !== 'false';
 const TOKEN_DIAS = (() => { const d = parseFloat(process.env.TOKEN_DIAS); return (Number.isFinite(d) && d > 0) ? d : 30; })();
-const RUTAS_PUBLICAS_SIN_PASE = ['/api/auth/login', '/api/auth/register'];
+const RUTAS_PUBLICAS_SIN_PASE = ['/api/auth/login', '/api/auth/register', '/api/auth/ping'];
 // Rutas para las que basta estar identificado, aunque la cuenta aún no esté
 // aprobada (en modo estricto, el resto exige cuenta APPROVED).
 const RUTAS_PARA_CUALQUIER_CUENTA = ['/api/auth/estado'];
@@ -4461,6 +4461,13 @@ app.post('/api/dispositivos/desbloquear', (req, res) => {
 // haberse registrado con una contraseña real (ver /api/auth/register).
 // La única "ventaja" del admin es que, si la contraseña es correcta,
 // siempre queda con estado APPROVED sin depender de que nadie lo apruebe.
+// ¿Hay conexión con el servidor? (aviso "Sin conexión" de la app). No pide
+// sesión ni devuelve datos: solo responde.
+app.get('/api/auth/ping', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ ok: true });
+});
+
 app.post('/api/auth/login', async (req, res) => {
     try {
         const data = leerExcel();

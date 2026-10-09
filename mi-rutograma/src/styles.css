@@ -765,3 +765,35 @@ html.esquinas-muy :is(.bg-makand, .bg-arsitrans, .bg-polar, .bg-extra, .bg-entre
 .bg-en-ruta { position: relative; }
 .bg-en-ruta::after { content: ''; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25); animation: ap-punto 1.6s ease-in-out infinite; pointer-events: none; }
 html.daltonismo .bg-en-ruta::after { background: #1c1a00; }
+
+
+/* ============================================================
+   FILAS EN CASCADA: al entrar a una pantalla, las filas de las tablas y
+   las tarjetas de las listas aparecen una tras otra (body.cascada lo pone
+   app.ts un momento al navegar). Solo las primeras 20 (las que se ven);
+   no en la matriz del Rutograma (columnas fijas).
+   ============================================================ */
+@keyframes ap-fila { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(-n+20) {
+  animation: ap-fila 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(1) { animation-delay: 0.0s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(2) { animation-delay: 0.035s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(3) { animation-delay: 0.07s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(4) { animation-delay: 0.105s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(5) { animation-delay: 0.14s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(6) { animation-delay: 0.175s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(7) { animation-delay: 0.21s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(8) { animation-delay: 0.245s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(9) { animation-delay: 0.28s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(10) { animation-delay: 0.315s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(11) { animation-delay: 0.35s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(12) { animation-delay: 0.385s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(13) { animation-delay: 0.42s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(14) { animation-delay: 0.455s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(15) { animation-delay: 0.49s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(16) { animation-delay: 0.525s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(17) { animation-delay: 0.56s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(18) { animation-delay: 0.595s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(19) { animation-delay: 0.63s; }
+body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(20) { animation-delay: 0.665s; }
