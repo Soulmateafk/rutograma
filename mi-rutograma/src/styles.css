@@ -877,3 +877,161 @@ html[data-temporada="navidad"] body.tema-claro .tp-p:not(.tp-papel) { color: #60
 /* --- Año Nuevo y 20 de Julio: papelitos que giran --- */
 html:is([data-temporada="ano-nuevo"], [data-temporada="independencia"]) .tp-papel { animation-name: tp-caer, tp-papel-gira; animation-duration: inherit, 1.6s; }
 @keyframes tp-papel-gira { 50% { scale: 1 0.3; } }
+
+/* ============================================================
+   TEMPORADAS CON MÁS DETALLE: escena propia de cada fecha.
+   Lo que cae va detrás del contenido (z-index -1: pasa por detrás de
+   las tarjetas); los colores vienen de --tp-c1/--tp-c2/--tp-cinta
+   (components/apariencia/temporada.ts).
+   ============================================================ */
+.tp-capa.tp-fondo { z-index: -1; }
+.tp-p { opacity: 0.8; }
+.tp-brillo { position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse 60% 45% at 0% 0%, color-mix(in srgb, var(--tp-c1) 22%, transparent), transparent 70%),
+              radial-gradient(ellipse 60% 45% at 100% 100%, color-mix(in srgb, var(--tp-c2) 22%, transparent), transparent 70%); }
+body.tema-claro .tp-brillo { opacity: 0.6; }
+/* Barra: degradado de la temporada y franja debajo. */
+html[data-temporada] nav { background-image: linear-gradient(90deg, color-mix(in srgb, var(--tp-c1) 20%, transparent), transparent 35%, transparent 65%, color-mix(in srgb, var(--tp-c2) 20%, transparent)); }
+html[data-temporada] nav::before { content: ''; position: absolute; left: 0; right: 0; bottom: -5px; height: 4px; background: var(--tp-cinta); pointer-events: none; opacity: 0.9; }
+html[data-temporada="navidad"] nav::after { bottom: -14px; }
+/* Corazones que suben. */
+.tp-sube .tp-p { top: auto; bottom: -40px; animation-name: tp-subir; }
+@keyframes tp-subir { from { transform: translate(0, 5vh) scale(0.8); } 50% { transform: translate(calc(var(--deriva, 0px) * -0.6), -52vh) scale(1.05); } to { transform: translate(var(--deriva, 0px), -108vh) scale(0.9); } }
+/* Adornos en las esquinas de abajo. */
+.tp-suelo { position: fixed; bottom: 4px; z-index: 9988; pointer-events: none; display: flex; gap: 2px; font-size: 28px; line-height: 1; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.35)); }
+.tp-suelo-izq { left: 6px; }
+.tp-suelo-der { right: 72px; }
+.tp-suelo span { display: inline-block; animation: tp-mecer 3.2s ease-in-out infinite; transform-origin: bottom center; }
+@keyframes tp-mecer { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg) translateY(-2px); } }
+/* Lo que cruza: bruja, trineo, flecha, conejo. */
+.tp-cruza { position: absolute; left: -120px; font-size: 34px; white-space: nowrap; opacity: 0; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.4)); }
+.tp-bruja { top: 22%; animation: tp-volar 34s linear infinite 8s; }
+.tp-trineo { top: 16%; font-size: 30px; animation: tp-trineo 40s linear infinite 5s; }
+@keyframes tp-trineo { 0% { opacity: 0; transform: translate(0, 0); } 2% { opacity: 1; } 20% { transform: translate(40vw, -3vh); } 38% { opacity: 1; transform: translate(110vw, 2vh); } 39%, 100% { opacity: 0; transform: translate(110vw, 2vh); } }
+.tp-flecha { top: 40%; font-size: 30px; animation: tp-flecha 28s ease-in-out infinite 4s; }
+@keyframes tp-flecha { 0% { opacity: 0; transform: translate(0, 0) rotate(10deg); } 3% { opacity: 1; } 30% { opacity: 1; transform: translate(110vw, -12vh) rotate(-8deg); } 31%, 100% { opacity: 0; transform: translate(110vw, -12vh); } }
+.tp-conejo { top: auto; bottom: 6px; font-size: 32px; animation: tp-conejo-cruza 30s linear infinite 3s; }
+@keyframes tp-conejo-cruza { 0% { opacity: 0; transform: translateX(0); } 2% { opacity: 1; } 45% { opacity: 1; transform: translateX(110vw); } 46%, 100% { opacity: 0; transform: translateX(110vw); } }
+.tp-conejo { translate: 0 0; }
+.tp-capa .tp-conejo { animation-name: tp-conejo-cruza, tp-salto; animation-duration: 30s, 0.6s; animation-timing-function: linear, ease-out; animation-iteration-count: infinite, infinite; animation-delay: 3s, 0s; }
+@keyframes tp-salto { 0%, 100% { translate: 0 0; } 50% { translate: 0 -22px; } }
+/* Fuegos artificiales. */
+.tp-fuego { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: currentColor; opacity: 0; animation: tp-fuego 6.6s ease-out infinite; }
+@keyframes tp-fuego { 0% { opacity: 0; transform: scale(0.1); } 4% { opacity: 1; transform: scale(0.3); } 22% { opacity: 1; transform: scale(1); } 34%, 100% { opacity: 0; transform: scale(1.15) translateY(14px); } }
+/* Halloween: luna, araña y niebla. */
+.tp-luna { position: fixed; top: 70px; right: 120px; font-size: 54px; opacity: 0.55; pointer-events: none; z-index: -1; filter: drop-shadow(0 0 22px rgba(253, 224, 71, 0.6)); }
+.tp-arana { position: fixed; top: 54px; left: 22%; width: 20px; pointer-events: none; z-index: 9988; animation: tp-arana 14s ease-in-out infinite; transform-origin: top center; }
+.tp-hilo { position: absolute; left: 50%; top: 0; width: 1px; height: 100%; background: rgba(255, 255, 255, 0.35); }
+body.tema-claro .tp-hilo { background: rgba(15, 23, 42, 0.35); }
+.tp-arana-cuerpo { position: absolute; bottom: -18px; left: -4px; font-size: 22px; }
+@keyframes tp-arana { 0%, 100% { height: 10px; } 40%, 60% { height: 150px; } 50% { transform: rotate(4deg); } }
+.tp-niebla { position: fixed; left: -20%; right: -20%; bottom: 0; height: 140px; pointer-events: none; z-index: -1; opacity: 0.35;
+  background: radial-gradient(ellipse 30% 60% at 20% 100%, rgba(167, 139, 250, 0.5), transparent 70%), radial-gradient(ellipse 30% 60% at 60% 100%, rgba(203, 213, 225, 0.4), transparent 70%), radial-gradient(ellipse 30% 60% at 95% 100%, rgba(167, 139, 250, 0.45), transparent 70%);
+  animation: tp-niebla 26s ease-in-out infinite alternate; }
+@keyframes tp-niebla { to { transform: translateX(12%); } }
+/* Navidad: nieve acumulada abajo. */
+.tp-nieve-suelo { position: fixed; left: 0; right: 0; bottom: 0; height: 18px; pointer-events: none; z-index: 9987; opacity: 0.9;
+  background: radial-gradient(ellipse 40px 16px at 20px 18px, #f8fafc 98%, transparent) 0 0 / 60px 18px repeat-x; filter: drop-shadow(0 -2px 3px rgba(148, 163, 184, 0.5)); }
+/* Sin animaciones: queda lo quieto (brillo, franja, adornos), sin movimiento. */
+html.sin-animaciones :is(.tp-arana, .tp-niebla, .tp-cruza) { display: none; }
+@media (max-width: 600px) {
+  .tp-suelo { font-size: 20px; } .tp-suelo-der { right: 60px; } .tp-luna { font-size: 38px; right: 70px; } .tp-cruza { font-size: 26px; }
+}
+
+/* Cuenta regresiva de la temporada (abajo al centro). */
+.tp-anuncio { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 10052; display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px);
+  padding: 10px 14px 10px 12px; border-radius: 14px; color: var(--color-texto-principal); background: var(--color-fondo-tarjeta, #111827);
+  border: 2px solid transparent; background-clip: padding-box; box-shadow: 0 0 0 2px var(--tp-c1), 0 12px 30px rgba(0, 0, 0, 0.4), 0 0 30px color-mix(in srgb, var(--tp-c2) 45%, transparent);
+  animation: tp-anuncio-entrar 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.3); }
+body:not(.tema-claro) .tp-anuncio { background: #111827; }
+body.tema-claro .tp-anuncio { background: #ffffff; }
+.tp-anuncio-emoji { font-size: 30px; animation: tp-anuncio-emoji 1.2s ease-in-out infinite; }
+.tp-anuncio-texto { display: flex; flex-direction: column; line-height: 1.3; font-size: 15px; }
+.tp-anuncio-texto small { font-size: 12px; color: var(--color-texto-apagado); }
+.tp-anuncio-x { background: none; border: none; color: var(--color-texto-apagado); font-size: 22px; cursor: pointer; padding: 0 4px; line-height: 1; }
+@keyframes tp-anuncio-entrar { from { opacity: 0; transform: translate(-50%, 40px) scale(0.9); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+@keyframes tp-anuncio-emoji { 0%, 100% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-6px) rotate(-10deg); } 60% { transform: translateY(0) rotate(8deg); } }
+.tp-anuncio.ap-ocultar { animation: tp-anuncio-salir 0.35s ease-in forwards !important; }
+@keyframes tp-anuncio-salir { to { opacity: 0; transform: translate(-50%, 40px); } }
+/* Estallido del día grande. */
+.tp-estallido { position: fixed; left: 50%; top: 50%; width: 0; height: 0; z-index: 10051; pointer-events: none; }
+.tp-estallido span { position: absolute; left: 0; top: 0; font-size: 26px; line-height: 1; opacity: 0; animation: tp-estallar 3.6s cubic-bezier(0.15, 0.8, 0.3, 1) forwards; }
+.tp-estallido .tp-papel { width: 10px; height: 14px; border-radius: 2px; }
+@keyframes tp-estallar { 0% { opacity: 1; transform: translate(0, 0) rotate(0) scale(0.4); } 35% { opacity: 1; transform: translate(var(--dx), var(--dy)) rotate(calc(var(--giro) / 2)) scale(1); } 100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) + 340px)) rotate(var(--giro)) scale(0.9); } }
+
+/* ============================================================
+   TEMPORADAS: FIGURAS DIBUJADAS (sin imágenes) Y EFECTOS DE ESCENA.
+   Cada partícula usa --c (color), --tam (tamaño) y --op (opacidad).
+   ============================================================ */
+.tp-p:not(.tp-emoji) { font-size: 0 !important; }
+.tp-p { opacity: var(--op, 0.8); }
+.tp-papel { width: 9px; height: 13px; border-radius: 2px; background: var(--c); }
+/* Nieve: copos suaves con brillo; los pequeños van más lento (profundidad). */
+.tp-nieve { width: var(--tam); height: var(--tam); border-radius: 50%; background: radial-gradient(circle, #fff 0 35%, color-mix(in srgb, var(--c) 60%, transparent) 55%, transparent 72%);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.6); }
+body.tema-claro .tp-nieve { background: radial-gradient(circle, #93c5fd 0 40%, rgba(147, 197, 253, 0.4) 60%, transparent 72%); box-shadow: none; }
+/* Bokeh: círculos de luz desenfocados que flotan hacia arriba despacio. */
+.tp-bokeh { top: auto; bottom: -90px; width: var(--tam); height: var(--tam); border-radius: 50%; animation-name: tp-flotar !important;
+  background: radial-gradient(circle, color-mix(in srgb, var(--c) 75%, transparent) 0, color-mix(in srgb, var(--c) 35%, transparent) 45%, transparent 70%); }
+@keyframes tp-flotar { from { transform: translate(0, 0) scale(0.7); } 50% { transform: translate(calc(var(--deriva) * -1), -55vh) scale(1.15); } to { transform: translate(var(--deriva), -112vh) scale(0.8); } }
+/* Pétalos y hojas: caen girando y volteándose. */
+.tp-petalo { width: var(--tam); height: calc(var(--tam) * 0.62); border-radius: 100% 0 100% 0 / 100% 0 100% 0; animation-name: tp-hoja !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c) 55%, #fff), var(--c) 70%); box-shadow: inset -1px -1px 2px rgba(0, 0, 0, 0.2); }
+@keyframes tp-hoja { from { transform: translate(0, -5vh) rotate(0) rotateX(0); } 25% { transform: translate(calc(var(--deriva) * 0.8), 25vh) rotate(calc(var(--giro) * 0.3)) rotateX(160deg); }
+  50% { transform: translate(calc(var(--deriva) * -0.6), 52vh) rotate(calc(var(--giro) * 0.5)) rotateX(20deg); } 75% { transform: translate(calc(var(--deriva) * 0.4), 80vh) rotate(calc(var(--giro) * 0.8)) rotateX(170deg); }
+  to { transform: translate(var(--deriva), 108vh) rotate(var(--giro)) rotateX(0); } }
+/* Corazones y estrellas dibujados con una máscara (toman el color --c). */
+.tp-corazon { width: var(--tam); height: var(--tam); background: var(--c); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--c) 70%, transparent));
+  -webkit-mask: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 22'><path d='M12 21.5S2 15.2.4 9.3C-.8 4.9 2.2 1 6.3 1c2.6 0 4.6 1.5 5.7 3.3C13.1 2.5 15.1 1 17.7 1c4.1 0 7.1 3.9 5.9 8.3C22 15.2 12 21.5 12 21.5z'/></svg>") center / contain no-repeat;
+          mask: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 22'><path d='M12 21.5S2 15.2.4 9.3C-.8 4.9 2.2 1 6.3 1c2.6 0 4.6 1.5 5.7 3.3C13.1 2.5 15.1 1 17.7 1c4.1 0 7.1 3.9 5.9 8.3C22 15.2 12 21.5 12 21.5z'/></svg>") center / contain no-repeat; }
+.tp-estrella { width: var(--tam); height: var(--tam); background: var(--c); animation-name: tp-estrella-caer !important; filter: drop-shadow(0 0 5px var(--c));
+  -webkit-mask: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 0l2.9 8.6H24l-7.3 5.5 2.8 8.9L12 17.6 4.5 23l2.8-8.9L0 8.6h9.1z'/></svg>") center / contain no-repeat;
+          mask: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 0l2.9 8.6H24l-7.3 5.5 2.8 8.9L12 17.6 4.5 23l2.8-8.9L0 8.6h9.1z'/></svg>") center / contain no-repeat; }
+@keyframes tp-estrella-caer { from { transform: translate(0, -5vh) rotate(0); opacity: 1; } 10%, 30%, 50%, 70%, 90% { opacity: 0.3; } 20%, 40%, 60%, 80% { opacity: 1; }
+  50% { transform: translate(calc(var(--deriva) * -0.6), 52vh) rotate(calc(var(--giro) / 2)); } to { transform: translate(var(--deriva), 108vh) rotate(var(--giro)); opacity: 1; } }
+
+/* --- Halloween: luna dibujada, relámpagos, ojos en la oscuridad, neón que parpadea --- */
+.tp-luna { font-size: 0 !important; width: 78px; height: 78px; border-radius: 50%; opacity: 0.85;
+  background: radial-gradient(circle at 62% 38%, rgba(161, 98, 7, 0.35) 0 7px, transparent 8px), radial-gradient(circle at 34% 64%, rgba(161, 98, 7, 0.3) 0 10px, transparent 11px),
+              radial-gradient(circle at 70% 72%, rgba(161, 98, 7, 0.28) 0 5px, transparent 6px), radial-gradient(circle at 38% 34%, #fffbeb 0, #fde68a 55%, #eab308 100%);
+  box-shadow: 0 0 40px 12px rgba(253, 224, 71, 0.35), 0 0 120px 40px rgba(249, 115, 22, 0.18); filter: none; }
+.tp-relampago { position: fixed; inset: 0; pointer-events: none; z-index: 9991; background: radial-gradient(ellipse at 70% 0%, rgba(233, 213, 255, 0.9), rgba(196, 181, 253, 0.35) 60%); opacity: 0; animation: tp-relampago 23s linear infinite 9s; }
+@keyframes tp-relampago { 0%, 94.8%, 95.6%, 96.4%, 100% { opacity: 0; } 95.1% { opacity: 0.22; } 96% { opacity: 0.14; } }
+.tp-ojos { position: fixed; bottom: 58px; display: flex; gap: 10px; pointer-events: none; z-index: 9988; }
+.tp-ojos-izq { left: 26px; } .tp-ojos-der { right: 104px; bottom: 96px; }
+.tp-ojos i { width: 11px; height: 6px; border-radius: 50%; background: radial-gradient(circle at 50% 60%, #111 0 1.5px, #facc15 2px, #f97316 100%); box-shadow: 0 0 8px 2px rgba(250, 204, 21, 0.7); animation: tp-parpadeo 5s ease-in-out infinite; }
+.tp-ojos-der i { animation-delay: 2.3s; }
+@keyframes tp-parpadeo { 0%, 44%, 50%, 100% { transform: scaleY(1); } 47% { transform: scaleY(0.1); } }
+@keyframes tp-neon { 0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; text-shadow: 0 0 6px #f97316, 0 0 14px #f97316; } 20%, 24%, 55% { opacity: 0.35; text-shadow: none; } }
+html[data-temporada="halloween"] .logo span { color: #fb923c !important; animation: tp-neon 6s linear infinite; }
+
+/* --- Navidad: escarcha en las esquinas y gorro en el logo --- */
+.tp-escarcha { position: fixed; inset: 0; pointer-events: none; z-index: 9987;
+  background: radial-gradient(ellipse 260px 170px at 0 0, rgba(224, 242, 254, 0.28), transparent 70%), radial-gradient(ellipse 260px 170px at 100% 0, rgba(224, 242, 254, 0.28), transparent 70%),
+              radial-gradient(ellipse 300px 200px at 0 100%, rgba(224, 242, 254, 0.3), transparent 70%), radial-gradient(ellipse 300px 200px at 100% 100%, rgba(224, 242, 254, 0.3), transparent 70%); }
+body.tema-claro .tp-escarcha { opacity: 0.6; }
+html[data-temporada="navidad"] .logo { position: relative; }
+html[data-temporada="navidad"] .logo::before { content: ''; position: absolute; left: -8px; top: -10px; width: 22px; height: 17px; transform: rotate(-20deg); pointer-events: none;
+  background: radial-gradient(circle at 62% 2px, #fff 0 3px, transparent 3.5px), linear-gradient(to top, #fff 0 4px, #dc2626 4px); clip-path: polygon(0 100%, 100% 100%, 64% 0); filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
+
+/* --- Latido (San Valentín, Amor y Amistad, Día de la Madre) --- */
+@keyframes tp-latido { 0%, 100% { opacity: 0.75; } 15% { opacity: 1; } 30% { opacity: 0.8; } 45% { opacity: 1; } }
+html:is([data-temporada="san-valentin"], [data-temporada="amor-amistad"], [data-temporada="madre"]) .tp-brillo { animation: tp-latido 1.8s ease-in-out infinite; }
+
+/* --- Brillo que recorre la barra (todas menos Navidad, que tiene luces) --- */
+html[data-temporada]:not([data-temporada="navidad"]) nav::after { content: ''; position: absolute; top: 0; bottom: 0; left: -220px; width: 180px; pointer-events: none;
+  background: linear-gradient(100deg, transparent, color-mix(in srgb, var(--tp-c1) 30%, transparent), color-mix(in srgb, #fff 18%, transparent), transparent);
+  animation: tp-brillo-barra 8s ease-in-out infinite 2s; }
+@keyframes tp-brillo-barra { 0% { transform: translateX(0); } 45%, 100% { transform: translateX(calc(100vw + 440px)); } }
+/* --- 20 de Julio: la franja tricolor más gruesa y con brillo que la recorre (bandera ondeando) --- */
+html[data-temporada="independencia"] nav::before { height: 7px; bottom: -8px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent) 0 0 / 25% 100% no-repeat, var(--tp-cinta); animation: tp-ondear 2.8s linear infinite; }
+@keyframes tp-ondear { from { background-position: -30% 0, 0 0; } to { background-position: 130% 0, 0 0; } }
+
+html.sin-animaciones :is(.tp-relampago, .tp-ojos) { display: none; }
+html.sin-animaciones nav::after { animation: none !important; }
+/* Que se note: las partículas y el brillo de los bordes van al frente (no se pueden tocar, no tapan clics). */
+.tp-capa.tp-fondo { z-index: 9985; }
+.tp-brillo { z-index: 9984; opacity: 0.7; }
+.tp-bokeh { opacity: calc(var(--op, 0.5) * 0.75); }
+.tp-luna { z-index: 9984; }
