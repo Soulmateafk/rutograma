@@ -197,7 +197,7 @@
           </span>
         </ng-container>
       </div>
-      <p *ngIf="!enCargueVista.length" class="dp-vacio">No hay vehículos en el cargue.</p>
+      <app-vacio *ngIf="!enCargueVista.length" chico dibujo="camion" titulo="No hay vehículos en el cargue"></app-vacio>
       <div *ngFor="let r of enCargueVista; trackBy: trackId" class="dp-cargando" [class.dp-demorado]="estaDemorado(r)">
         <div>
           <div class="dp-placa">{{ r.placa }} <span class="dp-destino">→ {{ r.destino }}</span></div>
@@ -260,8 +260,8 @@
       <button (click)="descargarExcel('mes')" [disabled]="!!descargando">{{ descargando === 'mes' ? 'Descargando…' : 'Del mes' }}</button>
     </div>
 
-    <p *ngIf="cargando" class="dp-vacio">Cargando…</p>
-    <p *ngIf="!cargando && !registros.length" class="dp-vacio">No hay despachos anotados en este periodo.</p>
+    <app-esqueleto *ngIf="cargando" [filas]="4" tipo="tabla"></app-esqueleto>
+    <app-vacio *ngIf="!cargando && !registros.length" dibujo="calendario" titulo="No hay despachos anotados en este periodo"></app-vacio>
 
     <div class="dp-tabla-scroll" data-guia="dp-tabla" *ngIf="!cargando && registros.length">
       <table class="dp-tabla">

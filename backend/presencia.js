@@ -14,6 +14,14 @@
 // pestaña normal, se avisa al instante (salir).
 const VIGENCIA_MS = 90 * 1000;
 
+/** Foto/emoji de la cuenta (Apariencia → Mi foto): solo si tiene. */
+function cara(p) {
+    const c = {};
+    if (p.avatar) c.avatar = p.avatar;
+    if (p.aid && p.fotoV) { c.aid = p.aid; c.fotoV = p.fotoV; }
+    return c;
+}
+
 /** "Carlos Bocanegra" -> "Carlos"; sin nombre, la parte del correo antes de @. */
 function primerNombre(nombre, email = '') {
     const n = String(nombre || '').trim().split(/\s+/)[0];
@@ -56,6 +64,9 @@ function crearPresencia(vigenciaMs = VIGENCIA_MS) {
                 pestana,
                 email: datos.email,
                 nombre: primerNombre(datos.nombre, datos.email),
+                avatar: corto(datos.avatar, 8),
+                aid: corto(datos.aid, 16),
+                fotoV: corto(datos.fotoV, 16),
                 dispositivo: corto(datos.dispositivo, 60),
                 pagina, accion,
                 clave: corto(datos.clave, 120),
@@ -76,7 +87,7 @@ function crearPresencia(vigenciaMs = VIGENCIA_MS) {
             const lista = vigentes(ahora).filter(p => p.clave === clave && p.pestana !== pestana);
             const yo = lista.filter(p => p.email === email);
             const demas = unaPorPersona(lista.filter(p => p.email !== email))
-                .map(p => ({ nombre: p.nombre, editando: p.editando, esYo: false }))
+                .map(p => ({ nombre: p.nombre, editando: p.editando, esYo: false, ...cara(p) }))
                 .sort((a, b) => Number(b.editando) - Number(a.editando) || a.nombre.localeCompare(b.nombre));
             if (yo.length) demas.push({ nombre: 'Tú', editando: yo.some(p => p.editando), esYo: true });
             return demas;
@@ -89,7 +100,7 @@ function crearPresencia(vigenciaMs = VIGENCIA_MS) {
          */
         enLinea(email, pestana, ahora = Date.now()) {
             const vivas = vigentes(ahora).filter(p => p.pestana !== pestana);
-            const fila = (p, esYo) => ({ nombre: esYo ? 'Tú' : p.nombre, esYo, dispositivo: p.dispositivo, pagina: p.pagina, accion: p.accion, editando: p.editando, oculta: p.oculta, haceSeg: Math.round((ahora - p.desde) / 1000) });
+            const fila = (p, esYo) => ({ nombre: esYo ? 'Tú' : p.nombre, esYo, ...cara(p), dispositivo: p.dispositivo, pagina: p.pagina, accion: p.accion, editando: p.editando, oculta: p.oculta, haceSeg: Math.round((ahora - p.desde) / 1000) });
             const demas = unaPorPersona(vivas.filter(p => p.email !== email)).map(p => fila(p, false)).sort((a, b) => a.nombre.localeCompare(b.nombre));
             const yo = vivas.filter(p => p.email === email).sort((a, b) => b.desde - a.desde).map(p => fila(p, true));
             return [...demas, ...yo];

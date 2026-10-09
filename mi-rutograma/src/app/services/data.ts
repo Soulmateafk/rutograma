@@ -326,6 +326,14 @@ export class DataService {
     // atrás de este cambio.
     this.pilaRehacer = [];
     this.guardarPilaDeshacerLocal();
+    this.avisarDeshacer(entry.descripcion);
+  }
+
+  /** Aviso "… — Deshacer" unos segundos después de cada cambio (components/aviso-deshacer). */
+  public avisoDeshacer = signal<{ texto: string; n: number } | null>(null);
+  public avisarDeshacer(texto: string): void {
+    if (!this.pilaDeshacer.length) return;
+    this.avisoDeshacer.set({ texto, n: Date.now() });
   }
 
   private guardarPilaDeshacerLocal(): void {

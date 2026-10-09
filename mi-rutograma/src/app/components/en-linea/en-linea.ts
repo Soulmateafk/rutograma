@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, HostListener, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PresenciaService } from '../../services/presencia.service';
+import { CaraComponent } from './cara';
 
 /**
  * "En línea" de la barra de arriba: quién más está usando la app ahora
@@ -10,7 +11,7 @@ import { PresenciaService } from '../../services/presencia.service';
 @Component({
   selector: 'app-en-linea',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, CaraComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="el-caja" data-guia="nav-en-linea">
@@ -24,7 +25,7 @@ import { PresenciaService } from '../../services/presencia.service';
         <div class="el-titulo">En línea ahora</div>
         <div *ngIf="!personas().length" class="el-vacio">Nadie más: solo esta ventana.</div>
         <div *ngFor="let p of personas()" class="el-fila" [class.yo]="p.esYo">
-          <span class="el-avatar" [class.edita]="p.editando" [class.yo]="p.esYo">{{ p.esYo ? 'Tú' : p.nombre.charAt(0) }}</span>
+          <span class="el-cara" [class.edita]="p.editando"><app-cara [nombre]="p.nombre" [texto]="p.esYo ? 'Tú' : ''" [avatar]="p.avatar || ''" [aid]="p.aid || ''" [fotoV]="p.fotoV || ''" [tam]="30"></app-cara></span>
           <div class="el-texto">
             <div><b>{{ p.esYo ? 'Tú' : p.nombre }}</b> · {{ p.pagina || 'en la app' }}</div>
             <div class="el-equipo" *ngIf="p.esYo">en otra ventana o equipo<ng-container *ngIf="p.dispositivo"> ({{ p.dispositivo }})</ng-container></div>
@@ -49,6 +50,8 @@ import { PresenciaService } from '../../services/presencia.service';
     .el-titulo { font-weight: 700; font-size: 13px; margin-bottom: 8px; }
     .el-vacio { font-size: 13px; opacity: .75; padding: 4px 0 8px; }
     .el-fila { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; border-top: 1px solid var(--color-borde, #334155); font-size: 13px; }
+    .el-cara { flex-shrink: 0; border-radius: 50%; padding: 2px; display: inline-flex; box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.35); }
+    .el-cara.edita { box-shadow: 0 0 0 2px #f59e0b; }
     .el-avatar { flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; background: rgba(96, 165, 250, 0.2); color: #93c5fd; }
     .el-avatar.edita { background: rgba(245, 158, 11, 0.22); color: #fbbf24; }
     .el-avatar.yo { font-size: 10px; background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }

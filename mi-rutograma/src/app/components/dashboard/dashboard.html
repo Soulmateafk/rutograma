@@ -25,9 +25,30 @@
         </button>
       </div>
     </div>
-    <button class="btn-cerrar-sesion" (click)="cerrarSesion()">Cerrar sesión</button>
+    <div class="dash-cab-botones">
+      <button class="btn sm dash-personalizar" [class.on]="armando" data-guia="dash-armar" (click)="alternarArmado()"><i class="bi" [ngClass]="armando ? 'bi-check-lg' : 'bi-grid-1x2'"></i> {{ armando ? 'Listo' : 'Personalizar' }}</button>
+      <button class="btn-cerrar-sesion" (click)="cerrarSesion()">Cerrar sesión</button>
+    </div>
   </div>
 
+  <div class="dash-armar-ayuda" *ngIf="armando" animate.leave="ap-ocultar">
+    <i class="bi bi-arrows-move"></i> Arrastra los cuadros para cambiarlos de orden, o usa las flechas. El ojo los oculta o los vuelve a mostrar. Solo cambia para tu cuenta.
+    <button class="btn sm" (click)="restablecerTablero()">Como venía</button>
+  </div>
+
+  <div class="dash-bloques" [class.armando]="armando">
+
+<div class="dash-bloque" [style.order]="ordenDe('kpis')" *ngIf="armando || !oculto('kpis')" [class.dash-oculto]="oculto('kpis')"
+       [attr.draggable]="armando ? 'true' : null" (dragstart)="empezarMover($event, 'kpis')" (dragover)="pasarSobre($event, 'kpis')" (drop)="soltarSobre($event, 'kpis')" (dragend)="bloqueMoviendo = ''"
+       [class.dash-sobre]="bloqueSobre === 'kpis' && bloqueMoviendo && bloqueMoviendo !== 'kpis'">
+  <div class="dash-bloque-barra" *ngIf="armando">
+    <i class="bi bi-grip-vertical"></i> <strong>Indicadores</strong>
+    <span class="dash-bloque-acciones">
+      <button (click)="moverBloque('kpis', -1)" title="Subir"><i class="bi bi-arrow-up"></i></button>
+      <button (click)="moverBloque('kpis', 1)" title="Bajar"><i class="bi bi-arrow-down"></i></button>
+      <button (click)="alternarBloque('kpis')" [title]="oculto('kpis') ? 'Mostrar' : 'Ocultar'"><i class="bi" [ngClass]="oculto('kpis') ? 'bi-eye-slash' : 'bi-eye'"></i></button>
+    </span>
+  </div>
   <div id="pg-dashboard" class="pg on">
     <div class="kgrid k5">
       <div class="kpi kpi-green">
@@ -92,6 +113,19 @@
     </div>
   </div>
 
+</div>
+
+<div class="dash-bloque" [style.order]="ordenDe('alertas')" *ngIf="armando || !oculto('alertas')" [class.dash-oculto]="oculto('alertas')"
+       [attr.draggable]="armando ? 'true' : null" (dragstart)="empezarMover($event, 'alertas')" (dragover)="pasarSobre($event, 'alertas')" (drop)="soltarSobre($event, 'alertas')" (dragend)="bloqueMoviendo = ''"
+       [class.dash-sobre]="bloqueSobre === 'alertas' && bloqueMoviendo && bloqueMoviendo !== 'alertas'">
+  <div class="dash-bloque-barra" *ngIf="armando">
+    <i class="bi bi-grip-vertical"></i> <strong>Alertas y disponibles hoy</strong>
+    <span class="dash-bloque-acciones">
+      <button (click)="moverBloque('alertas', -1)" title="Subir"><i class="bi bi-arrow-up"></i></button>
+      <button (click)="moverBloque('alertas', 1)" title="Bajar"><i class="bi bi-arrow-down"></i></button>
+      <button (click)="alternarBloque('alertas')" [title]="oculto('alertas') ? 'Mostrar' : 'Ocultar'"><i class="bi" [ngClass]="oculto('alertas') ? 'bi-eye-slash' : 'bi-eye'"></i></button>
+    </span>
+  </div>
   <div class="g2">
     <div data-guia="dash-alertas" class="card">
       <div class="stitle-row">
@@ -106,7 +140,7 @@
             <p>{{ a.d }}</p>
           </div>
         </div>
-        <div *ngIf="!alertas.length" class="estado-vacio">Sin alertas por ahora</div>
+        <app-vacio *ngIf="!alertas.length" chico dibujo="todo-bien" titulo="Sin alertas por ahora"></app-vacio>
       </div>
     </div>
 
@@ -119,13 +153,39 @@
           <div class="v-capacidad">{{ v.cap || 660 }} cajas</div>
           <div class="v-badge">{{ v.tr || 'Sin asignar' }}</div>
         </div>
-        <div *ngIf="!disponibles.length" class="estado-vacio">No hay vehículos disponibles</div>
+        <app-vacio *ngIf="!disponibles.length" chico dibujo="camion" titulo="No hay vehículos disponibles" texto="Todos están en ruta o en taller."></app-vacio>
       </div>
     </div>
   </div>
 
+</div>
+
+<div class="dash-bloque" [style.order]="ordenDe('capacidad')" *ngIf="armando || !oculto('capacidad')" [class.dash-oculto]="oculto('capacidad')"
+       [attr.draggable]="armando ? 'true' : null" (dragstart)="empezarMover($event, 'capacidad')" (dragover)="pasarSobre($event, 'capacidad')" (drop)="soltarSobre($event, 'capacidad')" (dragend)="bloqueMoviendo = ''"
+       [class.dash-sobre]="bloqueSobre === 'capacidad' && bloqueMoviendo && bloqueMoviendo !== 'capacidad'">
+  <div class="dash-bloque-barra" *ngIf="armando">
+    <i class="bi bi-grip-vertical"></i> <strong>Capacidad próximos 7 días</strong>
+    <span class="dash-bloque-acciones">
+      <button (click)="moverBloque('capacidad', -1)" title="Subir"><i class="bi bi-arrow-up"></i></button>
+      <button (click)="moverBloque('capacidad', 1)" title="Bajar"><i class="bi bi-arrow-down"></i></button>
+      <button (click)="alternarBloque('capacidad')" [title]="oculto('capacidad') ? 'Mostrar' : 'Ocultar'"><i class="bi" [ngClass]="oculto('capacidad') ? 'bi-eye-slash' : 'bi-eye'"></i></button>
+    </span>
+  </div>
   <app-capacidad-semana></app-capacidad-semana>
 
+</div>
+
+<div class="dash-bloque" [style.order]="ordenDe('semanal')" *ngIf="armando || !oculto('semanal')" [class.dash-oculto]="oculto('semanal')"
+       [attr.draggable]="armando ? 'true' : null" (dragstart)="empezarMover($event, 'semanal')" (dragover)="pasarSobre($event, 'semanal')" (drop)="soltarSobre($event, 'semanal')" (dragend)="bloqueMoviendo = ''"
+       [class.dash-sobre]="bloqueSobre === 'semanal' && bloqueMoviendo && bloqueMoviendo !== 'semanal'">
+  <div class="dash-bloque-barra" *ngIf="armando">
+    <i class="bi bi-grip-vertical"></i> <strong>Resumen semanal y urgentes</strong>
+    <span class="dash-bloque-acciones">
+      <button (click)="moverBloque('semanal', -1)" title="Subir"><i class="bi bi-arrow-up"></i></button>
+      <button (click)="moverBloque('semanal', 1)" title="Bajar"><i class="bi bi-arrow-down"></i></button>
+      <button (click)="alternarBloque('semanal')" [title]="oculto('semanal') ? 'Mostrar' : 'Ocultar'"><i class="bi" [ngClass]="oculto('semanal') ? 'bi-eye-slash' : 'bi-eye'"></i></button>
+    </span>
+  </div>
   <div class="g2">
     <div data-guia="dash-semanal" class="card">
       <div class="header-resumen">
@@ -167,11 +227,24 @@
           <strong>{{ u.placa }}</strong> — {{ u.cli }}
           <span class="urg-fecha">{{ u.fecha || u.dia }}</span>
         </div>
-        <div *ngIf="!listaUrgentes.length" class="estado-vacio">Sin viajes urgentes</div>
+        <app-vacio *ngIf="!listaUrgentes.length" chico dibujo="todo-bien" titulo="Sin viajes urgentes"></app-vacio>
       </div>
     </div>
   </div>
 
+</div>
+
+<div class="dash-bloque" [style.order]="ordenDe('salidas')" *ngIf="armando || !oculto('salidas')" [class.dash-oculto]="oculto('salidas')"
+       [attr.draggable]="armando ? 'true' : null" (dragstart)="empezarMover($event, 'salidas')" (dragover)="pasarSobre($event, 'salidas')" (drop)="soltarSobre($event, 'salidas')" (dragend)="bloqueMoviendo = ''"
+       [class.dash-sobre]="bloqueSobre === 'salidas' && bloqueMoviendo && bloqueMoviendo !== 'salidas'">
+  <div class="dash-bloque-barra" *ngIf="armando">
+    <i class="bi bi-grip-vertical"></i> <strong>Próximas salidas y novedades</strong>
+    <span class="dash-bloque-acciones">
+      <button (click)="moverBloque('salidas', -1)" title="Subir"><i class="bi bi-arrow-up"></i></button>
+      <button (click)="moverBloque('salidas', 1)" title="Bajar"><i class="bi bi-arrow-down"></i></button>
+      <button (click)="alternarBloque('salidas')" [title]="oculto('salidas') ? 'Mostrar' : 'Ocultar'"><i class="bi" [ngClass]="oculto('salidas') ? 'bi-eye-slash' : 'bi-eye'"></i></button>
+    </span>
+  </div>
   <div class="layout-tablas">
     <div class="card card-tabla">
       <div class="salidas-header">
@@ -268,9 +341,12 @@
           <button *ngIf="!n.resuelta" class="btn-resolver" (click)="resolverNovedad(n.id)">Marcar como resuelta</button>
           <span *ngIf="n.resuelta" class="novedad-resuelta-tag"><i class="bi bi-check-lg"></i> Resuelta</span>
         </div>
-        <div *ngIf="!novedadesRecientes.length" class="empty-novedades">Sin novedades</div>
+        <app-vacio *ngIf="!novedadesRecientes.length" chico dibujo="carpeta" titulo="Sin novedades"></app-vacio>
       </div>
     </div>
+  </div>
+
+</div>
   </div>
 
 </div>

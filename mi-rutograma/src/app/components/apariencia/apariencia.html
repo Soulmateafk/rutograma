@@ -9,6 +9,29 @@
     <p class="ap-nota">
       {{ compartida ? 'Esta es una cuenta compartida: el cambio queda solo en este equipo o celular.' : 'Solo cambia para tu cuenta (' + (auth.currentUser?.email || '') + '), en cualquier equipo donde entres. Las demás cuentas no cambian.' }}
     </p>
+    <nav class="ap-saltos" aria-label="Ir a una sección">
+      <button *ngFor="let x of saltos" class="ap-chip" (click)="saltar(x.guia)">{{ x.nombre }}</button>
+    </nav>
+
+    <div class="ap-grupo" data-guia="ap-perfil" *ngIf="!compartida">
+      <div class="ap-titulo">Mi foto o avatar</div>
+      <div class="ap-perfil">
+        <span class="ap-perfil-foto">
+          <img *ngIf="theme.ap.foto" [src]="theme.ap.foto" alt="Mi foto">
+          <span *ngIf="!theme.ap.foto">{{ theme.ap.avatar || inicial }}</span>
+        </span>
+        <div class="ap-perfil-botones">
+          <label class="ap-opcion ap-subir"><i class="bi bi-camera"></i> {{ theme.ap.foto ? 'Cambiar foto' : 'Subir foto' }}
+            <input type="file" accept="image/*" (change)="subirFoto($event)" hidden>
+          </label>
+          <button class="ap-link" *ngIf="theme.ap.foto" (click)="theme.ponerFoto('')">Quitar foto</button>
+        </div>
+      </div>
+      <div class="ap-avatares">
+        <button *ngFor="let a of avatares" class="ap-avatar" [class.on]="theme.ap.avatar === a && !theme.ap.foto" (click)="theme.ap.foto ? null : theme.ponerAvatar(a)" [disabled]="!!theme.ap.foto">{{ a }}</button>
+      </div>
+      <p class="ap-nota">Se ve en la barra y cuando otros ven quién está en línea o editando un viaje.</p>
+    </div>
 
     <div class="ap-grupo" data-guia="ap-tema">
       <div class="ap-titulo">Modo</div>
@@ -18,6 +41,7 @@
         </button>
       </div>
       <p class="ap-nota" *ngIf="theme.ap.tema === 'auto'">Sigue al equipo o celular: claro u oscuro según cómo lo tengas configurado (muchos celulares cambian solos de noche). Ahora se ve <strong>{{ theme.temaActual }}</strong>.</p>
+      <p class="ap-nota" *ngIf="theme.ap.tema === 'horario'">Claro de 6 a. m. a 6 p. m. y oscuro desde las 6 p. m., sin tocar nada. Ahora se ve <strong>{{ theme.temaActual }}</strong>.</p>
     </div>
 
     <div class="ap-grupo" data-guia="ap-acento">
@@ -52,6 +76,91 @@
         </button>
       </div>
       <p class="ap-nota" *ngIf="theme.ap.letra === 'pequena'">Cabe más en la pantalla (bueno para ver todo el mes del Rutograma).</p>
+    </div>
+
+    <div class="ap-grupo" data-guia="ap-fondo">
+      <div class="ap-titulo">Fondo de pantalla</div>
+      <div class="ap-fondos">
+        <button *ngFor="let f of fondos" class="ap-fondo-op" [class.on]="theme.ap.fondo === f.valor" (click)="escogerFondo(f.valor)" [title]="f.nombre">
+          <span class="ap-fondo-muestra" [ngClass]="'muestra-' + f.valor" [style.background-image]="f.valor === 'foto' && fotoFondo ? 'url(' + fotoFondo + ')' : null">
+            <i *ngIf="f.valor === 'foto' && !fotoFondo" class="bi bi-image"></i>
+          </span>
+          <small>{{ f.nombre }}</small>
+        </button>
+      </div>
+      <input #archivoFondo type="file" accept="image/*" (change)="subirFondo($event)" hidden>
+      <button class="ap-link" *ngIf="theme.ap.fondo === 'foto'" (click)="archivoFondo.click()"><i class="bi bi-upload"></i> Escoger otra foto</button>
+      <p class="ap-nota">Suave, detrás de todo, sin tapar nada. "Mi foto" queda solo en este equipo.</p>
+    </div>
+
+    <div class="ap-grupo" data-guia="ap-fuente">
+      <div class="ap-titulo">Tipo de letra</div>
+      <div class="ap-fuentes">
+        <button *ngFor="let f of fuentes" class="ap-fuente" [class.on]="theme.ap.fuente === f.valor" (click)="theme.ponerFuente(f.valor)" [style.font-family]="f.familia">
+          <strong>{{ f.nombre }}</strong><small>{{ f.ayuda }}</small>
+        </button>
+      </div>
+    </div>
+
+    <div class="ap-grupo" data-guia="ap-densidad">
+      <div class="ap-titulo">Espacio</div>
+      <div class="ap-opciones">
+        <button *ngFor="let d of theme.densidades" class="ap-opcion" [class.on]="theme.ap.densidad === d.valor" (click)="theme.ponerDensidad(d.valor)">
+          <i class="bi" [ngClass]="d.icono"></i> {{ d.nombre }}
+        </button>
+      </div>
+      <p class="ap-nota">{{ theme.ap.densidad === 'compacta' ? 'Más filas en pantalla, todo más junto.' : theme.ap.densidad === 'comoda' ? 'Todo más espaciado, para descansar la vista.' : 'Como siempre.' }}</p>
+    </div>
+
+    <div class="ap-grupo" data-guia="ap-barra" *ngIf="atajos.esOficina">
+      <div class="ap-titulo">Barra de menú</div>
+      <div class="ap-opciones">
+        <button *ngFor="let b of theme.barras" class="ap-opcion" [class.on]="theme.ap.barra === b.valor" (click)="theme.ponerBarra(b.valor)">
+          <i class="bi" [ngClass]="b.icono"></i> {{ b.nombre }}
+        </button>
+      </div>
+      <p class="ap-nota" *ngIf="theme.ap.barra === 'lado'">El menú queda a la izquierda. En pantallas pequeñas vuelve arriba.</p>
+    </div>
+
+    <div class="ap-grupo" data-guia="ap-inicio" *ngIf="atajos.esOficina && !compartida">
+      <div class="ap-titulo">Pantalla al entrar</div>
+      <select class="ap-select" [value]="theme.ap.inicio" (change)="theme.ponerInicio($any($event.target).value)">
+        <option *ngFor="let i of iniciosDisponibles" [value]="i.valor">{{ i.nombre }}</option>
+      </select>
+    </div>
+
+    <div class="ap-grupo" data-guia="ap-sonidos">
+      <div class="ap-titulo">Sonidos</div>
+      <label class="ap-interruptor">
+        <input type="checkbox" [checked]="theme.ap.sonidos" (change)="theme.alternarSonidos()">
+        <span class="ap-int-caja"></span>
+        <span><strong>Sonidos al usar la app</strong><small>Un sonido distinto al guardar, aprobar, borrar, abrir o cerrar ventanas, cuando hay un error o un cambio en vivo.</small></span>
+      </label>
+      <ng-container *ngIf="theme.ap.sonidos">
+        <div class="ap-volumen">
+          <i class="bi bi-volume-down"></i>
+          <input type="range" min="5" max="100" step="5" [value]="theme.ap.volumen" (input)="theme.ponerVolumen(+$any($event.target).value, false)" (change)="theme.ponerVolumen(+$any($event.target).value); probar('ok')" aria-label="Volumen">
+          <i class="bi bi-volume-up"></i>
+          <span class="ap-vol-num">{{ theme.ap.volumen }}%</span>
+        </div>
+        <label class="ap-interruptor">
+          <input type="checkbox" [checked]="theme.ap.sonidoTemporada" (change)="theme.alternarSonidoTemporada()">
+          <span class="ap-int-caja"></span>
+          <span><strong>Sonidos de la festividad</strong><small>Campanas en Navidad, sonidos de miedo en Halloween, arpa en San Valentín, trompetas el 20 de julio…</small></span>
+        </label>
+        <div class="ap-probar">
+          <span>Probar:</span>
+          <button *ngFor="let a of acciones" class="ap-chip" (click)="probar(a.clave)">{{ a.nombre }}</button>
+        </div>
+        <div class="ap-probar">
+          <span>Escuchar:</span>
+          <select class="ap-select ap-select-mini" [value]="kitPrueba" (change)="kitPrueba = $any($event.target).value; probar('celebrar')">
+            <option value="">La de ahora</option>
+            <option value="normal">Sin festividad</option>
+            <option *ngFor="let t of temporadas" [value]="t.clave">{{ t.nombre }} {{ t.emoji }}</option>
+          </select>
+        </div>
+      </ng-container>
     </div>
 
     <div class="ap-grupo" data-guia="ap-esquinas">

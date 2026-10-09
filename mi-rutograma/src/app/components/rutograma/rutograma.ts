@@ -24,6 +24,11 @@ import { API } from '../../api-base';
 import { AtajosService } from '../../services/atajos.service';
 import { zoomPagina } from '../../zoom';
 import { ThemeService } from '../../services/theme.service';
+import { SonidoService } from '../../services/sonido.service';
+import { enlaceWhatsApp, horaDelViaje, numeroWhatsApp } from '../../services/whatsapp';
+import { Router } from '@angular/router';
+import { EsqueletoComponent } from '../comunes/esqueleto';
+import { CelebracionService } from '../../services/celebracion.service';
 
 interface Viaje {
   id: number;
@@ -49,7 +54,7 @@ interface Viaje {
   selector: 'app-rutograma',
   templateUrl: './rutograma.html',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, FotoNovedadComponent, OtrosAquiComponent], 
+  imports: [EsqueletoComponent, CommonModule, FormsModule, RouterLink, FotoNovedadComponent, OtrosAquiComponent], 
   styleUrls: ['./rutograma.css']
 })
 export class RutogramaComponent implements OnInit, OnDestroy {
@@ -244,6 +249,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     this.iniciarCarga();
     this.verificarEstadosExpirados();
     this.detectarCambiosEnVivo();   // foto inicial para comparar con la próxima sincronización
+    this.revisarMesCompleto();
 
     
     this.cargarDespachos(true);
@@ -251,6 +257,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     this.subDataChanged = this.ds.dataChanged.subscribe(() => {
       this.iniciarCarga();
       this.detectarCambiosEnVivo();
+      this.revisarMesCompleto();
       this.abrirViajePedido();
       this.cargarDespachos();
       this.cdr.detectChanges();
@@ -722,21 +729,40 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   public tooltipVisible = false;
   public tooltipX = 0;
   public tooltipY = 0;
-  public tooltipDatos: { placa: string; ruta: string; transportadora: string; conductor: string; estado: string; hora: string; cajas: number; dia: any } | null = null;
+  public tooltipDatos: any = null;
+  private relojTooltip: any = null;
 
   public mostrarTooltipViaje(event: MouseEvent, vj: any, v: any): void {
+    // Vista previa (Apariencia → Efectos): cada cuenta la puede quitar.
+    if (!this.theme.ap.efectos.previa || this.arrastrando || this.menuViaje) return;
+    const real = (this.ds.S.viajes || []).find((x: any) => x.id === vj?.id) || vj || {};
+    const salida = Number(real.salida ?? real.dia), retorno = Number(real.retorno);
+    const fecha = real.fecha ? new Date(String(real.fecha).slice(0, 10) + 'T12:00:00') : null;
     this.tooltipDatos = {
-      placa: v?.p || vj?.p || vj?.placa || '',
-      ruta: vj?.destino || vj?.ruta || 'Sin ruta',
+      placa: real.placaReal || v?.p || vj?.p || vj?.placa || '',
+      ruta: [vj?.ruta, vj?.destino && vj?.destino !== vj?.ruta ? vj.destino : ''].filter(Boolean).join(' → ') || 'Sin ruta',
       transportadora: vj?.tr || 'Makand',
       conductor: vj?.cond || this.conductoresMap[v?.p] || 'Sin conductor',
       estado: vj?.estado || 'PROG',
       hora: vj?.hora || vj?.horaEntrega || '--:--',
       cajas: vj?.cajas ?? 660,
-      dia: vj?.dia ?? ''
+      dia: vj?.dia ?? '',
+      cuando: fecha ? fecha.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' }) : '',
+      dias: Number.isFinite(retorno) && Number.isFinite(salida) && retorno > salida ? retorno - salida : 1,
+      cliente: real.cliente && real.cliente !== 'Sin Cliente' ? real.cliente + (real.cli2 ? ' + ' + real.cli2 : '') : '',
+      obs: String(real.obs || '').trim(),
+      salio: real.salidaReal ? new Date(real.salidaReal).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' }) : '',
+      llego: real.llegadaReal ? new Date(real.llegadaReal).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' }) : '',
+      prioridad: vj?.prioridad === 'urgente' ? 'Urgente' : vj?.prioridad === 'alta' ? 'Prioridad alta' : '',
+      pendiente: this.viajesConCambioPendiente?.has?.(vj?.id),
+      editado: real.editadoPor ? (this.ds.nombreDe(real.editadoPor) || real.editadoPor) + (real.editadoEn ? ' · ' + new Date(real.editadoEn).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) : '') : '',
+      color: getComputedStyle(event.currentTarget as HTMLElement).backgroundColor,
+      arrastrable: this.puedeArrastrar(vj)
     };
     this.posicionarTooltipViaje(event);
-    this.tooltipVisible = true;
+    clearTimeout(this.relojTooltip);
+    // Un instante de espera: pasar el mouse de largo no la abre.
+    this.relojTooltip = setTimeout(() => { if (this.tooltipDatos) { this.tooltipVisible = true; this.cdr.detectChanges(); } }, 280);
   }
 
   public moverTooltipViaje(event: MouseEvent): void {
@@ -747,8 +773,8 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   // cerca del borde derecho o inferior — lo "voltea" hacia el otro lado
   // del cursor en vez de recortarse.
   private posicionarTooltipViaje(event: MouseEvent): void {
-    const anchoTooltip = 260;
-    const altoTooltip = 160;
+    const anchoTooltip = 290;
+    const altoTooltip = 250;
     const margen = 16;
 
     const z = zoomPagina(); // tamaño de letra: medidas en la escala de la página
@@ -768,6 +794,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   }
 
   public ocultarTooltipViaje(): void {
+    clearTimeout(this.relojTooltip);
     this.tooltipVisible = false;
     this.tooltipDatos = null;
   }
@@ -821,7 +848,178 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   // vehiculosOrdenados(). Se usa para pintar ese bloque primero en la
   // tabla, dejando los cupos de terceros para después de "+ Añadir viaje".
   public vehiculosPropiosOrdenados(): any[] {
-    return this.vehiculosOrdenados().filter(v => !this.clasificarCupo(v).esCupo);
+    const propios = this.vehiculosOrdenados().filter(v => !this.clasificarCupo(v).esCupo);
+    // Los que la cuenta fijó (Apariencia por cuenta) van primero, en el orden en que se fijaron.
+    const fijados = this.theme.ap.fijados;
+    if (!fijados.length) return propios;
+    const pos = (v: any) => { const i = fijados.indexOf(String(v.p || '').toUpperCase()); return i === -1 ? Infinity : i; };
+    return propios.map((v, i) => ({ v, i })).sort((a, b) => pos(a.v) - pos(b.v) || a.i - b.i).map(x => x.v);
+  }
+
+  // ============================================================
+  // FIJAR VEHÍCULOS ARRIBA (cada cuenta los suyos)
+  // ============================================================
+  public estaFijado(v: any): boolean { return this.theme.estaFijado(v?.p); }
+  public alternarFijado(v: any, e?: Event): void {
+    e?.stopPropagation();
+    const fijar = !this.estaFijado(v);
+    this.theme.alternarFijado(v.p);
+    this.sonido.tocar(fijar ? 'soltar' : 'clic');
+    this.cdr.detectChanges();
+  }
+
+  // ============================================================
+  // ARRASTRAR Y SOLTAR un viaje a otro día u otro vehículo (de la misma
+  // transportadora). Pasa por las mismas reglas que editarlo a mano:
+  // días cerrados, choques, semana cerrada, aprobación del jefe.
+  // ============================================================
+  public arrastrando: any = null;
+  public celdaDestino = '';
+  private moviendoViaje = false;
+
+  public puedeArrastrar(vj: any): boolean {
+    return !!this.auth.puedeEditar && !!vj?.isStart && vj.type !== 'cancelado' && !this.moviendoViaje;
+  }
+  public alEmpezarArrastre(e: DragEvent, vj: any, v: any): void {
+    if (!this.puedeArrastrar(vj)) { e.preventDefault(); return; }
+    this.ocultarTooltipViaje();
+    this.arrastrando = { id: vj.id, placa: String(v.p || '').toUpperCase().trim(), tr: String(v.tr || v.transportadora || 'Makand').toLowerCase() };
+    e.dataTransfer?.setData('text/plain', String(vj.id));
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+    document.body.classList.add('ruto-arrastrando');
+  }
+  public alTerminarArrastre(): void {
+    this.arrastrando = null;
+    this.celdaDestino = '';
+    document.body.classList.remove('ruto-arrastrando');
+  }
+  public alPasarSobreCelda(e: DragEvent, v: any, d: number): void {
+    if (!this.arrastrando) return;
+    if (String(v.tr || v.transportadora || 'Makand').toLowerCase() !== this.arrastrando.tr) return;   // otra transportadora: no se puede soltar
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    this.celdaDestino = String(v.p || '').toUpperCase().trim() + '-' + d;
+  }
+  public async alSoltarEnCelda(e: DragEvent, v: any, d: number): Promise<void> {
+    e.preventDefault();
+    const datos = this.arrastrando;
+    this.alTerminarArrastre();
+    if (!datos) return;
+    await this.moverViaje(datos.id, String(v.p || '').toUpperCase().trim(), d);
+  }
+
+  private async moverViaje(id: any, placa: string, dia: number): Promise<void> {
+    const original = (this.ds.S.viajes || []).find((x: any) => x.id === id);
+    if (!original) return;
+    const salidaVieja = Number(original.salida ?? original.dia);
+    const placaVieja = String(original.p || original.placa || '').toUpperCase().trim();
+    if (placaVieja === placa && salidaVieja === dia) return;
+    const delta = dia - salidaVieja;
+    const movido: any = { ...original, p: placa, veh: placa, placa, salida: dia, dia, retorno: Number(original.retorno ?? salidaVieja + 1) + delta,
+      fecha: original.fecha ? fechaDelDia(original.fecha, dia) : original.fecha };
+    // El conductor del vehículo se va con el vehículo (si el viaje tenía el del vehículo viejo).
+    if (placa !== placaVieja && (!original.cond || original.cond === this.conductoresMap[placaVieja]) && this.conductoresMap[placa]) movido.cond = this.conductoresMap[placa];
+    const motivo = motivoFechaAnterior(original, movido);
+    if (motivo) { this.ui.mostrarToast(`<i class="bi bi-calendar-x"></i> ${motivo}`, 'err'); return; }
+    if (Number(movido.retorno) - 1 > this.diasMes.length) { this.ui.mostrarToast('Ese viaje se saldría del mes. Muévelo a un día más temprano o edítalo.', 'err'); return; }
+    const choques = obtenerViajesEnConflicto(placa, movido.salida, movido.retorno, this.ds.S, id);
+    if (choques.length) {
+      this.ui.mostrarToast(`<i class="bi bi-exclamation-triangle-fill"></i> ${placa} ya tiene el viaje ${choques[0].ruta || ''} esos días. Suéltalo en un día libre, o ábrelo y edítalo para reemplazarlo.`, 'info');
+      return;
+    }
+    this.moviendoViaje = true;
+    try {
+      const ok = await this.ds.guardarViaje(movido, false, { protegerDeChoques: true, revisarChoquesAgenda: true, baseOriginal: original, baseVista: original });
+      if (ok) {
+        this.sonido.tocar('soltar');
+        this.ds.avisarDeshacer(`Viaje ${movido.ruta || ''} movido a ${placa}, día ${dia}`);
+      }
+    } finally {
+      this.moviendoViaje = false;
+      this.zone.run(() => { this.iniciarCarga(); this.cdr.detectChanges(); });
+    }
+  }
+
+  // ============================================================
+  // MENÚ CON CLIC DERECHO sobre un viaje
+  // ============================================================
+  public menuViaje: { x: number; y: number; vj: any; v: any } | null = null;
+  private router = inject(Router);
+
+  public abrirMenuViaje(e: MouseEvent, vj: any, v: any): void {
+    e.preventDefault();
+    this.ocultarTooltipViaje();
+    const z = zoomPagina();
+    const ancho = 236, alto = 330;
+    let x = e.clientX / z, y = e.clientY / z;
+    if (x + ancho > window.innerWidth / z) x = Math.max(4, x - ancho);
+    if (y + alto > window.innerHeight / z) y = Math.max(4, window.innerHeight / z - alto - 8);
+    this.menuViaje = { x, y, vj, v };
+    this.sonido.tocar('clic');
+  }
+  public cerrarMenuViaje(): void { this.menuViaje = null; }
+  @HostListener('document:keydown.escape') alEscape(): void { this.cerrarMenuViaje(); }
+  @HostListener('window:scroll') alDesplazar(): void { if (this.menuViaje) this.cerrarMenuViaje(); }
+
+  public accionMenu(accion: string): void {
+    const m = this.menuViaje;
+    this.menuViaje = null;
+    if (!m) return;
+    const vj = m.vj, id = vj.id;
+    switch (accion) {
+      case 'ver': this.verDetalle(id); break;
+      case 'editar': this.verDetalle(id); setTimeout(() => { this.abrirEdicion(); this.cdr.detectChanges(); }); break;
+      case 'historial': this.verDetalle(id); setTimeout(() => this.alternarHistorialViaje()); break;
+      case 'hoja': this.verDetalle(id); setTimeout(() => this.generarHojaDeRuta()); break;
+      case 'duplicar': this.duplicarViaje(id); break;
+      case 'fijar': this.alternarFijado(m.v); break;
+      case 'agenda': {
+        const nombre = vj.cond || this.conductoresMap[m.v.p];
+        if (nombre) this.router.navigate(['/agenda', nombre]);
+        break;
+      }
+      case 'whatsapp': this.avisarWhatsApp(vj, m.v); break;
+    }
+  }
+
+  public conductorDeMenu(): any {
+    const m = this.menuViaje;
+    if (!m) return null;
+    const nombre = String(m.vj.cond || this.conductoresMap[m.v.p] || '').trim().toLowerCase();
+    return nombre ? (this.ds.S.conductores || []).find((c: any) => String(c.nom || c.nombre || '').trim().toLowerCase() === nombre) || null : null;
+  }
+
+  private avisarWhatsApp(vj: any, v: any): void {
+    const nombre = String(vj.cond || this.conductoresMap[v.p] || '').trim().toLowerCase();
+    const c = (this.ds.S.conductores || []).find((x: any) => String(x.nom || x.nombre || '').trim().toLowerCase() === nombre);
+    if (!c || !numeroWhatsApp(c.tel || c.telefono)) { this.ui.mostrarToast('Ese conductor no tiene un celular guardado (Conductores → editar).', 'info'); return; }
+    const viaje = (this.ds.S.viajes || []).find((x: any) => x.id === vj.id) || vj;
+    const f = viaje.fecha ? new Date(String(viaje.fecha).slice(0, 10) + 'T12:00:00') : null;
+    const cuando = f ? f.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }) : 'día ' + (viaje.salida ?? viaje.dia);
+    const detalle = [String(viaje.placaReal || viaje.p || '').toUpperCase(), [viaje.ruta, viaje.destino ? '→ ' + viaje.destino : ''].filter(Boolean).join(' '),
+      horaDelViaje(viaje, this.ds.S.rutas || []), viaje.cliente || ''].filter(Boolean).join(' · ');
+    const primer = String(c.nom || c.nombre || '').trim().split(/\s+/)[0];
+    const msg = `Hola ${primer}, te recuerdo tu viaje del ${cuando}:\n• ${detalle}${viaje.obs ? '\n   Nota: ' + viaje.obs : ''}\n\nCualquier novedad, avísanos. MAKAND`;
+    window.open(enlaceWhatsApp(c.tel || c.telefono, msg), '_blank');
+  }
+
+  private async duplicarViaje(id: any): Promise<void> {
+    const o = (this.ds.S.viajes || []).find((x: any) => x.id === id);
+    if (!o || !this.auth.puedeEditar) return;
+    const salidaVieja = Number(o.salida ?? o.dia);
+    const dur = Math.max(1, Number(o.retorno ?? salidaVieja + 1) - salidaVieja);
+    const salida = Number(o.retorno ?? salidaVieja + 1);
+    if (salida + dur - 1 > this.diasMes.length) { this.ui.mostrarToast('No cabe otra vez en este mes después de este viaje.', 'info'); return; }
+    const placa = String(o.p || o.placa || '').toUpperCase().trim();
+    if (obtenerViajesEnConflicto(placa, salida, salida + dur, this.ds.S, null).length) {
+      this.ui.mostrarToast(`${placa} ya tiene otro viaje justo después. Usa + Viaje Extra para ponerlo en otro día.`, 'info'); return;
+    }
+    const fecha = o.fecha ? fechaDelDia(o.fecha, salida) : o.fecha;
+    const copia: any = { ...o, id: `${placa}-${fecha}-${o.ruta || ''}-${Date.now().toString(36).slice(-4)}`, salida, dia: salida, retorno: salida + dur, fecha,
+      estado: 'Planificado', salidaReal: '', llegadaReal: '', motivoCancelacion: '' };
+    delete copia.version; delete copia.editadoPor; delete copia.editadoEn;
+    const ok = await this.ds.guardarViaje(copia, false, { revisarChoquesAgenda: true });
+    if (ok) { this.ds.avisarDeshacer(`Copia de ${o.ruta || 'viaje'} el día ${salida}`); this.zone.run(() => { this.iniciarCarga(); this.cdr.detectChanges(); }); }
   }
 
   // Solo los cupos numerados de terceros (ARSITRANS 1, POLAR 2, etc.), ya
@@ -2693,7 +2891,24 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     }
     if (!cambiados.length || cambiados.length > 30) return;   // muchos a la vez = otro mes o una recarga: no
     cambiados.forEach(id => this.cambiadosVivo.add(id));
+    this.sonido.tocar('vivo');
     setTimeout(() => { cambiados.forEach(id => this.cambiadosVivo.delete(id)); this.cdr.detectChanges(); }, 4200);
+  }
+
+  // MES COMPLETO: cuando todos los viajes del mes (ya terminado o de hoy
+  // hacia atrás) quedan entregados, confeti — una vez por mes y por cuenta.
+  private celebracion = inject(CelebracionService);
+  private revisarMesCompleto(): void {
+    if (!this.theme.efectoActivo('confeti') || !this.ds.cargado) return;
+    const anio = Number(this.ds.S.anio), mes = Number(this.ds.S.mes);
+    const hoy = new Date();
+    if (anio > hoy.getFullYear() || (anio === hoy.getFullYear() && mes > hoy.getMonth())) return;   // mes que no ha empezado
+    const viajes = this.viajesDelMesActual().filter((v: any) => v.estado !== 'Cancelado');
+    if (viajes.length < 5 || !viajes.every((v: any) => v.estado === 'Entregado')) return;
+    const clave = `rutograma_mes_completo:${String(this.auth.currentUser?.email || '').toLowerCase()}:${anio}-${mes}`;
+    try { if (localStorage.getItem(clave)) return; localStorage.setItem(clave, '1'); } catch { return; }
+    const nombreMes = this.meses[mes] || '';
+    setTimeout(() => this.celebracion.confeti('¡Mes completo! 🎉', `Los ${viajes.length} viajes de ${String(nombreMes).toLowerCase()} quedaron entregados.`), 900);
   }
 
   // DESLIZAR AL CAMBIAR DE MES (efecto de Apariencia).
@@ -2772,6 +2987,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   // ============================================================
   private presencia = inject(PresenciaService);
   private theme = inject(ThemeService);
+  private sonido = inject(SonidoService);
 
   private latirPresencia(): void {
     const v = this.selectedViaje;

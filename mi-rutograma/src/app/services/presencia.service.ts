@@ -13,8 +13,8 @@ const NOMBRES_PAGINA: Record<string, string> = {
   sesiones: 'Sesiones', aprobaciones: 'Aprobaciones', admin: 'Administración', reglas: 'Reglas', comparendos: 'Comparendos', quejas: 'Quejas', mapa: 'Mapa', despachos: 'Despachos', papelera: 'Papelera'
 };
 
-export interface PersonaEnLinea { nombre: string; esYo: boolean; dispositivo: string; pagina: string; accion: string; editando: boolean; oculta: boolean; haceSeg: number; }
-export interface OtroAqui { nombre: string; editando: boolean; esYo: boolean; }
+export interface PersonaEnLinea { nombre: string; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; dispositivo: string; pagina: string; accion: string; editando: boolean; oculta: boolean; haceSeg: number; }
+export interface OtroAqui { nombre: string; editando: boolean; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; }
 
 /**
  * EN LÍNEA AHORA (backend/presencia.js): cada pestaña de la oficina avisa

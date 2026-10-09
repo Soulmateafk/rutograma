@@ -1,3 +1,5 @@
+import { VacioComponent } from '../comunes/vacio';
+import { EsqueletoComponent } from '../comunes/esqueleto';
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, HostListener } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { DataService } from '../../services/data';
@@ -11,14 +13,70 @@ import { AuthService } from '../../services/auth.service';
 
 import { CapacidadSemanaComponent } from '../analisis/analisis';
 import { ContarDirective } from '../../directivas/contar';
+import { ThemeService } from '../../services/theme.service';
+import { SonidoService } from '../../services/sonido.service';
+import { inject } from '@angular/core';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, ContarDirective, Configuracion, FotoNovedadComponent, CapacidadSemanaComponent],
+  imports: [VacioComponent, EsqueletoComponent, CommonModule, FormsModule, ContarDirective, Configuracion, FotoNovedadComponent, CapacidadSemanaComponent],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css']
 })
 export class Dashboard implements OnInit, OnDestroy {
+  // ============================================================
+  // DASHBOARD ARMABLE: cada cuenta escoge qué cuadros ve y en qué orden
+  // (se guarda en su Apariencia, en el servidor).
+  // ============================================================
+  private theme = inject(ThemeService);
+  private sonido = inject(SonidoService);
+  public static readonly BLOQUES = ['kpis', 'alertas', 'capacidad', 'semanal', 'salidas'];
+  public armando = false;
+  public bloqueMoviendo = '';
+  public bloqueSobre = '';
+  private get orden(): string[] {
+    const guardado = this.theme.ap.tablero.orden.filter(b => Dashboard.BLOQUES.includes(b));
+    return [...guardado, ...Dashboard.BLOQUES.filter(b => !guardado.includes(b))];
+  }
+  public ordenDe(b: string): number { return this.orden.indexOf(b); }
+  public oculto(b: string): boolean { return this.theme.ap.tablero.ocultos.includes(b); }
+  public alternarArmado(): void { this.armando = !this.armando; this.sonido.tocar(this.armando ? 'abrir' : 'ok'); }
+  private guardarTablero(orden: string[], ocultos: string[]): void { this.theme.ponerTablero(orden, ocultos); this.cdr.detectChanges(); }
+  public moverBloque(b: string, paso: number): void {
+    const o = this.orden, i = o.indexOf(b), j = i + paso;
+    if (j < 0 || j >= o.length) return;
+    [o[i], o[j]] = [o[j], o[i]];
+    this.guardarTablero(o, this.theme.ap.tablero.ocultos);
+    this.sonido.tocar('soltar');
+  }
+  public alternarBloque(b: string): void {
+    const ocultos = this.oculto(b) ? this.theme.ap.tablero.ocultos.filter(x => x !== b) : [...this.theme.ap.tablero.ocultos, b];
+    this.guardarTablero(this.orden, ocultos);
+    this.sonido.tocar('clic');
+  }
+  public restablecerTablero(): void { this.guardarTablero([], []); this.sonido.tocar('deshacer'); }
+  public empezarMover(e: DragEvent, b: string): void {
+    if (!this.armando) { e.preventDefault(); return; }
+    this.bloqueMoviendo = b;
+    e.dataTransfer?.setData('text/plain', b);
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+  }
+  public pasarSobre(e: DragEvent, b: string): void {
+    if (!this.armando || !this.bloqueMoviendo) return;
+    e.preventDefault();
+    this.bloqueSobre = b;
+  }
+  public soltarSobre(e: DragEvent, b: string): void {
+    e.preventDefault();
+    const desde = this.bloqueMoviendo;
+    this.bloqueMoviendo = ''; this.bloqueSobre = '';
+    if (!desde || desde === b) return;
+    const o = this.orden.filter(x => x !== desde);
+    o.splice(o.indexOf(b) + (this.ordenDe(desde) < this.ordenDe(b) ? 1 : 0), 0, desde);
+    this.guardarTablero(o, this.theme.ap.tablero.ocultos);
+    this.sonido.tocar('soltar');
+  }
+
   public S: any;
   public DIA: number = 0;
   viajes: any[] = [];

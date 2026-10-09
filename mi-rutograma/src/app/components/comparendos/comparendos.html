@@ -38,7 +38,7 @@
   </div>
 
   <div class="cp-lista" data-guia="cp-lista">
-    <div *ngIf="!lista.length" class="cp-vacio">{{ todos.length ? 'Nada con ese filtro.' : 'No hay comparendos registrados.' }}</div>
+    <app-vacio *ngIf="!lista.length" [dibujo]="todos.length ? 'buscar' : 'camion'" [titulo]="todos.length ? 'Nada con ese filtro' : 'No hay comparendos registrados'" [texto]="todos.length ? 'Prueba con otro filtro.' : 'Ninguna multa. ¡Así se maneja!'"></app-vacio>
     <div *ngFor="let c of lista" class="cp-fila" [class.pagado]="c.pagado">
       <div class="cp-info">
         <b>{{ c.placa }}</b> · {{ c.fecha | date:'d MMM y':'':'es' }}<span *ngIf="c.conductor"> · {{ c.conductor }}</span>

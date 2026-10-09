@@ -7,7 +7,7 @@
     <h2><i class="bi bi-truck"></i> Por cliente o ruta</h2>
     <p class="rg-ayuda">Ej.: "D1 solo en furgón refrigerado", "la ruta BOG-MON mínimo 600 cajas". El cliente se busca dentro del nombre (D1 sirve para "Tiendas D1").</p>
     <div class="rg-lista">
-      <div *ngIf="!reglas.length" class="rg-vacio">Todavía no hay reglas.</div>
+      <app-vacio *ngIf="!reglas.length" chico dibujo="carpeta" titulo="Todavía no hay reglas"></app-vacio>
       <div *ngFor="let r of reglas" class="rg-fila">
         <span><b>{{ r.aplicaA === 'ruta' ? 'Ruta' : 'Cliente' }} {{ r.valor }}</b> → {{ textoRegla(r) }}<span class="rg-nota" *ngIf="r.nota"> · {{ r.nota }}</span></span>
         <button *ngIf="puedeEditar" class="rg-quitar" [disabled]="guardando" (click)="quitar('reglasAsignacion', r.id)" title="Quitar"><i class="bi bi-trash"></i></button>
@@ -33,7 +33,7 @@
     <h2><i class="bi bi-sign-stop"></i> Pico y placa</h2>
     <p class="rg-ayuda">Placas que terminan en ciertos dígitos no pueden salir ciertos días en un horario. Se compara con la hora de salida del viaje (o la de su ruta para ese día). Ponlo como lo diga la norma vigente de la ciudad.</p>
     <div class="rg-lista">
-      <div *ngIf="!picos.length" class="rg-vacio">Todavía no hay pico y placa.</div>
+      <app-vacio *ngIf="!picos.length" chico dibujo="calendario" titulo="Todavía no hay pico y placa"></app-vacio>
       <div *ngFor="let p of picos" class="rg-fila">
         <span><b>{{ textoDias(p) }}</b> · placas terminadas en <b>{{ p.digitos }}</b> · de {{ p.desde }} a {{ p.hasta }}<span class="rg-nota" *ngIf="p.nota"> · {{ p.nota }}</span></span>
         <button *ngIf="puedeEditar" class="rg-quitar" [disabled]="guardando" (click)="quitar('picoPlaca', p.id)" title="Quitar"><i class="bi bi-trash"></i></button>

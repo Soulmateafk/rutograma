@@ -3420,6 +3420,7 @@ app.get('/api/presencia', (req, res) => {
     presencia.latido(pestana, {
         email,
         nombre: cuenta?.nombre || '',
+        ...avatarDe(cuenta),
         dispositivo: describirDispositivo(req.headers['user-agent']),
         pagina: req.query.pagina,
         accion: req.query.accion,
@@ -3430,6 +3431,23 @@ app.get('/api/presencia', (req, res) => {
     });
     res.setHeader('Cache-Control', 'no-store');
     res.json({ ok: true, otros: presencia.otros(clave, email, pestana), enLinea: presencia.enLinea(email, pestana) });
+});
+
+// FOTO / AVATAR DE CADA CUENTA (Apariencia → Mi foto). La presencia solo
+// manda el emoji, un id corto y la versión de la foto; la foto (pequeña)
+// se pide una vez con este id y la pantalla la recuerda.
+function idAvatar(email) { return crypto.createHash('sha1').update('av:' + normalizarEmail(email)).digest('hex').slice(0, 12); }
+function avatarDe(cuenta) {
+    if (!cuenta || esCuentaCompartida(cuenta)) return { avatar: '', aid: '', fotoV: '' };
+    const p = preferenciasDe(cuenta);
+    return { avatar: p.avatar, aid: idAvatar(cuenta.email), fotoV: p.foto ? crypto.createHash('sha1').update(p.foto).digest('hex').slice(0, 8) : '' };
+}
+app.get('/api/usuarios/avatar/:aid', (req, res) => {
+    const aid = String(req.params.aid || '');
+    const cuenta = (leerExcel().usuarios || []).find(u => idAvatar(u.email) === aid);
+    if (!cuenta || esCuentaCompartida(cuenta)) return res.json({ ok: true, foto: '', avatar: '' });
+    const p = preferenciasDe(cuenta);
+    res.json({ ok: true, foto: p.foto, avatar: p.avatar });
 });
 
 // Primer nombre de cada cuenta, para mostrar "Carlos" en vez del correo
@@ -4556,9 +4574,13 @@ app.post('/api/auth/login', async (req, res) => {
 // cambia la de nadie más. Las cuentas compartidas (conductores, despachos)
 // no la guardan aquí: la usa mucha gente, así que cada equipo recuerda la
 // suya (lo hace la pantalla).
-const TEMAS = ['oscuro', 'claro', 'auto'];
+const TEMAS = ['oscuro', 'claro', 'auto', 'horario'];
 const TAMANOS_LETRA = ['pequena', 'normal', 'grande', 'muy-grande'];
 const COLOR_HEX = /^#[0-9a-f]{6}$/i;
+const FONDOS = ['ninguno', 'aurora', 'montanas', 'carretera', 'ciudad', 'camiones', 'puntos', 'olas', 'atardecer', 'foto'];
+const FUENTES = ['sistema', 'redonda', 'lectura', 'facil', 'clasica'];
+const INICIOS = ['', '/dashboard', '/rutograma', '/vehiculos', '/rutas', '/conductores', '/despachos', '/aprobaciones', '/mapa', '/historico'];
+const FOTO_DATA = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 const ACENTOS = ['azul', 'indigo', 'morado', 'rosa', 'rojo', 'naranja', 'ambar', 'lima', 'verde', 'turquesa', 'cian', 'grafito'];
 function preferenciasDe(usuario) {
     const p = usuario?.preferencias || {};
@@ -4574,8 +4596,23 @@ function preferenciasDe(usuario) {
         daltonismo: p.daltonismo === true,
         esquinas: ['normal', 'muy', 'rectas'].includes(p.esquinas) ? p.esquinas : 'normal',
         saludo: p.saludo !== false,
-        efectos: Object.fromEntries(['onda', 'progreso', 'cascada', 'mes', 'vivo', 'temblor', 'destello'].map(e => [e, p.efectos?.[e] !== false])),
-        temporada: typeof p.temporada === 'string' && /^[a-z-]{1,20}$/.test(p.temporada) ? p.temporada : 'auto'
+        efectos: Object.fromEntries(['onda', 'progreso', 'cascada', 'mes', 'vivo', 'temblor', 'destello', 'brillo', 'previa', 'confeti'].map(e => [e, p.efectos?.[e] !== false])),
+        temporada: typeof p.temporada === 'string' && /^[a-z-]{1,20}$/.test(p.temporada) ? p.temporada : 'auto',
+        fondo: FONDOS.includes(p.fondo) ? p.fondo : 'ninguno',
+        fuente: FUENTES.includes(p.fuente) ? p.fuente : 'sistema',
+        densidad: ['normal', 'compacta', 'comoda'].includes(p.densidad) ? p.densidad : 'normal',
+        barra: ['arriba', 'lado', 'flotante'].includes(p.barra) ? p.barra : 'arriba',
+        inicio: INICIOS.includes(p.inicio) ? p.inicio : '',
+        avatar: typeof p.avatar === 'string' && p.avatar.length <= 8 && !/[<>"'&]/.test(p.avatar) ? p.avatar : '',
+        foto: typeof p.foto === 'string' && p.foto.length <= 24000 && FOTO_DATA.test(p.foto) ? p.foto : '',
+        fijados: Array.isArray(p.fijados) ? [...new Set(p.fijados.filter(x => typeof x === 'string' && /^[A-Z0-9 -]{1,12}$/i.test(x)).map(x => x.toUpperCase()))].slice(0, 40) : [],
+        tablero: {
+            orden: Array.isArray(p.tablero?.orden) ? p.tablero.orden.filter(x => typeof x === 'string' && /^[a-z0-9-]{1,30}$/.test(x)).slice(0, 30) : [],
+            ocultos: Array.isArray(p.tablero?.ocultos) ? p.tablero.ocultos.filter(x => typeof x === 'string' && /^[a-z0-9-]{1,30}$/.test(x)).slice(0, 30) : []
+        },
+        sonidos: p.sonidos !== false,
+        volumen: Number.isFinite(p.volumen) ? Math.max(0, Math.min(100, Math.round(p.volumen))) : 50,
+        sonidoTemporada: p.sonidoTemporada !== false
     };
 }
 function esCuentaCompartida(usuario) {

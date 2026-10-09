@@ -3,6 +3,8 @@ import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { AuthService } from './auth.service';
 import { ThemeService } from './theme.service';
+import { DataService } from './data';
+import { UiService } from './ui.service';
 
 /**
  * ATAJOS DE TECLADO — para trabajar en la oficina sin el mouse.
@@ -38,6 +40,8 @@ export class AtajosService {
   private auth = inject(AuthService);
   private theme = inject(ThemeService);
   private zone = inject(NgZone);
+  private ds = inject(DataService);
+  private ui = inject(UiService);
 
   public panelAbierto = signal(false);
   /** Se oprimió "G": esperando la letra de la página (se muestra una ayuda). */
@@ -80,6 +84,7 @@ export class AtajosService {
         { teclas: ['Shift', '←'], que: 'Mes anterior' },
         { teclas: ['Shift', '→'], que: 'Mes siguiente' },
         { teclas: ['H'], que: 'Volver al mes de hoy' },
+        { teclas: ['Ctrl', 'Z'], que: 'Deshacer el último cambio' },
         { teclas: ['Esc'], que: 'Cerrar el viaje abierto o la ventana' }
       ] });
     }
@@ -105,6 +110,13 @@ export class AtajosService {
   }
 
   private tecla(e: KeyboardEvent): void {
+    // Ctrl+Z: deshacer el último cambio (fuera de los campos, donde deshace lo escrito).
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'z' && !e.defaultPrevented
+        && !AtajosService.escribiendo() && !AtajosService.ventanaAbierta() && this.auth.puedeEditar && !this.auth.necesitaAprobacion && this.ds.pilaDeshacer.length) {
+      e.preventDefault();
+      this.ds.deshacerUltimoCambio().then(r => this.ui.mostrarToast(r.mensaje, r.ok ? 'ok' : 'err'));
+      return;
+    }
     if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
     if (e.key === 'Escape' && (this.panelAbierto() || this.theme.panelAbierto())) {
       this.panelAbierto.set(false); this.theme.panelAbierto.set(false); return;

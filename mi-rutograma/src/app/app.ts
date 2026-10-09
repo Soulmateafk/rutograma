@@ -20,11 +20,13 @@ import { GuiaService } from './services/guia.service';
 import { AvisoInactividadComponent } from './components/aviso-inactividad/aviso-inactividad';
 import { PizarraComponent } from './components/pizarra/pizarra';
 import { AvisoCargueComponent } from './components/aviso-cargue/aviso-cargue';
+import { AvisoDeshacerComponent } from './components/aviso-deshacer/aviso-deshacer';
+import { SonidoService } from './services/sonido.service';
 
 @Component({
   selector: 'app-root',
   standalone: true, 
-  imports: [RouterOutlet, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent, PizarraComponent, AvisoCargueComponent, AparienciaComponent], 
+  imports: [RouterOutlet, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent, PizarraComponent, AvisoCargueComponent, AparienciaComponent, AvisoDeshacerComponent], 
   templateUrl: './app.html'
 })
 export class App implements OnInit {
@@ -103,7 +105,8 @@ export class App implements OnInit {
     private router: Router,
     // Igual: se crea desde el arranque para no perderse la primera página
     // (las guías de primera vez se deciden al navegar).
-    private guias: GuiaService
+    private guias: GuiaService,
+    private sonido: SonidoService
   ) {
     // Escuchamos los cambios de ruta
     this.router.events.subscribe((event) => {
@@ -135,6 +138,7 @@ export class App implements OnInit {
         else this.presencia.iniciar();
 
         this.actualizarTitulo(event.url);
+        if (!this.cargandoInicial()) this.sonido.tocar('pagina');
 
         // Filas en cascada (styles.css, "body.cascada"): solo un momento al
         // entrar a cada pantalla, no cuando los datos se refrescan solos.

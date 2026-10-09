@@ -699,9 +699,14 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
   // Atajos de teclado N (viaje extra) y Shift+N (novedad): ver atajos.service.ts.
   public atajos = inject(AtajosService);
   public theme = inject(ThemeService);
+  public get cuentaCompartida(): boolean { return this.cuenta.cuentaCompartida; }
+  public get inicialYo(): string { return (String(this.cuenta.nombre || this.authService.currentUser?.email || '?').trim()[0] || '?').toUpperCase(); }
   private subAtajos = this.atajos.acciones.subscribe(a => this.abrirModal(a === 'novedad' ? 'm-novedad' : 'm-viaje'));
+  // Con la barra a un lado, el contenido se corre solo mientras la barra existe.
+  private marcaBarra = typeof document !== 'undefined' && document.documentElement.classList.add('con-barra');
 
   ngOnDestroy(): void {
+    document.documentElement.classList.remove('con-barra');
     this.subAtajos.unsubscribe();
     if (this.intervaloPendientes) clearInterval(this.intervaloPendientes);
     this.observadorTamano?.disconnect();

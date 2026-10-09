@@ -1,3 +1,5 @@
+import { VacioComponent } from '../comunes/vacio';
+import { EsqueletoComponent } from '../comunes/esqueleto';
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, PLATFORM_ID, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -28,7 +30,7 @@ import { ThemeService } from '../../services/theme.service';
 @Component({
   selector: 'app-mis-viajes',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule, CambiarClaveComponent],
+  imports: [VacioComponent, EsqueletoComponent, CommonModule, RouterLink, FormsModule, CambiarClaveComponent],
   templateUrl: './mis-viajes.html',
   styleUrls: ['./mis-viajes.css']
 })
@@ -398,6 +400,46 @@ export class MisViajesComponent implements OnInit, OnDestroy {
     const ultima = v.llegadaReal || v.salidaReal;
     return !!ultima && Date.now() - new Date(ultima).getTime() < 15 * 60000;
   }
+
+  // ---------- Deslizar el dedo para marcar (celular) ----------
+  public deslizando: { id: any; x0: number; y0: number; dx: number; avance: number; ancho: number; horizontal: boolean | null } | null = null;
+
+  accionDeslizar(v: any): 'salida' | 'llegada' | null {
+    if (!this.puedeMarcar(v) || this.marcandoId) return null;
+    return !v.salidaReal ? 'salida' : !v.llegadaReal ? 'llegada' : null;
+  }
+  empezarDeslizar(e: PointerEvent, v: any): void {
+    if (!this.accionDeslizar(v) || e.button !== 0 || (e.target as HTMLElement).closest('button, a')) return;
+    const ancho = (e.currentTarget as HTMLElement).getBoundingClientRect().width || 300;
+    this.deslizando = { id: v.id, x0: e.clientX, y0: e.clientY, dx: 0, avance: 0, ancho, horizontal: null };
+  }
+  moverDeslizar(e: PointerEvent): void {
+    const d = this.deslizando;
+    if (!d) return;
+    const dx = e.clientX - d.x0, dy = e.clientY - d.y0;
+    if (d.horizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      d.horizontal = Math.abs(dx) > Math.abs(dy) * 1.3;
+      if (d.horizontal) (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+      else { this.deslizando = null; this.cdr.markForCheck(); return; }
+    }
+    if (!d.horizontal) return;
+    d.dx = Math.max(0, Math.min(dx, d.ancho * 0.75));
+    d.avance = Math.min(1, d.dx / (d.ancho * 0.45));
+    this.cdr.markForCheck();
+  }
+  terminarDeslizar(e: PointerEvent, v: any): void {
+    const d = this.deslizando;
+    this.deslizando = null;
+    this.cdr.markForCheck();
+    if (!d || !d.horizontal) return;
+    e.preventDefault();
+    const accion = this.accionDeslizar(v);
+    if (d.avance >= 1 && accion) {
+      navigator.vibrate?.(30);
+      this.marcar(v, accion);
+    }
+  }
+  cancelarDeslizar(): void { this.deslizando = null; this.cdr.markForCheck(); }
 
   async marcar(v: any, accion: 'salida' | 'llegada' | 'deshacer'): Promise<void> {
     if (this.marcandoId) return;

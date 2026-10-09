@@ -13,9 +13,9 @@
     </button>
   </div>
 
-  <p *ngIf="cargando" class="pp-vacio">Cargando…</p>
+  <app-esqueleto *ngIf="cargando" [filas]="4" tipo="tabla"></app-esqueleto>
   <p *ngIf="!cargando && error" class="pp-error"><i class="bi bi-info-circle"></i> {{ error }}</p>
-  <p *ngIf="!cargando && !error && !enPapelera.length" class="pp-vacio">La papelera está vacía.</p>
+  <app-vacio *ngIf="!cargando && !error && !enPapelera.length" dibujo="papelera" titulo="La papelera está vacía" texto="Lo que se elimine aparece aquí unos días, por si hay que recuperarlo."></app-vacio>
   <p *ngIf="!cargando && !error && enPapelera.length && !puedeRecuperar" class="pp-aviso">
     <i class="bi bi-info-circle"></i> Puedes ver lo eliminado, pero para recuperarlo pídeselo a un jefe o al administrador.
   </p>

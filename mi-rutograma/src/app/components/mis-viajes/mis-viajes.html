@@ -18,7 +18,7 @@
     </div>
   </header>
 
-  <div *ngIf="cargando" class="mv-vacio">Cargando…</div>
+  <app-esqueleto *ngIf="cargando" [filas]="3" tipo="lista"></app-esqueleto>
   <div *ngIf="!cargando && error" class="mv-error"><i class="bi bi-info-circle"></i> {{ error }}</div>
 
   <!-- Cuenta compartida — paso 1: nombre y placa -->
@@ -97,7 +97,16 @@
         <h2>{{ d.titulo }}</h2>
         <div *ngIf="d.descanso" class="mv-descanso"><i class="bi bi-moon-stars-fill"></i> Día de descanso</div>
         <div *ngIf="!d.viajes.length && !d.descanso" class="mv-sin">Sin viajes</div>
-        <article *ngFor="let v of d.viajes" class="mv-viaje" [ngClass]="claseEstado(v.estado)">
+        <div *ngFor="let v of d.viajes" class="mv-deslizable" [class.activo]="deslizando?.id === v.id" [attr.data-accion]="accionDeslizar(v)">
+        <div class="mv-deslizar-fondo mv-no-foto" *ngIf="accionDeslizar(v)" [style.opacity]="deslizando?.id === v.id ? deslizando!.avance : 0">
+          <i class="bi" [ngClass]="accionDeslizar(v) === 'salida' ? 'bi-play-fill' : 'bi-flag-fill'"></i>
+          {{ accionDeslizar(v) === 'salida' ? 'Ya salí' : 'Ya llegué' }}
+          <span *ngIf="(deslizando?.avance || 0) >= 1">· suelta</span>
+        </div>
+        <article class="mv-viaje" [ngClass]="claseEstado(v.estado)"
+                 [style.transform]="deslizando?.id === v.id ? 'translateX(' + deslizando!.dx + 'px)' : null"
+                 (pointerdown)="empezarDeslizar($event, v)" (pointermove)="moverDeslizar($event)"
+                 (pointerup)="terminarDeslizar($event, v)" (pointercancel)="cancelarDeslizar()">
           <div *ngIf="v.aviso" class="mv-aviso-viaje" [ngClass]="'mv-aviso-' + v.aviso.tipo">
             <b>{{ v.aviso.tipo === 'nuevo' ? 'Nuevo' : v.aviso.tipo === 'cancelado' ? 'Cancelado' : 'Cambió' }}</b>
             <span *ngFor="let c of v.aviso.cambios">{{ c.campo }}: {{ c.de }} → {{ c.a }}</span>
@@ -130,7 +139,9 @@
               Me equivoqué, deshacer
             </button>
           </div>
+          <div class="mv-deslizar-pista mv-no-foto" *ngIf="accionDeslizar(v)"><i class="bi bi-chevron-double-right"></i> o desliza a la derecha</div>
         </article>
+        </div>
       </section>
     </div>
 
