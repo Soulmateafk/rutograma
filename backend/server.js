@@ -4548,11 +4548,18 @@ app.post('/api/auth/login', async (req, res) => {
 // cambia la de nadie más. Las cuentas compartidas (conductores, despachos)
 // no la guardan aquí: la usa mucha gente, así que cada equipo recuerda la
 // suya (lo hace la pantalla).
-const TEMAS = ['oscuro', 'claro'];
-const TAMANOS_LETRA = ['normal', 'grande', 'muy-grande'];
+const TEMAS = ['oscuro', 'claro', 'auto'];
+const TAMANOS_LETRA = ['pequena', 'normal', 'grande', 'muy-grande'];
+const ACENTOS = ['azul', 'verde', 'morado', 'naranja', 'rosa', 'turquesa'];
 function preferenciasDe(usuario) {
     const p = usuario?.preferencias || {};
-    return { tema: TEMAS.includes(p.tema) ? p.tema : 'oscuro', letra: TAMANOS_LETRA.includes(p.letra) ? p.letra : 'normal' };
+    return {
+        tema: TEMAS.includes(p.tema) ? p.tema : 'oscuro',
+        letra: TAMANOS_LETRA.includes(p.letra) ? p.letra : 'normal',
+        acento: ACENTOS.includes(p.acento) ? p.acento : 'azul',
+        contraste: p.contraste === true,
+        sinAnimaciones: p.sinAnimaciones === true
+    };
 }
 function esCuentaCompartida(usuario) {
     const rol = rolDeCuenta(usuario, false);

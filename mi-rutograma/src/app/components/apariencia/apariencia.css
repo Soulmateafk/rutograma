@@ -10,8 +10,8 @@
 .ap-opciones { display: flex; gap: 8px; flex-wrap: wrap; }
 .ap-opcion { flex: 1; min-width: 100px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border-radius: 8px; cursor: pointer;
   background: var(--color-fondo-input); color: var(--color-texto-principal); border: 2px solid var(--color-borde); font-size: 14px; }
-.ap-opcion.on { border-color: #3b82f6; background: rgba(59, 130, 246, 0.15); font-weight: 700; }
-.ap-instalar { width: 100%; padding: 10px; border-radius: 8px; border: none; background: #2563eb; color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; display: inline-flex; gap: 8px; justify-content: center; align-items: center; }
+.ap-opcion.on { border-color: var(--acento, #3b82f6); background: var(--acento-fondo, rgba(59, 130, 246, 0.15)); font-weight: 700; }
+.ap-instalar { width: 100%; padding: 10px; border-radius: 8px; border: none; background: var(--acento, #2563eb); color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; display: inline-flex; gap: 8px; justify-content: center; align-items: center; }
 .ap-link { margin-top: 14px; background: none; border: none; color: #60a5fa; cursor: pointer; padding: 0; font-size: 13px; text-decoration: underline; }
 .ap-atajos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 6px 22px; margin-top: 10px; }
 .ap-atajos-grupo { margin-top: 8px; }
@@ -25,3 +25,19 @@ kbd { display: inline-block; min-width: 22px; text-align: center; padding: 2px 6
 @media (max-width: 480px) {
   .ap-atajos-grid { grid-template-columns: 1fr; }
 }
+
+.ap-opcion-letra { min-width: 86px; padding: 8px 6px; font-size: 13px; }
+.ap-colores { display: flex; gap: 10px; flex-wrap: wrap; }
+.ap-color { width: 38px; height: 38px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; color: #fff; font-size: 18px; display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 1px var(--color-borde); }
+.ap-color.on { border-color: var(--color-fondo-tarjeta); box-shadow: 0 0 0 2px var(--color-texto-principal); }
+.ap-interruptor { display: flex; align-items: center; gap: 10px; padding: 8px 0; cursor: pointer; font-size: 14px; }
+.ap-interruptor input { position: absolute; opacity: 0; pointer-events: none; }
+.ap-interruptor small { display: block; font-size: 12px; color: var(--color-texto-apagado); margin-top: 1px; }
+.ap-int-caja { flex-shrink: 0; width: 40px; height: 22px; border-radius: 999px; background: var(--color-borde); position: relative; transition: background .15s; }
+.ap-int-caja::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.ap-interruptor input:checked + .ap-int-caja { background: var(--acento, #2563eb); }
+.ap-interruptor input:checked + .ap-int-caja::after { left: 21px; }
+.ap-interruptor input:focus-visible + .ap-int-caja { outline: 2px solid var(--acento, #2563eb); outline-offset: 2px; }
+.ap-pie { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ap-restablecer { color: var(--color-texto-apagado); }

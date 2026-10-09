@@ -12,22 +12,46 @@
     <div class="ap-grupo" data-guia="ap-tema">
       <div class="ap-titulo">Modo</div>
       <div class="ap-opciones">
-        <button class="ap-opcion" [class.on]="theme.temaActual === 'oscuro'" (click)="theme.ponerTema('oscuro')">
-          <i class="bi bi-moon-stars-fill"></i> Oscuro
-        </button>
-        <button class="ap-opcion" [class.on]="theme.temaActual === 'claro'" (click)="theme.ponerTema('claro')">
-          <i class="bi bi-sun-fill"></i> Claro
+        <button *ngFor="let t of theme.temas" class="ap-opcion" [class.on]="theme.ap.tema === t.valor" (click)="theme.ponerTema(t.valor)">
+          <i class="bi" [ngClass]="t.icono"></i> {{ t.nombre }}
         </button>
       </div>
+      <p class="ap-nota" *ngIf="theme.ap.tema === 'auto'">Sigue al equipo o celular: claro u oscuro según cómo lo tengas configurado (muchos celulares cambian solos de noche). Ahora se ve <strong>{{ theme.temaActual }}</strong>.</p>
+    </div>
+
+    <div class="ap-grupo" data-guia="ap-acento">
+      <div class="ap-titulo">Color principal</div>
+      <div class="ap-colores">
+        <button *ngFor="let a of theme.acentos" class="ap-color" [class.on]="theme.ap.acento === a.valor" [style.background]="a.color"
+                [title]="a.nombre" [attr.aria-label]="'Color ' + a.nombre" (click)="theme.ponerAcento(a.valor)">
+          <i *ngIf="theme.ap.acento === a.valor" class="bi bi-check-lg"></i>
+        </button>
+      </div>
+      <p class="ap-nota">Botones principales, pestaña activa y detalles.</p>
     </div>
 
     <div class="ap-grupo" data-guia="ap-letra">
       <div class="ap-titulo">Tamaño de letra</div>
       <div class="ap-opciones">
-        <button *ngFor="let t of theme.tamanos; let i = index" class="ap-opcion" [class.on]="theme.letra === t.valor" (click)="theme.ponerLetra(t.valor)">
-          <span [style.font-size.px]="13 + i * 3" style="font-weight: 700;">A</span> {{ t.nombre }}
+        <button *ngFor="let t of theme.tamanos" class="ap-opcion ap-opcion-letra" [class.on]="theme.ap.letra === t.valor" (click)="theme.ponerLetra(t.valor)">
+          <span [style.font-size.px]="t.px" style="font-weight: 700;">A</span> {{ t.nombre }}
         </button>
       </div>
+      <p class="ap-nota" *ngIf="theme.ap.letra === 'pequena'">Cabe más en la pantalla (bueno para ver todo el mes del Rutograma).</p>
+    </div>
+
+    <div class="ap-grupo" data-guia="ap-ajustes">
+      <div class="ap-titulo">Más ajustes</div>
+      <label class="ap-interruptor">
+        <input type="checkbox" [checked]="theme.ap.contraste" (change)="theme.alternarContraste()">
+        <span class="ap-int-caja"></span>
+        <span><strong>Alto contraste</strong><small>Letras y bordes más marcados, para leer mejor.</small></span>
+      </label>
+      <label class="ap-interruptor">
+        <input type="checkbox" [checked]="theme.ap.sinAnimaciones" (change)="theme.alternarAnimaciones()">
+        <span class="ap-int-caja"></span>
+        <span><strong>Menos animaciones</strong><small>Los cambios se ven de una vez, sin efectos. Más rápido en equipos lentos.</small></span>
+      </label>
     </div>
 
     <div class="ap-grupo" data-guia="ap-instalar" *ngIf="!instalar.instalada()">
@@ -46,7 +70,10 @@
       </p>
     </div>
 
-    <button class="ap-link" data-guia="ap-ver-atajos" *ngIf="atajos.esOficina" (click)="verAtajos()"><i class="bi bi-keyboard"></i> Ver atajos de teclado (?)</button>
+    <div class="ap-pie">
+      <button class="ap-link" data-guia="ap-ver-atajos" *ngIf="atajos.esOficina" (click)="verAtajos()"><i class="bi bi-keyboard"></i> Ver atajos de teclado (?)</button>
+      <button class="ap-link ap-restablecer" *ngIf="theme.personalizada" (click)="theme.restablecer()"><i class="bi bi-arrow-counterclockwise"></i> Restablecer</button>
+    </div>
   </div>
 </div>
 

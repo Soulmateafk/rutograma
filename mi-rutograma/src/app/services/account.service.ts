@@ -140,7 +140,7 @@ export class AccountService {
 
   /** Apariencia de la cuenta (null = nunca la ha cambiado) y si es una
    *  cuenta compartida (conductores, despachos). La escucha ThemeService. */
-  public preferencias: { tema: 'oscuro' | 'claro'; letra: 'normal' | 'grande' | 'muy-grande' } | null = null;
+  public preferencias: Record<string, any> | null = null;
   public cuentaCompartida = false;
   public alCargarCuenta = new Subject<{ email: string; preferencias: any; compartida: boolean } | null>();
 
@@ -151,7 +151,7 @@ export class AccountService {
   }
 
   /** Guarda la apariencia en la cuenta (las compartidas no: cada equipo la suya). */
-  public async guardarPreferencias(p: { tema?: string; letra?: string }): Promise<void> {
+  public async guardarPreferencias(p: Record<string, any>): Promise<void> {
     if (!this.token || this.cuentaCompartida) return;
     try {
       await this.fetchAutenticado(`${this.API_URL}/auth/preferencias`, {
