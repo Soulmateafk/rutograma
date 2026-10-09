@@ -1,5 +1,5 @@
 <!-- ===== APARIENCIA ===== -->
-<div class="ap-fondo" *ngIf="theme.panelAbierto()" (click)="theme.panelAbierto.set(false)">
+<div animate.leave="ap-cerrar" class="ap-fondo" *ngIf="theme.panelAbierto()" (click)="theme.panelAbierto.set(false)">
   <div class="ap-panel" (click)="$event.stopPropagation()" role="dialog" aria-label="Apariencia">
     <div class="ap-cab">
       <h3><i class="bi bi-palette"></i> Apariencia</h3>
@@ -23,11 +23,24 @@
       <div class="ap-titulo">Color principal</div>
       <div class="ap-colores">
         <button *ngFor="let a of theme.acentos" class="ap-color" [class.on]="theme.ap.acento === a.valor" [style.background]="a.color"
-                [title]="a.nombre" [attr.aria-label]="'Color ' + a.nombre" (click)="theme.ponerAcento(a.valor)">
+                [title]="a.nombre" [attr.aria-label]="'Color ' + a.nombre" (click)="theme.ponerAcento(a.valor); ruedaAbierta = false">
           <i *ngIf="theme.ap.acento === a.valor" class="bi bi-check-lg"></i>
         </button>
+        <button class="ap-color ap-color-propio" data-guia="ap-propio" [class.on]="theme.ap.acento === 'propio'" (click)="abrirRueda()"
+                [style.background]="theme.ap.colorPropio ? theme.ap.colorPropio : null" title="Tu propio color" aria-label="Escoger mi propio color">
+          <i class="bi" [ngClass]="theme.ap.acento === 'propio' ? 'bi-check-lg' : 'bi-plus-lg'"></i>
+        </button>
+      </div>
+      <div class="ap-rueda" *ngIf="ruedaAbierta" animate.leave="ap-ocultar">
+        <app-rueda-color [color]="theme.ap.colorPropio || '#3366ff'" (cambio)="theme.ponerColorPropio($event, false)" (listo)="theme.ponerColorPropio($event)"></app-rueda-color>
+        <p class="ap-nota ap-aviso-color" *ngIf="colorAjustado"><i class="bi bi-info-circle"></i> Es muy claro para botones con letra blanca: en los botones se usa un tono un poco más oscuro para que se lea.</p>
       </div>
       <p class="ap-nota">{{ nombreAcento }}: botones, pestaña activa, línea de la barra, títulos, campos y detalles.</p>
+      <label class="ap-interruptor" data-guia="ap-tinte">
+        <input type="checkbox" [checked]="theme.ap.fondoTinte" (change)="theme.alternarTinte()">
+        <span class="ap-int-caja"></span>
+        <span><strong>Fondo con el color</strong><small>El fondo de la app toma un toque suave de tu color.</small></span>
+      </label>
     </div>
 
     <div class="ap-grupo" data-guia="ap-letra">
@@ -40,8 +53,33 @@
       <p class="ap-nota" *ngIf="theme.ap.letra === 'pequena'">Cabe más en la pantalla (bueno para ver todo el mes del Rutograma).</p>
     </div>
 
+    <div class="ap-grupo" data-guia="ap-esquinas">
+      <div class="ap-titulo">Esquinas</div>
+      <div class="ap-opciones">
+        <button *ngFor="let e of theme.esquinasOpciones" class="ap-opcion ap-opcion-esquina" [class.on]="theme.ap.esquinas === e.valor" (click)="theme.ponerEsquinas(e.valor)">
+          <span class="ap-muestra-esquina" [class.rectas]="e.valor === 'rectas'" [class.muy]="e.valor === 'muy'"></span> {{ e.nombre }}
+        </button>
+      </div>
+    </div>
+
+    <div class="ap-grupo" data-guia="ap-transportadoras" *ngIf="atajos.esOficina">
+      <div class="ap-titulo">Colores del Rutograma</div>
+      <div class="ap-tr" *ngFor="let t of transportadoras">
+        <span class="ap-tr-muestra" [style.background]="colorTr(t.clave)"></span>
+        <span class="ap-tr-nombre">{{ t.nombre }}</span>
+        <input type="color" [value]="theme.ap.coloresTr[t.clave] || coloresTr[t.clave]" (change)="theme.ponerColorTr(t.clave, $any($event.target).value)" [attr.aria-label]="'Color de ' + t.nombre">
+        <button class="ap-link" *ngIf="theme.ap.coloresTr[t.clave]" (click)="theme.ponerColorTr(t.clave, '')">Como siempre</button>
+      </div>
+      <p class="ap-nota">El color de las tarjetas de cada transportadora. Se oscurece solo si hace falta para que su letra blanca se lea.</p>
+    </div>
+
     <div class="ap-grupo" data-guia="ap-ajustes">
       <div class="ap-titulo">Más ajustes</div>
+      <label class="ap-interruptor">
+        <input type="checkbox" [checked]="theme.ap.daltonismo" (change)="theme.alternarDaltonismo()">
+        <span class="ap-int-caja"></span>
+        <span><strong>Modo daltonismo</strong><small>Los estados del Rutograma (Entregado, Pendiente, Sin conductor, En ruta) con colores que se distinguen sin ver rojo ni verde.</small></span>
+      </label>
       <label class="ap-interruptor">
         <input type="checkbox" [checked]="theme.ap.contraste" (change)="theme.alternarContraste()">
         <span class="ap-int-caja"></span>
@@ -50,7 +88,12 @@
       <label class="ap-interruptor">
         <input type="checkbox" [checked]="theme.ap.sinAnimaciones" (change)="theme.alternarAnimaciones()">
         <span class="ap-int-caja"></span>
-        <span><strong>Quitar animaciones</strong><small>Sin efectos al abrir pantallas, ventanas y menús ni al tocar botones. Más rápido en equipos lentos.</small></span>
+        <span><strong>Quitar animaciones</strong><small>Sin efectos al abrir o cerrar pantallas, ventanas y menús, ni al tocar botones. Más rápido en equipos lentos.</small></span>
+      </label>
+      <label class="ap-interruptor">
+        <input type="checkbox" [checked]="theme.ap.saludo" (change)="theme.alternarSaludo()">
+        <span class="ap-int-caja"></span>
+        <span><strong>Saludo al entrar</strong><small>"Buenos días", "Buenas tardes" o "Buenas noches" con tu nombre al abrir la app.</small></span>
       </label>
     </div>
 
@@ -78,7 +121,7 @@
 </div>
 
 <!-- ===== ATAJOS DE TECLADO ===== -->
-<div class="ap-fondo" *ngIf="atajos.panelAbierto()" (click)="atajos.panelAbierto.set(false)">
+<div animate.leave="ap-cerrar" class="ap-fondo" *ngIf="atajos.panelAbierto()" (click)="atajos.panelAbierto.set(false)">
   <div class="ap-panel ap-atajos" (click)="$event.stopPropagation()" role="dialog" aria-label="Atajos de teclado">
     <div class="ap-cab">
       <h3><i class="bi bi-keyboard"></i> Atajos de teclado</h3>
@@ -98,7 +141,12 @@
 </div>
 
 <!-- "G" oprimida: qué letra lleva a dónde -->
-<div class="ap-ir" *ngIf="atajos.esperandoIr()">
+<div animate.leave="ap-ocultar" class="ap-ir" *ngIf="atajos.esperandoIr()">
   <strong>Ir a…</strong>
   <span *ngFor="let p of atajos.paginasParaIr()"><kbd>{{ p.tecla.toUpperCase() }}</kbd> {{ p.nombre }}</span>
+</div>
+
+<!-- Saludo al entrar (se quita en Apariencia → "Saludo al entrar"). -->
+<div class="ap-saludo" *ngIf="theme.saludo() as sa" animate.leave="ap-ocultar" (click)="theme.saludo.set(null)">
+  <span class="ap-saludo-icono">{{ sa.icono }}</span> {{ sa.texto }}
 </div>

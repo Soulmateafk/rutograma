@@ -5,6 +5,9 @@ import { AtajosService } from '../../services/atajos.service';
 import { InstalarService } from '../../services/instalar.service';
 import { AuthService } from '../../services/auth.service';
 import { AccountService } from '../../services/account.service';
+import { COLORES_TR, Transportadora } from '../../services/theme.service';
+import { variantesAcento } from '../../services/colores';
+import { RuedaColorComponent } from './rueda-color';
 
 /**
  * Panel APARIENCIA (modo claro/oscuro, tamaño de letra, instalar la app) y
@@ -14,7 +17,7 @@ import { AccountService } from '../../services/account.service';
 @Component({
   selector: 'app-apariencia',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RuedaColorComponent],
   templateUrl: './apariencia.html',
   styleUrls: ['./apariencia.css']
 })
@@ -30,7 +33,27 @@ export class AparienciaComponent {
   }
 
   public get nombreAcento(): string {
+    if (this.theme.ap.acento === 'propio') return 'Tu color';
     return this.theme.acentos.find(a => a.valor === this.theme.ap.acento)?.nombre || '';
+  }
+
+  // Rueda de colores (color propio).
+  public ruedaAbierta = false;
+  public abrirRueda(): void {
+    this.ruedaAbierta = !this.ruedaAbierta || this.theme.ap.acento !== 'propio';
+    if (this.theme.ap.acento !== 'propio') this.theme.ponerColorPropio(this.theme.ap.colorPropio || '#3366ff');
+  }
+  public get colorAjustado(): boolean {
+    return this.theme.ap.acento === 'propio' && !!this.theme.ap.colorPropio && variantesAcento(this.theme.ap.colorPropio).ajustado;
+  }
+
+  // Colores de cada transportadora en el Rutograma.
+  public readonly coloresTr = COLORES_TR;
+  public readonly transportadoras: Array<{ clave: Transportadora; nombre: string }> = [
+    { clave: 'makand', nombre: 'Makand' }, { clave: 'arsitrans', nombre: 'Arsitrans' }, { clave: 'polar', nombre: 'Polar' }
+  ];
+  public colorTr(t: Transportadora): string {
+    return this.theme.ap.coloresTr[t] || COLORES_TR[t];
   }
 
   public verAtajos(): void {

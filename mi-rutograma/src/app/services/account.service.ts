@@ -142,10 +142,13 @@ export class AccountService {
    *  cuenta compartida (conductores, despachos). La escucha ThemeService. */
   public preferencias: Record<string, any> | null = null;
   public cuentaCompartida = false;
+  /** Nombre de la cuenta (para el saludo al entrar). */
+  public nombre = '';
   public alCargarCuenta = new Subject<{ email: string; preferencias: any; compartida: boolean } | null>();
 
   private tomarApariencia(res: any): void {
     this.preferencias = res?.preferencias || null;
+    this.nombre = String(res?.nombre || '');
     this.cuentaCompartida = !!res?.cuentaCompartida;
     this.alCargarCuenta.next({ email: this.emailActivo, preferencias: this.preferencias, compartida: this.cuentaCompartida });
   }

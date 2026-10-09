@@ -10,6 +10,7 @@ import { LoadingService } from './services/loading.service';
 import { ThemeService } from './services/theme.service';
 import { AtajosService } from './services/atajos.service';
 import { InstalarService } from './services/instalar.service';
+import { CierreAnimadoService } from './services/cierre-animado.service';
 import { AparienciaComponent } from './components/apariencia/apariencia';
 import { NavbarComponent } from './components/navbar/navbar'; 
 import { GuiaComponent } from './components/guia/guia';
@@ -91,6 +92,7 @@ export class App implements OnInit {
     // Atajos de teclado y el aviso de "se puede instalar": desde el arranque.
     private atajos: AtajosService,
     private instalar: InstalarService,
+    private cierreAnimado: CierreAnimadoService,
     private titleService: Title,
     private presencia: PresenciaService,
     private router: Router,

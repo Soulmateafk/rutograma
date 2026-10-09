@@ -1705,7 +1705,7 @@ app.get('/api/auth/estado', (req, res) => {
 
         if (email === normalizarEmail(ADMIN_EMAIL)) {
             const admin = (data.usuarios || []).find(u => normalizarEmail(u.email) === email);
-            return res.json({ ok: true, estado: 'APPROVED', esAdmin: true, rol: 'admin', permisos: permisosDeCuenta(null, true), preferencias: admin?.preferencias ? preferenciasDe(admin) : null, cuentaCompartida: false });
+            return res.json({ ok: true, estado: 'APPROVED', esAdmin: true, rol: 'admin', permisos: permisosDeCuenta(null, true), preferencias: admin?.preferencias ? preferenciasDe(admin) : null, cuentaCompartida: false, nombre: admin?.nombre || '' });
         }
 
         const usuario = (data.usuarios || []).find(u => normalizarEmail(u.email) === email);
@@ -1719,7 +1719,8 @@ app.get('/api/auth/estado', (req, res) => {
             permisos: permisosDeCuenta(usuario, false),
             motivoRechazo: usuario.estado === 'REJECTED' ? (usuario.motivoRechazo || '') : undefined,
             preferencias: usuario.preferencias ? preferenciasDe(usuario) : null,
-            cuentaCompartida: esCuentaCompartida(usuario)
+            cuentaCompartida: esCuentaCompartida(usuario),
+            nombre: usuario.nombre || ''
         });
     } catch (error) {
         console.error("🚨 Error en /api/auth/estado:", error);
@@ -4550,15 +4551,22 @@ app.post('/api/auth/login', async (req, res) => {
 // suya (lo hace la pantalla).
 const TEMAS = ['oscuro', 'claro', 'auto'];
 const TAMANOS_LETRA = ['pequena', 'normal', 'grande', 'muy-grande'];
+const COLOR_HEX = /^#[0-9a-f]{6}$/i;
 const ACENTOS = ['azul', 'indigo', 'morado', 'rosa', 'rojo', 'naranja', 'ambar', 'lima', 'verde', 'turquesa', 'cian', 'grafito'];
 function preferenciasDe(usuario) {
     const p = usuario?.preferencias || {};
     return {
         tema: TEMAS.includes(p.tema) ? p.tema : 'oscuro',
         letra: TAMANOS_LETRA.includes(p.letra) ? p.letra : 'normal',
-        acento: ACENTOS.includes(p.acento) ? p.acento : 'azul',
+        acento: ACENTOS.includes(p.acento) || (p.acento === 'propio' && COLOR_HEX.test(p.colorPropio || '')) ? p.acento : 'azul',
         contraste: p.contraste === true,
-        sinAnimaciones: p.sinAnimaciones === true
+        sinAnimaciones: p.sinAnimaciones === true,
+        colorPropio: COLOR_HEX.test(p.colorPropio || '') ? String(p.colorPropio).toLowerCase() : '',
+        fondoTinte: p.fondoTinte === true,
+        coloresTr: Object.fromEntries(['makand', 'arsitrans', 'polar'].map(t => [t, COLOR_HEX.test(p.coloresTr?.[t] || '') ? String(p.coloresTr[t]).toLowerCase() : ''])),
+        daltonismo: p.daltonismo === true,
+        esquinas: ['normal', 'muy', 'rectas'].includes(p.esquinas) ? p.esquinas : 'normal',
+        saludo: p.saludo !== false
     };
 }
 function esCuentaCompartida(usuario) {

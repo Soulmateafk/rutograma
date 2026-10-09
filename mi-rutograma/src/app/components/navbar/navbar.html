@@ -18,7 +18,7 @@
             [attr.aria-expanded]="menuMasAbierto">
       Más <i class="bi" [ngClass]="menuMasAbierto ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
     </button>
-    <div class="menu-mas" *ngIf="menuMasAbierto">
+    <div animate.leave="ap-ocultar" class="menu-mas" *ngIf="menuMasAbierto">
       <ng-container *ngFor="let p of paginasMenuMas">
         <button *ngIf="rutasEnMenuMas.has(p.ruta)" class="menu-mas-item"
                 [routerLink]="p.ruta" routerLinkActive="on" (click)="menuMasAbierto = false">{{ p.nombre }}<span class="tab-pend" *ngIf="p.ruta === '/aprobaciones' && pendientesAprobacion">{{ pendientesAprobacion }}</span></button>
@@ -36,7 +36,7 @@
            (blur)="cerrarResultadosBusqueda()"
            style="background: var(--color-fondo-input); border: 1px solid var(--color-borde); color: var(--color-texto-principal); padding: 6px 12px; border-radius: 6px; font-size: 12px;">
 
-    <div *ngIf="mostrandoResultadosBusqueda && resultadosBusqueda.length"
+    <div animate.leave="ap-ocultar" *ngIf="mostrandoResultadosBusqueda && resultadosBusqueda.length"
          class="nb-resultados"
          style="position: absolute; top: calc(100% + 4px); left: 0; width: 360px; max-width: calc(100vw - 24px); background: var(--color-fondo-tarjeta); border: 1px solid var(--color-borde); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); z-index: 9999; overflow: hidden;">
       <div *ngFor="let r of resultadosBusqueda; let i = index"
@@ -88,7 +88,7 @@
 <!-- ============================================================ -->
 <!-- MODAL: VIAJE EXTRA                                            -->
 <!-- ============================================================ -->
-<div class="nb-modal-backdrop" *ngIf="isModalViajeOpen" (click)="cerrarModalViaje()">
+<div animate.leave="ap-cerrar" class="nb-modal-backdrop" *ngIf="isModalViajeOpen" (click)="cerrarModalViaje()">
   <div class="nb-modal" (click)="$event.stopPropagation()">
     <h3>+ Viaje Extra</h3>
 
@@ -154,7 +154,7 @@
 <!-- ============================================================ -->
 <!-- MODAL: NOVEDAD                                                -->
 <!-- ============================================================ -->
-<div class="nb-modal-backdrop" *ngIf="isModalNovedadOpen" (click)="cerrarModalNovedad()">
+<div animate.leave="ap-cerrar" class="nb-modal-backdrop" *ngIf="isModalNovedadOpen" (click)="cerrarModalNovedad()">
   <div class="nb-modal" (click)="$event.stopPropagation()">
     <h3>&#9889; Reportar novedad</h3>
 
@@ -189,7 +189,7 @@
 <!-- Modal de confirmación propio — reemplaza el confirm() nativo del
      navegador (feo/genérico) por uno con el mismo estilo del resto de
      la app. Mismo patrón ya usado en Rutograma. -->
-<div class="nb-modal-backdrop" *ngIf="confirmDialogAbierto" style="z-index: 10002;">
+<div animate.leave="ap-cerrar" class="nb-modal-backdrop" *ngIf="confirmDialogAbierto" style="z-index: 10002;">
   <div class="nb-modal" style="max-width: 420px;" (click)="$event.stopPropagation()">
     <p style="font-size: 14px; color: #e2e8f0; line-height: 1.5; margin: 0 0 18px 0; white-space: pre-line;">{{ confirmDialogMensaje }}</p>
     <div class="nb-modal-footer">

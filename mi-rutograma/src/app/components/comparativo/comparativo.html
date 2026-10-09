@@ -116,7 +116,7 @@
 
       <div class="comp-tarjeta-mes">
         <div class="comp-tarjeta-titulo">{{ resumenA.etiqueta }}</div>
-        <div class="comp-tarjeta-total">{{ resumenA.total }}</div>
+        <div class="comp-tarjeta-total" [appContar]="resumenA.total"></div>
         <div class="comp-tarjeta-sub">viajes Makand<span *ngIf="resumenA.hastaDia"> hasta el día {{ resumenA.hastaDia }}</span></div>
       </div>
 
@@ -130,7 +130,7 @@
 
       <div class="comp-tarjeta-mes">
         <div class="comp-tarjeta-titulo">{{ resumenB.etiqueta }}</div>
-        <div class="comp-tarjeta-total">{{ resumenB.total }}</div>
+        <div class="comp-tarjeta-total" [appContar]="resumenB.total"></div>
         <div class="comp-tarjeta-sub">viajes Makand<span *ngIf="resumenB.hastaDia"> hasta el día {{ resumenB.hastaDia }}</span></div>
       </div>
 
@@ -144,7 +144,7 @@
       <span class="comp-analizar-ayuda">Desglosa qué cambió entre los dos meses: rutas, clientes, vehículos, conductores, cancelaciones, despachos y más (todas las transportadoras).</span>
     </div>
 
-    <div class="comp-analisis" id="comp-analisis" *ngIf="analisis as an">
+    <div animate.leave="ap-ocultar" class="comp-analisis" id="comp-analisis" *ngIf="analisis as an">
       <div class="comp-analisis-aviso" *ngIf="analisisDesactualizado">
         <i class="bi bi-exclamation-circle"></i> Cambiaste los meses o el corte: este análisis es de <strong>{{ an.etiquetaA }} vs. {{ an.etiquetaB }}</strong>. Oprime "Analizar en detalle" para actualizarlo.
       </div>

@@ -22,6 +22,7 @@ import { revisarMes, rangoViaje, ProblemaViaje } from '../../services/revision-v
 import { agruparViajes, prepararRutasEnriquecidas, hayConflicto, obtenerViajesEnConflicto, reprogramarSiguientesTrasEliminar, reprogramarViajesDesde, reprogramarViajeConflictivo, buscarViajesTercerosRobables, tomarViajeTerceroParaVehiculo, buscarVehiculosDisponiblesParaVarado, transferirViajeAOtroVehiculo, esDiaVarado, siguienteNumeroCupo as siguienteNumeroCupoCompartido, buscarCupoLibre as buscarCupoLibreCompartido } from './rutograma.utils.js';
 import { API } from '../../api-base';
 import { AtajosService } from '../../services/atajos.service';
+import { zoomPagina } from '../../zoom';
 
 interface Viaje {
   id: number;
@@ -747,14 +748,16 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     const altoTooltip = 160;
     const margen = 16;
 
-    let x = event.clientX + margen;
-    let y = event.clientY + margen;
+    const z = zoomPagina(); // tamaño de letra: medidas en la escala de la página
+    const cx = event.clientX / z, cy = event.clientY / z;
+    let x = cx + margen;
+    let y = cy + margen;
 
-    if (x + anchoTooltip > window.innerWidth) {
-      x = event.clientX - anchoTooltip - margen;
+    if (x + anchoTooltip > window.innerWidth / z) {
+      x = cx - anchoTooltip - margen;
     }
-    if (y + altoTooltip > window.innerHeight) {
-      y = event.clientY - altoTooltip - margen;
+    if (y + altoTooltip > window.innerHeight / z) {
+      y = cy - altoTooltip - margen;
     }
 
     this.tooltipX = Math.max(4, x);
@@ -1419,8 +1422,9 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     if (this.calendarioMesAbierto) {
       this.calendarioMesAnioMostrado = this.ds.S.anio;
       const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-      this.calendarioMesX = rect.left;
-      this.calendarioMesY = rect.bottom + 8;
+      const z = zoomPagina();
+      this.calendarioMesX = rect.left / z;
+      this.calendarioMesY = rect.bottom / z + 8;
     }
   }
 

@@ -328,7 +328,7 @@
   </div>
 </div>
 <!-- Rol y permisos de una cuenta (al aprobarla o después) — solo admin. -->
-<div class="mbg" *ngIf="modalPermisos">
+<div animate.leave="ap-cerrar" class="mbg" *ngIf="modalPermisos">
   <div class="modal" style="width:480px">
     <h3 class="permisos-titulo">{{ modalPermisos.modo === 'aprobar' ? 'Aprobar cuenta' : 'Permisos de la cuenta' }}</h3>
     <p class="permisos-correo">{{ modalPermisos.usuario.nombre || '' }} &lt;{{ modalPermisos.usuario.email }}&gt;</p>

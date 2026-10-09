@@ -60,9 +60,14 @@ export class UiService {
         el.style.background = tipo === 'ok' ? '#052e16' : tipo === 'err' ? '#2d0a0a' : '#2d1b00';
         el.style.borderColor = tipo === 'ok' ? '#166534' : tipo === 'err' ? '#7f1d1d' : '#92400e';
         el.style.color = tipo === 'ok' ? '#bbf7d0' : tipo === 'err' ? '#fecaca' : '#fde68a';
+        clearTimeout(el._t); clearTimeout(el._t2);
+        el.classList.remove('ap-ocultar');
         el.style.display = 'block';
-        clearTimeout(el._t);
-        el._t = setTimeout(() => { el.style.display = 'none'; }, 4000);
+        // Al irse, baja y se desvanece (styles.css); sin animaciones se va de una.
+        el._t = setTimeout(() => {
+          el.classList.add('ap-ocultar');
+          el._t2 = setTimeout(() => { el.style.display = 'none'; el.classList.remove('ap-ocultar'); }, 300);
+        }, 4000);
       }
 
       if ((window as any).mostrarToast) {

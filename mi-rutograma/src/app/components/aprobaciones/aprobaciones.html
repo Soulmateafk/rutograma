@@ -60,7 +60,7 @@
     </div>
   </div>
 
-  <div class="apr-modal-fondo" *ngIf="rechazando || rechazandoVarios">
+  <div animate.leave="ap-cerrar" class="apr-modal-fondo" *ngIf="rechazando || rechazandoVarios">
     <div class="apr-modal">
       <h3>{{ rechazandoVarios ? 'Rechazar ' + seleccion.size + ' cambios' : 'Rechazar cambio' }}</h3>
       <p *ngIf="rechazando && !rechazandoVarios">{{ rechazando.descripcion }}</p>

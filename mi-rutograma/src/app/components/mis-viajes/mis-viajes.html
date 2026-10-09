@@ -139,7 +139,7 @@
 </div>
 
 <!-- Cambiar mi contraseña (solo cuenta propia; la compartida la maneja el admin). -->
-<div class="mv-modal-fondo" *ngIf="cambiandoClave" (click)="cambiandoClave = false">
+<div animate.leave="ap-cerrar" class="mv-modal-fondo" *ngIf="cambiandoClave" (click)="cambiandoClave = false">
   <div class="mv-modal" (click)="$event.stopPropagation()">
     <h3>Cambiar mi contraseña</h3>
     <app-cambiar-clave [email]="auth.currentUser?.email || ''" [nombre]="conductor?.nombre || ''"
@@ -148,7 +148,7 @@
 </div>
 
 <!-- Reportar novedad (varado, retraso, accidente...) -->
-<div class="mv-modal-fondo" *ngIf="reporte" (click)="reporte = null">
+<div animate.leave="ap-cerrar" class="mv-modal-fondo" *ngIf="reporte" (click)="reporte = null">
   <div class="mv-modal" (click)="$event.stopPropagation()">
     <h3>Reportar novedad</h3>
     <p class="mv-modal-sub">La oficina lo ve al instante en el Rutograma.</p>

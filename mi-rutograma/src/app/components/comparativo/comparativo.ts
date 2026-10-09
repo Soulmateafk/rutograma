@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
+import { ContarDirective } from '../../directivas/contar';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data';
 import { AuthService } from '../../services/auth.service';
@@ -45,7 +46,7 @@ interface RitmoMes {
 @Component({
   selector: 'app-comparativo',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ContarDirective],
   templateUrl: './comparativo.html',
   styleUrls: ['./comparativo.css']
 })

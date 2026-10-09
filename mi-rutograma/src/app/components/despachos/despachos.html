@@ -313,7 +313,7 @@
   </section>
 
   <!-- ¿Por qué se demoró? (al tocar "Terminó de cargar" pasado el límite) -->
-  <div *ngIf="demora" class="dp-modal-fondo">
+  <div animate.leave="ap-cerrar" *ngIf="demora" class="dp-modal-fondo">
     <div class="dp-modal" (click)="$event.stopPropagation()">
       <h3><i class="bi bi-alarm"></i> ¿Por qué se demoró {{ demora.r.placa }}?</h3>
       <p>El cargue lleva {{ textoMinutos(demora.minutos) }} y el límite es {{ textoMinutos(limiteMin) }}. Para terminarlo, escoge el motivo.</p>
@@ -334,7 +334,7 @@
     </div>
   </div>
 
-  <div *ngIf="aBorrar" class="dp-modal-fondo" (click)="aBorrar = null">
+  <div animate.leave="ap-cerrar" *ngIf="aBorrar" class="dp-modal-fondo" (click)="aBorrar = null">
     <div class="dp-modal" (click)="$event.stopPropagation()">
       <h3>¿Borrar este despacho?</h3>
       <p>{{ aBorrar.placa }} hacia {{ aBorrar.destino }}, llegó el {{ fechaCorta(aBorrar.fecha) }} a las {{ aBorrar.horaLlegada }}. Queda anotado en la auditoría quién lo borró.</p>

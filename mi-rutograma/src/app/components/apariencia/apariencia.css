@@ -41,3 +41,28 @@ kbd { display: inline-block; min-width: 22px; text-align: center; padding: 2px 6
 .ap-interruptor input:focus-visible + .ap-int-caja { outline: 2px solid var(--acento, #2563eb); outline-offset: 2px; }
 .ap-pie { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .ap-restablecer { color: var(--color-texto-apagado); }
+
+.ap-colores { grid-template-columns: repeat(7, 38px) !important; }
+.ap-color-propio { background: conic-gradient(red, #ff0, lime, cyan, blue, #f0f, red); text-shadow: 0 0 3px rgba(0,0,0,.8); }
+.ap-rueda { margin: 4px 0 6px; }
+.ap-aviso-color { color: var(--acento-texto); }
+.ap-panel { max-width: 480px; }
+.ap-opcion-esquina { min-width: 100px; }
+.ap-muestra-esquina { width: 18px; height: 14px; border: 2px solid currentColor; border-radius: 5px; display: inline-block; }
+.ap-muestra-esquina.rectas { border-radius: 0; }
+.ap-muestra-esquina.muy { border-radius: 9px; }
+.ap-tr { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 14px; }
+.ap-tr-muestra { width: 22px; height: 22px; border-radius: 6px; box-shadow: 0 0 0 1px var(--color-borde); flex-shrink: 0; }
+.ap-tr-nombre { flex: 1; }
+.ap-tr input[type="color"] { width: 42px; height: 30px; border: 1px solid var(--color-borde); border-radius: 6px; background: var(--color-fondo-input); padding: 2px; cursor: pointer; }
+@media (max-width: 480px) { .ap-colores { grid-template-columns: repeat(7, 34px) !important; gap: 8px !important; } .ap-color { width: 34px; height: 34px; } }
+
+.ap-saludo { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 10055; background: var(--color-fondo-tarjeta); color: var(--color-texto-principal);
+  border: 1px solid var(--acento); border-radius: 999px; padding: 10px 22px; font-size: 16px; font-weight: 700; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 0 0 4px var(--acento-fondo);
+  display: flex; align-items: center; gap: 10px; cursor: pointer; white-space: nowrap; max-width: calc(100vw - 32px); animation: ap-saludo-entrar 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.25); }
+body.tema-claro .ap-saludo { background: #ffffff; }
+.ap-saludo-icono { font-size: 22px; display: inline-block; animation: ap-saludo-icono 1.4s ease-in-out 0.3s 2; }
+@keyframes ap-saludo-entrar { from { opacity: 0; transform: translate(-50%, -24px) scale(0.9); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+@keyframes ap-saludo-icono { 0%, 100% { transform: rotate(0) scale(1); } 30% { transform: rotate(-14deg) scale(1.15); } 60% { transform: rotate(10deg) scale(1.1); } }
+.ap-saludo.ap-ocultar { animation: ap-saludo-salir 0.35s ease-in forwards !important; }
+@keyframes ap-saludo-salir { to { opacity: 0; transform: translate(-50%, -20px) scale(0.95); } }
