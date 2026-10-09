@@ -74,6 +74,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'ruto-revision', titulo: 'Viajes por revisar', texto: 'Viajes de aquí en adelante con el SOAT, la tecnomecánica o la licencia vencidos en las fechas del viaje, o que se cruzan con otro viaje del mismo vehículo o conductor. Sale minimizado: toca "Ver" para desplegar la lista, y "Abrir" para ir a cada viaje. Al guardar un viaje con documentos vencidos, la app no lo deja.' },
       { el: 'ruto-aprobaciones', titulo: 'Cambios por aprobar', texto: 'Si alguien pidió cambios que esperan tu aprobación, aquí lo ves. Los viajes afectados llevan la marca "Cambio por aprobar".' },
       { el: '.ruto-mes-selector', titulo: 'Mes', texto: 'Elige qué mes ver en la matriz.' },
+      { el: 'ruto-semanas', titulo: 'Semanas cerradas', texto: 'Cuando la programación de una semana está lista, el jefe la cierra con un clic (candado). Desde ahí, cambiar su plan —vehículo, conductor, ruta, cliente, cajas, fechas, cancelar o eliminar— pide un motivo, y queda en "Ver cambios después del cierre" con quién, cuándo y por qué. Marcar Entregado o escribir observaciones sigue igual. Los días de una semana cerrada llevan un candado en la cabecera.' },
       { el: '.ruto-table-responsive', titulo: 'La matriz', texto: 'Cada fila es un vehículo y cada columna un día. Haz clic en un viaje para ver o editar sus detalles; un día vacío dice si el vehículo está disponible o su conductor descansa.' },
       { el: '.ruto-buscar-vehiculo', titulo: 'Resaltar placa', texto: 'Escribe una placa para encontrar su fila rápido.' },
       { el: '.ruto-legend', titulo: 'Colores', texto: 'Qué significa cada color. Haz clic en Makand, Arsitrans o Polar para ver solo esa transportadora.' },
@@ -219,6 +220,7 @@ export const GUIAS: Record<string, Guia> = {
     pasos: [
       { el: '.comp-header', titulo: 'Comparar meses', texto: 'Elige entre comparar 2 meses o ver los últimos 6, y exporta el resultado.' },
       { el: '.comp-ritmo', titulo: 'Ritmo del mes', texto: 'Si el mes va por encima o por debajo del anterior a esta misma fecha.' },
+      { el: 'comp-analizar', titulo: 'Analizar en detalle', texto: 'Con los dos meses elegidos, este botón desglosa qué cambió: viajes, cajas, cancelados, extras, terceros; qué rutas, clientes, vehículos y conductores subieron o bajaron, cuáles son nuevos y cuáles dejaron de aparecer; cancelaciones por motivo, quejas, comparendos y los cargues de Despachos. Arriba salen las conclusiones en palabras. Solo se calcula cuando lo oprimes.' },
       { el: '.comp-cumplimiento', titulo: 'Cumplimiento', texto: 'Qué tanto se cumplió lo programado.' }
     ]
   },
