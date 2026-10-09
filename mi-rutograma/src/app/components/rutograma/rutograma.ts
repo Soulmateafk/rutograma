@@ -254,6 +254,93 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   private subDataChanged?: Subscription;
 
   // ============================================================
+  // SEMANAS CERRADAS (backend/semana-bloqueada.js) — el jefe cierra la
+  // programación de una semana; desde ahí cambiar su plan pide motivo
+  // (lo pregunta data.ts) y queda en "cambios después del cierre".
+  // ============================================================
+  public cambiosCierreAbiertos = false;
+  public cambiandoSemana = '';
+
+  private lunesDeFecha(d: Date): Date {
+    const l = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    l.setDate(l.getDate() - ((l.getDay() + 6) % 7));
+    return l;
+  }
+  private fechaTexto(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  /** Semanas (lunes a domingo) que tocan el mes que se está viendo. */
+  public get semanasCierre(): Array<{ lunes: string; texto: string; cerrada: any; cambios: number }> {
+    const S = this.ds?.S;
+    if (!S || S.anio === undefined || S.mes === undefined) return [];
+    const bloqueadas: any[] = S.semanasBloqueadas || [];
+    const cambios: any[] = S.cambiosSemanaBloqueada || [];
+    const fin = new Date(Number(S.anio), Number(S.mes) + 1, 0);
+    const semanas = [];
+    for (let l = this.lunesDeFecha(new Date(Number(S.anio), Number(S.mes), 1)); l <= fin; l.setDate(l.getDate() + 7)) {
+      const lunes = this.fechaTexto(l);
+      const dom = new Date(l); dom.setDate(dom.getDate() + 6);
+      semanas.push({
+        lunes,
+        texto: `${String(l.getDate()).padStart(2, '0')}/${String(l.getMonth() + 1).padStart(2, '0')} al ${String(dom.getDate()).padStart(2, '0')}/${String(dom.getMonth() + 1).padStart(2, '0')}`,
+        cerrada: bloqueadas.find(b => b.lunes === lunes) || null,
+        cambios: cambios.filter(c => c.lunes === lunes).length
+      });
+    }
+    return semanas;
+  }
+
+  /** ¿Ese día del mes visible está en una semana cerrada? (candado en la cabecera) */
+  public diaEnSemanaCerrada(dia: number): boolean {
+    const S = this.ds?.S;
+    if (!S?.semanasBloqueadas?.length) return false;
+    const lunes = this.fechaTexto(this.lunesDeFecha(new Date(Number(S.anio), Number(S.mes), dia)));
+    return S.semanasBloqueadas.some((b: any) => b.lunes === lunes);
+  }
+
+  /** Cambios hechos después del cierre en las semanas de este mes (más recientes primero). */
+  public get cambiosDespuesCierre(): any[] {
+    const lunes = new Set(this.semanasCierre.map(s => s.lunes));
+    return (this.ds?.S?.cambiosSemanaBloqueada || []).filter((c: any) => lunes.has(c.lunes)).slice().reverse();
+  }
+
+  public textoSemanaDe(lunes: string): string {
+    return this.semanasCierre.find(s => s.lunes === lunes)?.texto || lunes;
+  }
+
+  public fechaHoraCorta(iso: string): string {
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? '' : d.toLocaleString('es-CO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }
+
+  public async alternarSemana(sem: { lunes: string; texto: string; cerrada: any }): Promise<void> {
+    if (!this.auth.puedeAprobar || this.cambiandoSemana) return;
+    const bloquear = !sem.cerrada;
+    const ok = await this.mostrarConfirmPersonalizado(bloquear
+      ? `¿Cerrar la semana del ${sem.texto}? Desde ahora, cambiar su programación (vehículo, conductor, ruta, cliente, cajas, fechas, cancelar o eliminar) pedirá un motivo y quedará anotado. Marcar Entregado y las observaciones siguen igual.`
+      : `¿Abrir la semana del ${sem.texto}? Sus cambios ya no pedirán motivo.`,
+      bloquear ? 'Cerrar semana' : 'Abrir semana', 'Cancelar');
+    if (!ok) return;
+    this.cambiandoSemana = sem.lunes;
+    try {
+      const base = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const res = await this.auth.fetchAutenticado(`${base}/semanas/bloqueo`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lunes: sem.lunes, bloquear })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) { this.ui.mostrarToast(data.msg || 'No se pudo cambiar la semana.', 'err'); return; }
+      this.ds.S.semanasBloqueadas = data.semanasBloqueadas || [];
+      this.ui.mostrarToast(data.msg, 'ok');
+    } catch {
+      this.ui.mostrarToast('Sin conexión con el servidor: la semana no cambió.', 'err');
+    } finally {
+      this.cambiandoSemana = '';
+      this.cdr.detectChanges();
+    }
+  }
+
+  // ============================================================
   // DESPACHO DE CADA VIAJE — lo que se anotó en Despachos para ese viaje
   // (cajas cargadas, horas, motivo de demora), en la tarjeta y en el
   // detalle. Se pide el mes que se está viendo, al abrir y cada minuto.

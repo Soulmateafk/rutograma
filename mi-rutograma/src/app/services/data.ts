@@ -1135,6 +1135,39 @@ export class DataService {
     if (c) c.resolver(seguir);
   }
 
+  // ============================================================
+  // SEMANA CERRADA (backend/semana-bloqueada.js): cambiar el plan de una
+  // semana que el jefe cerró pide un motivo. Se pregunta en app.html. El
+  // motivo se recuerda 20 segundos: un mismo cambio puede mover varios
+  // viajes seguidos (reacomodar) y no se pregunta por cada uno.
+  // ============================================================
+  private _semanaCerrada = signal<{ semana: string; msg: string; resolver: (motivo: string | null) => void } | null>(null);
+  public get semanaCerrada() { return this._semanaCerrada(); }
+  private motivoReciente: { texto: string; hasta: number } | null = null;
+  public readonly motivosSemana = ['El cliente canceló', 'El cliente pidió cambio', 'Vehículo varado o en taller', 'Falta de producto', 'Conductor ausente', 'Error en la programación'];
+
+  public resolverSemanaCerrada(motivo: string | null): void {
+    const s = this._semanaCerrada();
+    this._semanaCerrada.set(null);
+    const texto = String(motivo || '').trim();
+    if (texto) this.motivoReciente = { texto, hasta: Date.now() + 20000 };
+    if (s) s.resolver(texto || null);
+  }
+
+  // Trae enseguida la lista "cambios después del cierre" (el servidor la
+  // anota al guardar), sin esperar la sincronización de 20 segundos.
+  private async trasCambioConMotivo(guardado: Promise<boolean>): Promise<boolean> {
+    const ok = await guardado;
+    if (ok) setTimeout(() => this.inicializarApp(true), 800);
+    return ok;
+  }
+
+  private pedirMotivoSemana(error: any): Promise<string | null> {
+    if (this.motivoReciente && Date.now() < this.motivoReciente.hasta) return Promise.resolve(this.motivoReciente.texto);
+    this.resolverSemanaCerrada(null);
+    return new Promise(resolver => this._semanaCerrada.set({ semana: error?.semana || '', msg: error?.msg || '', resolver }));
+  }
+
   private preguntarChoqueAgenda(choques: string[]): Promise<boolean> {
     this.resolverChoqueAgenda(false);
     return new Promise(resolver => this._choqueAgenda.set({ choques, resolver }));
@@ -1253,7 +1286,7 @@ export class DataService {
   public async guardarViaje(
     viaje: any,
     sinRegistrar: boolean = false,
-    opciones: { protegerDeChoques?: boolean; baseOriginal?: any; baseVista?: any; revisarChoquesAgenda?: boolean } = {}
+    opciones: { protegerDeChoques?: boolean; baseOriginal?: any; baseVista?: any; revisarChoquesAgenda?: boolean; motivoCambio?: string } = {}
   ): Promise<boolean> {
     this.ultimoChoqueDescartado = null;
 
@@ -1272,6 +1305,9 @@ export class DataService {
     // (arrastrar, intercambiar, deshacer) pasan por estados intermedios
     // que chocarían un momento: esos lo saltan.
     if (!opciones.revisarChoquesAgenda) cuerpo.confirmarChoque = true;
+    // Semana cerrada: el motivo va solo en este envío (nunca queda guardado en el viaje).
+    delete cuerpo.motivoCambio;
+    if (opciones.motivoCambio) cuerpo.motivoCambio = opciones.motivoCambio;
 
     const aplicarLocalYRegistrar = async (guardado: any, mensajeExito: string, tipoToast: string) => {
       if (this.S.viajes) {
@@ -1319,6 +1355,12 @@ export class DataService {
         this.ui.mostrarToast(`Se descartó tu cambio: quedó la versión de ${this.nombreDe(actual.editadoPor) || 'la otra persona'}.`, 'ok');
         return false;
       }
+      if (e?.status === 409 && e?.error?.codigo === 'semana_bloqueada') {
+        const motivo = await this.pedirMotivoSemana(e.error);
+        if (motivo) return this.trasCambioConMotivo(this.guardarViaje(viaje, sinRegistrar, { ...opciones, motivoCambio: motivo }));
+        this.ui.mostrarToast('No se guardó: la semana está cerrada y hace falta el motivo del cambio.', 'info');
+        return false;
+      }
       if (e?.status === 409 && e?.error?.codigo === 'choque_agenda') {
         const seguir = await this.preguntarChoqueAgenda(e.error.choques || [e.error.msg]);
         if (seguir) return this.guardarViaje(viaje, sinRegistrar, { ...opciones, revisarChoquesAgenda: false });
@@ -1342,11 +1384,11 @@ export class DataService {
     }
   }
 
-  public async eliminarViaje(id: any, sinRegistrar: boolean = false): Promise<boolean> {
+  public async eliminarViaje(id: any, sinRegistrar: boolean = false, motivoCambio: string = ''): Promise<boolean> {
     const existente = (this.S.viajes || []).find((v: any) => v.id === id);
     const antes = existente ? { ...existente } : null;
     const url = `${this.API_URL}/viajes/eliminar`;
-    const body = { id };
+    const body: any = motivoCambio ? { id, motivoCambio } : { id };
 
     const aplicarLocalYRegistrar = async (mensajeExito: string, tipoToast: string) => {
       if (this.S.viajes) {
@@ -1370,6 +1412,12 @@ export class DataService {
       await aplicarLocalYRegistrar('Viaje eliminado. Si fue un error, lo puedes recuperar en Más → Papelera durante 30 días.', 'ok');
       return true;
     } catch (e: any) {
+      if (e?.status === 409 && e?.error?.codigo === 'semana_bloqueada') {
+        const motivo = await this.pedirMotivoSemana(e.error);
+        if (motivo) return this.trasCambioConMotivo(this.eliminarViaje(id, sinRegistrar, motivo));
+        this.ui.mostrarToast('No se eliminó: la semana está cerrada y hace falta el motivo.', 'info');
+        return false;
+      }
       if (e?.status === 0) {
         this.encolarCambioPendiente(url, body, `Eliminación de viaje ${antes?.ruta || antes?.codigo || 'sin ruta'}`);
         await aplicarLocalYRegistrar('<i class="bi bi-cloud-arrow-up-fill"></i> Sin conexión — eliminado en este dispositivo, se sincronizará solo cuando vuelva la conexión.', 'err');
@@ -1602,12 +1650,15 @@ export class DataService {
     this.ui.syncFechas(); 
   }
 
-  public async motorReasignar(nv: any, confirmarChoque = false): Promise<{ ok: boolean, msg: string }> {
+  public async motorReasignar(nv: any, confirmarChoque = false, motivoCambio = ''): Promise<{ ok: boolean, msg: string }> {
     const r = this.S.rutas.find((x: any) => x.cod === nv.ruta);
     if (!r) return { ok: false, msg: 'Ruta no encontrada' };
 
     try {
-      await firstValueFrom(this.http.post(`${this.API_URL}/viajes`, confirmarChoque ? { ...nv, confirmarChoque: true } : nv, this.headersAuditoria()));
+      const cuerpo: any = { ...nv };
+      if (confirmarChoque) cuerpo.confirmarChoque = true;
+      if (motivoCambio) cuerpo.motivoCambio = motivoCambio;
+      await firstValueFrom(this.http.post(`${this.API_URL}/viajes`, cuerpo, this.headersAuditoria()));
 
       // Antes esto no pasaba: se guardaba en el backend pero la memoria
       // local (S.viajes) no se enteraba, así que no se veía reflejado en
@@ -1626,11 +1677,16 @@ export class DataService {
       // 8: el del 8 se corre). Antes este aviso lo frenaba y "no dejaba"
       // poner el extra. Solo se pregunta por lo demás (conductor ocupado,
       // pico y placa, reglas de la oficina), que correr viajes no arregla.
+      if (err?.status === 409 && err?.error?.codigo === 'semana_bloqueada' && !motivoCambio) {
+        const motivo = await this.pedirMotivoSemana(err.error);
+        if (motivo) { const r = await this.motorReasignar(nv, confirmarChoque, motivo); if (r.ok) this.trasCambioConMotivo(Promise.resolve(true)); return r; }
+        return { ok: false, msg: 'La semana está cerrada y hace falta el motivo del cambio.' };
+      }
       if (!confirmarChoque && err?.status === 409 && err?.error?.codigo === 'choque_agenda') {
         const delVehiculo: string[] = err.error.choquesVehiculo || [];
         const otros = (err.error.choques || []).filter((c: string) => !delVehiculo.includes(c));
         const seguir = !otros.length || await this.preguntarChoqueAgenda(otros);
-        if (seguir) return this.motorReasignar(nv, true);
+        if (seguir) return this.motorReasignar(nv, true, motivoCambio);
         return { ok: false, msg: 'No se guardó el viaje extra: cambia el vehículo, el conductor, la fecha o la hora.' };
       }
       console.error('No se pudo guardar el viaje en la BD:', err);

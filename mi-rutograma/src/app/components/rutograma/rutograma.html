@@ -120,6 +120,27 @@
     </div>
   </div>
 
+  <div class="ruto-semanas" *ngIf="semanasCierre.length" data-guia="ruto-semanas">
+    <span class="ruto-semanas-titulo"><i class="bi bi-lock"></i> Semanas:</span>
+    <button *ngFor="let sem of semanasCierre" type="button" class="ruto-semana-chip"
+            [class.cerrada]="sem.cerrada" [disabled]="!auth.puedeAprobar || cambiandoSemana === sem.lunes"
+            [title]="sem.cerrada ? 'Cerrada por ' + sem.cerrada.por + (auth.puedeAprobar ? ' — clic para abrirla' : '') : (auth.puedeAprobar ? 'Clic para cerrar la programación de esta semana' : 'Abierta')"
+            (click)="alternarSemana(sem)">
+      <i class="bi" [class.bi-lock-fill]="sem.cerrada" [class.bi-unlock]="!sem.cerrada"></i> {{ sem.texto }}
+      <span *ngIf="sem.cambios" class="ruto-semana-cambios">{{ sem.cambios }}</span>
+    </button>
+    <button *ngIf="cambiosDespuesCierre.length" type="button" class="ruto-semana-ver" (click)="cambiosCierreAbiertos = !cambiosCierreAbiertos">
+      {{ cambiosCierreAbiertos ? 'Ocultar' : 'Ver' }} cambios después del cierre ({{ cambiosDespuesCierre.length }})
+    </button>
+  </div>
+  <div class="ruto-cambios-cierre" *ngIf="cambiosCierreAbiertos && cambiosDespuesCierre.length">
+    <div class="ruto-cambio-cierre" *ngFor="let c of cambiosDespuesCierre">
+      <div><strong>{{ c.descripcion }}</strong> <span class="ruto-cambio-semana">semana {{ textoSemanaDe(c.lunes) }}</span></div>
+      <div class="ruto-cambio-motivo"><i class="bi bi-chat-left-text"></i> {{ c.motivo }}</div>
+      <div class="ruto-cambio-quien">{{ c.por }} · {{ fechaHoraCorta(c.en) }}</div>
+    </div>
+  </div>
+
   <div class="ruto-table-responsive">
     <table id="rtbl" class="ruto-table">
       <thead>
@@ -129,6 +150,7 @@
           <th *ngFor="let d of diasMes" class="ruto-th-day" [class.hoy]="esHoy(d)">
             <span class="ruto-day-name">{{ getDiaSem(d) }}</span><br><b>{{ d }}</b>
             <span *ngIf="esFestivo(d)" class="ruto-festivo-icon"><i class="bi bi-ban" style="color:#ef4444;"></i></span>
+            <span *ngIf="diaEnSemanaCerrada(d)" class="ruto-dia-cerrado" title="Semana cerrada: cambiar su plan pide motivo"><i class="bi bi-lock-fill"></i></span>
           </th>
         </tr>
       </thead>

@@ -23,6 +23,7 @@ const { ROLES_VALIDOS, rolDeCuenta, requiereAprobacion, describirCambio, solicit
 // Solo vive en memoria: nadie de afuera puede conocerla.
 const TOKEN_REPLAY_APROBACION = crypto.randomBytes(32).toString('hex');
 const { leerDB, guardarEnDB, leerConfigCompartidaDB, guardarConfigCompartidaDB, listarHistoricoMesesDB, guardarHistoricoMesDB, limpiarHistoricoMesesDB, crearRespaldoDB, listarRespaldosDB, limpiarRespaldosDB, restaurarRespaldoDB, registrarAuditoriaDB, listarAuditoriaDB, listarAuditoriaViajeDB, importarAuditoriaJSONLSiHaceFalta, listarDespachosDB, leerDespachoDB, guardarDespachoDB, eliminarDespachoDB, mesesDespachosDB, despachoPorClienteDB, guardarEnPapeleraDB, listarPapeleraDB, leerPapeleraDB, marcarRestauradoDB } = require('./migracion/db.js');
+const { lunesDe, textoSemana, estaBloqueada, semanaAfectada, describirCambio: describirCambioSemana } = require('./semana-bloqueada');
 const { DIAS_EN_PAPELERA, TIPOS: TIPOS_PAPELERA, queSeElimina, restaurarEn, venceEl } = require('./papelera');
 const { cargaSugerida, salidaDelDespacho, MOTIVOS_DEMORA, limiteValido, demorados, TIPOS_CARGA, totalesCarga, minutosDelRegistro, textoMinutos, rangoPeriodo, validarDespacho, resumenDespachos, filasExcel, nombreArchivo, fechaBonita } = require('./despachos');
 const { armarHistorialViaje } = require('./historial');
@@ -1126,7 +1127,74 @@ const RUTAS_SIN_RESTRICCION_DE_ROL = [
     '/api/sesiones/cerrar-otras',
     '/api/sesiones/cerrar-actual'
 ];
-const RUTAS_CON_PERMISO_PROPIO = ['/api/papelera/restaurar', '/api/despachos', '/api/despachos/eliminar', '/api/despachos/limite', '/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/cuenta-despachos', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
+const RUTAS_CON_PERMISO_PROPIO = ['/api/semanas/bloqueo', '/api/papelera/restaurar', '/api/despachos', '/api/despachos/eliminar', '/api/despachos/limite', '/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/cuenta-despachos', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
+
+// ============================================================
+// SEMANA BLOQUEADA (ver semana-bloqueada.js) — en una semana que el jefe
+// cerró, cambiar el plan de un viaje (o crearlo o eliminarlo) pide un
+// motivo (motivoCambio). Sin motivo: 409 "semana_bloqueada" y la pantalla
+// lo pregunta. Con motivo: se guarda y queda en "cambios después del
+// cierre" (configuración compartida cambiosSemanaBloqueada). Para todos,
+// también el administrador, y antes de las aprobaciones.
+// ============================================================
+app.use((req, res, next) => {
+    if (req.method !== 'POST' || (req.path !== '/api/viajes' && req.path !== '/api/viajes/eliminar')) return next();
+    try {
+        const bloqueadas = leerConfigCompartidaDB(modoActual).semanasBloqueadas || [];
+        if (!bloqueadas.length) return next();
+        const cuerpo = req.body || {};
+        const accion = req.path.endsWith('eliminar') ? 'eliminar' : 'guardar';
+        const previo = cuerpo.id !== undefined && cuerpo.id !== null ? (leerExcel().viajes || []).find(v => v.id === cuerpo.id) || null : null;
+        if (accion === 'eliminar' && !previo) return next();
+        const lunes = semanaAfectada(previo, accion === 'eliminar' ? null : cuerpo, bloqueadas, accion);
+        if (!lunes) return next();
+        const motivo = String(cuerpo.motivoCambio || '').trim().slice(0, 300);
+        if (!motivo && !req.esReplayAprobado) {
+            res.locals.auditoriaOmitir = true;
+            return res.status(409).json({
+                ok: false, codigo: 'semana_bloqueada', lunes, semana: textoSemana(lunes),
+                msg: `La semana del ${textoSemana(lunes)} está cerrada: para cambiarla escribe el motivo.`
+            });
+        }
+        const descripcion = describirCambioSemana(previo, accion === 'eliminar' ? null : cuerpo, accion);
+        const usuario = normalizarEmail(req.headers['x-user-email']);
+        const modo = modoActual;
+        res.on('finish', () => {
+            if (res.statusCode !== 200) return; // 202 = espera aprobación: se anota cuando se aplique
+            try {
+                const lista = leerConfigCompartidaDB(modo).cambiosSemanaBloqueada || [];
+                lista.push({ id: crypto.randomBytes(6).toString('hex'), lunes, viajeId: cuerpo.id ?? null, descripcion, motivo, por: usuario, en: new Date().toISOString() });
+                guardarConfigCompartidaDB(modo, 'cambiosSemanaBloqueada', lista.slice(-1000), usuario);
+            } catch (err) { console.error('⚠️ No se pudo anotar el cambio en semana cerrada:', err.message); }
+        });
+    } catch (err) {
+        console.error('⚠️ Error revisando la semana bloqueada:', err.message);
+    }
+    next();
+});
+
+// Cerrar o abrir una semana (jefe o administrador).
+app.post('/api/semanas/bloqueo', (req, res) => {
+    try {
+        const email = normalizarEmail(req.usuarioVerificado || req.headers['x-user-email']);
+        const esAdmin = email === normalizarEmail(ADMIN_EMAIL);
+        const cuenta = (leerExcel().usuarios || []).find(u => normalizarEmail(u.email) === email) || null;
+        const permisos = cuenta || esAdmin ? permisosDeCuenta(cuenta, esAdmin) : {};
+        if (!esAdmin && !permisos.aprobarCambios) { res.locals.auditoriaOmitir = true; return res.status(403).json({ ok: false, msg: 'Solo un jefe o el administrador puede cerrar o abrir semanas.' }); }
+        const lunes = lunesDe(req.body?.lunes);
+        if (!lunes || lunes !== String(req.body?.lunes)) { res.locals.auditoriaOmitir = true; return res.status(400).json({ ok: false, msg: 'Escoge el lunes de la semana.' }); }
+        const bloquear = req.body?.bloquear !== false;
+        const lista = (leerConfigCompartidaDB(modoActual).semanasBloqueadas || []).filter(b => b.lunes !== lunes);
+        if (bloquear) lista.push({ lunes, por: email, en: new Date().toISOString() });
+        lista.sort((a, b) => a.lunes.localeCompare(b.lunes));
+        guardarConfigCompartidaDB(modoActual, 'semanasBloqueadas', lista, email);
+        res.locals.auditoriaResumen = { lunes, bloquear, descripcion: `${bloquear ? 'Cerró' : 'Abrió'} la semana del ${textoSemana(lunes)}` };
+        res.json({ ok: true, semanasBloqueadas: lista, msg: bloquear ? `Semana del ${textoSemana(lunes)} cerrada: los cambios a su plan pedirán motivo.` : `Semana del ${textoSemana(lunes)} abierta.` });
+    } catch (error) {
+        console.error('🚨 Error en /api/semanas/bloqueo:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
 
 // ============================================================
 // REVISIÓN AL ASIGNAR UN VIAJE (ver revision-viajes.js) — para todos,
@@ -3948,7 +4016,7 @@ app.post('/api/viajes', (req, res) => {
         const data = leerExcel();
         const viaje = req.body;
         // Marca de "guardar aunque choque" (ya se revisó antes): no se guarda.
-        if (viaje) delete viaje.confirmarChoque;
+        if (viaje) { delete viaje.confirmarChoque; delete viaje.motivoCambio; }
 
         if (!viaje || !viaje.placa && !viaje.p) {
             return res.status(400).json({ ok: false, msg: 'Falta la placa del vehículo' });
@@ -4752,8 +4820,19 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
         // real, para no dejar pegado nada de una generacion anterior
         // (incluida gente que le haya dado clic mas de una vez seguida).
         const mesIndexLimpieza = { 'Enero':0,'Febrero':1,'Marzo':2,'Abril':3,'Mayo':4,'Junio':5,'Julio':6,'Agosto':7,'Septiembre':8,'Octubre':9,'Noviembre':10,'Diciembre':11 }[mes];
-        const totalViajesAntesDeLimpiar = (data.viajes || []).length;
         const hoyMatriz = fechaLocal();
+        // Semanas cerradas que todavía no pasan: la matriz las regeneraría.
+        const cerradasDelMes = (leerConfigCompartidaDB(modoActual).semanasBloqueadas || []).filter(b => {
+            const fin = new Date(b.lunes + 'T00:00:00'); fin.setDate(fin.getDate() + 6);
+            const ini = new Date(b.lunes + 'T00:00:00');
+            const tocaMes = [ini, fin].some(d => d.getFullYear() === Number(anio) && d.getMonth() === mesIndexLimpieza);
+            return tocaMes && fechaLocal(fin) >= hoyMatriz;
+        });
+        if (cerradasDelMes.length && !esPrevisualizacion) {
+            res.locals.auditoriaOmitir = true;
+            return res.status(409).json({ ok: false, codigo: 'semana_bloqueada', msg: `Hay ${cerradasDelMes.length === 1 ? 'una semana cerrada' : 'semanas cerradas'} en este mes (${cerradasDelMes.map(b => textoSemana(b.lunes)).join(', ')}). Generar la matriz ${cerradasDelMes.length === 1 ? 'la cambiaría: ábrela' : 'las cambiaría: ábrelas'} en el Rutograma antes de generarla.` });
+        }
+        const totalViajesAntesDeLimpiar = (data.viajes || []).length;
         data.viajes = (data.viajes || []).filter(v => {
             // Los viajes REALES (importados del Excel de operación) nunca
             // se borran: son lo que de verdad pasó, y la generación sigue

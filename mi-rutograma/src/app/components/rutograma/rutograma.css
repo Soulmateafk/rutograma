@@ -1650,3 +1650,19 @@ tr.ruto-fila-resaltada > .ruto-td-vehicle-info {
 .ruto-despacho-detalle .ruto-grid-value { display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
 .ruto-despacho-dif { color: #fcd34d; }
 .ruto-despacho-sub { font-size: 12px; color: var(--color-texto-secundario, #94a3b8); }
+
+/* Semanas cerradas */
+.ruto-semanas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; }
+.ruto-semanas-titulo { font-size: 12px; color: var(--color-texto-secundario, #94a3b8); margin-right: 2px; }
+.ruto-semana-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 12px; cursor: pointer;
+  border: 1px solid var(--color-borde, #334155); background: transparent; color: var(--color-texto-principal, inherit); }
+.ruto-semana-chip:disabled { cursor: default; opacity: 1; }
+.ruto-semana-chip.cerrada { border-color: #f59e0b; background: rgba(245, 158, 11, 0.14); color: #f59e0b; font-weight: 600; }
+.ruto-semana-cambios { background: #ef4444; color: #fff; border-radius: 999px; font-size: 10px; padding: 0 6px; }
+.ruto-semana-ver { font-size: 12px; background: none; border: none; color: #60a5fa; cursor: pointer; text-decoration: underline; }
+.ruto-cambios-cierre { display: grid; gap: 6px; margin: 0 0 12px; max-height: 260px; overflow: auto; }
+.ruto-cambio-cierre { border-left: 3px solid #f59e0b; padding: 6px 10px; border-radius: 6px; background: rgba(245, 158, 11, 0.07); font-size: 13px; }
+.ruto-cambio-semana { font-size: 11px; color: var(--color-texto-secundario, #94a3b8); }
+.ruto-cambio-motivo { margin-top: 2px; }
+.ruto-cambio-quien { font-size: 11px; color: var(--color-texto-secundario, #94a3b8); margin-top: 2px; }
+.ruto-dia-cerrado { display: block; font-size: 10px; color: #f59e0b; line-height: 1; }
