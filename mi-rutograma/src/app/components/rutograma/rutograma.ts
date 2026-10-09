@@ -20,6 +20,8 @@ import { revisarMes, rangoViaje, ProblemaViaje } from '../../services/revision-v
 
 // IMPORTACIONES DEL MOTOR LÓGICO
 import { agruparViajes, prepararRutasEnriquecidas, hayConflicto, obtenerViajesEnConflicto, reprogramarSiguientesTrasEliminar, reprogramarViajesDesde, reprogramarViajeConflictivo, buscarViajesTercerosRobables, tomarViajeTerceroParaVehiculo, buscarVehiculosDisponiblesParaVarado, transferirViajeAOtroVehiculo, esDiaVarado, siguienteNumeroCupo as siguienteNumeroCupoCompartido, buscarCupoLibre as buscarCupoLibreCompartido } from './rutograma.utils.js';
+import { API } from '../../api-base';
+import { AtajosService } from '../../services/atajos.service';
 
 interface Viaje {
   id: number;
@@ -324,7 +326,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     if (!ok) return;
     this.cambiandoSemana = sem.lunes;
     try {
-      const base = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const base = API;
       const res = await this.auth.fetchAutenticado(`${base}/semanas/bloqueo`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lunes: sem.lunes, bloquear })
       });
@@ -358,7 +360,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     this.despachosPedidosEn = Date.now();
     const ultimo = new Date(Number(S.anio), Number(S.mes) + 1, 0).getDate();
     try {
-      const base = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const base = API;
       const res = await this.auth.fetchAutenticado(`${base}/despachos?desde=${mes}-01&hasta=${mes}-${String(ultimo).padStart(2, '0')}`);
       const data = await res.json();
       if (!data?.ok) return;
@@ -450,7 +452,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
 
   private async cargarNovedadesConductores(): Promise<void> {
     try {
-      const base = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const base = API;
       const res = await this.auth.fetchAutenticado(`${base}/novedades/conductores`);
       const data = await res.json();
       if (!data?.ok) return;
@@ -471,7 +473,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     if (this.resolviendoNovedad) return;
     this.resolviendoNovedad = n.id;
     try {
-      const base = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const base = API;
       const res = await this.auth.fetchAutenticado(`${base}/novedades/resolver`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: n.id })
       });
@@ -493,7 +495,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   private async cargarPendientesAprobacion(): Promise<void> {
     if (!this.auth.puedeAprobar && !this.auth.necesitaAprobacion) return;
     try {
-      const base = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const base = API;
       const res = await this.auth.fetchAutenticado(`${base}/aprobaciones`);
       const data = await res.json();
       if (!data?.ok) return;
@@ -1426,6 +1428,39 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     this.calendarioMesAnioMostrado += delta;
   }
 
+  // ============================================================
+  // ATAJOS DEL RUTOGRAMA (lista completa con "?", services/atajos.service.ts):
+  // Shift+← / Shift+→ mes anterior/siguiente, H el mes de hoy, Esc cierra
+  // el viaje abierto (si no se está editando: no se pierde lo escrito).
+  // ============================================================
+  @HostListener('document:keydown', ['$event'])
+  public atajosRutograma(e: KeyboardEvent): void {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented || AtajosService.escribiendo()) return;
+    if (e.key === 'Escape') {
+      if (this.calendarioMesAbierto) { this.calendarioMesAbierto = false; return; }
+      if (this.isModalDetalleOpen && !this.editandoViaje && !this.confirmDialogAbierto) { this.cerrarDetalle(); this.cdr.detectChanges(); }
+      return;
+    }
+    if (AtajosService.ventanaAbierta()) return;
+    if (e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      e.preventDefault();
+      this.irAMes(e.key === 'ArrowLeft' ? -1 : 1);
+    } else if (!e.shiftKey && (e.key === 'h' || e.key === 'H')) {
+      e.preventDefault();
+      const hoy = new Date();
+      this.irAMes((hoy.getFullYear() - Number(this.ds.S.anio)) * 12 + hoy.getMonth() - Number(this.ds.S.mes));
+    }
+  }
+
+  private irAMes(salto: number): void {
+    if (!salto || !this.ds?.S) return;
+    const d = new Date(Number(this.ds.S.anio), Number(this.ds.S.mes) + salto, 1);
+    this.calendarioMesAnioMostrado = d.getFullYear();
+    this.seleccionarMesCalendario(d.getMonth());
+    this.ui.mostrarToast(`${this.nombresMesCalendario[d.getMonth()]} ${d.getFullYear()}`, 'info');
+    this.cdr.detectChanges();
+  }
+
   public seleccionarMesCalendario(mesIndex: number): void {
     this.ds.S.anio = this.calendarioMesAnioMostrado;
     this.ds.S.mes = mesIndex;
@@ -1562,7 +1597,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     // Misma dirección dinámica que usa el resto de la app — antes tenía
     // "localhost" fijo, que no funciona desde otro dispositivo (el celular
     // entendería "localhost" como él mismo, no como este computador).
-    const apiUrlSync = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+    const apiUrlSync = API;
     this.auth.fetchAutenticado(`${apiUrlSync}/dashboard-data`)
       .then(res => res.json())
       .then(res => {
@@ -1643,7 +1678,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
 
   public async reacomodarCupos(tr: 'Arsitrans' | 'Polar'): Promise<void> {
     if (this.reacomodandoCupos) return;
-    const apiUrl = `${window.location.protocol}//${window.location.hostname}:5000/api/cupos/reacomodar`;
+    const apiUrl = `${API}/cupos/reacomodar`;
     const cuerpo = { tr, anio: this.ds.S.anio, mes: this.ds.S.mes };
     const nombreMes = this.meses[this.ds.S.mes];
     const pedir = async (previsualizar: boolean) => {
@@ -1708,7 +1743,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     const anioActivo = this.ds.S.anio || new Date().getFullYear();
     // Misma dirección dinámica que usa el resto de la app — antes esto
     // tenía "localhost" fijo, que no funciona desde otro dispositivo.
-    const apiUrl = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+    const apiUrl = API;
     this.auth.fetchAutenticado(`${apiUrl}/configuracion/generar-matriz`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1764,7 +1799,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
           localStorage.setItem('rutograma_data', JSON.stringify(this.ds.S));
           this.iniciarCarga();
 
-          const apiUrlImport = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+          const apiUrlImport = API;
           this.auth.fetchAutenticado(`${apiUrlImport}/vehiculos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1849,7 +1884,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
         localStorage.setItem('rutograma_data', JSON.stringify(this.ds.S));
         this.iniciarCarga();
 
-        const apiUrlImportViajes = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+        const apiUrlImportViajes = API;
         this.auth.fetchAutenticado(`${apiUrlImportViajes}/viajes`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2593,7 +2628,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     this.historialViaje = { abierto: true, cargando: true, items: [], pendientes: [], id };
     this.cdr.detectChanges();
     try {
-      const base = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const base = API;
       const res = await this.auth.fetchAutenticado(`${base}/viajes/historial?id=${encodeURIComponent(String(id))}`);
       const data = await res.json();
       if (this.historialViaje.id !== id) return; // se abrió otro viaje mientras cargaba
@@ -3673,7 +3708,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   
   public async descargarRutograma(): Promise<void> {
     try {
-      const apiUrl = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const apiUrl = API;
       const mesTexto = this.meses[this.ds.S.mes];
       const anio = this.ds.S.anio;
 

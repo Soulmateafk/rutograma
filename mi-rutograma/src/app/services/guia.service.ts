@@ -4,6 +4,7 @@ import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from './auth.service';
 import { GUIAS, Guia, PAGINAS_SIN_NAVBAR, PasoGuia, PasoTarea, TAREAS, Tarea, paginaDeUrl } from './guias';
+import { API } from '../api-base';
 
 export interface GuiaActiva {
   clave: string;
@@ -14,9 +15,7 @@ export interface GuiaActiva {
   tarea?: Tarea;
 }
 
-const API_URL = (typeof window !== 'undefined')
-  ? `${window.location.protocol}//${window.location.hostname}:5000/api`
-  : 'http://localhost:5000/api';
+const API_URL = API;
 
 /**
  * GUÍAS DE PRIMERA VEZ — la primera vez que una cuenta entra a cada página
@@ -67,7 +66,8 @@ export class GuiaService {
   public tareasDisponibles(): Tarea[] {
     if (!this.auth.currentUser || this.auth.esConductor || this.auth.esDespachos) return [];
     return TAREAS.filter(t =>
-      t.requiere === 'editar' ? this.auth.puedeEditar
+      t.requiere === 'todos' ? true
+      : t.requiere === 'editar' ? this.auth.puedeEditar
         : t.requiere === 'aprobar' ? this.auth.puedeAprobar
           : this.auth.puedeEditar && !this.auth.puedeAprobar);
   }

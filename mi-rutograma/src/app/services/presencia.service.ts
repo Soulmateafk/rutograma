@@ -2,10 +2,9 @@ import { Injectable, NgZone, inject, signal } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from './auth.service';
+import { API } from '../api-base';
 
-const API_URL = (typeof window !== 'undefined')
-  ? `${window.location.protocol}//${window.location.hostname}:5000/api`
-  : 'http://localhost:5000/api';
+const API_URL = API;
 
 const NOMBRES_PAGINA: Record<string, string> = {
   dashboard: 'Dashboard', rutograma: 'Rutograma', vehiculos: 'Vehículos', 'hoja-de-vida': 'Hoja de vida',

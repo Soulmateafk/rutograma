@@ -2,10 +2,9 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
 import { UiService } from '../../services/ui.service';
+import { API } from '../../api-base';
 
-const API_URL = (typeof window !== 'undefined')
-  ? `${window.location.protocol}//${window.location.hostname}:5000/api`
-  : 'http://localhost:5000/api';
+const API_URL = API;
 
 /**
  * Botón "Ver foto" de una novedad que mandó un conductor. La foto se pide

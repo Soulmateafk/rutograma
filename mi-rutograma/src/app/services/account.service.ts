@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom, Subject } from 'rxjs';
 import { UiService } from './ui.service';
+import { API } from '../api-base';
 
 export type UserStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'NOT_FOUND';
 
@@ -117,9 +118,7 @@ export class AccountService {
   private ui = inject(UiService);
   // Misma idea que en data.ts: se arma con la dirección que usaste para
   // entrar a la app, en vez de estar fija a 'localhost'.
-  private API_URL = (typeof window !== 'undefined')
-    ? `${window.location.protocol}//${window.location.hostname}:5000/api`
-    : 'http://localhost:5000/api';
+  private API_URL = API;
 
   // Llave donde guardamos el correo activo. Lo persistimos en localStorage
   // porque el AccountService puede recrearse al navegar/recargar, y si el
@@ -138,6 +137,28 @@ export class AccountService {
 
   /** El servidor dejó un cambio pendiente de aprobación (cuenta auxiliar). */
   public alCambioPendiente = new Subject<string>();
+
+  /** Apariencia de la cuenta (null = nunca la ha cambiado) y si es una
+   *  cuenta compartida (conductores, despachos). La escucha ThemeService. */
+  public preferencias: { tema: 'oscuro' | 'claro'; letra: 'normal' | 'grande' | 'muy-grande' } | null = null;
+  public cuentaCompartida = false;
+  public alCargarCuenta = new Subject<{ email: string; preferencias: any; compartida: boolean } | null>();
+
+  private tomarApariencia(res: any): void {
+    this.preferencias = res?.preferencias || null;
+    this.cuentaCompartida = !!res?.cuentaCompartida;
+    this.alCargarCuenta.next({ email: this.emailActivo, preferencias: this.preferencias, compartida: this.cuentaCompartida });
+  }
+
+  /** Guarda la apariencia en la cuenta (las compartidas no: cada equipo la suya). */
+  public async guardarPreferencias(p: { tema?: string; letra?: string }): Promise<void> {
+    if (!this.token || this.cuentaCompartida) return;
+    try {
+      await this.fetchAutenticado(`${this.API_URL}/auth/preferencias`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p)
+      });
+    } catch { /* sin conexión: queda en este equipo y se manda la próxima vez que cambie */ }
+  }
 
   /** Rol que manda el servidor -> rol de la app (desconocido = editor). */
   public static normalizarRol(rol: any, esAdmin: boolean): RolCuenta {
@@ -282,6 +303,9 @@ export class AccountService {
     this.rol = 'lector';
     this.permisos = permisosDeRol('lector');
     this.motivoRechazo = '';
+    this.preferencias = null;
+    this.cuentaCompartida = false;
+    this.alCargarCuenta.next(null);
   }
 
   /**
@@ -346,6 +370,7 @@ export class AccountService {
     this.tomarPermisos(res);
     this.motivoRechazo = res.motivoRechazo || '';
     this.sesionesCerradasAlEntrar = Number(res.sesionesCerradas) || 0;
+    this.tomarApariencia(res);
     if (Number(res.maxSesiones) > 0) this.maxSesiones = Number(res.maxSesiones);
     return { estado: res.estado, esAdmin: !!res.esAdmin, rol: this.rol };
   }
@@ -376,6 +401,7 @@ export class AccountService {
       this.rol = AccountService.normalizarRol(res.rol, !!res.esAdmin);
       this.tomarPermisos(res);
       this.motivoRechazo = res.motivoRechazo || '';
+      this.tomarApariencia(res);
       return { estado: res.estado, esAdmin: !!res.esAdmin, rol: this.rol };
     } catch {
       // Cuenta borrada, servidor caído, etc. — no hay sesión que

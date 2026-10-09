@@ -17,6 +17,7 @@ import {
   verificarLimiteCuposJS, 
   procesarDatosCupoJS 
 } from './configuracion.utils.js';
+import { API } from '../../api-base';
 
 @Component({
   selector: 'app-configuracion',
@@ -28,9 +29,7 @@ import {
 export class Configuracion implements OnInit {
   // Misma idea que en data.ts: se arma con la dirección que usaste para
   // entrar a la app, en vez de estar fija a 'localhost'.
-  private API_URL = (typeof window !== 'undefined')
-    ? `${window.location.protocol}//${window.location.hostname}:5000/api`
-    : 'http://localhost:5000/api';
+  private API_URL = API;
 
   // Inyección de dependencias moderna
   public ds = inject(DataService);

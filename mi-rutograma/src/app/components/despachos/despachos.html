@@ -9,6 +9,7 @@
     <div class="dp-acciones">
       <button class="dp-btn-icono" (click)="cargarRegistro()" title="Actualizar"><i class="bi bi-arrow-clockwise"></i></button>
       <a class="dp-btn-icono" routerLink="/sesiones" title="Sesiones abiertas"><i class="bi bi-laptop"></i></a>
+      <button class="dp-btn-icono" data-guia="dp-apariencia" (click)="theme.panelAbierto.set(true)" title="Apariencia: modo claro u oscuro y letra más grande"><i class="bi bi-palette"></i></button>
       <button class="dp-btn-icono dp-salir" (click)="salir()" title="Cerrar sesión"><i class="bi bi-box-arrow-right"></i></button>
     </div>
   </header>

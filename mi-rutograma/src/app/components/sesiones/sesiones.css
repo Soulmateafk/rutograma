@@ -25,3 +25,20 @@
   .ses-item .ses-btn { width: 100%; }
   .ses-meta { word-break: break-word; }
 }
+
+/* ===== MODO CLARO (generado a partir de las reglas de arriba) ===== */
+/* Fondos oscuros -> claros, texto claro -> oscuro, colores pastel -> su tono oscuro. */
+:host-context(body.tema-claro) .ses-page { color: #0f172a; }
+:host-context(body.tema-claro) .ses-head h2 { color: #0f172a; }
+:host-context(body.tema-claro) .ses-head p { color: #475569; }
+:host-context(body.tema-claro) .ses-head p.ses-cupo { color: #475569; }
+:host-context(body.tema-claro) .ses-head p.ses-cupo-lleno { color: #b45309; }
+:host-context(body.tema-claro) .ses-item { background: #ffffff; }
+:host-context(body.tema-claro) .ses-item.ses-actual { border-color: rgba(59,130,246,0.5); }
+:host-context(body.tema-claro) .ses-device { color: #0f172a; }
+:host-context(body.tema-claro) .ses-meta { color: #475569; }
+:host-context(body.tema-claro) .ses-empty { color: #475569; }
+:host-context(body.tema-claro) .ses-btn { color: #0f172a; }
+:host-context(body.tema-claro) .ses-btn:hover { background: rgba(255,255,255,0.05); }
+:host-context(body.tema-claro) .ses-btn-danger { color: #b91c1c; }
+:host-context(body.tema-claro) .ses-btn-danger:hover { background: rgba(239,68,68,0.1); }

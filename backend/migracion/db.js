@@ -133,6 +133,8 @@ function conectar(modo = 'real') {
   agregarColumnaSiFalta('usuarios', 'permisos', 'TEXT');
   // Cuenta de rol "conductor": cédula del conductor al que está enlazada.
   agregarColumnaSiFalta('usuarios', 'conductor_ced', 'TEXT');
+  // Apariencia de la cuenta (JSON { tema, letra }). NULL = la de siempre.
+  agregarColumnaSiFalta('usuarios', 'preferencias', 'TEXT');
 
   conexiones[modo] = db;
   return db;
@@ -255,7 +257,8 @@ function leerDB(modo = 'real') {
     solicitadoEn: u.solicitado_en, actualizadoPor: u.actualizado_por,
     actualizadoEn: u.actualizado_en, motivoRechazo: u.motivo_rechazo,
     permisos: aJSON(u.permisos, null),
-    conductorCed: u.conductor_ced || null
+    conductorCed: u.conductor_ced || null,
+    preferencias: aJSON(u.preferencias, null)
   }));
 
   const novedades = db.prepare('SELECT * FROM novedades').all().map(n => ({
@@ -431,8 +434,8 @@ function guardarEnDB(data, modo = 'real') {
     if (data.usuarios) {
       db.prepare('DELETE FROM usuarios').run();
       const ins = db.prepare(`INSERT INTO usuarios
-        (email, nombre, pass_hash, departamento, estado, rol, solicitado_en, actualizado_por, actualizado_en, motivo_rechazo, permisos, conductor_ced)
-        VALUES (@email, @nombre, @pass_hash, @departamento, @estado, @rol, @solicitado_en, @actualizado_por, @actualizado_en, @motivo_rechazo, @permisos, @conductor_ced)`);
+        (email, nombre, pass_hash, departamento, estado, rol, solicitado_en, actualizado_por, actualizado_en, motivo_rechazo, permisos, conductor_ced, preferencias)
+        VALUES (@email, @nombre, @pass_hash, @departamento, @estado, @rol, @solicitado_en, @actualizado_por, @actualizado_en, @motivo_rechazo, @permisos, @conductor_ced, @preferencias)`);
       for (const u of data.usuarios) {
         ins.run({
           email: String(u.email || '').toLowerCase().trim(),
@@ -446,7 +449,8 @@ function guardarEnDB(data, modo = 'real') {
           actualizado_en: u.actualizadoEn || null,
           motivo_rechazo: u.motivoRechazo || null,
           permisos: u.permisos && typeof u.permisos === 'object' ? JSON.stringify(u.permisos) : null,
-          conductor_ced: u.conductorCed || null
+          conductor_ced: u.conductorCed || null,
+          preferencias: u.preferencias && typeof u.preferencias === 'object' ? JSON.stringify(u.preferencias) : null
         });
       }
     }

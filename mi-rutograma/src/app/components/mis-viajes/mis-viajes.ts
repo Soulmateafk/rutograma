@@ -7,9 +7,7 @@ import { AuthService } from '../../services/auth.service';
 import { UiService } from '../../services/ui.service';
 import { CambiarClaveComponent } from '../cambiar-clave/cambiar-clave';
 
-const API_URL = (typeof window !== 'undefined')
-  ? `${window.location.protocol}//${window.location.hostname}:5000/api`
-  : 'http://localhost:5000/api';
+const API_URL = API;
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
@@ -25,6 +23,8 @@ interface DiaConViajes { fecha: string; titulo: string; esHoy: boolean; descanso
  * los viajes de esa placa (o, si no tiene, los del conductor por nombre).
  */
 import { armarIcs } from '../../services/calendario-ics';
+import { API } from '../../api-base';
+import { ThemeService } from '../../services/theme.service';
 @Component({
   selector: 'app-mis-viajes',
   standalone: true,
@@ -33,6 +33,7 @@ import { armarIcs } from '../../services/calendario-ics';
   styleUrls: ['./mis-viajes.css']
 })
 export class MisViajesComponent implements OnInit, OnDestroy {
+  public theme = inject(ThemeService);
   public auth = inject(AuthService);
   private ui = inject(UiService);
   private cdr = inject(ChangeDetectorRef);

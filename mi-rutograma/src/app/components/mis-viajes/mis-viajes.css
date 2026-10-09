@@ -99,3 +99,60 @@
 .mv-anuncio { font-size: 14px; padding: 5px 0; border-top: 1px solid rgba(250, 204, 21, 0.18); }
 .mv-anuncio:first-of-type { border-top: none; }
 .mv-anuncio.importante { color: #fca5a5; font-weight: 700; }
+
+/* ===== MODO CLARO (generado a partir de las reglas de arriba) ===== */
+/* Fondos oscuros -> claros, texto claro -> oscuro, colores pastel -> su tono oscuro. */
+:host-context(body.tema-claro) .mv-page { color: #0f172a; }
+:host-context(body.tema-claro) .mv-logo { color: #475569; }
+:host-context(body.tema-claro) .mv-cabecera h1 { color: #0f172a; }
+:host-context(body.tema-claro) .mv-cabecera p { color: #475569; }
+:host-context(body.tema-claro) .mv-btn { border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; }
+:host-context(body.tema-claro) .mv-salir { color: #b91c1c; }
+:host-context(body.tema-claro) .mv-vacio, :host-context(body.tema-claro) .mv-sin { color: #475569; }
+:host-context(body.tema-claro) .mv-error { color: #92400e; }
+:host-context(body.tema-claro) .mv-dia h2 { color: #334155; }
+:host-context(body.tema-claro) .mv-hoy h2 { color: #b45309; }
+:host-context(body.tema-claro) .mv-descanso { color: #be185d; }
+:host-context(body.tema-claro) .mv-viaje { background: #ffffff; border: 1px solid #e2e8f0; }
+:host-context(body.tema-claro) .mv-viaje.en-ruta { border-left-color: #f59e0b; }
+:host-context(body.tema-claro) .mv-viaje.entregado { border-left-color: #22c55e; }
+:host-context(body.tema-claro) .mv-viaje.cancelado { border-left-color: #ef4444; }
+:host-context(body.tema-claro) .mv-destino { color: #0f172a; }
+:host-context(body.tema-claro) .mv-estado { color: #1d4ed8; }
+:host-context(body.tema-claro) .en-ruta .mv-estado { background: rgba(245, 158, 11, 0.15); color: #92400e; }
+:host-context(body.tema-claro) .entregado .mv-estado { background: rgba(34, 197, 94, 0.15); color: #047857; }
+:host-context(body.tema-claro) .mv-detalle { color: #334155; }
+:host-context(body.tema-claro) .mv-ruta { color: #475569; }
+:host-context(body.tema-claro) .mv-pie { color: #475569; }
+:host-context(body.tema-claro) .mv-form { background: #ffffff; border: 1px solid #e2e8f0; }
+:host-context(body.tema-claro) .mv-form h2 { color: #0f172a; }
+:host-context(body.tema-claro) .mv-form label { color: #475569; }
+:host-context(body.tema-claro) .mv-form input { background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; }
+:host-context(body.tema-claro) .mv-secundario { border: 1px solid #cbd5e1; color: #0f172a; }
+:host-context(body.tema-claro) .mv-candidato { background: #ffffff; border: 1px solid #cbd5e1; }
+:host-context(body.tema-claro) .mv-cand-nombre { color: #0f172a; }
+:host-context(body.tema-claro) .mv-cand-sub { color: #475569; }
+:host-context(body.tema-claro) .mv-aviso { color: #b45309; }
+:host-context(body.tema-claro) .mv-nota { color: #1e40af; }
+:host-context(body.tema-claro) .mv-captura { background: #f8fafc; }
+:host-context(body.tema-claro) .mv-captura-titulo strong { color: #0f172a; }
+:host-context(body.tema-claro) .mv-captura-titulo span { color: #475569; }
+:host-context(body.tema-claro) .mv-escribiste { color: #b45309; }
+:host-context(body.tema-claro) .mv-escribiste em { color: #92400e; }
+:host-context(body.tema-claro) .mv-modal { background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; }
+:host-context(body.tema-claro) .mv-marcas { color: #047857; }
+:host-context(body.tema-claro) .mv-deshacer { border: 1px solid #94a3b8; color: #334155; }
+:host-context(body.tema-claro) .mv-avisos-titulo { color: #b45309; }
+:host-context(body.tema-claro) .mv-quitados { color: #b91c1c; }
+:host-context(body.tema-claro) .mv-aviso-nuevo { color: #1e40af; }
+:host-context(body.tema-claro) .mv-aviso-cambio { color: #92400e; }
+:host-context(body.tema-claro) .mv-aviso-cancelado { color: #b91c1c; }
+:host-context(body.tema-claro) .mv-reportar { color: #b91c1c; }
+:host-context(body.tema-claro) .mv-modal-sub { color: #475569; }
+:host-context(body.tema-claro) .mv-tipo { background: #f1f5f9; border: 1px solid #cbd5e1; color: #0f172a; }
+:host-context(body.tema-claro) .mv-tipo.activo { background: #7f1d1d; border-color: #ef4444; color: #fff; }
+:host-context(body.tema-claro) .mv-label { color: #475569; }
+:host-context(body.tema-claro) .mv-input { background: #f8fafc; border: 1px solid #cbd5e1; color: #0f172a; }
+:host-context(body.tema-claro) .mv-nota-viaje { color: #92400e; }
+:host-context(body.tema-claro) .mv-anuncios-titulo { color: #92400e; }
+:host-context(body.tema-claro) .mv-anuncio.importante { color: #b91c1c; }

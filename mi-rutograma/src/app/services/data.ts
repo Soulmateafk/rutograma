@@ -6,6 +6,7 @@ import { UiService } from './ui.service';
 import { firstValueFrom } from 'rxjs';
 import { AccountService } from './account.service';
 import { Subject } from 'rxjs';
+import { API } from '../api-base';
 
 @Injectable({ providedIn: 'root' })
 export class DataService {
@@ -497,9 +498,7 @@ export class DataService {
   // usando la MISMA dirección con la que entraste a la app (sea localhost,
   // la IP de la oficina, o un nombre de Tailscale) — así funciona igual
   // desde cualquier computador, sin tener que tocar código nunca más.
-  private API_URL = (typeof window !== 'undefined')
-    ? `${window.location.protocol}//${window.location.hostname}:5000/api`
-    : 'http://localhost:5000/api';
+  private API_URL = API;
 
   // ============================================================
   // CAMBIOS PENDIENTES DE APROBACIÓN (cuenta auxiliar)

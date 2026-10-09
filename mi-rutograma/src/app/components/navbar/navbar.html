@@ -78,6 +78,7 @@
     </button>
 
     <app-en-linea></app-en-linea>
+    <button class="btn sm" data-guia="nav-apariencia" title="Apariencia: modo claro u oscuro y tamaño de letra (A) · Atajos de teclado (?)" (click)="theme.panelAbierto.set(true)"><i class="bi bi-palette"></i></button>
     <button class="btn grn sm" title="Descargar Diario" (click)="descargarDiario()"><i class="bi bi-download"></i><span class="btn-txt2"> <span class="btn-txt">Descargar </span>Diario</span></button>
     <button class="btn pri sm" *ngIf="authService.puedeEditar" title="Viaje Extra" (click)="abrirModal('m-viaje')"><i class="bi bi-plus-lg"></i><span class="btn-txt2"> Viaje Extra</span></button>
     <button class="btn sm" *ngIf="authService.puedeEditar" title="Novedad" (click)="abrirModal('m-novedad')"><i class="bi bi-lightning-charge"></i><span class="btn-txt2"> Novedad</span></button>
