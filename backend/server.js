@@ -1127,7 +1127,7 @@ const RUTAS_SIN_RESTRICCION_DE_ROL = [
     '/api/sesiones/cerrar-otras',
     '/api/sesiones/cerrar-actual'
 ];
-const RUTAS_CON_PERMISO_PROPIO = ['/api/semanas/bloqueo', '/api/papelera/restaurar', '/api/despachos', '/api/despachos/eliminar', '/api/despachos/limite', '/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/cuenta-despachos', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
+const RUTAS_CON_PERMISO_PROPIO = ['/api/auth/preferencias', '/api/semanas/bloqueo', '/api/papelera/restaurar', '/api/despachos', '/api/despachos/eliminar', '/api/despachos/limite', '/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/auth/cambiar-clave', '/api/auth/cuenta-conductores', '/api/auth/cuenta-despachos', '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/aprobaciones/decidir'];
 
 // ============================================================
 // SEMANA BLOQUEADA (ver semana-bloqueada.js) — en una semana que el jefe
@@ -1704,7 +1704,8 @@ app.get('/api/auth/estado', (req, res) => {
         if (!email) return res.status(400).json({ ok: false, msg: 'Falta el correo' });
 
         if (email === normalizarEmail(ADMIN_EMAIL)) {
-            return res.json({ ok: true, estado: 'APPROVED', esAdmin: true, rol: 'admin', permisos: permisosDeCuenta(null, true) });
+            const admin = (data.usuarios || []).find(u => normalizarEmail(u.email) === email);
+            return res.json({ ok: true, estado: 'APPROVED', esAdmin: true, rol: 'admin', permisos: permisosDeCuenta(null, true), preferencias: admin?.preferencias ? preferenciasDe(admin) : null, cuentaCompartida: false });
         }
 
         const usuario = (data.usuarios || []).find(u => normalizarEmail(u.email) === email);
@@ -1716,7 +1717,9 @@ app.get('/api/auth/estado', (req, res) => {
             esAdmin: false,
             rol: rolDeCuenta(usuario, false),
             permisos: permisosDeCuenta(usuario, false),
-            motivoRechazo: usuario.estado === 'REJECTED' ? (usuario.motivoRechazo || '') : undefined
+            motivoRechazo: usuario.estado === 'REJECTED' ? (usuario.motivoRechazo || '') : undefined,
+            preferencias: usuario.preferencias ? preferenciasDe(usuario) : null,
+            cuentaCompartida: esCuentaCompartida(usuario)
         });
     } catch (error) {
         console.error("🚨 Error en /api/auth/estado:", error);
@@ -4530,11 +4533,47 @@ app.post('/api/auth/login', async (req, res) => {
             // Cuántas sesiones viejas se cerraron por el tope de
             // MAX_SESIONES_POR_CUENTA al entrar ahora (0 casi siempre).
             sesionesCerradas: req.sesionesCerradasPorTope || 0,
-            maxSesiones: MAX_SESIONES_POR_CUENTA
+            maxSesiones: MAX_SESIONES_POR_CUENTA,
+            preferencias: usuario.preferencias ? preferenciasDe(usuario) : null,
+            cuentaCompartida: !esAdmin && esCuentaCompartida(usuario)
         });
     } catch (error) {
         console.error('🚨 Error en /api/auth/login:', error);
         return res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// --- APARIENCIA DE CADA CUENTA (modo claro/oscuro y tamaño de letra) ---
+// Se guarda en la cuenta: la ve igual en cualquier equipo donde entre, y no
+// cambia la de nadie más. Las cuentas compartidas (conductores, despachos)
+// no la guardan aquí: la usa mucha gente, así que cada equipo recuerda la
+// suya (lo hace la pantalla).
+const TEMAS = ['oscuro', 'claro'];
+const TAMANOS_LETRA = ['normal', 'grande', 'muy-grande'];
+function preferenciasDe(usuario) {
+    const p = usuario?.preferencias || {};
+    return { tema: TEMAS.includes(p.tema) ? p.tema : 'oscuro', letra: TAMANOS_LETRA.includes(p.letra) ? p.letra : 'normal' };
+}
+function esCuentaCompartida(usuario) {
+    const rol = rolDeCuenta(usuario, false);
+    return rol === 'despachos' || (rol === 'conductor' && !usuario.conductorCed);
+}
+app.post('/api/auth/preferencias', (req, res) => {
+    res.locals.auditoriaOmitir = true; // gusto personal: no va al registro
+    try {
+        const email = normalizarEmail(req.usuarioVerificado || '');
+        if (!email) return res.status(401).json({ ok: false, codigo: 'sin_pase', msg: 'Debes iniciar sesión.' });
+        const data = leerExcel();
+        const usuario = (data.usuarios || []).find(u => normalizarEmail(u.email) === email);
+        if (!usuario) return res.status(404).json({ ok: false, msg: 'Cuenta no encontrada.' });
+        const esAdmin = email === normalizarEmail(ADMIN_EMAIL);
+        if (!esAdmin && esCuentaCompartida(usuario)) return res.json({ ok: true, soloEsteEquipo: true, preferencias: preferenciasDe({ preferencias: req.body }) });
+        usuario.preferencias = preferenciasDe({ preferencias: { ...preferenciasDe(usuario), ...(req.body || {}) } });
+        guardarEnExcel(data);
+        res.json({ ok: true, preferencias: usuario.preferencias });
+    } catch (error) {
+        console.error('🚨 Error en /api/auth/preferencias:', error);
+        res.status(500).json({ ok: false, msg: error.message });
     }
 });
 

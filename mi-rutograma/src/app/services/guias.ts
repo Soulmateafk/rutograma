@@ -37,6 +37,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'button[title="Descargar Diario"]', titulo: 'Descargar Diario', texto: 'Descarga un archivo con los viajes de hoy, listo para abrir en Excel.' },
       { el: 'button[title="Viaje Extra"]', titulo: 'Viaje Extra', texto: 'Agrega un viaje que no estaba en la matriz. Si el vehículo está ocupado, la app te ofrece cómo resolverlo.' },
       { el: 'button[title="Novedad"]', titulo: 'Novedad', texto: 'Registra un aviso: un vehículo varado, un retraso, un cambio de última hora...' },
+      { el: 'nav-apariencia', titulo: 'Apariencia y atajos', texto: 'Modo claro u oscuro y letra más grande, solo para tu cuenta (las demás no cambian). Desde aquí también instalas la app y ves los atajos de teclado (tecla ?).' },
       PASO_AYUDA
     ]
   },
@@ -253,6 +254,8 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'mv-avisos', titulo: 'Cambios en tus viajes', texto: 'Si te agregan, cambian o quitan un viaje, aquí te avisa y el viaje sale marcado. Toca "Entendido" cuando lo hayas visto.' },
       { el: '.mv-acciones-viaje', titulo: 'Ya salí / Ya llegué', texto: 'Cuando arranques, toca "Ya salí"; al llegar al destino, "Ya llegué". La oficina lo ve al instante. Si tocaste por error, tienes 15 minutos para deshacerlo.' },
       { el: 'mv-dias', titulo: 'Tus viajes por día', texto: 'Hoy y los próximos días, con destino, hora, vehículo y cuándo regresas. Los días de descanso salen marcados. Se actualiza sola cada minuto.' },
+      { el: 'mv-apariencia', titulo: 'Apariencia', texto: 'Modo claro (mejor de día, al sol) u oscuro y letra más grande. Si es tu propia cuenta, se guarda en ella; en la cuenta compartida queda solo en este celular.' },
+      { el: '', titulo: 'Instálala en el celular', texto: 'En el mismo botón de Apariencia está "Instalar": queda el ícono de MAKAND en el celular y se abre como una aplicación, sin escribir la dirección. Si no aparece, en el menú del navegador toca "Instalar aplicación" o "Agregar a inicio".' },
       PASO_AYUDA
     ]
   },
@@ -281,6 +284,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'dp-periodos', titulo: 'Registro', texto: 'Lo anotado por día, semana o mes, con las flechas para ir atrás. "Histórico" lleva a cada mes guardado.' },
       { el: 'dp-excel', titulo: 'Excel', texto: 'Descarga en Excel el día, la semana o el mes que estás viendo: horas, tiempo de cargue, cantidad por tipo y total de cajas.' },
       { el: '', titulo: 'Sin señal', texto: 'Si se cae el internet, sigue anotando: lo anotado queda guardado en este celular (sale un aviso amarillo) y se envía solo cuando vuelve la señal. No cierres la página mientras tanto.' },
+      { el: 'dp-apariencia', titulo: 'Apariencia', texto: 'Modo claro u oscuro, letra más grande e instalar la app en este celular. Como es una cuenta compartida, lo que escojas queda solo en este equipo.' },
       { el: 'dp-tabla', titulo: 'Corregir o borrar', texto: 'Con el lápiz corriges un registro y con la caneca lo borras. La cuenta de despachos puede hacerlo con lo de hoy y ayer; lo anterior, la oficina. Todo queda en la auditoría.' },
       PASO_AYUDA
     ]
@@ -310,7 +314,7 @@ export interface PasoTarea extends PasoGuia {
   tocar?: boolean;
 }
 
-export type RequisitoTarea = 'editar' | 'aprobar' | 'noAprobar';
+export type RequisitoTarea = 'editar' | 'aprobar' | 'noAprobar' | 'todos';
 
 export interface Tarea {
   clave: string;
@@ -417,6 +421,44 @@ export const TAREAS: Tarea[] = [
       { el: 'nov-desc', titulo: 'Descripción', texto: 'Los detalles: qué pasó, dónde y qué se hizo.' },
       { el: 'nov-guardar', titulo: 'Guardar novedad', texto: 'Cuando lo hagas de verdad, aquí la guardas. Sale en el Dashboard, donde luego se marca como resuelta.' + AVISO_APROBACION },
       { el: '', titulo: '¡Listo!', texto: 'Al terminar, el formulario se cierra sin guardar nada.' }
+    ]
+  },
+  {
+    clave: 'apariencia',
+    titulo: 'Poner modo claro o la letra más grande',
+    requiere: 'todos',
+    cerrar: ['.ap-cerrar'],
+    pasos: [
+      { el: '', titulo: 'Apariencia de tu cuenta', texto: 'El modo claro u oscuro y el tamaño de letra son solo de tu cuenta: si los cambias, los ves igual en cualquier equipo donde entres, y las demás cuentas siguen como estaban.' },
+      { el: 'nav-apariencia', tocar: true, titulo: 'Abre Apariencia', texto: 'Toca el botón iluminado (la paleta). También se abre con la tecla A.' },
+      { el: 'ap-tema', titulo: 'Modo', texto: 'Oscuro (el de siempre) o Claro, mejor con mucha luz. Atajo: tecla T.' },
+      { el: 'ap-letra', titulo: 'Tamaño de letra', texto: 'Normal, Grande o Muy grande: agranda toda la app, no solo el texto. Atajos: + y -.' },
+      { el: '', titulo: '¡Listo!', texto: 'Se guarda solo apenas lo escoges. Al terminar la guía se cierra el panel.' }
+    ]
+  },
+  {
+    clave: 'atajos',
+    titulo: 'Usar los atajos de teclado',
+    requiere: 'todos',
+    cerrar: ['.ap-cerrar'],
+    pasos: [
+      { el: '', titulo: 'Atajos de teclado', texto: 'Para trabajar sin el mouse. Los más útiles: Ctrl+K busca cualquier cosa; G y luego una letra va a una página (G R = Rutograma, G D = Dashboard, G V = Vehículos…); N = nuevo viaje extra; en el Rutograma, Shift+← y Shift+→ cambian de mes y H vuelve al mes de hoy. No funcionan mientras escribes en un campo.' },
+      { el: 'nav-apariencia', tocar: true, titulo: 'Abre Apariencia', texto: 'Toca el botón iluminado.' },
+      { el: 'ap-ver-atajos', tocar: true, titulo: 'Ver atajos', texto: 'Toca "Ver atajos de teclado". En cualquier pantalla también se abre con la tecla ?.' },
+      { el: '.ap-atajos-grid', titulo: 'La lista', texto: 'Todos los atajos que puede usar tu cuenta. "G luego R" quiere decir: oprime G, suéltala y oprime R. Al oprimir G sale abajo un recordatorio con las letras.' },
+      { el: '', titulo: '¡Listo!', texto: 'Esc cierra la lista, el panel o el viaje abierto. Al terminar la guía se cierra la lista.' }
+    ]
+  },
+  {
+    clave: 'instalar',
+    titulo: 'Instalar la app en el celular o el computador',
+    requiere: 'todos',
+    cerrar: ['.ap-cerrar'],
+    pasos: [
+      { el: '', titulo: 'Instalar como aplicación', texto: 'Queda el ícono de MAKAND en el celular o en el escritorio y se abre en su propia ventana, sin barra del navegador ni escribir la dirección. Hace falta entrar por la dirección segura (https://….ts.net:5000) que activa la oficina con "activar-https.bat".' },
+      { el: 'nav-apariencia', tocar: true, titulo: 'Abre Apariencia', texto: 'Toca el botón iluminado.' },
+      { el: 'ap-instalar', titulo: 'Instalar', texto: 'Si el navegador lo permite, sale el botón "Instalar MAKAND": tócalo y acepta. En Android también: menú ⋮ → "Instalar aplicación". En iPhone: en Safari, Compartir → "Agregar a inicio". En el computador (Chrome o Edge): el ícono de instalar en la barra de direcciones.' },
+      { el: '', titulo: '¡Listo!', texto: 'La app instalada se actualiza sola con cada actualización de la oficina. Si no hay señal, muestra "Sin conexión" y un botón para reintentar.' }
     ]
   },
   {

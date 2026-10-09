@@ -3,10 +3,9 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { DataService } from '../../services/data';
+import { API } from '../../api-base';
 
-const API_URL = (typeof window !== 'undefined')
-  ? `${window.location.protocol}//${window.location.hostname}:5000/api`
-  : 'http://localhost:5000/api';
+const API_URL = API;
 
 /**
  * HOJA DE VIDA DEL VEHÍCULO — todo lo de una placa en una pantalla:

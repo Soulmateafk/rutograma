@@ -365,3 +365,193 @@ body {
   body.imprimiendo-hoja app-aviso-inactividad { display: none !important; }
   body.imprimiendo-hoja { background: #fff !important; }
 }
+
+/* ============================================================
+   TAMAÑO DE LETRA de la cuenta (Apariencia, theme.service.ts):
+   agranda toda la app, también lo que tiene medidas fijas.
+   ============================================================ */
+html.letra-grande { zoom: 1.12; }
+html.letra-muy-grande { zoom: 1.25; }
+
+
+/* ============================================================
+   MODO CLARO — arreglos de contraste (tema-claro, ver theme.service.ts)
+   Varios colores se pensaron para fondo oscuro (amarillo, rosado, azul y
+   verde muy claros) y sobre fondo claro casi no se leen. Aquí se oscurecen
+   solo en modo claro; el modo oscuro queda igual.
+   ============================================================ */
+
+/* Tarjetas y celdas con fondo de color fuerte (viajes, cupos, totales):
+   adentro el texto sigue siendo blanco, como en modo oscuro. */
+body.tema-claro .bg-makand, body.tema-claro .bg-arsitrans, body.tema-claro .bg-polar, body.tema-claro .bg-extra,
+body.tema-claro .bg-conflicto, body.tema-claro .bg-en-ruta, body.tema-claro .bg-entregado, body.tema-claro .bg-varado,
+body.tema-claro .bg-mantenimiento, body.tema-claro .bg-cancelado, body.tema-claro .bg-estuvo-mantenimiento,
+body.tema-claro .ruto-td-vehicle-info-cupo, body.tema-claro .ruto-cupo-header-inner, body.tema-claro .ruto-resumen-total-general,
+body.tema-claro .vehiculo-disponible, body.tema-claro .celda-disponible {
+  --text: #ffffff; --text2: rgba(255, 255, 255, 0.85); --text3: rgba(255, 255, 255, 0.7);
+  --color-texto-principal: #ffffff; --color-texto-secundario: rgba(255, 255, 255, 0.85); --color-texto-apagado: rgba(255, 255, 255, 0.7);
+}
+body.tema-claro .ruto-card-driver { color: #dcfce7 !important; }
+
+/* Avisos del Rutograma (aprobaciones, novedades de conductores, revisión) */
+body.tema-claro .ruto-aviso-aprobaciones { color: #92400e !important; }
+body.tema-claro .ruto-aviso-aprobaciones.ruto-aviso-urgente { color: #991b1b !important; }
+body.tema-claro .ruto-aviso-texto strong { color: var(--color-texto-principal) !important; }
+body.tema-claro .ruto-novedad-fila { border-top-color: rgba(15, 23, 42, 0.12) !important; }
+body.tema-claro .ruto-aviso-revision .ruto-aviso-icono,
+body.tema-claro .ruto-revision-toggle { color: #92400e !important; }
+body.tema-claro .ruto-resumen-total-num { color: #0369a1 !important; }
+body.tema-claro .ruto-semana-chip.cerrada { color: #b45309 !important; }
+body.tema-claro .ruto-semana-ver { color: #1d4ed8 !important; }
+
+/* Pizarra */
+body.tema-claro .pz-titulo, body.tema-claro .pz-mas { color: #92400e !important; }
+body.tema-claro .pz-anuncio.importante .pz-texto { color: #b91c1c !important; }
+
+/* Etiquetas y botones de estado en otras pantallas */
+body.tema-claro .fn-btn { color: #1d4ed8 !important; }
+body.tema-claro .af-alerta, body.tema-claro .apr-estado.pend, body.tema-claro .dp-contador,
+body.tema-claro .carga-chip.poca, body.tema-claro .btn-action.hv, body.tema-claro .metric-value.text-descanso { color: #b45309 !important; }
+body.tema-claro .carga-chip.normal, body.tema-claro .metric-value.text-activos, body.tema-claro .af-menos { color: #047857 !important; }
+body.tema-claro .carga-chip.sobrecargado, body.tema-claro .apr-btn-no, body.tema-claro .cu-mal, body.tema-claro .cu-mal-texto,
+body.tema-claro .qj-rojo, body.tema-claro .qj-tipo, body.tema-claro .cp-estado, body.tema-claro .ses-btn-danger { color: #b91c1c !important; }
+body.tema-claro .carga-chip.racha, body.tema-claro .carga-racha-alta { color: #7e22ce !important; }
+body.tema-claro .dp-ahora, body.tema-claro .dp-enlace { color: #1d4ed8 !important; }
+body.tema-claro .resumen-stat-valor { filter: brightness(0.75) !important; }
+
+/* Colores escritos directamente en la pantalla (style="color: …") */
+body.tema-claro [style*="color: #fb923c"]:not([style*="background"]),
+body.tema-claro [style*="color:#fb923c"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(251, 146, 60)"]:not([style*="background"]),
+body.tema-claro [style*="color: #fde68a"]:not([style*="background"]),
+body.tema-claro [style*="color:#fde68a"]:not([style*="background"]),
+body.tema-claro [style*="color: #FDE68A"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(253, 230, 138)"]:not([style*="background"]),
+body.tema-claro [style*="color: #fcd34d"]:not([style*="background"]),
+body.tema-claro [style*="color:#fcd34d"]:not([style*="background"]),
+body.tema-claro [style*="color: #FCD34D"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(252, 211, 77)"]:not([style*="background"]),
+body.tema-claro [style*="color: #fbbf24"]:not([style*="background"]),
+body.tema-claro [style*="color:#fbbf24"]:not([style*="background"]),
+body.tema-claro [style*="color: #FBBF24"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(251, 191, 36)"]:not([style*="background"]),
+body.tema-claro [style*="color: #facc15"]:not([style*="background"]),
+body.tema-claro [style*="color:#facc15"]:not([style*="background"]),
+body.tema-claro [style*="color: #FACC15"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(250, 204, 21)"]:not([style*="background"]),
+body.tema-claro [style*="color: #fef3c7"]:not([style*="background"]),
+body.tema-claro [style*="color:#fef3c7"]:not([style*="background"]),
+body.tema-claro [style*="color: #FEF3C7"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(254, 243, 199)"]:not([style*="background"]),
+body.tema-claro [style*="color: #f59e0b"]:not([style*="background"]),
+body.tema-claro [style*="color:#f59e0b"]:not([style*="background"]),
+body.tema-claro [style*="color: #F59E0B"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(245, 158, 11)"]:not([style*="background"]),
+body.tema-claro [style*="color: #fde047"]:not([style*="background"]),
+body.tema-claro [style*="color:#fde047"]:not([style*="background"]),
+body.tema-claro [style*="color: #FDE047"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(253, 224, 71)"]:not([style*="background"]) { color: #b45309 !important; }
+body.tema-claro [style*="color: #fca5a5"]:not([style*="background"]),
+body.tema-claro [style*="color:#fca5a5"]:not([style*="background"]),
+body.tema-claro [style*="color: #FCA5A5"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(252, 165, 165)"]:not([style*="background"]),
+body.tema-claro [style*="color: #fecaca"]:not([style*="background"]),
+body.tema-claro [style*="color:#fecaca"]:not([style*="background"]),
+body.tema-claro [style*="color: #FECACA"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(254, 202, 202)"]:not([style*="background"]),
+body.tema-claro [style*="color: #f87171"]:not([style*="background"]),
+body.tema-claro [style*="color:#f87171"]:not([style*="background"]),
+body.tema-claro [style*="color: #F87171"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(248, 113, 113)"]:not([style*="background"]),
+body.tema-claro [style*="color: #fee2e2"]:not([style*="background"]),
+body.tema-claro [style*="color:#fee2e2"]:not([style*="background"]),
+body.tema-claro [style*="color: #FEE2E2"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(254, 226, 226)"]:not([style*="background"]) { color: #b91c1c !important; }
+body.tema-claro [style*="color: #93c5fd"]:not([style*="background"]),
+body.tema-claro [style*="color:#93c5fd"]:not([style*="background"]),
+body.tema-claro [style*="color: #93C5FD"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(147, 197, 253)"]:not([style*="background"]),
+body.tema-claro [style*="color: #bfdbfe"]:not([style*="background"]),
+body.tema-claro [style*="color:#bfdbfe"]:not([style*="background"]),
+body.tema-claro [style*="color: #BFDBFE"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(191, 219, 254)"]:not([style*="background"]),
+body.tema-claro [style*="color: #60a5fa"]:not([style*="background"]),
+body.tema-claro [style*="color:#60a5fa"]:not([style*="background"]),
+body.tema-claro [style*="color: #60A5FA"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(96, 165, 250)"]:not([style*="background"]),
+body.tema-claro [style*="color: #38bdf8"]:not([style*="background"]),
+body.tema-claro [style*="color:#38bdf8"]:not([style*="background"]),
+body.tema-claro [style*="color: #38BDF8"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(56, 189, 248)"]:not([style*="background"]),
+body.tema-claro [style*="color: #7dd3fc"]:not([style*="background"]),
+body.tema-claro [style*="color:#7dd3fc"]:not([style*="background"]),
+body.tema-claro [style*="color: #7DD3FC"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(125, 211, 252)"]:not([style*="background"]),
+body.tema-claro [style*="color: #dbeafe"]:not([style*="background"]),
+body.tema-claro [style*="color:#dbeafe"]:not([style*="background"]),
+body.tema-claro [style*="color: #DBEAFE"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(219, 234, 254)"]:not([style*="background"]) { color: #1d4ed8 !important; }
+body.tema-claro [style*="color: #86efac"]:not([style*="background"]),
+body.tema-claro [style*="color:#86efac"]:not([style*="background"]),
+body.tema-claro [style*="color: #86EFAC"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(134, 239, 172)"]:not([style*="background"]),
+body.tema-claro [style*="color: #4ade80"]:not([style*="background"]),
+body.tema-claro [style*="color:#4ade80"]:not([style*="background"]),
+body.tema-claro [style*="color: #4ADE80"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(74, 222, 128)"]:not([style*="background"]),
+body.tema-claro [style*="color: #34d399"]:not([style*="background"]),
+body.tema-claro [style*="color:#34d399"]:not([style*="background"]),
+body.tema-claro [style*="color: #34D399"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(52, 211, 153)"]:not([style*="background"]),
+body.tema-claro [style*="color: #6ee7b7"]:not([style*="background"]),
+body.tema-claro [style*="color:#6ee7b7"]:not([style*="background"]),
+body.tema-claro [style*="color: #6EE7B7"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(110, 231, 183)"]:not([style*="background"]),
+body.tema-claro [style*="color: #22c55e"]:not([style*="background"]),
+body.tema-claro [style*="color:#22c55e"]:not([style*="background"]),
+body.tema-claro [style*="color: #22C55E"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(34, 197, 94)"]:not([style*="background"]),
+body.tema-claro [style*="color: #10b981"]:not([style*="background"]),
+body.tema-claro [style*="color:#10b981"]:not([style*="background"]),
+body.tema-claro [style*="color: #10B981"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(16, 185, 129)"]:not([style*="background"]),
+body.tema-claro [style*="color: #bbf7d0"]:not([style*="background"]),
+body.tema-claro [style*="color:#bbf7d0"]:not([style*="background"]),
+body.tema-claro [style*="color: #BBF7D0"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(187, 247, 208)"]:not([style*="background"]),
+body.tema-claro [style*="color: #a7f3d0"]:not([style*="background"]),
+body.tema-claro [style*="color:#a7f3d0"]:not([style*="background"]),
+body.tema-claro [style*="color: #A7F3D0"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(167, 243, 208)"]:not([style*="background"]) { color: #047857 !important; }
+body.tema-claro [style*="color: #c084fc"]:not([style*="background"]),
+body.tema-claro [style*="color:#c084fc"]:not([style*="background"]),
+body.tema-claro [style*="color: #C084FC"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(192, 132, 252)"]:not([style*="background"]),
+body.tema-claro [style*="color: #d8b4fe"]:not([style*="background"]),
+body.tema-claro [style*="color:#d8b4fe"]:not([style*="background"]),
+body.tema-claro [style*="color: #D8B4FE"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(216, 180, 254)"]:not([style*="background"]),
+body.tema-claro [style*="color: #a78bfa"]:not([style*="background"]),
+body.tema-claro [style*="color:#a78bfa"]:not([style*="background"]),
+body.tema-claro [style*="color: #A78BFA"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(167, 139, 250)"]:not([style*="background"]),
+body.tema-claro [style*="color: #e9d5ff"]:not([style*="background"]),
+body.tema-claro [style*="color:#e9d5ff"]:not([style*="background"]),
+body.tema-claro [style*="color: #E9D5FF"]:not([style*="background"]),
+body.tema-claro [style*="color: rgb(233, 213, 255)"]:not([style*="background"]) { color: #7e22ce !important; }
+
+/* Sesiones y Administración (colores fijos de modo oscuro) */
+body.tema-claro .ses-page { color: var(--color-texto-principal) !important; }
+body.tema-claro .ses-head h2 { color: var(--color-texto-principal) !important; }
+body.tema-claro .ses-head p.ses-cupo { color: #475569 !important; }
+body.tema-claro .ses-btn:not(.ses-btn-danger) { color: var(--color-texto-principal) !important; background: var(--color-fondo-tarjeta) !important; border-color: var(--color-borde) !important; }
+body.tema-claro .cuenta-fecha { color: #475569 !important; }
+
+body.tema-claro .ruto-btn-pdf-semana { color: #b91c1c !important; }
+body.tema-claro .ruto-btn-compartir-semana, body.tema-claro .dp-excel button { color: #047857 !important; }
+body.tema-claro .cuenta-conductores-texto { color: #475569 !important; }
+body.tema-claro .cuenta-conductores-texto strong { color: var(--color-texto-principal) !important; }
+body.tema-claro [style*="color: #93c5fd; background: rgba(30,58,138,0.4)"] { color: #1e3a8a !important; }
+body.tema-claro [style*="color: rgb(52, 211, 153)"], body.tema-claro [style*="color:#34d399"] { color: #047857 !important; }
+body.tema-claro [style*="color: rgb(251, 191, 36)"] { color: #b45309 !important; }
+body.tema-claro .ruto-cupo-header-inner .ruto-btn-confirmar-cupo { background: rgba(255, 255, 255, 0.15) !important; border-color: rgba(255, 255, 255, 0.35) !important; }

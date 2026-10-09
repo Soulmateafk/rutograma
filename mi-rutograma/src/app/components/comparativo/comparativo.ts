@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data';
 import { AuthService } from '../../services/auth.service';
 import { analizarMeses, viajesDelMes, AnalisisMeses, FilaCambio, IndicadorMes } from '../../services/comparar-meses';
+import { API } from '../../api-base';
 
 interface DesgloseTransportadora {
   nombre: string;
@@ -117,7 +118,7 @@ export class Comparativo implements OnInit, OnDestroy {
     try {
       const mes = `${anio}-${String(Number(mesIndex) + 1).padStart(2, '0')}`;
       const ultimo = hastaDia ?? new Date(Number(anio), Number(mesIndex) + 1, 0).getDate();
-      const base = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const base = API;
       const res = await this.auth.fetchAutenticado(`${base}/despachos?desde=${mes}-01&hasta=${mes}-${String(ultimo).padStart(2, '0')}`);
       if (!res.ok) return null;
       const data = await res.json();

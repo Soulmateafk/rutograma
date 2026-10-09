@@ -16,6 +16,9 @@ import { choquesDeAgenda } from '../../services/revision-viajes';
 import { Sugerencia, sugerirVehiculos } from '../../services/sugerencias';
 
 import { EnLineaComponent } from '../en-linea/en-linea';
+import { API } from '../../api-base';
+import { AtajosService } from '../../services/atajos.service';
+import { ThemeService } from '../../services/theme.service';
 
 interface ResultadoBusqueda { tipo: string; etiqueta: string; subtitulo: string; ruta: string; queryParams?: any; actual?: boolean; hacer?: () => void; }
 
@@ -654,7 +657,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
       return;
     }
     try {
-      const base = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const base = API;
       const res = await this.authService.fetchAutenticado(`${base}/aprobaciones`);
       const data = await res.json();
       const n = data?.ok ? Number(data.pendientes) || 0 : 0;
@@ -692,7 +695,13 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     this.cuenta.alCambioPendiente.subscribe(() => setTimeout(() => this.contarPendientesAprobacion(), 500));
   }
 
+  // Atajos de teclado N (viaje extra) y Shift+N (novedad): ver atajos.service.ts.
+  public atajos = inject(AtajosService);
+  public theme = inject(ThemeService);
+  private subAtajos = this.atajos.acciones.subscribe(a => this.abrirModal(a === 'novedad' ? 'm-novedad' : 'm-viaje'));
+
   ngOnDestroy(): void {
+    this.subAtajos.unsubscribe();
     if (this.intervaloPendientes) clearInterval(this.intervaloPendientes);
     this.observadorTamano?.disconnect();
     if (this.ajustePendiente) cancelAnimationFrame(this.ajustePendiente);

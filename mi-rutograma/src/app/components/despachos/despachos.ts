@@ -4,10 +4,10 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { UiService } from '../../services/ui.service';
+import { API } from '../../api-base';
+import { ThemeService } from '../../services/theme.service';
 
-const API_URL = (typeof window !== 'undefined')
-  ? `${window.location.protocol}//${window.location.hostname}:5000/api`
-  : 'http://localhost:5000/api';
+const API_URL = API;
 
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -102,6 +102,7 @@ const pegada = (p: any) => String(p ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '
   styleUrls: ['./despachos.css']
 })
 export class DespachosComponent implements OnInit, OnDestroy {
+  public theme = inject(ThemeService);
   public auth = inject(AuthService);
   private ui = inject(UiService);
   private cdr = inject(ChangeDetectorRef);

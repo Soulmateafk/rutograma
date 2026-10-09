@@ -2,14 +2,13 @@ import { ChangeDetectorRef, Component, inject, OnDestroy, OnInit, PLATFORM_ID } 
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
 import { UiService } from '../../services/ui.service';
+import { SERVIDOR } from '../../api-base';
 
 // Misma dirección que usan AccountService y DataService: el servidor en
 // el puerto 5000 del MISMO equipo con el que se abrió la app. Antes era
 // 'http://localhost:5000' fijo — en el celular "localhost" es el propio
 // celular, así que la lista de sesiones nunca cargaba desde ahí.
-const API_URL = (typeof window !== 'undefined')
-  ? `${window.location.protocol}//${window.location.hostname}:5000`
-  : 'http://localhost:5000';
+const API_URL = SERVIDOR;
 
 interface Sesion {
   id: string;

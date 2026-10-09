@@ -1,0 +1,27 @@
+.ap-fondo { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 10050; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.ap-panel { background: var(--color-fondo-tarjeta); color: var(--color-texto-principal); border: 1px solid var(--color-borde); border-radius: 12px; padding: 16px 18px; width: 100%; max-width: 440px; max-height: calc(100vh - 32px); overflow: auto; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); }
+.ap-atajos { max-width: 760px; }
+.ap-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ap-cab h3 { margin: 0; font-size: 17px; display: flex; gap: 8px; align-items: center; }
+.ap-cerrar { background: none; border: 1px solid var(--color-borde); color: var(--color-texto-principal); border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+.ap-nota { font-size: 12px; color: var(--color-texto-apagado); margin: 8px 0 4px; line-height: 1.4; }
+.ap-grupo { margin-top: 14px; }
+.ap-titulo { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-texto-apagado); margin-bottom: 6px; }
+.ap-opciones { display: flex; gap: 8px; flex-wrap: wrap; }
+.ap-opcion { flex: 1; min-width: 100px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border-radius: 8px; cursor: pointer;
+  background: var(--color-fondo-input); color: var(--color-texto-principal); border: 2px solid var(--color-borde); font-size: 14px; }
+.ap-opcion.on { border-color: #3b82f6; background: rgba(59, 130, 246, 0.15); font-weight: 700; }
+.ap-instalar { width: 100%; padding: 10px; border-radius: 8px; border: none; background: #2563eb; color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; display: inline-flex; gap: 8px; justify-content: center; align-items: center; }
+.ap-link { margin-top: 14px; background: none; border: none; color: #60a5fa; cursor: pointer; padding: 0; font-size: 13px; text-decoration: underline; }
+.ap-atajos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 6px 22px; margin-top: 10px; }
+.ap-atajos-grupo { margin-top: 8px; }
+.ap-atajo { display: flex; align-items: center; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--color-borde); font-size: 13px; }
+.ap-teclas { min-width: 104px; display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.ap-mas { font-size: 10px; color: var(--color-texto-apagado); }
+kbd { display: inline-block; min-width: 22px; text-align: center; padding: 2px 6px; border-radius: 5px; font-family: inherit; font-size: 12px; font-weight: 700;
+  background: var(--color-fondo-input); border: 1px solid var(--color-borde); border-bottom-width: 2px; color: var(--color-texto-principal); }
+.ap-ir { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 10060; background: var(--color-fondo-tarjeta); color: var(--color-texto-principal);
+  border: 1px solid #3b82f6; border-radius: 10px; padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 12px; max-width: calc(100vw - 32px); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35); }
+@media (max-width: 480px) {
+  .ap-atajos-grid { grid-template-columns: 1fr; }
+}

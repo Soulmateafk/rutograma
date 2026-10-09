@@ -8,6 +8,9 @@ import { PresenciaService } from './services/presencia.service';
 import { ModalService } from './services/modal';
 import { LoadingService } from './services/loading.service';
 import { ThemeService } from './services/theme.service';
+import { AtajosService } from './services/atajos.service';
+import { InstalarService } from './services/instalar.service';
+import { AparienciaComponent } from './components/apariencia/apariencia';
 import { NavbarComponent } from './components/navbar/navbar'; 
 import { GuiaComponent } from './components/guia/guia';
 import { GuiaService } from './services/guia.service';
@@ -18,7 +21,7 @@ import { AvisoCargueComponent } from './components/aviso-cargue/aviso-cargue';
 @Component({
   selector: 'app-root',
   standalone: true, 
-  imports: [RouterOutlet, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent, PizarraComponent, AvisoCargueComponent], 
+  imports: [RouterOutlet, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent, PizarraComponent, AvisoCargueComponent, AparienciaComponent], 
   templateUrl: './app.html'
 })
 export class App implements OnInit {
@@ -85,6 +88,9 @@ export class App implements OnInit {
     // se vea cualquier pantalla, para no mostrar un parpadeo del tema
     // equivocado por una fracción de segundo.
     private theme: ThemeService,
+    // Atajos de teclado y el aviso de "se puede instalar": desde el arranque.
+    private atajos: AtajosService,
+    private instalar: InstalarService,
     private titleService: Title,
     private presencia: PresenciaService,
     private router: Router,

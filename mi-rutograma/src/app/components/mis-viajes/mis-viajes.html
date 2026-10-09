@@ -13,6 +13,7 @@
       <button *ngIf="paso === 'viajes'" class="mv-btn" (click)="cargar()" title="Actualizar"><i class="bi bi-arrow-clockwise"></i></button>
       <a *ngIf="!compartida" class="mv-btn" routerLink="/sesiones" title="Mis sesiones"><i class="bi bi-laptop"></i></a>
       <button *ngIf="!compartida" class="mv-btn" (click)="cambiandoClave = true" title="Cambiar mi contraseña"><i class="bi bi-key"></i></button>
+      <button class="mv-btn" data-guia="mv-apariencia" (click)="theme.panelAbierto.set(true)" title="Apariencia: modo claro u oscuro y letra más grande"><i class="bi bi-palette"></i></button>
       <button class="mv-btn mv-salir" (click)="salir()" title="Cerrar sesión"><i class="bi bi-box-arrow-right"></i></button>
     </div>
   </header>

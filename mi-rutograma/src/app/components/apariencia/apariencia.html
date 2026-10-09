@@ -1,0 +1,77 @@
+<!-- ===== APARIENCIA ===== -->
+<div class="ap-fondo" *ngIf="theme.panelAbierto()" (click)="theme.panelAbierto.set(false)">
+  <div class="ap-panel" (click)="$event.stopPropagation()" role="dialog" aria-label="Apariencia">
+    <div class="ap-cab">
+      <h3><i class="bi bi-palette"></i> Apariencia</h3>
+      <button class="ap-cerrar" (click)="theme.panelAbierto.set(false)" title="Cerrar (Esc)"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <p class="ap-nota">
+      {{ compartida ? 'Esta es una cuenta compartida: el cambio queda solo en este equipo o celular.' : 'Solo cambia para tu cuenta (' + (auth.currentUser?.email || '') + '), en cualquier equipo donde entres. Las demás cuentas no cambian.' }}
+    </p>
+
+    <div class="ap-grupo" data-guia="ap-tema">
+      <div class="ap-titulo">Modo</div>
+      <div class="ap-opciones">
+        <button class="ap-opcion" [class.on]="theme.temaActual === 'oscuro'" (click)="theme.ponerTema('oscuro')">
+          <i class="bi bi-moon-stars-fill"></i> Oscuro
+        </button>
+        <button class="ap-opcion" [class.on]="theme.temaActual === 'claro'" (click)="theme.ponerTema('claro')">
+          <i class="bi bi-sun-fill"></i> Claro
+        </button>
+      </div>
+    </div>
+
+    <div class="ap-grupo" data-guia="ap-letra">
+      <div class="ap-titulo">Tamaño de letra</div>
+      <div class="ap-opciones">
+        <button *ngFor="let t of theme.tamanos; let i = index" class="ap-opcion" [class.on]="theme.letra === t.valor" (click)="theme.ponerLetra(t.valor)">
+          <span [style.font-size.px]="13 + i * 3" style="font-weight: 700;">A</span> {{ t.nombre }}
+        </button>
+      </div>
+    </div>
+
+    <div class="ap-grupo" data-guia="ap-instalar" *ngIf="!instalar.instalada()">
+      <div class="ap-titulo">Instalar como aplicación</div>
+      <button *ngIf="instalar.sePuedeInstalar()" class="ap-instalar" (click)="instalar.instalar()">
+        <i class="bi bi-download"></i> Instalar MAKAND en este {{ instalar.esIphone ? 'iPhone' : 'equipo' }}
+      </button>
+      <p *ngIf="!instalar.sePuedeInstalar() && instalar.esIphone && instalar.conHttps" class="ap-nota">
+        En iPhone: en Safari toca <i class="bi bi-box-arrow-up"></i> Compartir → <strong>Agregar a inicio</strong>.
+      </p>
+      <p *ngIf="!instalar.sePuedeInstalar() && !instalar.esIphone && instalar.conHttps" class="ap-nota">
+        Abre el menú del navegador (⋮) y toca <strong>Instalar aplicación</strong> o <strong>Agregar a la pantalla principal</strong>.
+      </p>
+      <p *ngIf="!instalar.conHttps" class="ap-nota">
+        Para instalarla, entra por la dirección segura (https://…ts.net) que te dio la oficina. Por esta dirección el celular no deja instalarla.
+      </p>
+    </div>
+
+    <button class="ap-link" data-guia="ap-ver-atajos" *ngIf="atajos.esOficina" (click)="verAtajos()"><i class="bi bi-keyboard"></i> Ver atajos de teclado (?)</button>
+  </div>
+</div>
+
+<!-- ===== ATAJOS DE TECLADO ===== -->
+<div class="ap-fondo" *ngIf="atajos.panelAbierto()" (click)="atajos.panelAbierto.set(false)">
+  <div class="ap-panel ap-atajos" (click)="$event.stopPropagation()" role="dialog" aria-label="Atajos de teclado">
+    <div class="ap-cab">
+      <h3><i class="bi bi-keyboard"></i> Atajos de teclado</h3>
+      <button class="ap-cerrar" (click)="atajos.panelAbierto.set(false)" title="Cerrar (Esc)"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <p class="ap-nota">No funcionan mientras escribes en un campo. "G" y luego la letra: oprime G, suelta, y oprime la letra.</p>
+    <div class="ap-atajos-grid">
+      <div class="ap-atajos-grupo" *ngFor="let g of atajos.grupos">
+        <div class="ap-titulo">{{ g.titulo }}</div>
+        <div class="ap-atajo" *ngFor="let a of g.atajos">
+          <span class="ap-teclas"><ng-container *ngFor="let k of a.teclas; let ultimo = last"><kbd>{{ k }}</kbd><span *ngIf="!ultimo" class="ap-mas">{{ a.teclas[0] === 'G' ? 'luego' : '+' }}</span></ng-container></span>
+          <span class="ap-que">{{ a.que }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- "G" oprimida: qué letra lleva a dónde -->
+<div class="ap-ir" *ngIf="atajos.esperandoIr()">
+  <strong>Ir a…</strong>
+  <span *ngFor="let p of atajos.paginasParaIr()"><kbd>{{ p.tecla.toUpperCase() }}</kbd> {{ p.nombre }}</span>
+</div>

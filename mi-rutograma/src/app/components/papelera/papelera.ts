@@ -3,10 +3,9 @@ import { CommonModule } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
 import { DataService } from '../../services/data';
 import { UiService } from '../../services/ui.service';
+import { API } from '../../api-base';
 
-const API_URL = (typeof window !== 'undefined')
-  ? `${window.location.protocol}//${window.location.hostname}:5000/api`
-  : 'http://localhost:5000/api';
+const API_URL = API;
 
 const ICONOS: Record<string, string> = {
   viaje: 'bi-signpost-2', vehiculo: 'bi-truck', ruta: 'bi-map', conductor: 'bi-person-badge', novedad: 'bi-lightning-charge', despacho: 'bi-box-seam'
