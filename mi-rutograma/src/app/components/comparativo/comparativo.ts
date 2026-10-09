@@ -3,6 +3,8 @@ import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data';
+import { AuthService } from '../../services/auth.service';
+import { analizarMeses, viajesDelMes, AnalisisMeses, FilaCambio, IndicadorMes } from '../../services/comparar-meses';
 
 interface DesgloseTransportadora {
   nombre: string;
@@ -87,7 +89,105 @@ export class Comparativo implements OnInit, OnDestroy {
 
   private subDataChanged?: Subscription;
 
-  constructor(public ds: DataService, private cdr: ChangeDetectorRef) {}
+  constructor(public ds: DataService, private cdr: ChangeDetectorRef, private auth: AuthService) {}
+
+  // ============================================================
+  // ANÁLISIS EN DETALLE (services/comparar-meses.ts) — solo se calcula
+  // al oprimir el botón. Si después se cambian los meses o el corte, se
+  // avisa que hay que volver a oprimirlo (no se recalcula solo).
+  // ============================================================
+  public analisis: AnalisisMeses | null = null;
+  public analizando = false;
+  private claveAnalisis = '';
+  public gruposCompletos = new Set<string>();
+
+  private get claveSeleccion(): string {
+    return `${this.mesIndexA}-${this.anioA}|${this.mesIndexB}-${this.anioB}|${this.diaCorteComparacion ?? ''}`;
+  }
+  public get analisisDesactualizado(): boolean {
+    return !!this.analisis && this.claveAnalisis !== this.claveSeleccion;
+  }
+
+  private delMes<T = any>(lista: any[], mesIndex: number, anio: number): T[] {
+    const prefijo = `${anio}-${String(Number(mesIndex) + 1).padStart(2, '0')}`;
+    return (lista || []).filter(x => String(x?.fecha || '').startsWith(prefijo));
+  }
+
+  private async despachosDelMes(mesIndex: number, anio: number, hastaDia: number | null): Promise<{ resumen: any; registros: any[] } | null> {
+    try {
+      const mes = `${anio}-${String(Number(mesIndex) + 1).padStart(2, '0')}`;
+      const ultimo = hastaDia ?? new Date(Number(anio), Number(mesIndex) + 1, 0).getDate();
+      const base = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+      const res = await this.auth.fetchAutenticado(`${base}/despachos?desde=${mes}-01&hasta=${mes}-${String(ultimo).padStart(2, '0')}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data?.ok && data.registros?.length ? { resumen: data.resumen, registros: data.registros } : null;
+    } catch { return null; }
+  }
+
+  public async analizarDetalle(): Promise<void> {
+    if (this.analizando) return;
+    this.analizando = true;
+    this.cdr.detectChanges();
+    try {
+      const S = this.ds.S || {};
+      const mA = Number(this.mesIndexA), aA = Number(this.anioA), mB = Number(this.mesIndexB), aB = Number(this.anioB);
+      // Un mes viejo puede estar solo en el Histórico.
+      if (!S.historial && (!viajesDelMes(S.viajes, [], mA, aA).length || !viajesDelMes(S.viajes, [], mB, aB).length)) await this.ds.cargarHistorico();
+      const corte = this.diaCorteComparacion;
+      const [dA, dB] = await Promise.all([this.despachosDelMes(mA, aA, corte), this.despachosDelMes(mB, aB, corte)]);
+      const mes = (m: number, a: number, desp: any) => ({
+        etiqueta: `${this.nombresMes[m]} ${a}`,
+        viajes: viajesDelMes(S.viajes, this.ds.S?.historial, m, a),
+        quejas: this.delMes(S.quejas, m, a),
+        comparendos: this.delMes(S.comparendos, m, a),
+        despachos: desp
+      });
+      this.analisis = analizarMeses(mes(mA, aA, dA), mes(mB, aB, dB), corte);
+      this.claveAnalisis = this.claveSeleccion;
+      this.gruposCompletos.clear();
+      setTimeout(() => document.getElementById('comp-analisis')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    } finally {
+      this.analizando = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  public cerrarAnalisis(): void { this.analisis = null; this.claveAnalisis = ''; }
+
+  public filasVisibles(clave: string, filas: FilaCambio[]): FilaCambio[] {
+    return this.gruposCompletos.has(clave) ? filas : filas.slice(0, 8);
+  }
+  public alternarGrupo(clave: string): void {
+    if (this.gruposCompletos.has(clave)) this.gruposCompletos.delete(clave); else this.gruposCompletos.add(clave);
+  }
+
+  public valorIndicador(i: IndicadorMes, v: number | null): string {
+    if (v === null || v === undefined) return '—';
+    if (i.formato === 'dinero') return '$' + Math.round(v).toLocaleString('es-CO');
+    if (i.formato === 'min') return `${v} min`;
+    return Number(v).toLocaleString('es-CO');
+  }
+  public difIndicador(i: IndicadorMes): string {
+    if (i.a === null || i.b === null || i.a === undefined || i.b === undefined) return '';
+    const d = Math.round((i.b - i.a) * 10) / 10;
+    if (!d) return '=';
+    const pct = i.a ? ` (${d > 0 ? '+' : ''}${Math.round((d / i.a) * 100)}%)` : '';
+    return `${d > 0 ? '+' : ''}${i.formato === 'dinero' ? '$' + Math.round(d).toLocaleString('es-CO') : d.toLocaleString('es-CO')}${pct}`;
+  }
+  /** 'bien' | 'mal' | '' para el color del cambio. */
+  public tonoIndicador(i: IndicadorMes): string {
+    if (i.mejorSiSube === null || i.mejorSiSube === undefined || i.a === null || i.b === null || i.a === i.b) return '';
+    return (i.b > i.a) === i.mejorSiSube ? 'bien' : 'mal';
+  }
+  /** "Septiembre 2026" -> "Sep 26" (encabezados de las tablas). */
+  public corta(etiqueta: string): string {
+    const [mes, anio] = String(etiqueta).split(' ');
+    return `${mes.slice(0, 3)} ${String(anio || '').slice(-2)}`;
+  }
+  public textoDif(f: FilaCambio): string {
+    return `${f.dif > 0 ? '+' : ''}${f.dif}${f.pct !== null ? ` (${f.pct > 0 ? '+' : ''}${f.pct}%)` : ''}`;
+  }
 
   ngOnInit(): void {
     this.cargarCumplidosManual();
@@ -150,7 +250,10 @@ export class Comparativo implements OnInit, OnDestroy {
     const mesTexto = this.nombresMes[mesIndex];
     const viajesDelMes = (this.ds.S?.viajes || []).filter((v: any) => {
       const esMakand = String(v.tr || v.transportadora || '').trim().toLowerCase() === 'makand';
-      return v.mes === mesTexto && Number(v.anio) === Number(anio) && v.estado !== 'Cancelado' && esMakand
+      // El mes guardado en el viaje; si no lo tiene (algunos extra), el de su fecha.
+      const delMes = v.mes ? v.mes === mesTexto && Number(v.anio) === Number(anio)
+        : String(v.fecha || '').startsWith(`${anio}-${String(Number(mesIndex) + 1).padStart(2, '0')}`);
+      return delMes && v.estado !== 'Cancelado' && esMakand
         && (hastaDia === null || this.diaDelViaje(v) <= hastaDia);
     });
 

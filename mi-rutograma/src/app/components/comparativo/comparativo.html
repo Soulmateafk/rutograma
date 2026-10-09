@@ -136,6 +136,92 @@
 
     </div>
 
+    <div class="comp-analizar">
+      <button class="comp-analizar-btn" data-guia="comp-analizar" [disabled]="analizando" (click)="analizarDetalle()">
+        <i class="bi" [class.bi-search]="!analizando" [class.bi-hourglass-split]="analizando"></i>
+        {{ analizando ? 'Analizando…' : (analisis && !analisisDesactualizado ? 'Volver a analizar' : 'Analizar en detalle') }}
+      </button>
+      <span class="comp-analizar-ayuda">Desglosa qué cambió entre los dos meses: rutas, clientes, vehículos, conductores, cancelaciones, despachos y más (todas las transportadoras).</span>
+    </div>
+
+    <div class="comp-analisis" id="comp-analisis" *ngIf="analisis as an">
+      <div class="comp-analisis-aviso" *ngIf="analisisDesactualizado">
+        <i class="bi bi-exclamation-circle"></i> Cambiaste los meses o el corte: este análisis es de <strong>{{ an.etiquetaA }} vs. {{ an.etiquetaB }}</strong>. Oprime "Analizar en detalle" para actualizarlo.
+      </div>
+      <div class="comp-analisis-cab">
+        <div class="comp-stitle" style="margin: 0;">{{ an.etiquetaA }} vs. {{ an.etiquetaB }}<span *ngIf="an.hastaDia"> · del 1 al {{ an.hastaDia }}</span></div>
+        <button class="comp-analisis-cerrar" (click)="cerrarAnalisis()" title="Cerrar el análisis"><i class="bi bi-x-lg"></i></button>
+      </div>
+
+      <div class="comp-conclusiones">
+        <div class="comp-conclusiones-titulo"><i class="bi bi-lightbulb"></i> Lo más importante</div>
+        <ul><li *ngFor="let c of an.conclusiones">{{ c }}</li></ul>
+      </div>
+
+      <div class="comp-bloque">
+        <div class="comp-bloque-titulo">Resumen</div>
+        <div class="comp-tabla-scroll">
+          <table class="comp-tabla">
+            <thead><tr><th></th><th>{{ corta(an.etiquetaA) }}</th><th>{{ corta(an.etiquetaB) }}</th><th>Cambio</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let i of an.indicadores">
+                <td>{{ i.nombre }}</td>
+                <td>{{ valorIndicador(i, i.a) }}</td>
+                <td><strong>{{ valorIndicador(i, i.b) }}</strong></td>
+                <td [ngClass]="'comp-tono-' + tonoIndicador(i)">{{ difIndicador(i) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="comp-bloques">
+        <div class="comp-bloque" *ngFor="let g of an.grupos">
+          <div class="comp-bloque-titulo">{{ g.titulo }}</div>
+          <div class="comp-tabla-scroll" *ngIf="g.filas.length">
+            <table class="comp-tabla">
+              <thead><tr><th></th><th>{{ corta(an.etiquetaA) }}</th><th>{{ corta(an.etiquetaB) }}</th><th>Cambio</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let f of filasVisibles(g.clave, g.filas)">
+                  <td>{{ f.nombre }}<span class="comp-detalle" *ngIf="f.detalle"> · {{ f.detalle }}</span></td>
+                  <td>{{ f.a }}</td><td><strong>{{ f.b }}</strong></td>
+                  <td [class.comp-sube]="f.dif > 0" [class.comp-baja]="f.dif < 0" [title]="f.dif ? textoDif(f) : ''">{{ f.dif ? (f.dif > 0 ? '+' : '') + f.dif : '=' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <button class="comp-ver-todos" *ngIf="g.filas.length > 8" (click)="alternarGrupo(g.clave)">
+            {{ gruposCompletos.has(g.clave) ? 'Ver menos' : 'Ver los ' + g.filas.length }}
+          </button>
+          <div class="comp-nuevos" *ngIf="g.nuevos.length">
+            <span class="comp-etiqueta-sube">Solo en {{ an.etiquetaB }}:</span>
+            <span *ngFor="let f of g.nuevos; let ultimo = last">{{ f.nombre }} ({{ f.b }}){{ ultimo ? '' : ', ' }}</span>
+          </div>
+          <div class="comp-nuevos" *ngIf="g.dejaron.length">
+            <span class="comp-etiqueta-baja">Solo en {{ an.etiquetaA }}:</span>
+            <span *ngFor="let f of g.dejaron; let ultimo = last">{{ f.nombre }} ({{ f.a }}){{ ultimo ? '' : ', ' }}</span>
+          </div>
+          <div class="comp-vacio" *ngIf="!g.filas.length && !g.nuevos.length && !g.dejaron.length">Sin datos.</div>
+        </div>
+
+        <div class="comp-bloque" *ngIf="an.cancelaciones.length">
+          <div class="comp-bloque-titulo">Cancelaciones por motivo</div>
+          <table class="comp-tabla">
+            <thead><tr><th></th><th>{{ corta(an.etiquetaA) }}</th><th>{{ corta(an.etiquetaB) }}</th></tr></thead>
+            <tbody><tr *ngFor="let f of an.cancelaciones"><td>{{ f.nombre }}</td><td>{{ f.a }}</td><td><strong>{{ f.b }}</strong></td></tr></tbody>
+          </table>
+        </div>
+
+        <div class="comp-bloque" *ngIf="an.demoras.length">
+          <div class="comp-bloque-titulo">Demoras en el cargue (Despachos)</div>
+          <table class="comp-tabla">
+            <thead><tr><th></th><th>{{ corta(an.etiquetaA) }}</th><th>{{ corta(an.etiquetaB) }}</th></tr></thead>
+            <tbody><tr *ngFor="let f of an.demoras"><td>{{ f.nombre }}</td><td>{{ f.a }}</td><td><strong>{{ f.b }}</strong></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- ===================== MODO: ÚLTIMOS 6 MESES ===================== -->

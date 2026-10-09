@@ -220,6 +220,7 @@ export const GUIAS: Record<string, Guia> = {
     pasos: [
       { el: '.comp-header', titulo: 'Comparar meses', texto: 'Elige entre comparar 2 meses o ver los últimos 6, y exporta el resultado.' },
       { el: '.comp-ritmo', titulo: 'Ritmo del mes', texto: 'Si el mes va por encima o por debajo del anterior a esta misma fecha.' },
+      { el: 'comp-analizar', titulo: 'Analizar en detalle', texto: 'Con los dos meses elegidos, este botón desglosa qué cambió: viajes, cajas, cancelados, extras, terceros; qué rutas, clientes, vehículos y conductores subieron o bajaron, cuáles son nuevos y cuáles dejaron de aparecer; cancelaciones por motivo, quejas, comparendos y los cargues de Despachos. Arriba salen las conclusiones en palabras. Solo se calcula cuando lo oprimes.' },
       { el: '.comp-cumplimiento', titulo: 'Cumplimiento', texto: 'Qué tanto se cumplió lo programado.' }
     ]
   },
