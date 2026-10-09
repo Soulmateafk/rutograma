@@ -797,3 +797,83 @@ body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaj
 body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(18) { animation-delay: 0.595s; }
 body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(19) { animation-delay: 0.63s; }
 body.cascada router-outlet + * :is(table:not(#rtbl) > tbody > tr, .kpi, .mv-viaje, .apr-item, .qj-fila, .qj-rank, .cp-fila, .pp-item, .comp-bloque, .af-fila, .dp-cargando, .alerta-base, .card-vehiculo, .urg-item, .novedad-item):nth-child(20) { animation-delay: 0.665s; }
+
+/* ============================================================
+   ONDA AL TOCAR (efectos.service.ts): capa encima del botón, la onda
+   crece y se desvanece. Se quita con el efecto "Onda al tocar".
+   ============================================================ */
+.ap-onda-capa { position: fixed; z-index: 2147483000; overflow: hidden; pointer-events: none; }
+.ap-onda { position: absolute; border-radius: 50%; opacity: 0.3; transform: scale(0); animation: ap-onda 0.6s cubic-bezier(0.2, 0.7, 0.3, 1) forwards; }
+@keyframes ap-onda { to { transform: scale(1); opacity: 0; } }
+
+/* ============================================================
+   BARRA DE PROGRESO (progreso.ts): línea fina del color principal arriba.
+   ============================================================ */
+#ap-progreso { position: fixed; top: 0; left: 0; height: 3px; width: 0; z-index: 2147483001; pointer-events: none; opacity: 0;
+  background: linear-gradient(90deg, var(--acento-claro, #60a5fa), var(--acento, #2563eb)); box-shadow: 0 0 10px var(--acento, #2563eb), 0 0 4px var(--acento, #2563eb); border-radius: 0 3px 3px 0; }
+#ap-progreso.activo { opacity: 1; animation: ap-progreso-avanza 8s cubic-bezier(0.1, 0.6, 0.2, 1) forwards; }
+#ap-progreso.activo.listo { animation: ap-progreso-fin 0.6s ease-out forwards; }
+@keyframes ap-progreso-avanza { from { width: 0; } 15% { width: 35%; } to { width: 88%; } }
+@keyframes ap-progreso-fin { 0% { width: 88%; opacity: 1; } 50% { width: 100%; opacity: 1; } 100% { width: 100%; opacity: 0; } }
+html.sin-progreso #ap-progreso { display: none !important; }
+
+/* ============================================================
+   RUTOGRAMA: cambios en vivo, destello al buscar y deslizar de mes.
+   ============================================================ */
+@keyframes ap-vivo { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); filter: none; } 25%, 75% { box-shadow: 0 0 0 3px #fff, 0 0 18px 4px var(--acento-claro, #60a5fa); filter: brightness(1.25); } }
+.ruto-card-viaje.ap-cambio-vivo { animation: ap-vivo 1.4s ease-in-out 3; position: relative; z-index: 2; }
+.ruto-card-viaje.ap-cambio-vivo::before { content: 'Cambió'; position: absolute; top: -9px; right: 4px; background: var(--acento, #2563eb); color: #fff; font-size: 8px; font-weight: 800;
+  padding: 1px 5px; border-radius: 6px; letter-spacing: .3px; animation: ap-pop 0.3s ease-out; }
+@keyframes ap-destello { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); transform: none; } 30%, 70% { box-shadow: 0 0 0 4px #fff, 0 0 26px 8px var(--acento, #2563eb); transform: scale(1.06); } }
+.ruto-card-viaje.ap-destello { animation: ap-destello 0.6s ease-in-out 2; position: relative; z-index: 3; }
+@keyframes ap-mes-desde-der { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: none; } }
+@keyframes ap-mes-desde-izq { from { opacity: 0; transform: translateX(-60px); } to { opacity: 1; transform: none; } }
+.ruto-table-responsive.ap-mes-sig { animation: ap-mes-desde-der 0.45s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.ruto-table-responsive.ap-mes-ant { animation: ap-mes-desde-izq 0.45s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+/* AVISAR SI FALTA ALGO (ui.service.ts): la ventana se sacude y marca lo vacío. */
+@keyframes ap-temblor { 0%, 100% { transform: none; } 15% { transform: translateX(-9px) rotate(-0.4deg); } 30% { transform: translateX(8px) rotate(0.3deg); } 45% { transform: translateX(-6px); } 60% { transform: translateX(4px); } 75% { transform: translateX(-2px); } }
+.ap-temblor { animation: ap-temblor 0.55s cubic-bezier(0.36, 0.07, 0.19, 0.97) !important; }
+@keyframes ap-falta { 0%, 100% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25); } 50% { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.5); } }
+.ap-falta { border-color: #ef4444 !important; animation: ap-falta 1s ease-in-out 3; }
+
+/* ============================================================
+   DECORACIÓN DE TEMPORADA (components/apariencia/temporada.ts).
+   Pocas cosas, solo movimiento (transform): no cargan el equipo.
+   ============================================================ */
+.tp-capa { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 9990; }
+.tp-p { position: absolute; top: -40px; opacity: 0.55; line-height: 1; will-change: transform; animation-name: tp-caer; animation-timing-function: linear; animation-iteration-count: infinite; }
+.tp-papel { width: 8px; height: 13px; border-radius: 2px; opacity: 0.85; }
+@keyframes tp-caer { from { transform: translate(0, -5vh) rotate(0deg); } 50% { transform: translate(calc(var(--deriva, 0px) * -0.6), 52vh) rotate(calc(var(--giro, 0deg) / 2)); } to { transform: translate(var(--deriva, 0px), 108vh) rotate(var(--giro, 0deg)); } }
+html.sin-animaciones .tp-capa { display: none; }
+/* Emoji de la temporada junto al logo. */
+.logo::after { content: var(--temporada-emoji, none); margin-left: 6px; display: inline-block; font-size: 15px; animation: tp-balanceo 3s ease-in-out infinite; }
+@keyframes tp-balanceo { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg) scale(1.1); } }
+
+/* --- Halloween: estilo "spooky" --- */
+html[data-temporada="halloween"] nav { box-shadow: 0 2px 0 #f97316, 0 6px 18px rgba(124, 58, 237, 0.35); }
+html[data-temporada="halloween"] .logo span { text-shadow: 0 0 8px rgba(249, 115, 22, 0.8); }
+html[data-temporada="halloween"] body:not(.tema-claro) { --color-fondo-pagina: #0d0a17; --bg: #0d0a17; }
+.tp-telarana { position: fixed; top: 54px; width: 110px; height: 110px; color: rgba(255, 255, 255, 0.16); pointer-events: none; z-index: 9989; }
+body.tema-claro .tp-telarana { color: rgba(15, 23, 42, 0.16); }
+.tp-izq { left: 0; }
+.tp-der { right: 0; transform: scaleX(-1); }
+.tp-murcielago { position: absolute; left: -60px; font-size: 26px; opacity: 0; animation: tp-volar 26s linear infinite; }
+.tp-m2 { font-size: 20px; animation-duration: 31s; }
+.tp-m3 { font-size: 16px; animation-duration: 36s; }
+@keyframes tp-volar { 0% { opacity: 0; transform: translate(0, 0) scaleX(1); } 3% { opacity: 0.85; } 15% { transform: translate(30vw, -6vh); } 30% { transform: translate(62vw, 4vh); } 42% { opacity: 0.85; transform: translate(105vw, -4vh); } 43%, 100% { opacity: 0; transform: translate(105vw, -4vh); } }
+.tp-fantasma { position: absolute; left: 3vw; bottom: 8vh; font-size: 34px; opacity: 0; animation: tp-fantasma 24s ease-in-out infinite 6s; }
+@keyframes tp-fantasma { 0%, 70%, 100% { opacity: 0; transform: translateY(20px) scale(0.8); } 76%, 92% { opacity: 0.7; transform: translateY(-14px) scale(1); } 84% { opacity: 0.7; transform: translateY(0) scale(1.05) rotate(-6deg); } }
+@media (max-width: 600px) { .tp-telarana { width: 70px; height: 70px; } }
+
+/* --- Navidad: luces en la barra --- */
+html[data-temporada="navidad"] nav::after { content: ''; position: absolute; left: 0; right: 0; bottom: -7px; height: 10px; pointer-events: none;
+  background: radial-gradient(circle, #ef4444 3px, transparent 4px) 0 0 / 42px 10px repeat-x, radial-gradient(circle, #22c55e 3px, transparent 4px) 14px 0 / 42px 10px repeat-x, radial-gradient(circle, #facc15 3px, transparent 4px) 28px 0 / 42px 10px repeat-x;
+  animation: tp-luces 1.8s ease-in-out infinite alternate; }
+@keyframes tp-luces { from { opacity: 0.45; filter: saturate(0.7); } to { opacity: 1; filter: saturate(1.4) drop-shadow(0 0 3px #fff); } }
+html[data-temporada="navidad"] .tp-p:not(.tp-papel) { color: #e0f2fe; text-shadow: 0 0 6px rgba(255, 255, 255, 0.7); }
+body.tema-claro .tp-p:not(.tp-papel) { text-shadow: none; }
+html[data-temporada="navidad"] body.tema-claro .tp-p:not(.tp-papel) { color: #60a5fa; }
+/* --- Año Nuevo y 20 de Julio: papelitos que giran --- */
+html:is([data-temporada="ano-nuevo"], [data-temporada="independencia"]) .tp-papel { animation-name: tp-caer, tp-papel-gira; animation-duration: inherit, 1.6s; }
+@keyframes tp-papel-gira { 50% { scale: 1 0.3; } }

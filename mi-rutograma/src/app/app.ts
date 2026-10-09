@@ -12,6 +12,7 @@ import { AtajosService } from './services/atajos.service';
 import { InstalarService } from './services/instalar.service';
 import { CierreAnimadoService } from './services/cierre-animado.service';
 import { ConexionService } from './services/conexion.service';
+import { EfectosService } from './services/efectos.service';
 import { AparienciaComponent } from './components/apariencia/apariencia';
 import { NavbarComponent } from './components/navbar/navbar'; 
 import { GuiaComponent } from './components/guia/guia';
@@ -96,6 +97,7 @@ export class App implements OnInit {
     private instalar: InstalarService,
     private cierreAnimado: CierreAnimadoService,
     private conexion: ConexionService,
+    private efectos: EfectosService,
     private titleService: Title,
     private presencia: PresenciaService,
     private router: Router,
@@ -136,7 +138,7 @@ export class App implements OnInit {
 
         // Filas en cascada (styles.css, "body.cascada"): solo un momento al
         // entrar a cada pantalla, no cuando los datos se refrescan solos.
-        if (typeof document !== 'undefined') {
+        if (typeof document !== 'undefined' && !document.documentElement.classList.contains('sin-cascada')) {
           document.body.classList.add('cascada');
           clearTimeout(this.relojCascada);
           this.relojCascada = setTimeout(() => document.body.classList.remove('cascada'), 1800);

@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom, Subject } from 'rxjs';
 import { UiService } from './ui.service';
 import { API } from '../api-base';
+import { iniciarProgreso, terminarProgreso } from '../progreso';
 
 export type UserStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'NOT_FOUND';
 
@@ -274,7 +275,11 @@ export class AccountService {
     const cabeceras = new Headers(init.headers || {});
     Object.entries(this.cabecerasSesion).forEach(([k, v]) => cabeceras.set(k, v));
 
-    const respuesta = await fetch(url, { ...init, headers: cabeceras });
+    const guarda = !!init.method && init.method.toUpperCase() !== 'GET';
+    if (guarda) iniciarProgreso();
+    let respuesta: Response;
+    try { respuesta = await fetch(url, { ...init, headers: cabeceras }); }
+    finally { if (guarda) terminarProgreso(); }
 
     if (respuesta.status === 202) {
       try {

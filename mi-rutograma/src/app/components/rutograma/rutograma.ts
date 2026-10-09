@@ -23,6 +23,7 @@ import { agruparViajes, prepararRutasEnriquecidas, hayConflicto, obtenerViajesEn
 import { API } from '../../api-base';
 import { AtajosService } from '../../services/atajos.service';
 import { zoomPagina } from '../../zoom';
+import { ThemeService } from '../../services/theme.service';
 
 interface Viaje {
   id: number;
@@ -242,12 +243,14 @@ export class RutogramaComponent implements OnInit, OnDestroy {
 
     this.iniciarCarga();
     this.verificarEstadosExpirados();
+    this.detectarCambiosEnVivo();   // foto inicial para comparar con la próxima sincronización
 
     
     this.cargarDespachos(true);
     this.relojDespachos = setInterval(() => { if (document.visibilityState === 'visible') this.cargarDespachos(true); }, 60000);
     this.subDataChanged = this.ds.dataChanged.subscribe(() => {
       this.iniciarCarga();
+      this.detectarCambiosEnVivo();
       this.abrirViajePedido();
       this.cargarDespachos();
       this.cdr.detectChanges();
@@ -1466,6 +1469,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   }
 
   public seleccionarMesCalendario(mesIndex: number): void {
+    this.deslizarMes((this.calendarioMesAnioMostrado * 12 + mesIndex) - (Number(this.ds.S.anio) * 12 + Number(this.ds.S.mes)));
     this.ds.S.anio = this.calendarioMesAnioMostrado;
     this.ds.S.mes = mesIndex;
     this.ds.syncFechas();
@@ -2653,7 +2657,53 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     const vj = (this.ds.S?.viajes || []).find((v: any) => String(v.id) === this.viajePedido);
     if (!vj) return;
     this.viajePedido = null;
-    this.verDetalle(vj.id);
+    // Destello al buscar (efecto de Apariencia): baja suave hasta el viaje,
+    // la tarjeta destella y luego se abre su detalle.
+    setTimeout(() => {
+      const tarjeta = document.querySelector(`[data-viaje="${CSS.escape(String(vj.id))}"]`) as HTMLElement | null;
+      if (!tarjeta || !this.theme.efectoActivo('destello')) { this.verDetalle(vj.id); return; }
+      tarjeta.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      tarjeta.classList.remove('ap-destello'); void tarjeta.offsetWidth; tarjeta.classList.add('ap-destello');
+      setTimeout(() => { tarjeta.classList.remove('ap-destello'); this.verDetalle(vj.id); this.cdr.detectChanges(); }, 1300);
+    }, 50);
+  }
+
+  // ============================================================
+  // CAMBIOS EN VIVO (efecto de Apariencia): si otra persona cambia un viaje
+  // mientras se ve el Rutograma, su tarjeta brilla un momento. Se compara
+  // lo que trae cada sincronización con lo que había; lo que cambió uno
+  // mismo no brilla.
+  // ============================================================
+  public cambiadosVivo = new Set<any>();
+  private firmasViajes: Map<any, string> | null = null;
+  private detectarCambiosEnVivo(): void {
+    const yo = String(this.auth.currentUser?.email || '').toLowerCase();
+    const firma = (v: any) => [v.p, v.cond, v.ruta, v.fecha, v.salida, v.retorno, v.estado, v.hora, v.cajas, v.cliente, v.version, v.salidaReal, v.llegadaReal].join('|');
+    const nuevas = new Map<any, string>();
+    for (const v of this.ds.S?.viajes || []) if (v?.id != null) nuevas.set(v.id, firma(v));
+    const antes = this.firmasViajes;
+    this.firmasViajes = nuevas;
+    if (!antes || !this.theme.efectoActivo('vivo')) return;
+    const cambiados: any[] = [];
+    for (const v of this.ds.S?.viajes || []) {
+      const previa = antes.get(v.id);
+      if (previa === undefined || previa === nuevas.get(v.id)) continue;
+      if (String(v.editadoPor || '').toLowerCase() === yo) continue;
+      cambiados.push(v.id);
+    }
+    if (!cambiados.length || cambiados.length > 30) return;   // muchos a la vez = otro mes o una recarga: no
+    cambiados.forEach(id => this.cambiadosVivo.add(id));
+    setTimeout(() => { cambiados.forEach(id => this.cambiadosVivo.delete(id)); this.cdr.detectChanges(); }, 4200);
+  }
+
+  // DESLIZAR AL CAMBIAR DE MES (efecto de Apariencia).
+  private deslizarMes(salto: number): void {
+    if (!salto || !this.theme.efectoActivo('mes')) return;
+    const tabla = document.querySelector('.ruto-table-responsive') as HTMLElement | null;
+    if (!tabla) return;
+    tabla.classList.remove('ap-mes-sig', 'ap-mes-ant'); void tabla.offsetWidth;
+    tabla.classList.add(salto > 0 ? 'ap-mes-sig' : 'ap-mes-ant');
+    setTimeout(() => tabla.classList.remove('ap-mes-sig', 'ap-mes-ant'), 600);
   }
 
   public verDetalle(id: number) { 
@@ -2721,6 +2771,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   // "En línea" y aquí sale "Carlos está editando este viaje".
   // ============================================================
   private presencia = inject(PresenciaService);
+  private theme = inject(ThemeService);
 
   private latirPresencia(): void {
     const v = this.selectedViaje;

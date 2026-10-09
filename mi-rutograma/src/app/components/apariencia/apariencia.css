@@ -89,3 +89,8 @@ body.tema-claro .ap-conexion.volvio { background: #f0fdf4; color: #166534; }
 .ap-conexion > span { flex: 1; min-width: 0; }
 .ap-conexion-icono, .ap-conexion-btn { flex-shrink: 0; }
 @media (max-width: 480px) { .ap-conexion.sin { flex-wrap: wrap; } .ap-conexion.sin .ap-conexion-btn { margin-left: auto; } }
+
+.ap-select { width: 100%; background: var(--color-fondo-input); color: var(--color-texto-principal); border: 1px solid var(--color-borde); border-radius: 8px; padding: 8px 10px; font-size: 14px; font-family: inherit; }
+.ap-interruptor:has(input:disabled) { opacity: 0.5; cursor: default; }
+.ap-saludo-texto { display: flex; flex-direction: column; line-height: 1.25; }
+.ap-saludo-texto small { font-size: 12px; font-weight: 600; color: var(--acento-texto); }

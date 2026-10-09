@@ -9,6 +9,9 @@ import { COLORES_TR, Transportadora } from '../../services/theme.service';
 import { variantesAcento } from '../../services/colores';
 import { RuedaColorComponent } from './rueda-color';
 import { ConexionService } from '../../services/conexion.service';
+import { TemporadaComponent } from './temporada';
+import { TEMPORADAS, temporadaDe } from '../../services/temporadas';
+import { EFECTOS } from '../../services/theme.service';
 
 /**
  * Panel APARIENCIA (modo claro/oscuro, tamaño de letra, instalar la app) y
@@ -18,7 +21,7 @@ import { ConexionService } from '../../services/conexion.service';
 @Component({
   selector: 'app-apariencia',
   standalone: true,
-  imports: [CommonModule, RuedaColorComponent],
+  imports: [CommonModule, RuedaColorComponent, TemporadaComponent],
   templateUrl: './apariencia.html',
   styleUrls: ['./apariencia.css']
 })
@@ -57,6 +60,11 @@ export class AparienciaComponent {
   public colorTr(t: Transportadora): string {
     return this.theme.ap.coloresTr[t] || COLORES_TR[t];
   }
+
+  // Efectos y temporadas (cada cuenta escoge los suyos).
+  public readonly efectos = EFECTOS;
+  public readonly temporadas = TEMPORADAS;
+  public get temporadaDeHoy() { return temporadaDe(); }
 
   public verAtajos(): void {
     this.theme.panelAbierto.set(false);

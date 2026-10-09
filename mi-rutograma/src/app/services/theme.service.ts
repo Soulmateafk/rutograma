@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { AccountService } from './account.service';
 import { HEX, paraTextoBlanco, variantesAcento } from './colores';
+import { temporadaVisible } from './temporadas';
 
 export type Tema = 'claro' | 'oscuro';
 export type PreferenciaTema = Tema | 'auto';
@@ -8,6 +9,7 @@ export type TamanoLetra = 'pequena' | 'normal' | 'grande' | 'muy-grande';
 export type Acento = 'azul' | 'indigo' | 'morado' | 'rosa' | 'rojo' | 'naranja' | 'ambar' | 'lima' | 'verde' | 'turquesa' | 'cian' | 'grafito' | 'propio';
 export type Esquinas = 'normal' | 'muy' | 'rectas';
 export type Transportadora = 'makand' | 'arsitrans' | 'polar';
+export type Efecto = 'onda' | 'progreso' | 'cascada' | 'mes' | 'vivo' | 'temblor' | 'destello';
 
 export interface Apariencia {
   tema: PreferenciaTema;
@@ -21,12 +23,24 @@ export interface Apariencia {
   daltonismo: boolean;                              // estados con colores que se distinguen sin rojo/verde
   esquinas: Esquinas;
   saludo: boolean;                                  // "Buenos días, Ana" al entrar
+  efectos: Record<Efecto, boolean>;                 // cada efecto se puede quitar por separado
+  temporada: string;                                // 'auto' (según la fecha), 'no' o una temporada para verla
 }
 
 const POR_DEFECTO: Apariencia = {
   tema: 'oscuro', letra: 'normal', acento: 'azul', contraste: false, sinAnimaciones: false,
-  colorPropio: '', fondoTinte: false, coloresTr: { makand: '', arsitrans: '', polar: '' }, daltonismo: false, esquinas: 'normal', saludo: true
+  colorPropio: '', fondoTinte: false, coloresTr: { makand: '', arsitrans: '', polar: '' }, daltonismo: false, esquinas: 'normal', saludo: true,
+  efectos: { onda: true, progreso: true, cascada: true, mes: true, vivo: true, temblor: true, destello: true }, temporada: 'auto'
 };
+export const EFECTOS: Array<{ clave: Efecto; nombre: string; ayuda: string }> = [
+  { clave: 'onda', nombre: 'Onda al tocar', ayuda: 'Una onda sale desde donde tocas un botón.' },
+  { clave: 'progreso', nombre: 'Barra de progreso', ayuda: 'Una línea arriba avanza mientras carga una pantalla o se guarda algo.' },
+  { clave: 'cascada', nombre: 'Filas en cascada', ayuda: 'Al entrar a una pantalla, las filas aparecen una tras otra.' },
+  { clave: 'mes', nombre: 'Deslizar al cambiar de mes', ayuda: 'En el Rutograma, la tabla se desliza hacia el mes que escoges.' },
+  { clave: 'vivo', nombre: 'Resaltar cambios en vivo', ayuda: 'Si otra persona cambia un viaje mientras lo ves, su tarjeta brilla un momento.' },
+  { clave: 'temblor', nombre: 'Avisar si falta algo', ayuda: 'Si al guardar falta un dato, la ventana se sacude y marca lo que falta.' },
+  { clave: 'destello', nombre: 'Destello al buscar', ayuda: 'Al ir a un viaje desde el buscador, la pantalla baja hasta él y destella.' }
+];
 /** Colores de siempre de las tarjetas de cada transportadora (rutograma.css). */
 export const COLORES_TR: Record<Transportadora, string> = { makand: '#1e3a8a', arsitrans: '#064e3b', polar: '#0c4a6e' };
 
@@ -93,7 +107,7 @@ export class ThemeService {
   ];
 
   /** Saludo al entrar ("Buenos días, Ana ☀️"): lo muestra components/apariencia. */
-  public saludo = signal<{ texto: string; icono: string } | null>(null);
+  public saludo = signal<{ texto: string; icono: string; extra?: string } | null>(null);
 
   private saludar(compartida: boolean): void {
     if (!this.ap.saludo || !this.email) return;
@@ -102,7 +116,8 @@ export class ThemeService {
     const h = new Date().getHours();
     const [frase, icono] = h >= 5 && h < 12 ? ['Buenos días', '☀️'] : h >= 12 && h < 19 ? ['Buenas tardes', '🌤️'] : ['Buenas noches', '🌙'];
     const nombre = compartida ? '' : String(this.account.nombre || '').trim().split(/\s+/)[0];
-    this.saludo.set({ texto: nombre ? `${frase}, ${nombre}` : `¡${frase}!`, icono });
+    const t = temporadaVisible(this.ap.temporada);
+    this.saludo.set({ texto: nombre ? `${frase}, ${nombre}` : `¡${frase}!`, icono: t ? t.emoji : icono, extra: t ? t.saludo : '' });
     setTimeout(() => this.saludo.set(null), 3600);
   }
 
@@ -153,7 +168,9 @@ export class ThemeService {
       },
       daltonismo: p.daltonismo === true,
       esquinas: ['normal', 'muy', 'rectas'].includes(p.esquinas) ? p.esquinas : 'normal',
-      saludo: p.saludo !== false
+      saludo: p.saludo !== false,
+      efectos: Object.fromEntries(EFECTOS.map(e => [e.clave, p.efectos?.[e.clave] !== false])) as Record<Efecto, boolean>,
+      temporada: typeof p.temporada === 'string' && /^[a-z-]{1,20}$/.test(p.temporada) ? p.temporada : 'auto'
     };
   }
 
@@ -228,6 +245,9 @@ export class ThemeService {
       else html.style.removeProperty('--tr-' + tr);
     }
     html.classList.toggle('tr-propios', Object.values(this.ap.coloresTr).some(Boolean));
+    // Efectos que la cuenta quitó: html.sin-onda, html.sin-progreso...
+    for (const e of EFECTOS) html.classList.toggle('sin-' + e.clave, !this.ap.efectos[e.clave]);
+    this.temporadaPreferida.set(this.ap.temporada);
     // Color de la barra del celular cuando está instalada como aplicación.
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', this.temaActual === 'claro' ? '#f8fafc' : '#0f172a');
   }
@@ -244,10 +264,16 @@ export class ThemeService {
   public ponerAcento(acento: Acento): void { if (acento !== this.ap.acento) this.cambiar({ acento }); }
   public alternarContraste(): void { this.cambiar({ contraste: !this.ap.contraste }); }
   public alternarAnimaciones(): void { this.cambiar({ sinAnimaciones: !this.ap.sinAnimaciones }); }
-  public restablecer(): void { this.cambiar({ ...POR_DEFECTO, coloresTr: { ...POR_DEFECTO.coloresTr } }); }
+  public restablecer(): void { this.cambiar({ ...POR_DEFECTO, coloresTr: { ...POR_DEFECTO.coloresTr }, efectos: { ...POR_DEFECTO.efectos } }); }
   public alternarTinte(): void { this.cambiar({ fondoTinte: !this.ap.fondoTinte }); }
   public alternarDaltonismo(): void { this.cambiar({ daltonismo: !this.ap.daltonismo }); }
   public alternarSaludo(): void { this.cambiar({ saludo: !this.ap.saludo }); }
+  public alternarEfecto(e: Efecto): void { this.cambiar({ efectos: { ...this.ap.efectos, [e]: !this.ap.efectos[e] } }); }
+  public ponerTemporada(t: string): void { if (t !== this.ap.temporada) this.cambiar({ temporada: t }); }
+  /** Señal para la decoración de temporada (components/temporada). */
+  public temporadaPreferida = signal('auto');
+  /** ¿La cuenta tiene este efecto puesto (y no quitó todas las animaciones)? */
+  public efectoActivo(e: Efecto): boolean { return !!this.ap.efectos[e] && !this.ap.sinAnimaciones; }
   public ponerEsquinas(esquinas: Esquinas): void { if (esquinas !== this.ap.esquinas) this.cambiar({ esquinas }); }
 
   /** Color de la rueda. Mientras se arrastra se ve sin guardar; al soltar se guarda. */

@@ -4573,7 +4573,9 @@ function preferenciasDe(usuario) {
         coloresTr: Object.fromEntries(['makand', 'arsitrans', 'polar'].map(t => [t, COLOR_HEX.test(p.coloresTr?.[t] || '') ? String(p.coloresTr[t]).toLowerCase() : ''])),
         daltonismo: p.daltonismo === true,
         esquinas: ['normal', 'muy', 'rectas'].includes(p.esquinas) ? p.esquinas : 'normal',
-        saludo: p.saludo !== false
+        saludo: p.saludo !== false,
+        efectos: Object.fromEntries(['onda', 'progreso', 'cascada', 'mes', 'vivo', 'temblor', 'destello'].map(e => [e, p.efectos?.[e] !== false])),
+        temporada: typeof p.temporada === 'string' && /^[a-z-]{1,20}$/.test(p.temporada) ? p.temporada : 'auto'
     };
 }
 function esCuentaCompartida(usuario) {

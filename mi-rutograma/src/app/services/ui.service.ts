@@ -50,6 +50,7 @@ export class UiService {
   }
 
   public mostrarToast(msg: string, tipo: string): void {
+    if (this.isBrowser && tipo === 'err') this.sacudirVentana();
     if (this.isBrowser) {
       const el = document.getElementById('sp-toast') as any;
       if (el) {
@@ -74,6 +75,28 @@ export class UiService {
         (window as any).mostrarToast(this.sanitizer.sanitize(SecurityContext.HTML, msg) || '', tipo);
       }
     }
+  }
+
+  /**
+   * "Avisar si falta algo" (efecto de Apariencia): si sale un error con una
+   * ventana abierta (ej. faltó un dato al guardar), la ventana se sacude y
+   * los campos obligatorios vacíos quedan marcados hasta que se llenen.
+   */
+  private sacudirVentana(): void {
+    const html = document.documentElement;
+    if (html.classList.contains('sin-temblor') || html.classList.contains('sin-animaciones')) return;
+    const ventanas = Array.from(document.querySelectorAll<HTMLElement>('.mbg:not(.hide) > .modal, .nb-modal, .ruto-modal-content, .modal-card, .mv-modal, .dp-modal, .qj-modal, .ap-panel, .dp-form, .mbg:not(.hide) .modal'))
+      .filter(v => { const r = v.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+    const ventana = ventanas[ventanas.length - 1];
+    if (!ventana) return;
+    ventana.classList.remove('ap-temblor'); void ventana.offsetWidth; ventana.classList.add('ap-temblor');
+    setTimeout(() => ventana.classList.remove('ap-temblor'), 650);
+    ventana.querySelectorAll<HTMLInputElement>('input[required], select[required], textarea[required], input.ng-invalid, select.ng-invalid, textarea.ng-invalid').forEach(campo => {
+      if (String(campo.value || '').trim() !== '' && !campo.classList.contains('ng-invalid')) return;
+      campo.classList.add('ap-falta');
+      const quitar = () => { campo.classList.remove('ap-falta'); campo.removeEventListener('input', quitar); campo.removeEventListener('change', quitar); };
+      campo.addEventListener('input', quitar); campo.addEventListener('change', quitar);
+    });
   }
 
   public syncFechas(): void {

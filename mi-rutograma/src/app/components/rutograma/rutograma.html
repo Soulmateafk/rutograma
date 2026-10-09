@@ -216,7 +216,7 @@
                      (mouseenter)="mostrarTooltipViaje($event, vj, v)"
                      (mousemove)="moverTooltipViaje($event)"
                      (mouseleave)="ocultarTooltipViaje()"
-                     class="ruto-card-viaje"
+                     class="ruto-card-viaje" [attr.data-viaje]="vj.id" [class.ap-cambio-vivo]="cambiadosVivo.has(vj.id)"
                      [ngClass]="vj.cssClass"
                      [style.border-left]="vj.prioridad === 'urgente' ? '4px solid #ef4444' : (vj.prioridad === 'alta' ? '4px solid #f59e0b' : '')">
 
@@ -367,7 +367,7 @@
                        (mouseenter)="mostrarTooltipViaje($event, vj, v)"
                        (mousemove)="moverTooltipViaje($event)"
                        (mouseleave)="ocultarTooltipViaje()"
-                       class="ruto-card-viaje"
+                       class="ruto-card-viaje" [attr.data-viaje]="vj.id" [class.ap-cambio-vivo]="cambiadosVivo.has(vj.id)"
                        [ngClass]="vj.cssClass">
 
                     <div *ngIf="viajesConCambioPendiente.has(vj.id)" class="ruto-badge-pendiente" title="Este viaje tiene un cambio esperando aprobación"><i class="bi bi-hourglass-split"></i> Cambio por aprobar</div>

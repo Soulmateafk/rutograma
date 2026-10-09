@@ -1,3 +1,4 @@
+<app-temporada></app-temporada>
 <!-- ===== APARIENCIA ===== -->
 <div animate.leave="ap-cerrar" class="ap-fondo" *ngIf="theme.panelAbierto()" (click)="theme.panelAbierto.set(false)">
   <div class="ap-panel" (click)="$event.stopPropagation()" role="dialog" aria-label="Apariencia">
@@ -71,6 +72,26 @@
         <button class="ap-link" *ngIf="theme.ap.coloresTr[t.clave]" (click)="theme.ponerColorTr(t.clave, '')">Como siempre</button>
       </div>
       <p class="ap-nota">El color de las tarjetas de cada transportadora. Se oscurece solo si hace falta para que su letra blanca se lea.</p>
+    </div>
+
+    <div class="ap-grupo" data-guia="ap-temporada">
+      <div class="ap-titulo">Decoración de temporada</div>
+      <select class="ap-select" [value]="theme.ap.temporada" (change)="theme.ponerTemporada($any($event.target).value)">
+        <option value="auto">Automática según la fecha{{ temporadaDeHoy ? ' (ahora: ' + temporadaDeHoy.nombre + ' ' + temporadaDeHoy.emoji + ')' : ' (hoy no hay ninguna)' }}</option>
+        <option value="no">Sin decoración</option>
+        <option *ngFor="let t of temporadas" [value]="t.clave">Ver siempre: {{ t.nombre }} {{ t.emoji }}</option>
+      </select>
+      <p class="ap-nota">Año Nuevo, San Valentín, Día de la Mujer, Semana Santa, Día de la Madre y del Padre, 20 de Julio, Amor y Amistad, Halloween y Navidad: salen solas en su fecha.</p>
+    </div>
+
+    <div class="ap-grupo" data-guia="ap-efectos">
+      <div class="ap-titulo">Efectos</div>
+      <label class="ap-interruptor" *ngFor="let e of efectos">
+        <input type="checkbox" [checked]="theme.ap.efectos[e.clave]" (change)="theme.alternarEfecto(e.clave)" [disabled]="theme.ap.sinAnimaciones">
+        <span class="ap-int-caja"></span>
+        <span><strong>{{ e.nombre }}</strong><small>{{ e.ayuda }}</small></span>
+      </label>
+      <p class="ap-nota" *ngIf="theme.ap.sinAnimaciones">Están apagados porque activaste "Quitar animaciones".</p>
     </div>
 
     <div class="ap-grupo" data-guia="ap-ajustes">
@@ -148,7 +169,8 @@
 
 <!-- Saludo al entrar (se quita en Apariencia → "Saludo al entrar"). -->
 <div class="ap-saludo" *ngIf="theme.saludo() as sa" animate.leave="ap-ocultar" (click)="theme.saludo.set(null)">
-  <span class="ap-saludo-icono">{{ sa.icono }}</span> {{ sa.texto }}
+  <span class="ap-saludo-icono">{{ sa.icono }}</span>
+  <span class="ap-saludo-texto">{{ sa.texto }}<small *ngIf="sa.extra">{{ sa.extra }}</small></span>
 </div>
 
 <!-- Conexión con el servidor (services/conexion.service.ts). -->
