@@ -133,7 +133,7 @@
       {{ cambiosCierreAbiertos ? 'Ocultar' : 'Ver' }} cambios después del cierre ({{ cambiosDespuesCierre.length }})
     </button>
   </div>
-  <div class="ruto-cambios-cierre" *ngIf="cambiosCierreAbiertos && cambiosDespuesCierre.length">
+  <div animate.leave="ap-ocultar" class="ruto-cambios-cierre" *ngIf="cambiosCierreAbiertos && cambiosDespuesCierre.length">
     <div class="ruto-cambio-cierre" *ngFor="let c of cambiosDespuesCierre">
       <div><strong>{{ c.descripcion }}</strong> <span class="ruto-cambio-semana">semana {{ textoSemanaDe(c.lunes) }}</span></div>
       <div class="ruto-cambio-motivo"><i class="bi bi-chat-left-text"></i> {{ c.motivo }}</div>
@@ -216,7 +216,7 @@
                      (mouseenter)="mostrarTooltipViaje($event, vj, v)"
                      (mousemove)="moverTooltipViaje($event)"
                      (mouseleave)="ocultarTooltipViaje()"
-                     class="ruto-card-viaje"
+                     class="ruto-card-viaje" [attr.data-viaje]="vj.id" [class.ap-cambio-vivo]="cambiadosVivo.has(vj.id)"
                      [ngClass]="vj.cssClass"
                      [style.border-left]="vj.prioridad === 'urgente' ? '4px solid #ef4444' : (vj.prioridad === 'alta' ? '4px solid #f59e0b' : '')">
 
@@ -367,7 +367,7 @@
                        (mouseenter)="mostrarTooltipViaje($event, vj, v)"
                        (mousemove)="moverTooltipViaje($event)"
                        (mouseleave)="ocultarTooltipViaje()"
-                       class="ruto-card-viaje"
+                       class="ruto-card-viaje" [attr.data-viaje]="vj.id" [class.ap-cambio-vivo]="cambiadosVivo.has(vj.id)"
                        [ngClass]="vj.cssClass">
 
                     <div *ngIf="viajesConCambioPendiente.has(vj.id)" class="ruto-badge-pendiente" title="Este viaje tiene un cambio esperando aprobación"><i class="bi bi-hourglass-split"></i> Cambio por aprobar</div>
@@ -533,7 +533,7 @@
   </div>
 </div>
 
-<div *ngIf="isModalMantenimientoOpen && vehiculoMantenimientoActivo" class="ruto-modal-backdrop">
+<div animate.leave="ap-cerrar" *ngIf="isModalMantenimientoOpen && vehiculoMantenimientoActivo" class="ruto-modal-backdrop">
   <div class="ruto-modal-content" style="max-width:380px;">
     <div class="ruto-modal-header">
       <h2 class="ruto-modal-title">Mantenimiento — {{ vehiculoMantenimientoActivo.p }}</h2>
@@ -568,7 +568,7 @@
   </div>
 </div>
 
-<div *ngIf="isModalCupoOpen" class="ruto-modal-backdrop">
+<div animate.leave="ap-cerrar" *ngIf="isModalCupoOpen" class="ruto-modal-backdrop">
   <div class="ruto-modal-content" style="max-width:420px;">
     <div class="ruto-modal-header">
       <h2 class="ruto-modal-title">
@@ -610,7 +610,7 @@
   </div>
 </div>
 
-<div *ngIf="isModalDetalleOpen && selectedViaje" class="ruto-modal-backdrop">
+<div animate.leave="ap-cerrar" *ngIf="isModalDetalleOpen && selectedViaje" class="ruto-modal-backdrop">
   <div class="ruto-modal-content">
     <div class="ruto-modal-header">
       <h2 class="ruto-modal-title">
@@ -825,7 +825,7 @@
 
 <!-- Vehículo Varado: otro vehículo (de cualquier transportadora) termina
      de llevar el viaje cuando el original se avería a mitad de camino. -->
-<div *ngIf="isModalVaradoOpen" class="ruto-modal-backdrop" style="z-index: 10001;">
+<div animate.leave="ap-cerrar" *ngIf="isModalVaradoOpen" class="ruto-modal-backdrop" style="z-index: 10001;">
   <div class="ruto-modal-content" style="max-width: 480px;">
     <h3 style="margin: 0 0 4px 0;"><i class="bi bi-cone-striped"></i> Vehículo varado</h3>
     <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0;">
@@ -864,7 +864,7 @@
 
 <!-- Eliminar viaje — 3 opciones explícitas: acomodar los siguientes
      viajes de esa placa, eliminar sin tocar nada más, o cancelar. -->
-<div *ngIf="isModalEliminarViajeOpen" class="ruto-modal-backdrop" style="z-index: 10002;">
+<div animate.leave="ap-cerrar" *ngIf="isModalEliminarViajeOpen" class="ruto-modal-backdrop" style="z-index: 10002;">
   <div class="ruto-modal-content" style="max-width: 460px;">
     <h3 style="margin: 0 0 4px 0;">Eliminar viaje</h3>
     <p style="font-size: 13px; color: var(--color-texto-secundario); margin: 0 0 16px 0;">
@@ -885,7 +885,7 @@
 
 <!-- Al elegir una placa Makand ya ocupada en "Editar viaje" — 3 opciones
      para resolver el choque con el viaje que ya estaba ahí. -->
-<div *ngIf="isModalConflictoPlacaOpen" class="ruto-modal-backdrop" style="z-index: 10003;">
+<div animate.leave="ap-cerrar" *ngIf="isModalConflictoPlacaOpen" class="ruto-modal-backdrop" style="z-index: 10003;">
   <div class="ruto-modal-content" style="max-width: 480px;">
     <h3 style="margin: 0 0 4px 0;">Esa placa ya tiene un viaje</h3>
     <p style="font-size: 13px; color: var(--color-texto-secundario); margin: 0 0 16px 0;" *ngIf="viajeConflictivoParaResolucion">
@@ -914,7 +914,7 @@
 <!-- Modal de confirmación propio — reemplaza el confirm() nativo del
      navegador (solo decía "Aceptar/Cancelar") por botones que dicen
      exactamente la acción. Reusable para cualquier decisión parecida. -->
-<div *ngIf="confirmDialogAbierto" class="ruto-modal-backdrop" style="z-index: 10002;">
+<div animate.leave="ap-cerrar" *ngIf="confirmDialogAbierto" class="ruto-modal-backdrop" style="z-index: 10002;">
   <div class="ruto-modal-content" style="max-width: 440px;">
     <p style="font-size: 14px; color: var(--color-texto-principal); line-height: 1.5; margin: 0 0 18px 0; white-space: pre-line;">{{ confirmDialogMensaje }}</p>
     <div class="ruto-modal-footer">
@@ -929,7 +929,7 @@
      se quedaba pegado en "Guardando..." para siempre cuando había
      varios viajes de terceros robables ese día: el código pedía la
      elección, pero no había nada en pantalla que mostrarla. -->
-<div *ngIf="isModalSeleccionOpen" class="ruto-modal-backdrop" style="z-index: 10002;">
+<div animate.leave="ap-cerrar" *ngIf="isModalSeleccionOpen" class="ruto-modal-backdrop" style="z-index: 10002;">
   <div class="ruto-modal-content" style="max-width: 460px;">
     <p style="font-size: 14px; color: var(--color-texto-principal); line-height: 1.5; margin: 0 0 16px 0; white-space: pre-line;">
       {{ seleccionMensaje }}
@@ -951,7 +951,7 @@
 <!-- Descanso de conductor — el titular de la placa descansa ese día; se
      asigna un respaldo SOLO para este viaje, sin tocar la asignación
      permanente del conductor a la placa. -->
-<div *ngIf="isModalDescansoOpen" class="ruto-modal-backdrop" style="z-index: 10002;">
+<div animate.leave="ap-cerrar" *ngIf="isModalDescansoOpen" class="ruto-modal-backdrop" style="z-index: 10002;">
   <div class="ruto-modal-content" style="max-width: 440px;">
     <h3 style="margin: 0 0 4px 0;"><i class="bi bi-moon-stars-fill"></i> Conductor de descanso</h3>
     <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0;">
@@ -980,7 +980,7 @@
 
 <!-- Confirmación de conflicto al editar un viaje: la placa/transportadora
      a la que se cambió ya tiene otro viaje asignado ese día. -->
-<div *ngIf="conflictoEdicionViaje && selectedViaje" class="ruto-modal-backdrop" style="z-index: 10000;">
+<div animate.leave="ap-cerrar" *ngIf="conflictoEdicionViaje && selectedViaje" class="ruto-modal-backdrop" style="z-index: 10000;">
   <div class="ruto-modal-content" style="max-width: 480px;">
     <div class="ruto-modal-header">
       <h3 style="margin:0;"><i class="bi bi-exclamation-triangle-fill"></i> {{ selectedViaje.tr || 'Makand' }} Sin disponible ese día</h3>
@@ -1052,7 +1052,7 @@
 <!-- "Foto del mes" — captura la matriz REAL de Rutograma (colores y
      tarjetas de verdad) sobre una copia clonada, filtrada por
      transportadora, y la descarga como imagen. -->
-<div *ngIf="isModalFotoOpen" class="ruto-modal-backdrop" style="z-index: 10003;">
+<div animate.leave="ap-cerrar" *ngIf="isModalFotoOpen" class="ruto-modal-backdrop" style="z-index: 10003;">
   <div class="ruto-modal-content" style="max-width: 1100px; width: 95%;">
     <h3 style="margin: 0 0 4px 0;"><i class="bi bi-camera-fill"></i> Foto del mes</h3>
     <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 16px 0;">

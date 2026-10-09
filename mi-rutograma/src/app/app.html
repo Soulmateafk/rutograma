@@ -52,7 +52,7 @@
 
 <!-- Aviso de choque: otra persona modificó el viaje que se estaba editando.
      Vive aquí (raíz) para verse igual sin importar desde qué pantalla se guardó. -->
-<div class="mbg" *ngIf="dataService.conflictoEdicion as c">
+<div animate.leave="ap-cerrar" class="mbg" *ngIf="dataService.conflictoEdicion as c">
   <div class="modal" style="max-width: 520px;">
     <h3><i class="bi bi-people-fill"></i> {{ c.el }} {{ c.sustantivo }} cambió mientras lo editabas</h3>
 
@@ -85,7 +85,7 @@
 </div>
 
 <!-- Choque de agenda: el vehículo o el conductor ya tiene otro viaje esos días. -->
-<div class="mbg" *ngIf="dataService.semanaCerrada as sc">
+<div animate.leave="ap-cerrar" class="mbg" *ngIf="dataService.semanaCerrada as sc">
   <div class="modal" style="max-width: 500px;">
     <h3><i class="bi bi-lock-fill" style="color:#f59e0b;"></i> Semana cerrada</h3>
     <p style="font-size: 13px; margin: 0 0 10px;">La programación de la semana del <strong>{{ sc.semana }}</strong> ya se cerró. Puedes hacer el cambio, pero queda anotado con su motivo para que el jefe lo vea.</p>
@@ -101,7 +101,7 @@
   </div>
 </div>
 
-<div class="mbg" *ngIf="dataService.choqueAgenda as ch">
+<div animate.leave="ap-cerrar" class="mbg" *ngIf="dataService.choqueAgenda as ch">
   <div class="modal" style="max-width: 520px;">
     <h3><i class="bi bi-calendar2-x-fill" style="color:#f59e0b;"></i> Revisa antes de guardar</h3>
     <ul style="font-size: 13px; line-height: 1.6; margin: 0 0 12px 18px; padding: 0;">

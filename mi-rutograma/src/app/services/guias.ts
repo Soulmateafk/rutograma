@@ -425,7 +425,7 @@ export const TAREAS: Tarea[] = [
   },
   {
     clave: 'apariencia',
-    titulo: 'Cambiar el modo, el color o el tamaño de letra',
+    titulo: 'Cambiar el modo, los colores, la letra y más',
     requiere: 'todos',
     cerrar: ['.ap-cerrar'],
     pasos: [
@@ -433,8 +433,14 @@ export const TAREAS: Tarea[] = [
       { el: 'nav-apariencia', tocar: true, titulo: 'Abre Apariencia', texto: 'Toca el botón iluminado (la paleta). También se abre con la tecla A.' },
       { el: 'ap-tema', titulo: 'Modo', texto: 'Oscuro (el de siempre), Claro (mejor con mucha luz) o Automático: sigue al equipo o celular, que muchas veces se pone oscuro de noche. Atajo: tecla T.' },
       { el: 'ap-acento', titulo: 'Color principal', texto: '12 colores para escoger. Se ve en los botones, la pestaña activa, la línea bajo la barra, los títulos de sección, los campos donde escribes y otros detalles.' },
+      { el: 'ap-propio', titulo: 'Tu propio color', texto: 'El círculo de colores abre una rueda: arrastra sobre ella para escoger el tono, usa la barra para hacerlo más claro u oscuro, o escribe el código (ej. #ff5733). Si es muy claro para botones con letra blanca, en los botones se usa un tono un poco más oscuro.' },
+      { el: 'ap-tinte', titulo: 'Fondo con el color', texto: 'El fondo de toda la app toma un toque suave de tu color.' },
       { el: 'ap-letra', titulo: 'Tamaño de letra', texto: 'Pequeña (cabe más, bueno para el Rutograma), Normal, Grande o Muy grande: cambia toda la app, no solo el texto. Atajos: + y -.' },
-      { el: 'ap-ajustes', titulo: 'Más ajustes', texto: 'Alto contraste marca más las letras y los bordes. Quitar animaciones elimina los efectos al abrir pantallas, ventanas y menús y al tocar botones (también va mejor en equipos lentos). Si algo no te gusta, "Restablecer" lo deja como venía.' },
+      { el: 'ap-esquinas', titulo: 'Esquinas', texto: 'Rectas, redondeadas (como viene) o muy redondeadas: botones, tarjetas y ventanas.' },
+      { el: 'ap-temporada', titulo: 'Decoración de temporada', texto: 'En Año Nuevo, San Valentín, Día de la Mujer, Semana Santa, Día de la Madre y del Padre, 20 de Julio, Amor y Amistad, Halloween y Navidad la app se decora sola (cosas que caen despacio, un detalle junto al logo, el saludo). Puedes dejarla automática, quitarla o ver una en particular.' },
+      { el: 'ap-efectos', titulo: 'Efectos', texto: 'Cada efecto se prende o apaga por separado: onda al tocar, barra de progreso arriba, filas en cascada, deslizar al cambiar de mes, resaltar cambios en vivo, avisar si falta algo y destello al buscar.' },
+      { el: 'ap-transportadoras', titulo: 'Colores del Rutograma', texto: 'El color de las tarjetas de Makand, Arsitrans y Polar, solo para ti. "Como siempre" lo devuelve.' },
+      { el: 'ap-ajustes', titulo: 'Más ajustes', texto: 'Modo daltonismo cambia los colores de los estados del Rutograma por unos que se distinguen sin ver rojo ni verde. Alto contraste marca más las letras y los bordes. Quitar animaciones elimina los efectos al abrir y cerrar pantallas, ventanas y menús y al tocar botones (también va mejor en equipos lentos). Saludo al entrar muestra "Buenos días" con tu nombre. Si algo no te gusta, "Restablecer" lo deja como venía.' },
       { el: '', titulo: '¡Listo!', texto: 'Se guarda solo apenas lo escoges. Al terminar la guía se cierra el panel.' }
     ]
   },

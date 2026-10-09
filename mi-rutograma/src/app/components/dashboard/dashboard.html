@@ -32,32 +32,32 @@
     <div class="kgrid k5">
       <div class="kpi kpi-green">
         <div class="lbl">Disponibles hoy</div>
-        <div class="val">{{ kDisp }}</div>
+        <div class="val" [appContar]="kDisp"></div>
         <div class="sub">de {{ kTotalesActivos }} activos</div>
       </div>
       <div class="kpi kpi-amber">
         <div class="lbl">En ruta ahora</div>
-        <div class="val">{{ kAct }}</div>
+        <div class="val" [appContar]="kAct"></div>
         <div class="sub">vehículos</div>
       </div>
       <div class="kpi kpi-red">
         <div class="lbl">Mantenimiento</div>
-        <div class="val">{{ kMant }}</div>
+        <div class="val" [appContar]="kMant"></div>
         <div class="sub">fuera de servicio</div>
       </div>
       <div class="kpi kpi-orange" title="{{ kMantMesPlacas }}">
         <div class="lbl">Mantenimientos del mes</div>
-        <div class="val">{{ kMantMes }}</div>
+        <div class="val" [appContar]="kMantMes"></div>
         <div class="sub">{{ kMantMesPlacas }}</div>
       </div>
       <div class="kpi kpi-blue">
         <div class="lbl">Viajes de la semana</div>
-        <div class="val">{{ kViaj }}</div>
+        <div class="val" [appContar]="kViaj"></div>
         <div class="sub">{{ kExt }}</div>
       </div>
       <div class="kpi kpi-purple" [title]="kViajMesComparativoDetalle">
         <div class="lbl">Viajes del mes</div>
-        <div class="val">{{ kViajMes }}</div>
+        <div class="val" [appContar]="kViajMes"></div>
         <div class="sub">{{ nombresMesCalendario[ds.S?.mes] }}</div>
         <div class="sub comparativo-tendencia" [ngClass]="'tendencia-' + kViajMesTendencia">
           <span *ngIf="kViajMesTendencia === 'up'">▲</span><span *ngIf="kViajMesTendencia === 'down'">▼</span><span *ngIf="kViajMesTendencia === 'igual'">■</span>
@@ -66,22 +66,22 @@
       </div>
       <div class="kpi kpi-urgente">
         <div class="lbl">Urgentes</div>
-        <div class="val">{{ kUrg }}</div>
+        <div class="val" [appContar]="kUrg"></div>
         <div class="sub">prioridad alta</div>
       </div>
       <div class="kpi kpi-cyan text-left">
         <div class="lbl">Almacenes visitados</div>
-        <div class="val">{{ kAlm }}</div>
+        <div class="val" [appContar]="kAlm"></div>
         <div class="sub">{{ kEntregados }} entregados + {{ kAct }} en ruta + {{ kDoble }} dobles</div>
       </div>
       <div class="kpi kpi-purple text-left">
         <div class="lbl">Doble entrega</div>
-        <div class="val">{{ kDoble }}</div>
+        <div class="val" [appContar]="kDoble"></div>
         <div class="sub">viajes con 2 paradas</div>
       </div>
       <div class="kpi kpi-orange text-left">
         <div class="lbl">Split capacidad</div>
-        <div class="val">{{ kSplit }}</div>
+        <div class="val" [appContar]="kSplit"></div>
         <div class="sub">vehículo adicional</div>
       </div>
       <div class="kpi kpi-cyan text-left" [title]="kTransportadoraDetalle">

@@ -280,3 +280,16 @@
     padding: 32px 22px 26px;
   }
 }
+/* ============================================================
+   FONDO ANIMADO: los brillos de fondo se mueven despacio y los carriles
+   avanzan (solo movimiento: liviano). Se detiene con "Quitar animaciones"
+   o si el equipo pide menos movimiento.
+   ============================================================ */
+.login-bg-lines { inset: -92px; animation: login-carriles 9s linear infinite; }
+@keyframes login-carriles { to { transform: translate(46px, 46px); } }
+.login-glow-blue { animation: login-flotar-a 16s ease-in-out infinite alternate; }
+.login-glow-amber { animation: login-flotar-b 19s ease-in-out infinite alternate; }
+@keyframes login-flotar-a { from { transform: translate(0, 0) scale(1); } to { transform: translate(18vw, 14vh) scale(1.25); } }
+@keyframes login-flotar-b { from { transform: translate(0, 0) scale(1.1); } to { transform: translate(-16vw, -12vh) scale(0.9); } }
+.login-page::before { content: ''; position: absolute; width: 520px; height: 520px; border-radius: 50%; filter: blur(120px); opacity: 0.18; pointer-events: none;
+  background: var(--acento, #7c3aed); top: 30%; left: 40%; animation: login-flotar-a 23s ease-in-out infinite alternate-reverse; }

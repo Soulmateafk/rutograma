@@ -197,7 +197,7 @@
   </div>
 </div>
 
-<div class="modal-overlay" *ngIf="isModalVehiculoOpen">
+<div animate.leave="ap-cerrar" class="modal-overlay" *ngIf="isModalVehiculoOpen">
   <div class="modal-card">
     <h3>{{ vhIdx === -1 ? 'Nuevo Vehículo' : 'Editar Vehículo' }}</h3>
     <app-otros-aqui *ngIf="vhIdx !== -1" que="este vehículo"></app-otros-aqui>
@@ -288,7 +288,7 @@
   </div>
 </div>
 
-<div class="modal-overlay" *ngIf="isModalMantOpen">
+<div animate.leave="ap-cerrar" class="modal-overlay" *ngIf="isModalMantOpen">
   <div class="modal-card">
     <h3>Mantenimiento — {{ vehMantPlaca }}</h3>
     <app-otros-aqui que="este vehículo"></app-otros-aqui>
@@ -341,7 +341,7 @@
 <!-- Modal de confirmación propio — reemplaza el confirm() nativo del
      navegador (feo/genérico) por uno con el mismo estilo del resto de
      la app. Mismo patrón ya usado en Rutograma y navbar. -->
-<div class="modal-overlay" *ngIf="confirmDialogAbierto" style="z-index: 10002;">
+<div animate.leave="ap-cerrar" class="modal-overlay" *ngIf="confirmDialogAbierto" style="z-index: 10002;">
   <div class="modal-card" style="max-width: 420px;">
     <p style="font-size: 14px; color: var(--text); line-height: 1.5; margin: 0 0 18px 0; white-space: pre-line;">{{ confirmDialogMensaje }}</p>
     <div class="modal-actions">
@@ -356,7 +356,7 @@
      cuando había varios viajes de terceros para elegir ese día: el
      código pedía la elección, pero no había nada en pantalla que
      mostrarla ni que el usuario pudiera clickear. -->
-<div class="modal-overlay" *ngIf="isModalSeleccionOpen">
+<div animate.leave="ap-cerrar" class="modal-overlay" *ngIf="isModalSeleccionOpen">
   <div class="modal-card" style="max-width: 460px;">
     <p style="font-size: 14px; color: var(--text); line-height: 1.5; margin: 0 0 16px 0; white-space: pre-line;">{{ seleccionMensaje }}</p>
     <div style="display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto;">

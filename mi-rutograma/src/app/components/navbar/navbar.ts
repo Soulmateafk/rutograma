@@ -19,6 +19,7 @@ import { EnLineaComponent } from '../en-linea/en-linea';
 import { API } from '../../api-base';
 import { AtajosService } from '../../services/atajos.service';
 import { ThemeService } from '../../services/theme.service';
+import { zoomPagina } from '../../zoom';
 
 interface ResultadoBusqueda { tipo: string; etiqueta: string; subtitulo: string; ruta: string; queryParams?: any; actual?: boolean; hacer?: () => void; }
 
@@ -733,7 +734,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
       const nav = cont.parentElement as HTMLElement;
       const separacion = parseFloat(getComputedStyle(nav).columnGap) || 0;
       const botonMas = nav.querySelector<HTMLElement>('.tab-mas');
-      const anchoMas = (botonMas ? botonMas.getBoundingClientRect().width : 64) + separacion;
+      const anchoMas = (botonMas ? botonMas.getBoundingClientRect().width / zoomPagina() : 64) + separacion;
       const libre = () => cont.clientWidth + (botonMas ? anchoMas : 0) - (ocultas.size > 0 ? anchoMas : 0);
       const sobra = () => cont.scrollWidth > libre() + 1;
 

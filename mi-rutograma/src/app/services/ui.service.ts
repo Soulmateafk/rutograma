@@ -50,6 +50,7 @@ export class UiService {
   }
 
   public mostrarToast(msg: string, tipo: string): void {
+    if (this.isBrowser && tipo === 'err') this.sacudirVentana();
     if (this.isBrowser) {
       const el = document.getElementById('sp-toast') as any;
       if (el) {
@@ -60,15 +61,42 @@ export class UiService {
         el.style.background = tipo === 'ok' ? '#052e16' : tipo === 'err' ? '#2d0a0a' : '#2d1b00';
         el.style.borderColor = tipo === 'ok' ? '#166534' : tipo === 'err' ? '#7f1d1d' : '#92400e';
         el.style.color = tipo === 'ok' ? '#bbf7d0' : tipo === 'err' ? '#fecaca' : '#fde68a';
+        clearTimeout(el._t); clearTimeout(el._t2);
+        el.classList.remove('ap-ocultar');
         el.style.display = 'block';
-        clearTimeout(el._t);
-        el._t = setTimeout(() => { el.style.display = 'none'; }, 4000);
+        // Al irse, baja y se desvanece (styles.css); sin animaciones se va de una.
+        el._t = setTimeout(() => {
+          el.classList.add('ap-ocultar');
+          el._t2 = setTimeout(() => { el.style.display = 'none'; el.classList.remove('ap-ocultar'); }, 300);
+        }, 4000);
       }
 
       if ((window as any).mostrarToast) {
         (window as any).mostrarToast(this.sanitizer.sanitize(SecurityContext.HTML, msg) || '', tipo);
       }
     }
+  }
+
+  /**
+   * "Avisar si falta algo" (efecto de Apariencia): si sale un error con una
+   * ventana abierta (ej. faltó un dato al guardar), la ventana se sacude y
+   * los campos obligatorios vacíos quedan marcados hasta que se llenen.
+   */
+  private sacudirVentana(): void {
+    const html = document.documentElement;
+    if (html.classList.contains('sin-temblor') || html.classList.contains('sin-animaciones')) return;
+    const ventanas = Array.from(document.querySelectorAll<HTMLElement>('.mbg:not(.hide) > .modal, .nb-modal, .ruto-modal-content, .modal-card, .mv-modal, .dp-modal, .qj-modal, .ap-panel, .dp-form, .mbg:not(.hide) .modal'))
+      .filter(v => { const r = v.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+    const ventana = ventanas[ventanas.length - 1];
+    if (!ventana) return;
+    ventana.classList.remove('ap-temblor'); void ventana.offsetWidth; ventana.classList.add('ap-temblor');
+    setTimeout(() => ventana.classList.remove('ap-temblor'), 650);
+    ventana.querySelectorAll<HTMLInputElement>('input[required], select[required], textarea[required], input.ng-invalid, select.ng-invalid, textarea.ng-invalid').forEach(campo => {
+      if (String(campo.value || '').trim() !== '' && !campo.classList.contains('ng-invalid')) return;
+      campo.classList.add('ap-falta');
+      const quitar = () => { campo.classList.remove('ap-falta'); campo.removeEventListener('input', quitar); campo.removeEventListener('change', quitar); };
+      campo.addEventListener('input', quitar); campo.addEventListener('change', quitar);
+    });
   }
 
   public syncFechas(): void {

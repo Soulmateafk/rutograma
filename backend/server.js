@@ -178,7 +178,7 @@ try {
 // sesiones abiertas de esa cuenta).
 const EXIGIR_TOKEN = String(process.env.EXIGIR_TOKEN || '').trim().toLowerCase() !== 'false';
 const TOKEN_DIAS = (() => { const d = parseFloat(process.env.TOKEN_DIAS); return (Number.isFinite(d) && d > 0) ? d : 30; })();
-const RUTAS_PUBLICAS_SIN_PASE = ['/api/auth/login', '/api/auth/register'];
+const RUTAS_PUBLICAS_SIN_PASE = ['/api/auth/login', '/api/auth/register', '/api/auth/ping'];
 // Rutas para las que basta estar identificado, aunque la cuenta aún no esté
 // aprobada (en modo estricto, el resto exige cuenta APPROVED).
 const RUTAS_PARA_CUALQUIER_CUENTA = ['/api/auth/estado'];
@@ -1705,7 +1705,7 @@ app.get('/api/auth/estado', (req, res) => {
 
         if (email === normalizarEmail(ADMIN_EMAIL)) {
             const admin = (data.usuarios || []).find(u => normalizarEmail(u.email) === email);
-            return res.json({ ok: true, estado: 'APPROVED', esAdmin: true, rol: 'admin', permisos: permisosDeCuenta(null, true), preferencias: admin?.preferencias ? preferenciasDe(admin) : null, cuentaCompartida: false });
+            return res.json({ ok: true, estado: 'APPROVED', esAdmin: true, rol: 'admin', permisos: permisosDeCuenta(null, true), preferencias: admin?.preferencias ? preferenciasDe(admin) : null, cuentaCompartida: false, nombre: admin?.nombre || '' });
         }
 
         const usuario = (data.usuarios || []).find(u => normalizarEmail(u.email) === email);
@@ -1719,7 +1719,8 @@ app.get('/api/auth/estado', (req, res) => {
             permisos: permisosDeCuenta(usuario, false),
             motivoRechazo: usuario.estado === 'REJECTED' ? (usuario.motivoRechazo || '') : undefined,
             preferencias: usuario.preferencias ? preferenciasDe(usuario) : null,
-            cuentaCompartida: esCuentaCompartida(usuario)
+            cuentaCompartida: esCuentaCompartida(usuario),
+            nombre: usuario.nombre || ''
         });
     } catch (error) {
         console.error("🚨 Error en /api/auth/estado:", error);
@@ -4460,6 +4461,13 @@ app.post('/api/dispositivos/desbloquear', (req, res) => {
 // haberse registrado con una contraseña real (ver /api/auth/register).
 // La única "ventaja" del admin es que, si la contraseña es correcta,
 // siempre queda con estado APPROVED sin depender de que nadie lo apruebe.
+// ¿Hay conexión con el servidor? (aviso "Sin conexión" de la app). No pide
+// sesión ni devuelve datos: solo responde.
+app.get('/api/auth/ping', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ ok: true });
+});
+
 app.post('/api/auth/login', async (req, res) => {
     try {
         const data = leerExcel();
@@ -4550,15 +4558,24 @@ app.post('/api/auth/login', async (req, res) => {
 // suya (lo hace la pantalla).
 const TEMAS = ['oscuro', 'claro', 'auto'];
 const TAMANOS_LETRA = ['pequena', 'normal', 'grande', 'muy-grande'];
+const COLOR_HEX = /^#[0-9a-f]{6}$/i;
 const ACENTOS = ['azul', 'indigo', 'morado', 'rosa', 'rojo', 'naranja', 'ambar', 'lima', 'verde', 'turquesa', 'cian', 'grafito'];
 function preferenciasDe(usuario) {
     const p = usuario?.preferencias || {};
     return {
         tema: TEMAS.includes(p.tema) ? p.tema : 'oscuro',
         letra: TAMANOS_LETRA.includes(p.letra) ? p.letra : 'normal',
-        acento: ACENTOS.includes(p.acento) ? p.acento : 'azul',
+        acento: ACENTOS.includes(p.acento) || (p.acento === 'propio' && COLOR_HEX.test(p.colorPropio || '')) ? p.acento : 'azul',
         contraste: p.contraste === true,
-        sinAnimaciones: p.sinAnimaciones === true
+        sinAnimaciones: p.sinAnimaciones === true,
+        colorPropio: COLOR_HEX.test(p.colorPropio || '') ? String(p.colorPropio).toLowerCase() : '',
+        fondoTinte: p.fondoTinte === true,
+        coloresTr: Object.fromEntries(['makand', 'arsitrans', 'polar'].map(t => [t, COLOR_HEX.test(p.coloresTr?.[t] || '') ? String(p.coloresTr[t]).toLowerCase() : ''])),
+        daltonismo: p.daltonismo === true,
+        esquinas: ['normal', 'muy', 'rectas'].includes(p.esquinas) ? p.esquinas : 'normal',
+        saludo: p.saludo !== false,
+        efectos: Object.fromEntries(['onda', 'progreso', 'cascada', 'mes', 'vivo', 'temblor', 'destello'].map(e => [e, p.efectos?.[e] !== false])),
+        temporada: typeof p.temporada === 'string' && /^[a-z-]{1,20}$/.test(p.temporada) ? p.temporada : 'auto'
     };
 }
 function esCuentaCompartida(usuario) {

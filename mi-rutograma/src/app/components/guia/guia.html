@@ -40,8 +40,8 @@
 </ng-container>
 
 <!-- Menú del botón "?": la guía de esta página y las tareas "¿Cómo hago…?". -->
-<div class="guia-menu-fondo" *ngIf="guia.menuAbierto()" (click)="guia.menuAbierto.set(false)"></div>
-<div class="guia-menu" *ngIf="guia.menuAbierto()" role="menu">
+<div animate.leave="ap-cerrar" class="guia-menu-fondo" *ngIf="guia.menuAbierto()" (click)="guia.menuAbierto.set(false)"></div>
+<div animate.leave="ap-ocultar" class="guia-menu" *ngIf="guia.menuAbierto()" role="menu">
   <button *ngIf="guia.hayGuiaEnPagina" class="guia-menu-item" (click)="guia.repetirPaginaActual()">
     <i class="bi bi-book"></i> Guía de esta página
   </button>

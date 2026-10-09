@@ -1,10 +1,15 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { AccountService } from './account.service';
+import { HEX, paraTextoBlanco, variantesAcento } from './colores';
+import { temporadaVisible } from './temporadas';
 
 export type Tema = 'claro' | 'oscuro';
 export type PreferenciaTema = Tema | 'auto';
 export type TamanoLetra = 'pequena' | 'normal' | 'grande' | 'muy-grande';
-export type Acento = 'azul' | 'indigo' | 'morado' | 'rosa' | 'rojo' | 'naranja' | 'ambar' | 'lima' | 'verde' | 'turquesa' | 'cian' | 'grafito';
+export type Acento = 'azul' | 'indigo' | 'morado' | 'rosa' | 'rojo' | 'naranja' | 'ambar' | 'lima' | 'verde' | 'turquesa' | 'cian' | 'grafito' | 'propio';
+export type Esquinas = 'normal' | 'muy' | 'rectas';
+export type Transportadora = 'makand' | 'arsitrans' | 'polar';
+export type Efecto = 'onda' | 'progreso' | 'cascada' | 'mes' | 'vivo' | 'temblor' | 'destello';
 
 export interface Apariencia {
   tema: PreferenciaTema;
@@ -12,9 +17,32 @@ export interface Apariencia {
   acento: Acento;
   contraste: boolean;
   sinAnimaciones: boolean;
+  colorPropio: string;                              // '#rrggbb' de la rueda de colores ('' = ninguno)
+  fondoTinte: boolean;                              // fondo con un toque del color principal
+  coloresTr: Record<Transportadora, string>;        // tarjetas del Rutograma ('' = el de siempre)
+  daltonismo: boolean;                              // estados con colores que se distinguen sin rojo/verde
+  esquinas: Esquinas;
+  saludo: boolean;                                  // "Buenos días, Ana" al entrar
+  efectos: Record<Efecto, boolean>;                 // cada efecto se puede quitar por separado
+  temporada: string;                                // 'auto' (según la fecha), 'no' o una temporada para verla
 }
 
-const POR_DEFECTO: Apariencia = { tema: 'oscuro', letra: 'normal', acento: 'azul', contraste: false, sinAnimaciones: false };
+const POR_DEFECTO: Apariencia = {
+  tema: 'oscuro', letra: 'normal', acento: 'azul', contraste: false, sinAnimaciones: false,
+  colorPropio: '', fondoTinte: false, coloresTr: { makand: '', arsitrans: '', polar: '' }, daltonismo: false, esquinas: 'normal', saludo: true,
+  efectos: { onda: true, progreso: true, cascada: true, mes: true, vivo: true, temblor: true, destello: true }, temporada: 'auto'
+};
+export const EFECTOS: Array<{ clave: Efecto; nombre: string; ayuda: string }> = [
+  { clave: 'onda', nombre: 'Onda al tocar', ayuda: 'Una onda sale desde donde tocas un botón.' },
+  { clave: 'progreso', nombre: 'Barra de progreso', ayuda: 'Una línea arriba avanza mientras carga una pantalla o se guarda algo.' },
+  { clave: 'cascada', nombre: 'Filas en cascada', ayuda: 'Al entrar a una pantalla, las filas aparecen una tras otra.' },
+  { clave: 'mes', nombre: 'Deslizar al cambiar de mes', ayuda: 'En el Rutograma, la tabla se desliza hacia el mes que escoges.' },
+  { clave: 'vivo', nombre: 'Resaltar cambios en vivo', ayuda: 'Si otra persona cambia un viaje mientras lo ves, su tarjeta brilla un momento.' },
+  { clave: 'temblor', nombre: 'Avisar si falta algo', ayuda: 'Si al guardar falta un dato, la ventana se sacude y marca lo que falta.' },
+  { clave: 'destello', nombre: 'Destello al buscar', ayuda: 'Al ir a un viaje desde el buscador, la pantalla baja hasta él y destella.' }
+];
+/** Colores de siempre de las tarjetas de cada transportadora (rutograma.css). */
+export const COLORES_TR: Record<Transportadora, string> = { makand: '#1e3a8a', arsitrans: '#064e3b', polar: '#0c4a6e' };
 
 /**
  * ThemeService — la APARIENCIA de la app: modo (oscuro, claro o automático),
@@ -72,6 +100,27 @@ export class ThemeService {
     { valor: 'grafito', nombre: 'Grafito', color: '#475569' }
   ];
 
+  public readonly esquinasOpciones: Array<{ valor: Esquinas; nombre: string }> = [
+    { valor: 'rectas', nombre: 'Rectas' },
+    { valor: 'normal', nombre: 'Redondeadas' },
+    { valor: 'muy', nombre: 'Muy redondeadas' }
+  ];
+
+  /** Saludo al entrar ("Buenos días, Ana ☀️"): lo muestra components/apariencia. */
+  public saludo = signal<{ texto: string; icono: string; extra?: string } | null>(null);
+
+  private saludar(compartida: boolean): void {
+    if (!this.ap.saludo || !this.email) return;
+    const clave = 'rutograma_saludo:' + this.email;
+    try { if (sessionStorage.getItem(clave)) return; sessionStorage.setItem(clave, '1'); } catch { /* sin almacenamiento: saluda igual */ }
+    const h = new Date().getHours();
+    const [frase, icono] = h >= 5 && h < 12 ? ['Buenos días', '☀️'] : h >= 12 && h < 19 ? ['Buenas tardes', '🌤️'] : ['Buenas noches', '🌙'];
+    const nombre = compartida ? '' : String(this.account.nombre || '').trim().split(/\s+/)[0];
+    const t = temporadaVisible(this.ap.temporada);
+    this.saludo.set({ texto: nombre ? `${frase}, ${nombre}` : `¡${frase}!`, icono: t ? t.emoji : icono, extra: t ? t.saludo : '' });
+    setTimeout(() => this.saludo.set(null), 3600);
+  }
+
   /** Panel "Apariencia" (app.html) — se abre desde la barra, Mis viajes, Despachos o con la tecla A. */
   public panelAbierto = signal(false);
 
@@ -94,7 +143,7 @@ export class ThemeService {
 
   /** ¿Es distinta de como viene la app? (para mostrar "Restablecer") */
   public get personalizada(): boolean {
-    return (Object.keys(POR_DEFECTO) as Array<keyof Apariencia>).some(k => this.ap[k] !== POR_DEFECTO[k]);
+    return JSON.stringify(this.limpiar(this.ap)) !== JSON.stringify(this.limpiar(POR_DEFECTO));
   }
 
   private leer(clave: string): string {
@@ -107,9 +156,21 @@ export class ThemeService {
     return {
       tema: this.temas.some(t => t.valor === p.tema) ? p.tema : POR_DEFECTO.tema,
       letra: this.tamanos.some(t => t.valor === p.letra) ? p.letra : POR_DEFECTO.letra,
-      acento: this.acentos.some(t => t.valor === p.acento) ? p.acento : POR_DEFECTO.acento,
+      acento: this.acentos.some(t => t.valor === p.acento) || (p.acento === 'propio' && HEX.test(p.colorPropio || '')) ? p.acento : POR_DEFECTO.acento,
       contraste: p.contraste === true,
-      sinAnimaciones: p.sinAnimaciones === true
+      sinAnimaciones: p.sinAnimaciones === true,
+      colorPropio: HEX.test(p.colorPropio || '') ? String(p.colorPropio).toLowerCase() : '',
+      fondoTinte: p.fondoTinte === true,
+      coloresTr: {
+        makand: HEX.test(p.coloresTr?.makand || '') ? p.coloresTr.makand.toLowerCase() : '',
+        arsitrans: HEX.test(p.coloresTr?.arsitrans || '') ? p.coloresTr.arsitrans.toLowerCase() : '',
+        polar: HEX.test(p.coloresTr?.polar || '') ? p.coloresTr.polar.toLowerCase() : ''
+      },
+      daltonismo: p.daltonismo === true,
+      esquinas: ['normal', 'muy', 'rectas'].includes(p.esquinas) ? p.esquinas : 'normal',
+      saludo: p.saludo !== false,
+      efectos: Object.fromEntries(EFECTOS.map(e => [e.clave, p.efectos?.[e.clave] !== false])) as Record<Efecto, boolean>,
+      temporada: typeof p.temporada === 'string' && /^[a-z-]{1,20}$/.test(p.temporada) ? p.temporada : 'auto'
     };
   }
 
@@ -128,7 +189,8 @@ export class ThemeService {
 
   private alCargarCuenta(c: { email: string; preferencias: any; compartida: boolean } | null): void {
     if (!c) {
-      // Sin sesión (login): la de siempre.
+      // Sin sesión (login): la de siempre. Al volver a entrar, saluda otra vez.
+      try { if (this.email) sessionStorage.removeItem('rutograma_saludo:' + this.email); } catch { /* nada */ }
       this.email = '';
       this.ap = { ...POR_DEFECTO };
       this.aplicar();
@@ -148,6 +210,7 @@ export class ThemeService {
     }
     this.recordarEnEquipo();
     this.aplicar();
+    this.saludar(c.compartida);
   }
 
   private aplicar(): void {
@@ -163,6 +226,28 @@ export class ThemeService {
     for (const t of this.tamanos) html.classList.toggle('letra-' + t.valor, t.valor !== 'normal' && this.ap.letra === t.valor);
     if (this.ap.acento === 'azul') html.removeAttribute('data-acento');
     else html.setAttribute('data-acento', this.ap.acento);
+    // Color propio: sus tonos van en variables que usa styles.css.
+    if (this.ap.acento === 'propio' && this.ap.colorPropio) {
+      const v = variantesAcento(this.ap.colorPropio);
+      html.style.setProperty('--p-acento', v.base);
+      html.style.setProperty('--p-boton', v.boton);
+      html.style.setProperty('--p-claro', v.claro);
+      html.style.setProperty('--p-fondo', v.fondo);
+    }
+    html.classList.toggle('fondo-tinte', this.ap.fondoTinte);
+    html.classList.toggle('daltonismo', this.ap.daltonismo);
+    html.classList.toggle('esquinas-muy', this.ap.esquinas === 'muy');
+    html.classList.toggle('esquinas-rectas', this.ap.esquinas === 'rectas');
+    // Transportadoras: siempre con texto blanco legible encima.
+    for (const tr of Object.keys(COLORES_TR) as Transportadora[]) {
+      const c = this.ap.coloresTr[tr];
+      if (c) html.style.setProperty('--tr-' + tr, paraTextoBlanco(c));
+      else html.style.removeProperty('--tr-' + tr);
+    }
+    html.classList.toggle('tr-propios', Object.values(this.ap.coloresTr).some(Boolean));
+    // Efectos que la cuenta quitó: html.sin-onda, html.sin-progreso...
+    for (const e of EFECTOS) html.classList.toggle('sin-' + e.clave, !this.ap.efectos[e.clave]);
+    this.temporadaPreferida.set(this.ap.temporada);
     // Color de la barra del celular cuando está instalada como aplicación.
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', this.temaActual === 'claro' ? '#f8fafc' : '#0f172a');
   }
@@ -179,7 +264,31 @@ export class ThemeService {
   public ponerAcento(acento: Acento): void { if (acento !== this.ap.acento) this.cambiar({ acento }); }
   public alternarContraste(): void { this.cambiar({ contraste: !this.ap.contraste }); }
   public alternarAnimaciones(): void { this.cambiar({ sinAnimaciones: !this.ap.sinAnimaciones }); }
-  public restablecer(): void { this.cambiar({ ...POR_DEFECTO }); }
+  public restablecer(): void { this.cambiar({ ...POR_DEFECTO, coloresTr: { ...POR_DEFECTO.coloresTr }, efectos: { ...POR_DEFECTO.efectos } }); }
+  public alternarTinte(): void { this.cambiar({ fondoTinte: !this.ap.fondoTinte }); }
+  public alternarDaltonismo(): void { this.cambiar({ daltonismo: !this.ap.daltonismo }); }
+  public alternarSaludo(): void { this.cambiar({ saludo: !this.ap.saludo }); }
+  public alternarEfecto(e: Efecto): void { this.cambiar({ efectos: { ...this.ap.efectos, [e]: !this.ap.efectos[e] } }); }
+  public ponerTemporada(t: string): void { if (t !== this.ap.temporada) this.cambiar({ temporada: t }); }
+  /** Señal para la decoración de temporada (components/temporada). */
+  public temporadaPreferida = signal('auto');
+  /** ¿La cuenta tiene este efecto puesto (y no quitó todas las animaciones)? */
+  public efectoActivo(e: Efecto): boolean { return !!this.ap.efectos[e] && !this.ap.sinAnimaciones; }
+  public ponerEsquinas(esquinas: Esquinas): void { if (esquinas !== this.ap.esquinas) this.cambiar({ esquinas }); }
+
+  /** Color de la rueda. Mientras se arrastra se ve sin guardar; al soltar se guarda. */
+  public ponerColorPropio(hex: string, guardar = true): void {
+    if (!HEX.test(hex)) return;
+    const nuevo = this.limpiar({ ...this.ap, acento: 'propio', colorPropio: hex });
+    if (guardar) { this.cambiar(nuevo); return; }
+    this.ap = nuevo;
+    this.aplicar();
+  }
+
+  /** Color de las tarjetas de una transportadora ('' = el de siempre). */
+  public ponerColorTr(tr: Transportadora, hex: string): void {
+    this.cambiar({ coloresTr: { ...this.ap.coloresTr, [tr]: HEX.test(hex) ? hex : '' } });
+  }
 
   /** Atajo T: pasa al contrario de lo que se ve ahora. */
   public alternarTema(): void {

@@ -10,10 +10,11 @@ import { agruparViajes, obtenerDiasViaje } from '../../components/rutograma/ruto
 import { AuthService } from '../../services/auth.service';
 
 import { CapacidadSemanaComponent } from '../analisis/analisis';
+import { ContarDirective } from '../../directivas/contar';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, Configuracion, FotoNovedadComponent, CapacidadSemanaComponent],
+  imports: [CommonModule, FormsModule, ContarDirective, Configuracion, FotoNovedadComponent, CapacidadSemanaComponent],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css']
 })

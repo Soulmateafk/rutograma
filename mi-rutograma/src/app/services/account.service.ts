@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom, Subject } from 'rxjs';
 import { UiService } from './ui.service';
 import { API } from '../api-base';
+import { iniciarProgreso, terminarProgreso } from '../progreso';
 
 export type UserStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'NOT_FOUND';
 
@@ -142,10 +143,13 @@ export class AccountService {
    *  cuenta compartida (conductores, despachos). La escucha ThemeService. */
   public preferencias: Record<string, any> | null = null;
   public cuentaCompartida = false;
+  /** Nombre de la cuenta (para el saludo al entrar). */
+  public nombre = '';
   public alCargarCuenta = new Subject<{ email: string; preferencias: any; compartida: boolean } | null>();
 
   private tomarApariencia(res: any): void {
     this.preferencias = res?.preferencias || null;
+    this.nombre = String(res?.nombre || '');
     this.cuentaCompartida = !!res?.cuentaCompartida;
     this.alCargarCuenta.next({ email: this.emailActivo, preferencias: this.preferencias, compartida: this.cuentaCompartida });
   }
@@ -271,7 +275,11 @@ export class AccountService {
     const cabeceras = new Headers(init.headers || {});
     Object.entries(this.cabecerasSesion).forEach(([k, v]) => cabeceras.set(k, v));
 
-    const respuesta = await fetch(url, { ...init, headers: cabeceras });
+    const guarda = !!init.method && init.method.toUpperCase() !== 'GET';
+    if (guarda) iniciarProgreso();
+    let respuesta: Response;
+    try { respuesta = await fetch(url, { ...init, headers: cabeceras }); }
+    finally { if (guarda) terminarProgreso(); }
 
     if (respuesta.status === 202) {
       try {

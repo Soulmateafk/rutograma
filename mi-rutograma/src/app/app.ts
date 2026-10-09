@@ -10,6 +10,9 @@ import { LoadingService } from './services/loading.service';
 import { ThemeService } from './services/theme.service';
 import { AtajosService } from './services/atajos.service';
 import { InstalarService } from './services/instalar.service';
+import { CierreAnimadoService } from './services/cierre-animado.service';
+import { ConexionService } from './services/conexion.service';
+import { EfectosService } from './services/efectos.service';
 import { AparienciaComponent } from './components/apariencia/apariencia';
 import { NavbarComponent } from './components/navbar/navbar'; 
 import { GuiaComponent } from './components/guia/guia';
@@ -25,6 +28,7 @@ import { AvisoCargueComponent } from './components/aviso-cargue/aviso-cargue';
   templateUrl: './app.html'
 })
 export class App implements OnInit {
+  private relojCascada: any = null;
   // Signals en vez de propiedades normales: se actualizan solos en la
   // pantalla sin depender de que Angular "se entere" del cambio a través
   // de zone.js — evita el problema de que algo cambie en un setTimeout
@@ -91,6 +95,9 @@ export class App implements OnInit {
     // Atajos de teclado y el aviso de "se puede instalar": desde el arranque.
     private atajos: AtajosService,
     private instalar: InstalarService,
+    private cierreAnimado: CierreAnimadoService,
+    private conexion: ConexionService,
+    private efectos: EfectosService,
     private titleService: Title,
     private presencia: PresenciaService,
     private router: Router,
@@ -128,6 +135,14 @@ export class App implements OnInit {
         else this.presencia.iniciar();
 
         this.actualizarTitulo(event.url);
+
+        // Filas en cascada (styles.css, "body.cascada"): solo un momento al
+        // entrar a cada pantalla, no cuando los datos se refrescan solos.
+        if (typeof document !== 'undefined' && !document.documentElement.classList.contains('sin-cascada')) {
+          document.body.classList.add('cascada');
+          clearTimeout(this.relojCascada);
+          this.relojCascada = setTimeout(() => document.body.classList.remove('cascada'), 1800);
+        }
 
         if (this.cargandoRuta()) {
           this.loading.ocultarConFade();

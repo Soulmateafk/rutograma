@@ -1,6 +1,7 @@
 import { Component, HostListener, OnDestroy, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GuiaService } from '../../services/guia.service';
+import { zoomPagina } from '../../zoom';
 
 interface Caja { top: number; left: number; width: number; height: number; }
 
@@ -81,7 +82,9 @@ export class GuiaComponent implements OnDestroy {
     const a = this.guia.activa();
     if (!a || a.indice < 0) return;
     const el = GuiaService.elementoVisible(a.pasos[a.indice].el);
-    const vw = window.innerWidth, vh = window.innerHeight;
+    // Con letra Pequeña/Grande (zoom en <html>) todo se mide en la escala de la página.
+    const z = zoomPagina();
+    const vw = window.innerWidth / z, vh = window.innerHeight / z;
     if (!el) {
       // El elemento desapareció (ej. se cerró algo): cuadro al centro.
       this.foco.set(null);
@@ -89,7 +92,8 @@ export class GuiaComponent implements OnDestroy {
       this.cuadro.set({ top: vh / 2 - 90, left: (vw - ancho) / 2, ancho });
       return;
     }
-    const r = el.getBoundingClientRect();
+    const rp = el.getBoundingClientRect();
+    const r = { top: rp.top / z, left: rp.left / z, width: rp.width / z, height: rp.height / z };
     const margen = 6;
     const caja: Caja = {
       top: Math.max(r.top - margen, 4),
@@ -103,7 +107,9 @@ export class GuiaComponent implements OnDestroy {
     // Cuadro: debajo del elemento si cabe; si no, encima; si el elemento es
     // muy alto (ej. una tabla), dentro de él abajo. En celular, ancho completo.
     const ancho = Math.min(360, vw - 24);
-    const altoCuadro = 190;
+    // Alto real del cuadro (cambia con el texto y el tamaño de letra); 190 si aún no se ve.
+    const cuadroEl = document.querySelector('.guia-cuadro') as HTMLElement | null;
+    const altoCuadro = cuadroEl ? cuadroEl.getBoundingClientRect().height / z : 190;
     let top: number;
     if (caja.top + caja.height + 12 + altoCuadro < vh) top = caja.top + caja.height + 12;
     else if (caja.top - 12 - altoCuadro > 0) top = caja.top - 12 - altoCuadro;
