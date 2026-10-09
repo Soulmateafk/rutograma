@@ -37,7 +37,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'button[title="Descargar Diario"]', titulo: 'Descargar Diario', texto: 'Descarga un archivo con los viajes de hoy, listo para abrir en Excel.' },
       { el: 'button[title="Viaje Extra"]', titulo: 'Viaje Extra', texto: 'Agrega un viaje que no estaba en la matriz. Si el vehículo está ocupado, la app te ofrece cómo resolverlo.' },
       { el: 'button[title="Novedad"]', titulo: 'Novedad', texto: 'Registra un aviso: un vehículo varado, un retraso, un cambio de última hora...' },
-      { el: 'nav-apariencia', titulo: 'Apariencia y atajos', texto: 'Modo claro, oscuro o automático, color principal, tamaño de letra, alto contraste y menos animaciones, solo para tu cuenta (las demás no cambian). Desde aquí también instalas la app y ves los atajos de teclado (tecla ?).' },
+      { el: 'nav-apariencia', titulo: 'Apariencia y atajos', texto: 'Modo claro, oscuro o automático, 12 colores principales, tamaño de letra, alto contraste y quitar animaciones, solo para tu cuenta (las demás no cambian). Desde aquí también instalas la app y ves los atajos de teclado (tecla ?).' },
       PASO_AYUDA
     ]
   },
@@ -432,9 +432,9 @@ export const TAREAS: Tarea[] = [
       { el: '', titulo: 'Apariencia de tu cuenta', texto: 'El modo, el color principal, el tamaño de letra y los demás ajustes son solo de tu cuenta: si los cambias, los ves igual en cualquier equipo donde entres, y las demás cuentas siguen como estaban.' },
       { el: 'nav-apariencia', tocar: true, titulo: 'Abre Apariencia', texto: 'Toca el botón iluminado (la paleta). También se abre con la tecla A.' },
       { el: 'ap-tema', titulo: 'Modo', texto: 'Oscuro (el de siempre), Claro (mejor con mucha luz) o Automático: sigue al equipo o celular, que muchas veces se pone oscuro de noche. Atajo: tecla T.' },
-      { el: 'ap-acento', titulo: 'Color principal', texto: 'El color de los botones principales y de la pestaña activa: azul, verde, morado, naranja, rosa o turquesa.' },
+      { el: 'ap-acento', titulo: 'Color principal', texto: '12 colores para escoger. Se ve en los botones, la pestaña activa, la línea bajo la barra, los títulos de sección, los campos donde escribes y otros detalles.' },
       { el: 'ap-letra', titulo: 'Tamaño de letra', texto: 'Pequeña (cabe más, bueno para el Rutograma), Normal, Grande o Muy grande: cambia toda la app, no solo el texto. Atajos: + y -.' },
-      { el: 'ap-ajustes', titulo: 'Más ajustes', texto: 'Alto contraste marca más las letras y los bordes. Menos animaciones quita los efectos al cambiar de pantalla o de color: todo se ve de una vez (también va mejor en equipos lentos). Si algo no te gusta, "Restablecer" lo deja como venía.' },
+      { el: 'ap-ajustes', titulo: 'Más ajustes', texto: 'Alto contraste marca más las letras y los bordes. Quitar animaciones elimina los efectos al abrir pantallas, ventanas y menús y al tocar botones (también va mejor en equipos lentos). Si algo no te gusta, "Restablecer" lo deja como venía.' },
       { el: '', titulo: '¡Listo!', texto: 'Se guarda solo apenas lo escoges. Al terminar la guía se cierra el panel.' }
     ]
   },

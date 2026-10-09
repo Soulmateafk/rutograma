@@ -4,7 +4,7 @@ import { AccountService } from './account.service';
 export type Tema = 'claro' | 'oscuro';
 export type PreferenciaTema = Tema | 'auto';
 export type TamanoLetra = 'pequena' | 'normal' | 'grande' | 'muy-grande';
-export type Acento = 'azul' | 'verde' | 'morado' | 'naranja' | 'rosa' | 'turquesa';
+export type Acento = 'azul' | 'indigo' | 'morado' | 'rosa' | 'rojo' | 'naranja' | 'ambar' | 'lima' | 'verde' | 'turquesa' | 'cian' | 'grafito';
 
 export interface Apariencia {
   tema: PreferenciaTema;
@@ -59,11 +59,17 @@ export class ThemeService {
   ];
   public readonly acentos: Array<{ valor: Acento; nombre: string; color: string }> = [
     { valor: 'azul', nombre: 'Azul', color: '#2563eb' },
-    { valor: 'verde', nombre: 'Verde', color: '#16a34a' },
+    { valor: 'indigo', nombre: 'Índigo', color: '#4f46e5' },
     { valor: 'morado', nombre: 'Morado', color: '#7c3aed' },
-    { valor: 'naranja', nombre: 'Naranja', color: '#ea580c' },
     { valor: 'rosa', nombre: 'Rosa', color: '#db2777' },
-    { valor: 'turquesa', nombre: 'Turquesa', color: '#0d9488' }
+    { valor: 'rojo', nombre: 'Rojo', color: '#dc2626' },
+    { valor: 'naranja', nombre: 'Naranja', color: '#ea580c' },
+    { valor: 'ambar', nombre: 'Ámbar', color: '#d97706' },
+    { valor: 'lima', nombre: 'Lima', color: '#65a30d' },
+    { valor: 'verde', nombre: 'Verde', color: '#16a34a' },
+    { valor: 'turquesa', nombre: 'Turquesa', color: '#0d9488' },
+    { valor: 'cian', nombre: 'Cian', color: '#0891b2' },
+    { valor: 'grafito', nombre: 'Grafito', color: '#475569' }
   ];
 
   /** Panel "Apariencia" (app.html) — se abre desde la barra, Mis viajes, Despachos o con la tecla A. */
@@ -147,6 +153,10 @@ export class ThemeService {
   private aplicar(): void {
     if (typeof document === 'undefined') return; // por si corre fuera del navegador (SSR)
     const body = document.body, html = document.documentElement;
+    // Todo cambia de una vez: sin animaciones durante el cambio (se quitan
+    // apenas el navegador lo pinta).
+    html.classList.add('cambiando-apariencia');
+    requestAnimationFrame(() => requestAnimationFrame(() => html.classList.remove('cambiando-apariencia')));
     body.classList.toggle('tema-claro', this.temaActual === 'claro');
     body.classList.toggle('alto-contraste', this.ap.contraste);
     html.classList.toggle('sin-animaciones', this.ap.sinAnimaciones);

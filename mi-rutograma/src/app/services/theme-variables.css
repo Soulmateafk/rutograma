@@ -77,5 +77,4 @@ body.tema-claro {
 body {
   background-color: var(--color-fondo-pagina);
   color: var(--color-texto-principal);
-  transition: background-color 0.2s ease, color 0.2s ease;
 }

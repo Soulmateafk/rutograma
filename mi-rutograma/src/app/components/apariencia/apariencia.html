@@ -27,7 +27,7 @@
           <i *ngIf="theme.ap.acento === a.valor" class="bi bi-check-lg"></i>
         </button>
       </div>
-      <p class="ap-nota">Botones principales, pestaña activa y detalles.</p>
+      <p class="ap-nota">{{ nombreAcento }}: botones, pestaña activa, línea de la barra, títulos, campos y detalles.</p>
     </div>
 
     <div class="ap-grupo" data-guia="ap-letra">
@@ -50,7 +50,7 @@
       <label class="ap-interruptor">
         <input type="checkbox" [checked]="theme.ap.sinAnimaciones" (change)="theme.alternarAnimaciones()">
         <span class="ap-int-caja"></span>
-        <span><strong>Menos animaciones</strong><small>Los cambios se ven de una vez, sin efectos. Más rápido en equipos lentos.</small></span>
+        <span><strong>Quitar animaciones</strong><small>Sin efectos al abrir pantallas, ventanas y menús ni al tocar botones. Más rápido en equipos lentos.</small></span>
       </label>
     </div>
 
