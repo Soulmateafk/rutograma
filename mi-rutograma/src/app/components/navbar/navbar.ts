@@ -699,6 +699,17 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
   // Atajos de teclado N (viaje extra) y Shift+N (novedad): ver atajos.service.ts.
   public atajos = inject(AtajosService);
   public theme = inject(ThemeService);
+  /** "Faltan 12 días para Navidad": solo del 1 al 25 de diciembre. */
+  public get contadorNavidad(): { texto: string; titulo: string } | null {
+    if (!this.theme.ap.contadorNavidad) return null;
+    const d = new Date();
+    if (d.getMonth() !== 11 || d.getDate() > 25) return null;
+    const faltan = 25 - d.getDate();
+    if (faltan === 0) return { texto: '¡Feliz Navidad!', titulo: 'Hoy es Navidad' };
+    if (faltan === 1) return { texto: '¡Hoy es Nochebuena!', titulo: 'Mañana es Navidad' };
+    return { texto: `${faltan} días`, titulo: `Faltan ${faltan} días para Navidad` };
+  }
+  public get notasPendientes(): number { return this.theme.ap.notas.filter(n => !n.hecha && n.texto.trim()).length; }
   public get cuentaCompartida(): boolean { return this.cuenta.cuentaCompartida; }
   public get inicialYo(): string { return (String(this.cuenta.nombre || this.authService.currentUser?.email || '?').trim()[0] || '?').toUpperCase(); }
   private subAtajos = this.atajos.acciones.subscribe(a => this.abrirModal(a === 'novedad' ? 'm-novedad' : 'm-viaje'));

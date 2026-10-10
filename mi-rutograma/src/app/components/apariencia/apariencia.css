@@ -144,3 +144,26 @@ body.tema-claro .ap-conexion.volvio { background: #f0fdf4; color: #166534; }
 .ap-deslizador { grid-template-columns: auto 1fr auto; align-items: center; column-gap: 10px; }
 .ap-deslizador > span:first-child { grid-column: 1 / -1; color: var(--color-texto-apagado); }
 .ap-deslizador input { grid-column: 1 / 3; accent-color: var(--acento); }
+.ap-jugar { width: 100%; margin-top: 8px; background: linear-gradient(135deg, var(--acento-fondo), transparent); }
+
+/* ---- Temas listos ---- */
+.ap-sub { text-transform: none; font-weight: 400; letter-spacing: 0; margin-left: 6px; }
+.ap-temas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.ap-tema { background: none; border: none; padding: 0; cursor: pointer; color: var(--color-texto-apagado); font-family: inherit; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.ap-tema small { font-size: 10.5px; line-height: 1.15; text-align: center; }
+.ap-tema-muestra { position: relative; width: 100%; aspect-ratio: 16 / 10; border-radius: 10px; border: 2px solid var(--color-borde); background-color: #0b1120; background-size: cover; background-position: center bottom; display: flex; align-items: center; justify-content: center; overflow: hidden; transition: transform .15s; }
+.ap-tema-muestra.muestra-ninguno { background: linear-gradient(135deg, #0b1120, #1f2937); }
+.ap-tema-muestra.muestra-ninguno.claro { background: linear-gradient(135deg, #f8fafc, #e2e8f0); }
+.ap-tema-muestra.claro::after { content: ''; position: absolute; inset: 0; background: rgba(255, 255, 255, .35); }
+.ap-tema-punto { position: absolute; left: 6px; bottom: 6px; width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 0 2px #fff; z-index: 1; }
+.ap-tema-emoji { font-size: 20px; z-index: 1; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .5)); }
+.ap-tema:hover .ap-tema-muestra { transform: translateY(-2px); }
+.ap-tema.on .ap-tema-muestra { border-color: var(--acento); box-shadow: 0 0 0 2px var(--acento-fondo); }
+.ap-tema.on small { color: var(--acento-texto); font-weight: 700; }
+@media (max-width: 480px) { .ap-temas { grid-template-columns: repeat(3, 1fr); } }
+
+/* ---- Sonido ambiente ---- */
+.ap-ambiente { margin: 6px 0 10px; padding: 10px; border-radius: 10px; background: var(--color-fondo-input); }
+.ap-sub-titulo { display: block; font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+.ap-ambientes { display: flex; flex-wrap: wrap; gap: 6px; }
+.ap-chip.on { background: var(--acento); border-color: var(--acento); color: #fff; }

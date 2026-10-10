@@ -2,7 +2,8 @@ import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ThemeService } from '../../services/theme.service';
 import { SonidoService } from '../../services/sonido.service';
-import { Temporada, temporadaVisible, diasParaElDia } from '../../services/temporadas';
+import { Temporada, temporadaVisible, diasParaElDia, delDia, versionCelebraciones, ponerAniversario } from '../../services/temporadas';
+import { DataService } from '../../services/data';
 
 interface Fuego { x: number; y: number; delay: number; sombra: string; color: string; }
 interface Particula { tipo: string; texto: string; color: string; left: number; delay: number; dur: number; tam: number; deriva: number; giro: number; opacidad: number; }
@@ -38,7 +39,12 @@ interface Particula { tipo: string; texto: string; color: string; left: number; 
       <div class="tp-suelo tp-suelo-izq" *ngIf="t.suelo" aria-hidden="true"><span *ngFor="let e of t.suelo; let i = index" [style.animation-delay.s]="i * 0.4">{{ e }}</span></div>
       <div class="tp-suelo tp-suelo-der" *ngIf="t.suelo" aria-hidden="true"><span *ngFor="let e of t.suelo.slice().reverse(); let i = index" [style.animation-delay.s]="0.2 + i * 0.4">{{ e }}</span></div>
       <!-- Lo que cruza la pantalla de vez en cuando (encima, sin tapar: no se puede tocar). -->
-      <div class="tp-capa" *ngIf="t.cruza" aria-hidden="true"><span class="tp-cruza" [ngClass]="t.cruza.clase">{{ t.cruza.emoji }}</span></div>
+      <div class="tp-capa" *ngIf="cruzaHoy() as c" aria-hidden="true"><span class="tp-cruza" [ngClass]="c.clase" [class.tp-nochebuena]="nochebuena()">{{ c.emoji }}</span></div>
+
+      <!-- Velitas (7 y 8 de diciembre): se encienden una por una. -->
+      <div class="tp-velitas" *ngIf="t.clave === 'velitas'" aria-hidden="true">
+        <span *ngFor="let v of velas" class="tp-vela" [style.height.px]="v.alto" [style.--vc]="v.color" [style.--d]="(1.5 + v.i * 0.55) + 's'"><i></i></span>
+      </div>
 
       <ng-container *ngIf="t.clave === 'halloween'">
         <svg class="tp-telarana tp-izq" viewBox="0 0 100 100" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.2">
@@ -59,6 +65,9 @@ interface Particula { tipo: string; texto: string; color: string; left: number; 
           <span class="tp-murcielago tp-m3" style="top: 12%; animation-delay: 19s;">🦇</span>
           <span class="tp-fantasma">👻</span>
         </div>
+        <!-- Sustos suaves: una nube que tapa la luna y un fantasma que se asoma por el borde. -->
+        <div class="tp-nube" aria-hidden="true"></div>
+        <span class="tp-asoma" aria-hidden="true" [class.tp-asoma-izq]="asoma().izq" [style.top.px]="asoma().top" [style.left.px]="asoma().izq ? asoma().x : null" [style.right.px]="asoma().izq ? null : asoma().x" *ngIf="asoma().visible">👻</span>
       </ng-container>
       <div class="tp-nieve-suelo" *ngIf="t.clave === 'navidad'" aria-hidden="true"></div>
       <div class="tp-escarcha" *ngIf="t.clave === 'navidad'" aria-hidden="true"></div>
@@ -81,14 +90,22 @@ export class TemporadaComponent {
   private theme = inject(ThemeService);
   private sonido = inject(SonidoService);
   private hoy = signal(new Date());
-  public temporada = computed<Temporada | null>(() => temporadaVisible(this.theme.temporadaPreferida(), this.hoy()));
+  public temporada = computed<Temporada | null>(() => { versionCelebraciones(); return temporadaVisible(this.theme.temporadaPreferida(), this.hoy()); });
+  /** Lo que cruza hoy (cambia cada día) y si es Nochebuena (pasa el trineo más seguido). */
+  public cruzaHoy = computed(() => { const t = this.temporada(); return t ? (delDia(t.cruzas, this.hoy()) || t.cruza || null) : null; });
+  public nochebuena = computed(() => { const d = this.hoy(); return this.temporada()?.clave === 'navidad' && d.getMonth() === 11 && d.getDate() === 24; });
+  /** Velitas: se van encendiendo una por una. */
+  public velas = Array.from({ length: 16 }, (_, i) => ({ i, alto: 26 + ((i * 7) % 4) * 6, color: ['#fde68a', '#f9a8d4', '#a5f3fc', '#bbf7d0', '#fecaca'][i % 5] }));
   public particulas = computed<Particula[]>(() => {
     const t = this.temporada();
     if (!t) return [];
     const celular = typeof window !== 'undefined' && window.innerWidth < 600;
     const n = Math.round(t.cuantas * (celular ? 0.5 : 1));
     return Array.from({ length: n }, (_, i) => {
-      const elemento = t.particulas[i % t.particulas.length];
+      // Cada día cae además un adorno distinto (t.extras).
+      const extra = delDia(t.extras, this.hoy());
+      const lista = extra ? [...t.particulas, extra] : t.particulas;
+      const elemento = lista[i % lista.length];
       // "tipo:#color" = figura dibujada; "#color" = papelito; lo demás = emoji.
       const [tipo, color] = elemento.includes(':') ? elemento.split(':') : elemento.startsWith('#') ? ['papel', elemento] : ['emoji', ''];
       const tamBase: Record<string, number> = { nieve: 6, bokeh: 34, petalo: 16, corazon: 16, estrella: 14, papel: 10, emoji: 20 };
@@ -137,7 +154,8 @@ export class TemporadaComponent {
       try { sessionStorage.setItem('rutograma_anuncio_tp:' + t.clave + ':' + fecha, '1'); } catch { /* nada */ }
       const titulo = n === 0 ? `¡Hoy es ${t.nombreDia}!` : n === 1 ? `¡Mañana es ${t.nombreDia}!` : n > 1 ? `Faltan ${n} días para ${t.nombreDia}` : t.saludo;
       setTimeout(() => {
-        this.anuncio.set({ titulo, detalle: n >= 0 ? t.saludo + ' Que tengas un buen día de trabajo.' : 'Seguimos celebrando. Que tengas un buen día de trabajo.' });
+        const frase = delDia(t.frases);
+        this.anuncio.set({ titulo, detalle: frase || (n >= 0 ? t.saludo + ' Que tengas un buen día de trabajo.' : 'Seguimos celebrando. Que tengas un buen día de trabajo.') });
         setTimeout(() => this.anuncio.set(null), 11000);
       }, 4200);    // después del saludo
     }
@@ -158,7 +176,36 @@ export class TemporadaComponent {
     }
   }
 
+  // Fantasma que se asoma detrás de una tarjeta de vez en cuando (Halloween).
+  public asoma = signal<{ visible: boolean; top: number; x: number; izq: boolean }>({ visible: false, top: 0, x: 0, izq: false });
+  private programarSusto(): void {
+    setTimeout(() => {
+      const html = document.documentElement;
+      if (this.temporada()?.clave === 'halloween' && !html.classList.contains('sin-animaciones') && !html.classList.contains('sin-rastro') && !document.hidden) {
+        const z = parseFloat(getComputedStyle(html).zoom || '1') || 1;
+        const tarjetas = Array.from(document.querySelectorAll<HTMLElement>('.kpi, .card, .ruto-table-responsive')).filter(el => {
+          const r = el.getBoundingClientRect(); return r.width > 120 && r.top > 60 && r.bottom < window.innerHeight;
+        });
+        const el = tarjetas[Math.floor(Math.random() * tarjetas.length)];
+        if (el) {
+          const r = el.getBoundingClientRect(), izq = Math.random() < 0.5;
+          this.asoma.set({ visible: true, top: (r.top + Math.min(r.height - 40, 20 + Math.random() * 40)) / z, x: izq ? r.left / z - 18 : (window.innerWidth - r.right) / z - 18, izq });
+          setTimeout(() => this.asoma.set({ ...this.asoma(), visible: false }), 3200);
+        }
+      }
+      this.programarSusto();
+    }, 35000 + Math.random() * 40000);
+  }
+
+  private ds = inject(DataService);
+  private leerCelebraciones(): void {
+    ponerAniversario((this.ds.S?.celebraciones || []).find((c: any) => c?.tipo === 'aniversario')?.fecha || '');
+  }
+
   constructor() {
+    this.leerCelebraciones();
+    this.ds.dataChanged.subscribe(() => this.leerCelebraciones());
+    if (typeof window !== 'undefined') this.programarSusto();
     // La temporada cambia sola al pasar la medianoche (se revisa cada hora).
     if (typeof window !== 'undefined') setInterval(() => this.hoy.set(new Date()), 3600000);
     effect(() => {

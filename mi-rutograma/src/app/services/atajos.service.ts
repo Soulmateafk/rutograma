@@ -85,6 +85,7 @@ export class AtajosService {
         { teclas: ['Shift', '→'], que: 'Mes siguiente' },
         { teclas: ['H'], que: 'Volver al mes de hoy' },
         { teclas: ['Ctrl', 'Z'], que: 'Deshacer el último cambio' },
+        { teclas: ['F'], que: 'Modo enfoque: solo el Rutograma, a pantalla completa (F o Esc para salir)' },
         { teclas: ['Esc'], que: 'Cerrar el viaje abierto o la ventana' }
       ] });
     }
@@ -92,7 +93,8 @@ export class AtajosService {
       { teclas: ['A'], que: 'Abrir Apariencia (modo y tamaño de letra)' },
       { teclas: ['T'], que: 'Cambiar entre modo claro y oscuro' },
       { teclas: ['+'], que: 'Letra más grande' },
-      { teclas: ['-'], que: 'Letra más pequeña' }
+      { teclas: ['-'], que: 'Letra más pequeña' },
+      { teclas: ['B'], que: 'Abrir o cerrar mis notas' }
     ] });
     grupos.push({ titulo: 'Ayuda', atajos: [{ teclas: ['?'], que: 'Ver esta lista de atajos' }] });
     return grupos;
@@ -121,6 +123,7 @@ export class AtajosService {
     if (e.key === 'Escape' && (this.panelAbierto() || this.theme.panelAbierto())) {
       this.panelAbierto.set(false); this.theme.panelAbierto.set(false); return;
     }
+    if (e.key === 'Escape' && this.theme.enfoque() && !AtajosService.ventanaAbierta()) { this.theme.alternarEnfoque(false); return; }
     if (AtajosService.escribiendo() || !this.auth.currentUser) return;
 
     if (this.esperandoIr()) {
@@ -139,6 +142,13 @@ export class AtajosService {
       case '-': case '_': e.preventDefault(); this.theme.cambiarLetra(-1); return;
     }
     if (!this.esOficina) return;
+    if (e.key === 'f' || e.key === 'F') {
+      e.preventDefault();
+      if (!this.theme.enfoque() && !this.router.url.startsWith('/rutograma')) this.router.navigate(['/rutograma']);
+      this.theme.alternarEnfoque();
+      return;
+    }
+    if (e.key === 'b' || e.key === 'B') { e.preventDefault(); this.theme.notasAbiertas.update(v => !v); return; }
     if (e.key === 'g' || e.key === 'G') {
       e.preventDefault();
       this.esperandoIr.set(true);

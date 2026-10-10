@@ -3,6 +3,7 @@ import { AccountService } from './account.service';
 import { HEX, paraTextoBlanco, variantesAcento } from './colores';
 import { temporadaVisible } from './temporadas';
 import { SonidoService } from './sonido.service';
+import { AmbienteService } from './ambiente.service';
 
 
 export type Tema = 'claro' | 'oscuro';
@@ -11,7 +12,7 @@ export type TamanoLetra = 'pequena' | 'normal' | 'grande' | 'muy-grande';
 export type Acento = 'azul' | 'indigo' | 'morado' | 'rosa' | 'rojo' | 'naranja' | 'ambar' | 'lima' | 'verde' | 'turquesa' | 'cian' | 'grafito' | 'propio';
 export type Esquinas = 'normal' | 'muy' | 'rectas';
 export type Transportadora = 'makand' | 'arsitrans' | 'polar';
-export type Efecto = 'onda' | 'progreso' | 'cascada' | 'mes' | 'vivo' | 'temblor' | 'destello' | 'brillo' | 'previa' | 'confeti' | 'rastro';
+export type Efecto = 'onda' | 'progreso' | 'cascada' | 'mes' | 'vivo' | 'temblor' | 'destello' | 'brillo' | 'previa' | 'confeti' | 'rastro' | 'transicion';
 export type Fondo = 'ninguno' | 'aurora' | 'montanas' | 'carretera' | 'ciudad' | 'camiones' | 'puntos' | 'olas' | 'atardecer' | 'campo' | 'estrellas' | 'foto';
 export type Fuente = 'sistema' | 'redonda' | 'lectura' | 'facil' | 'clasica';
 export type Densidad = 'normal' | 'compacta' | 'comoda';
@@ -45,14 +46,20 @@ export interface Apariencia {
   sonidos: boolean;
   volumen: number;                                  // 0-100
   sonidoTemporada: boolean;                         // instrumentos de la festividad (si no, el sonido de siempre)
+  contadorNavidad: boolean;                         // en diciembre, "Faltan N días para Navidad" en la barra
+  ambiente: string;                                 // sonido ambiente ('' = ninguno, 'temporada', 'lluvia'...)
+  ambienteVol: number;                              // 0-100
+  enfoque: boolean;                                 // modo enfoque (solo el Rutograma, pantalla completa) — no se guarda
+  notas: NotaPersonal[];                            // notas rápidas: solo las ve esta cuenta
 }
+export interface NotaPersonal { id: string; texto: string; color: string; hecha: boolean; en: string; }
 
 const POR_DEFECTO: Apariencia = {
   tema: 'oscuro', letra: 'normal', acento: 'azul', contraste: false, sinAnimaciones: false,
   colorPropio: '', fondoTinte: false, coloresTr: { makand: '', arsitrans: '', polar: '' }, daltonismo: false, esquinas: 'normal', saludo: true,
-  efectos: { onda: true, progreso: true, cascada: true, mes: true, vivo: true, temblor: true, destello: true, brillo: true, previa: true, confeti: true, rastro: true }, temporada: 'auto',
+  efectos: { onda: true, progreso: true, cascada: true, mes: true, vivo: true, temblor: true, destello: true, brillo: true, previa: true, confeti: true, rastro: true, transicion: true }, temporada: 'auto',
   fondo: 'ninguno', fondoBrillo: 55, fondoVidrio: 35, fuente: 'sistema', densidad: 'normal', barra: 'arriba', inicio: '', avatar: '', foto: '', fijados: [],
-  tablero: { orden: [], ocultos: [] }, sonidos: true, volumen: 50, sonidoTemporada: true
+  tablero: { orden: [], ocultos: [] }, sonidos: true, volumen: 50, sonidoTemporada: true, contadorNavidad: true, ambiente: '', ambienteVol: 35, enfoque: false, notas: []
 };
 export const FONDOS: Array<{ valor: Fondo; nombre: string }> = [
   { valor: 'ninguno', nombre: 'Ninguno' }, { valor: 'aurora', nombre: 'Aurora' }, { valor: 'atardecer', nombre: 'Atardecer' },
@@ -68,6 +75,42 @@ export const FUENTES: Array<{ valor: Fuente; nombre: string; familia: string; ay
   { valor: 'clasica', nombre: 'Clásica', familia: "Georgia, 'Times New Roman', serif", ayuda: 'Con remates, como un libro' }
 ];
 export const AVATARES = ['🚚', '🚛', '🛻', '🚐', '🧑‍✈️', '👩‍💼', '👨‍💼', '🦁', '🐯', '🦊', '🐼', '🐨', '🦉', '🐬', '🌻', '🌵', '⚽', '🎸', '☕', '⭐', '🔥', '💎', '🌈', '🍀'];
+export const AMBIENTES: Array<{ valor: string; nombre: string; icono: string }> = [
+  { valor: '', nombre: 'Ninguno', icono: 'bi-volume-mute' }, { valor: 'temporada', nombre: 'El de la temporada', icono: 'bi-stars' },
+  { valor: 'lluvia', nombre: 'Lluvia suave', icono: 'bi-cloud-drizzle' }, { valor: 'cafe', nombre: 'Café', icono: 'bi-cup-hot' },
+  { valor: 'mar', nombre: 'Olas del mar', icono: 'bi-water' }, { valor: 'campo', nombre: 'Campo con pajaritos', icono: 'bi-tree' },
+  { valor: 'grillos', nombre: 'Noche con grillos', icono: 'bi-moon-stars' }, { valor: 'fogata', nombre: 'Fogata', icono: 'bi-fire' },
+  { valor: 'villancicos', nombre: 'Villancicos', icono: 'bi-music-note-beamed' }, { valor: 'misterio', nombre: 'Noche de miedo', icono: 'bi-moon' },
+  { valor: 'cajita', nombre: 'Cajita de música', icono: 'bi-music-note' }
+];
+/** TEMAS LISTOS: combinaciones de un clic (modo, color, fondo, letra, esquinas...). */
+export interface TemaListo { clave: string; nombre: string; emoji: string; cambios: Partial<Apariencia>; }
+export const TEMAS_LISTOS: TemaListo[] = [
+  { clave: 'makand', nombre: 'MAKAND clásico', emoji: '🚚', cambios: { tema: 'oscuro', acento: 'azul', fondo: 'ninguno', fuente: 'sistema', esquinas: 'normal', fondoTinte: false, contraste: false } },
+  { clave: 'oceano', nombre: 'Océano', emoji: '🌊', cambios: { tema: 'oscuro', acento: 'cian', fondo: 'olas', fuente: 'sistema', esquinas: 'normal', fondoTinte: true, contraste: false, fondoBrillo: 60, fondoVidrio: 40 } },
+  { clave: 'caribe', nombre: 'Mar Caribe', emoji: '🏝️', cambios: { tema: 'claro', acento: 'turquesa', fondo: 'olas', fuente: 'redonda', esquinas: 'muy', fondoTinte: false, contraste: false, fondoBrillo: 70, fondoVidrio: 35 } },
+  { clave: 'bosque', nombre: 'Bosque', emoji: '🌲', cambios: { tema: 'oscuro', acento: 'verde', fondo: 'montanas', fuente: 'redonda', esquinas: 'muy', fondoTinte: true, contraste: false, fondoBrillo: 55, fondoVidrio: 35 } },
+  { clave: 'campo', nombre: 'Campo colombiano', emoji: '🌄', cambios: { tema: 'claro', acento: 'lima', fondo: 'campo', fuente: 'redonda', esquinas: 'muy', fondoTinte: false, contraste: false, fondoBrillo: 75, fondoVidrio: 30 } },
+  { clave: 'atardecer', nombre: 'Atardecer', emoji: '🌅', cambios: { tema: 'oscuro', acento: 'naranja', fondo: 'atardecer', fuente: 'redonda', esquinas: 'muy', fondoTinte: false, contraste: false, fondoBrillo: 45, fondoVidrio: 30 } },
+  { clave: 'medianoche', nombre: 'Medianoche', emoji: '🌙', cambios: { tema: 'oscuro', acento: 'indigo', fondo: 'estrellas', fuente: 'sistema', esquinas: 'normal', fondoTinte: true, contraste: false, fondoBrillo: 65, fondoVidrio: 40 } },
+  { clave: 'aurora', nombre: 'Aurora boreal', emoji: '🌌', cambios: { tema: 'oscuro', acento: 'turquesa', fondo: 'aurora', fuente: 'sistema', esquinas: 'muy', fondoTinte: true, contraste: false, fondoBrillo: 70, fondoVidrio: 45 } },
+  { clave: 'galaxia', nombre: 'Galaxia', emoji: '🪐', cambios: { tema: 'oscuro', acento: 'propio', colorPropio: '#8b5cf6', fondo: 'estrellas', fuente: 'lectura', esquinas: 'muy', fondoTinte: true, contraste: false, fondoBrillo: 80, fondoVidrio: 50 } },
+  { clave: 'carretera', nombre: 'Carretera nocturna', emoji: '🛣️', cambios: { tema: 'oscuro', acento: 'ambar', fondo: 'carretera', fuente: 'sistema', esquinas: 'normal', fondoTinte: false, contraste: false, fondoBrillo: 60, fondoVidrio: 35 } },
+  { clave: 'camionero', nombre: 'Camionero', emoji: '🚛', cambios: { tema: 'oscuro', acento: 'naranja', fondo: 'camiones', fuente: 'redonda', esquinas: 'normal', fondoTinte: true, contraste: false, fondoBrillo: 60, fondoVidrio: 30 } },
+  { clave: 'neon', nombre: 'Ciudad neón', emoji: '🌃', cambios: { tema: 'oscuro', acento: 'propio', colorPropio: '#ff2bd6', fondo: 'ciudad', fuente: 'sistema', esquinas: 'rectas', fondoTinte: true, contraste: false, fondoBrillo: 65, fondoVidrio: 40 } },
+  { clave: 'retro', nombre: 'Retro 80s', emoji: '🕹️', cambios: { tema: 'oscuro', acento: 'propio', colorPropio: '#22d3ee', fondo: 'atardecer', fuente: 'lectura', esquinas: 'rectas', fondoTinte: true, contraste: false, fondoBrillo: 55, fondoVidrio: 45 } },
+  { clave: 'fuego', nombre: 'Fuego', emoji: '🔥', cambios: { tema: 'oscuro', acento: 'rojo', fondo: 'atardecer', fuente: 'sistema', esquinas: 'normal', fondoTinte: true, contraste: false, fondoBrillo: 35, fondoVidrio: 25 } },
+  { clave: 'cereza', nombre: 'Cereza', emoji: '🍒', cambios: { tema: 'oscuro', acento: 'rosa', fondo: 'puntos', fuente: 'redonda', esquinas: 'muy', fondoTinte: true, contraste: false, fondoBrillo: 55, fondoVidrio: 30 } },
+  { clave: 'cafe', nombre: 'Café', emoji: '☕', cambios: { tema: 'oscuro', acento: 'propio', colorPropio: '#b45309', fondo: 'puntos', fuente: 'clasica', esquinas: 'normal', fondoTinte: true, contraste: false, fondoBrillo: 45, fondoVidrio: 25 } },
+  { clave: 'oro', nombre: 'Oro', emoji: '🏆', cambios: { tema: 'oscuro', acento: 'propio', colorPropio: '#d4a017', fondo: 'estrellas', fuente: 'clasica', esquinas: 'normal', fondoTinte: false, contraste: false, fondoBrillo: 45, fondoVidrio: 30 } },
+  { clave: 'lavanda', nombre: 'Lavanda', emoji: '💜', cambios: { tema: 'claro', acento: 'morado', fondo: 'aurora', fuente: 'redonda', esquinas: 'muy', fondoTinte: true, contraste: false, fondoBrillo: 75, fondoVidrio: 35 } },
+  { clave: 'menta', nombre: 'Menta', emoji: '🌿', cambios: { tema: 'claro', acento: 'propio', colorPropio: '#10b981', fondo: 'ninguno', fuente: 'redonda', esquinas: 'muy', fondoTinte: true, contraste: false } },
+  { clave: 'nieve', nombre: 'Nieve', emoji: '❄️', cambios: { tema: 'claro', acento: 'cian', fondo: 'ninguno', fuente: 'sistema', esquinas: 'muy', fondoTinte: true, contraste: false } },
+  { clave: 'papel', nombre: 'Papel', emoji: '📜', cambios: { tema: 'claro', acento: 'grafito', fondo: 'ninguno', fuente: 'clasica', esquinas: 'rectas', fondoTinte: false, contraste: false } },
+  { clave: 'grafito', nombre: 'Grafito pro', emoji: '🖤', cambios: { tema: 'oscuro', acento: 'grafito', fondo: 'ninguno', fuente: 'sistema', esquinas: 'rectas', fondoTinte: false, contraste: false } },
+  { clave: 'lectura', nombre: 'Lectura fácil', emoji: '👓', cambios: { tema: 'claro', acento: 'azul', fondo: 'ninguno', fuente: 'facil', esquinas: 'normal', fondoTinte: false, contraste: true, letra: 'grande' } },
+  { clave: 'contraste', nombre: 'Alto contraste', emoji: '🔆', cambios: { tema: 'oscuro', acento: 'ambar', fondo: 'ninguno', fuente: 'lectura', esquinas: 'normal', fondoTinte: false, contraste: true } }
+];
 export const INICIOS: Array<{ valor: string; nombre: string }> = [
   { valor: '', nombre: 'La de siempre' }, { valor: '/dashboard', nombre: 'Dashboard' }, { valor: '/rutograma', nombre: 'Rutograma' },
   { valor: '/vehiculos', nombre: 'Vehículos' }, { valor: '/rutas', nombre: 'Rutas' }, { valor: '/conductores', nombre: 'Conductores' },
@@ -84,6 +127,7 @@ export const EFECTOS: Array<{ clave: Efecto; nombre: string; ayuda: string }> = 
   { clave: 'brillo', nombre: 'Detalles que brillan', ayuda: 'El logo brilla de vez en cuando, las tarjetas se levantan al pasar el mouse y otros toques.' },
   { clave: 'previa', nombre: 'Vista previa de viajes', ayuda: 'En el Rutograma, al dejar el mouse sobre un viaje sale su detalle sin abrirlo.' },
   { clave: 'confeti', nombre: 'Celebrar el mes completo', ayuda: 'Cuando todos los viajes del mes quedan entregados, cae confeti.' },
+  { clave: 'transicion', nombre: 'Deslizar entre páginas', ayuda: 'Al cambiar de página, la nueva entra deslizándose desde el lado hacia donde vas.' },
   { clave: 'rastro', nombre: 'Detalles de la temporada', ayuda: 'En cada festividad: chispitas que siguen al mouse, chispas al guardar y adornos en las tarjetas (nieve en Navidad, telarañas en Halloween...).' }
 ];
 /** Colores de siempre de las tarjetas de cada transportadora (rutograma.css). */
@@ -112,6 +156,7 @@ export const COLORES_TR: Record<Transportadora, string> = { makand: '#1e3a8a', a
 export class ThemeService {
   private account = inject(AccountService);
   private sonido = inject(SonidoService);
+  private ambiente = inject(AmbienteService);
   private readonly CLAVE_VIEJA = 'rutograma_tema';          // antes: uno solo para todo el equipo
   private readonly PREFIJO = 'rutograma_apariencia:';         // + correo de la cuenta
   private email = '';
@@ -206,7 +251,7 @@ export class ThemeService {
 
   /** ¿Es distinta de como viene la app? (para mostrar "Restablecer") */
   public get personalizada(): boolean {
-    const estilo = (a: Apariencia) => { const { avatar, foto, fijados, tablero, inicio, ...resto } = this.limpiar(a); return JSON.stringify(resto); };
+    const estilo = (a: Apariencia) => { const { avatar, foto, fijados, tablero, inicio, notas, ...resto } = this.limpiar(a); return JSON.stringify(resto); };
     return estilo(this.ap) !== estilo(POR_DEFECTO);
   }
 
@@ -251,7 +296,15 @@ export class ThemeService {
       },
       sonidos: p.sonidos !== false,
       volumen: Number.isFinite(p.volumen) ? Math.max(0, Math.min(100, Math.round(p.volumen))) : 50,
-      sonidoTemporada: p.sonidoTemporada !== false
+      sonidoTemporada: p.sonidoTemporada !== false,
+      contadorNavidad: p.contadorNavidad !== false,
+      ambiente: AMBIENTES.some(a => a.valor === p.ambiente) ? p.ambiente : '',
+      ambienteVol: Number.isFinite(p.ambienteVol) ? Math.max(0, Math.min(100, Math.round(p.ambienteVol))) : 35,
+      enfoque: false,
+      notas: Array.isArray(p.notas) ? p.notas.filter((n: any) => n && typeof n.texto === 'string').slice(0, 30).map((n: any) => ({
+        id: String(n.id || Math.random().toString(36).slice(2, 10)).slice(0, 20), texto: String(n.texto).slice(0, 1000),
+        color: /^[a-z]{1,12}$/.test(n.color || '') ? n.color : 'amarillo', hecha: n.hecha === true, en: String(n.en || '').slice(0, 30)
+      })) : []
     };
   }
 
@@ -347,6 +400,7 @@ export class ThemeService {
     html.classList.toggle('barra-flotante', this.ap.barra === 'flotante');
     this.barra.set(this.ap.barra);
     this.sonido.configurar(this.ap.sonidos, this.ap.volumen, this.ap.sonidoTemporada);
+    this.ambiente.configurar(this.ap.ambiente, this.ap.ambienteVol);
     this.cambio.update(n => n + 1);
     // Color de la barra del celular cuando está instalada como aplicación.
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', this.temaActual === 'claro' ? '#f8fafc' : '#0f172a');
@@ -366,8 +420,8 @@ export class ThemeService {
   public alternarAnimaciones(): void { this.cambiar({ sinAnimaciones: !this.ap.sinAnimaciones }); }
   public restablecer(): void {
     // La foto, el avatar, lo fijado y el Dashboard son de la persona, no del estilo: se quedan.
-    const { avatar, foto, fijados, tablero, inicio } = this.ap;
-    this.cambiar({ ...POR_DEFECTO, coloresTr: { ...POR_DEFECTO.coloresTr }, efectos: { ...POR_DEFECTO.efectos }, avatar, foto, fijados, tablero, inicio });
+    const { avatar, foto, fijados, tablero, inicio, notas } = this.ap;
+    this.cambiar({ ...POR_DEFECTO, coloresTr: { ...POR_DEFECTO.coloresTr }, efectos: { ...POR_DEFECTO.efectos }, avatar, foto, fijados, tablero, inicio, notas });
   }
   public alternarTinte(): void { this.cambiar({ fondoTinte: !this.ap.fondoTinte }); }
   public alternarDaltonismo(): void { this.cambiar({ daltonismo: !this.ap.daltonismo }); }
@@ -416,6 +470,49 @@ export class ThemeService {
     if (guardar) { this.cambiar({ volumen }); return; }
     this.ap = this.limpiar({ ...this.ap, volumen });
     this.sonido.configurar(this.ap.sonidos, this.ap.volumen, this.ap.sonidoTemporada);
+  }
+  /** Notas rápidas personales (components/notas). Se guardan un momento después de escribir. */
+  public notasAbiertas = signal(false);
+  private relojNotas: any = null;
+  public ponerNotas(notas: NotaPersonal[], guardarYa = false): void {
+    this.ap = this.limpiar({ ...this.ap, notas });
+    this.recordarEnEquipo();
+    clearTimeout(this.relojNotas);
+    const guardar = () => this.account.guardarPreferencias(this.ap);
+    if (guardarYa) guardar(); else this.relojNotas = setTimeout(guardar, 900);
+  }
+  // ============================================================
+  // MODO ENFOQUE: solo el Rutograma, a pantalla completa, sin barra,
+  // avisos ni decoraciones. Tecla F (o el botón del Rutograma); se sale
+  // con F o con Esc.
+  // ============================================================
+  public enfoque = signal(false);
+  private escuchaPantalla = false;
+  public alternarEnfoque(forzar?: boolean): void {
+    const activar = forzar ?? !this.enfoque();
+    this.enfoque.set(activar);
+    document.documentElement.classList.toggle('modo-enfoque', activar);
+    if (!this.escuchaPantalla) {
+      this.escuchaPantalla = true;
+      document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && this.enfoque()) this.alternarEnfoque(false); });
+    }
+    try {
+      if (activar && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+      if (!activar && document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    } catch { /* el navegador no deja: queda el enfoque sin pantalla completa */ }
+    this.sonido.tocar(activar ? 'abrir' : 'cerrar');
+  }
+
+  /** Aplica un tema listo (sin tocar la foto, las notas, lo fijado ni el Dashboard). */
+  public aplicarTemaListo(t: TemaListo): void { this.cambiar({ ...t.cambios }); this.sonido.tocar('aprobar'); }
+  public temaListoActual(): string {
+    return TEMAS_LISTOS.find(t => Object.entries(t.cambios).every(([k, v]) => (this.ap as any)[k] === v))?.clave || '';
+  }
+  public alternarContadorNavidad(): void { this.cambiar({ contadorNavidad: !this.ap.contadorNavidad }); }
+  public ponerAmbiente(ambiente: string): void { this.cambiar({ ambiente }); }
+  public ponerAmbienteVol(ambienteVol: number, guardar = true): void {
+    if (guardar) { this.cambiar({ ambienteVol }); return; }
+    this.ap = this.limpiar({ ...this.ap, ambienteVol }); this.aplicar();
   }
   public alternarSonidoTemporada(): void { this.cambiar({ sonidoTemporada: !this.ap.sonidoTemporada }); this.sonido.tocar('aprobar'); }
   public estaFijado(placa: string): boolean { return this.ap.fijados.includes(String(placa || '').toUpperCase()); }

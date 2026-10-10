@@ -1,4 +1,5 @@
-<div class="pantalla-carga-inicial" *ngIf="cargandoInicial() || cargandoGrande()">
+<div class="pantalla-carga-inicial" *ngIf="cargandoInicial() || cargandoGrande()" [attr.data-tp]="temporadaCarga()?.clave || null"
+     [style.--tp-c1]="temporadaCarga()?.colores?.[0] || null" [style.--tp-c2]="temporadaCarga()?.colores?.[1] || null">
   <div class="pci-bg-lines"></div>
   <div class="pci-glow pci-glow-blue"></div>
   <div class="pci-glow pci-glow-amber"></div>
@@ -11,14 +12,19 @@
       <span class="pci-ruta-dot"></span>
       <span class="pci-ruta-linea"></span>
       <span class="pci-ruta-dot"></span>
-      <svg class="pci-camion" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 17V7a1 1 0 0 1 1-1h9v11" />
-        <path d="M13 10h4l3 3v4h-7" />
-        <circle cx="7" cy="17.5" r="1.8" />
-        <circle cx="17" cy="17.5" r="1.8" />
-      </svg>
+      <span class="pci-viajero">
+        <svg class="pci-camion" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 17V7a1 1 0 0 1 1-1h9v11" />
+          <path d="M13 10h4l3 3v4h-7" />
+          <circle cx="7" cy="17.5" r="1.8" />
+          <circle cx="17" cy="17.5" r="1.8" />
+        </svg>
+        <!-- Disfraz del camioncito según la fiesta (gorro de Papá Noel, calabaza, bandera...). -->
+        <span class="pci-disfraz" *ngIf="disfrazCarga() as dz" [ngClass]="'pci-dz-' + dz.clase">{{ dz.emoji }}</span>
+      </span>
     </div>
 
+    <div class="pci-saludo-tp" *ngIf="temporadaCarga() as tc">{{ tc.emoji }} {{ tc.saludo }}</div>
     <div class="pci-texto">{{ cargandoGrande() ? mensajeGrande() : 'Cargando el Rutograma...' }}</div>
   </div>
 </div>
@@ -49,6 +55,7 @@
 <app-guia *ngIf="!cargandoInicial()"></app-guia>
 <app-apariencia></app-apariencia>
 <app-aviso-inactividad></app-aviso-inactividad>
+<app-notas *ngIf="!cargandoInicial() && authService.currentUser"></app-notas>
 <app-aviso-deshacer *ngIf="!cargandoInicial() && authService.puedeEditar && !authService.necesitaAprobacion"></app-aviso-deshacer>
 
 <!-- Aviso de choque: otra persona modificó el viaje que se estaba editando.
@@ -231,16 +238,33 @@
     height: 1px;
     background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0, rgba(255,255,255,0.18) 5px, transparent 5px, transparent 10px);
   }
-  .pci-camion {
+  .pci-viajero {
     position: absolute;
     top: 50%;
     left: 0;
     width: 22px;
     height: 22px;
-    color: #fb923c;
     transform: translate(-50%, -60%);
     animation: pci-camion-recorrido 1.5s ease-in-out infinite;
   }
+  .pci-camion {
+    width: 22px;
+    height: 22px;
+    color: var(--tp-c1, #fb923c);
+    display: block;
+  }
+  .pci-disfraz { position: absolute; left: 1px; top: -13px; font-size: 13px; line-height: 1; animation: pci-rebote .5s ease-in-out infinite alternate; }
+  .pci-dz-gorro { left: -2px; top: -12px; transform: rotate(-18deg); font-size: 0; width: 14px; height: 12px; }
+  .pci-dz-gorro::before { content: ''; position: absolute; inset: 0; background: #dc2626; clip-path: polygon(0 100%, 100% 100%, 70% 0); }
+  .pci-dz-gorro::after { content: ''; position: absolute; left: -2px; right: -2px; bottom: -2px; height: 4px; border-radius: 3px; background: #fff; box-shadow: 9px -12px 0 -1px #fff; }
+  .pci-dz-bandera { font-size: 0; width: 14px; height: 9px; top: -12px; left: 3px; background: linear-gradient(180deg, #fcd116 0 50%, #003893 50% 75%, #ce1126 75%); box-shadow: -1px 0 0 0 #475569; }
+  .pci-dz-bandera::before { content: ''; position: absolute; left: -2px; top: 0; width: 1.5px; height: 14px; background: #cbd5e1; }
+  @keyframes pci-rebote { from { translate: 0 0; } to { translate: 0 -2px; } }
+  .pci-saludo-tp { margin-top: 18px; font-size: 14px; font-weight: 700; color: var(--tp-c1, #fbbf24); text-shadow: 0 0 12px color-mix(in srgb, var(--tp-c2, #fbbf24) 60%, transparent); animation: pci-latir 1.6s ease-in-out infinite; }
+  @keyframes pci-latir { 0%, 100% { opacity: .75; } 50% { opacity: 1; } }
+  .pantalla-carga-inicial[data-tp] .pci-glow-blue { background: var(--tp-c2, #3b82f6); }
+  .pantalla-carga-inicial[data-tp] .pci-glow-amber { background: var(--tp-c1, #fb923c); }
+  .pantalla-carga-inicial[data-tp] .pci-ruta-dot { background: var(--tp-c1, #3b82f6); }
   @keyframes pci-camion-recorrido {
     0%   { left: 3px; }
     50%  { left: 217px; }

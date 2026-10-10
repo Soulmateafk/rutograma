@@ -2,6 +2,7 @@ import { Component, inject, OnInit, NgZone, ChangeDetectorRef } from '@angular/c
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { DataService } from '../../services/data';
+import { ponerAniversario } from '../../services/temporadas';
 import { AuthService } from '../../services/auth.service';
 import { GuiaService } from '../../services/guia.service';
 import { UiService } from '../../services/ui.service';
@@ -36,6 +37,22 @@ export class Configuracion implements OnInit {
   public theme = inject(ThemeService);
   private account = inject(AccountService);
   public auth = inject(AuthService);
+
+  // Aniversario de MAKAND (config compartida "celebraciones"): decora la app ese día.
+  public aniversarioFecha = (() => {
+    const c = (this.ds?.S?.celebraciones || []).find((x: any) => x?.tipo === 'aniversario');
+    return c?.fecha ? `${new Date().getFullYear()}-${c.fecha}` : '';
+  })();
+  public async guardarAniversario(): Promise<void> {
+    const ds = this.ds;
+    const resto = (ds.S.celebraciones || []).filter((x: any) => x?.tipo !== 'aniversario');
+    const fecha = /^\d{4}-\d{2}-\d{2}$/.test(this.aniversarioFecha) ? this.aniversarioFecha.slice(5) : '';
+    ds.S.celebraciones = fecha ? [...resto, { tipo: 'aniversario', fecha }] : resto;
+    await ds.autoSave();
+    await ds.guardarConfigCompartida('celebraciones');
+    ponerAniversario(fecha);
+    this.ui.mostrarToast(fecha ? '🎂 Aniversario guardado: ese día la app se decora para todos.' : 'Se quitó la fecha del aniversario.', 'ok');
+  }
   public cambiandoClave = false;
   private ui = inject(UiService);
   private loading = inject(LoadingService);

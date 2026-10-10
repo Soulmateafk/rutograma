@@ -1299,3 +1299,63 @@ html[data-temporada="ano-nuevo"]:not(.sin-rastro) .kpi .val { background: linear
 /* --- Semana Santa: huevito en la esquina --- */
 html[data-temporada="semana-santa"]:not(.sin-rastro) .kpi { position: relative; }
 html[data-temporada="semana-santa"]:not(.sin-rastro) .kpi::after { content: '🥚'; position: absolute; top: 6px; right: 8px; font-size: 13px; opacity: .8; pointer-events: none; }
+
+/* Con fondo de pantalla las tarjetas de vidrio forman cada una su propia
+   capa: lo que se despliega dentro (calendario del periodo, menús, listas)
+   quedaba DEBAJO de la tarjeta siguiente. La que está en uso sube encima. */
+html.con-fondo :is(.card, .kpi, .pz-caja, .pizarra, .gestion-header, [class$="-card"], [class*="-card "], .qj-lista, .cp-lista, .pp-lista, .rg-card) { position: relative; }
+html.con-fondo :is(.card, .kpi, .pz-caja, .pizarra, .gestion-header, [class$="-card"], [class*="-card "], .qj-lista, .cp-lista, .pp-lista, .rg-card):is(:focus-within, :has(.mini-calendario, [class*="calendario"], [class*="menu"], [class*="desplegable"], [class*="resultados"], [class*="opciones"], select:focus)) { z-index: 60; }
+html.con-fondo .gestion-header { z-index: 30; }
+html.con-fondo :is(.mini-calendario, .ruto-mini-calendario, .ruto-hover-tooltip, .tp-anuncio) { background: #111827 !important; }
+html.con-fondo body.tema-claro :is(.mini-calendario, .ruto-mini-calendario, .ruto-hover-tooltip) { background: #ffffff !important; }
+
+/* ============================================================
+   MÁS TEMPORADAS: camiones que pasan, globos que suben, velitas,
+   Nochebuena y los sustos suaves de Halloween.
+   ============================================================ */
+.tp-camion { top: auto; bottom: 46px; font-size: 32px; animation: tp-camion 30s linear infinite 4s; }
+@keyframes tp-camion { 0% { opacity: 0; transform: translateX(0); } 2% { opacity: 1; } 30% { opacity: 1; transform: translateX(calc(100vw + 160px)); } 31%, 100% { opacity: 0; transform: translateX(calc(100vw + 160px)); } }
+.tp-globos { left: 70%; bottom: -60px; top: auto; font-size: 30px; animation: tp-globos 26s ease-in-out infinite 3s; }
+@keyframes tp-globos { 0% { opacity: 0; transform: translate(0, 0); } 3% { opacity: 1; } 35% { opacity: .9; transform: translate(-12vw, -105vh) rotate(-8deg); } 36%, 100% { opacity: 0; transform: translate(-12vw, -105vh); } }
+.tp-cruza.tp-nochebuena { animation-duration: 16s !important; font-size: 40px; }
+
+/* Velitas: una fila abajo que se va encendiendo. */
+.tp-velitas { position: fixed; left: 0; right: 0; bottom: 0; height: 70px; display: flex; justify-content: space-around; align-items: flex-end; padding: 0 140px; pointer-events: none; z-index: 9986; }
+.tp-vela { position: relative; width: 9px; border-radius: 3px 3px 1px 1px; background: linear-gradient(90deg, color-mix(in srgb, var(--vc) 70%, #000), var(--vc), color-mix(in srgb, var(--vc) 70%, #fff)); box-shadow: 0 0 8px rgba(0, 0, 0, .3); }
+.tp-vela::before { content: ''; position: absolute; left: 50%; top: -5px; width: 1.5px; height: 6px; background: #292524; transform: translateX(-50%); }
+.tp-vela i { position: absolute; left: 50%; top: -20px; width: 10px; height: 16px; margin-left: -5px; border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%;
+  background: radial-gradient(ellipse at 50% 70%, #fff 0 15%, #fde047 35%, #f97316 70%, transparent 72%); filter: drop-shadow(0 0 8px #fbbf24) drop-shadow(0 0 18px rgba(251, 191, 36, .6));
+  transform-origin: 50% 90%; transform: scale(0); animation: tp-encender .6s ease-out var(--d) forwards, tp-llama 1.4s ease-in-out calc(var(--d) + .6s) infinite alternate; }
+@keyframes tp-encender { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes tp-llama { 0% { transform: scale(1) rotate(-3deg); } 50% { transform: scale(1.08, .95) rotate(2deg); } 100% { transform: scale(.95, 1.06) rotate(-1deg); } }
+html[data-temporada="velitas"] .tp-brillo { background: radial-gradient(ellipse at 50% 100%, rgba(251, 191, 36, .22), transparent 55%) !important; }
+html.sin-animaciones .tp-vela i { transform: scale(1); animation: none; }
+@media (max-width: 600px) { .tp-velitas { padding: 0 20px; height: 50px; } .tp-vela:nth-child(n+9) { display: none; } }
+
+/* Halloween: nube que pasa tapando la luna. */
+.tp-nube { position: fixed; top: 64px; right: 40px; width: 150px; height: 46px; pointer-events: none; z-index: 9986; opacity: 0;
+  background: radial-gradient(circle at 25% 60%, #475569 18px, transparent 19px), radial-gradient(circle at 50% 40%, #64748b 24px, transparent 25px), radial-gradient(circle at 75% 60%, #475569 18px, transparent 19px), radial-gradient(ellipse at 50% 80%, #334155 60px, transparent 61px);
+  filter: blur(1px); animation: tp-nube 32s ease-in-out infinite 6s; }
+@keyframes tp-nube { 0% { opacity: 0; transform: translateX(140px); } 8% { opacity: .92; } 30% { opacity: .92; transform: translateX(-90px); } 38%, 100% { opacity: 0; transform: translateX(-200px); } }
+/* Fantasma que se asoma por el borde de una tarjeta. */
+.tp-asoma { position: fixed; z-index: 9987; font-size: 30px; pointer-events: none; animation: tp-asoma 3.2s ease-in-out forwards; filter: drop-shadow(0 0 8px rgba(255, 255, 255, .5)); }
+.tp-asoma:not(.tp-asoma-izq) { --sale: -22px; transform: scaleX(-1); }
+.tp-asoma.tp-asoma-izq { --sale: 22px; }
+@keyframes tp-asoma { 0% { opacity: 0; translate: 0 0; } 20% { opacity: 1; translate: var(--sale) 0; } 30% { translate: var(--sale) -3px; } 45% { translate: var(--sale) 2px; } 70% { opacity: 1; translate: var(--sale) 0; } 100% { opacity: 0; translate: 0 0; } }
+html.sin-animaciones :is(.tp-nube, .tp-asoma) { display: none; }
+
+/* ============================================================
+   MODO ENFOQUE (tecla F): solo el Rutograma, sin barra, avisos ni adornos.
+   ============================================================ */
+html.modo-enfoque :is(app-navbar, app-pizarra, app-aviso-cargue, app-temporada, .banner-sin-conexion, .ruto-aviso-aprobaciones, .ruto-cambios-cierre) { display: none !important; }
+html.modo-enfoque body { padding-left: 0 !important; }
+html.modo-enfoque .ruto-table-responsive { max-height: calc(100vh - 150px) !important; }
+html.modo-enfoque::after { content: 'Modo enfoque · F o Esc para salir'; position: fixed; right: 16px; bottom: 14px; z-index: 10040; padding: 6px 12px; border-radius: 999px; font-size: 12px;
+  background: var(--acento); color: #fff; box-shadow: 0 6px 18px rgba(0, 0, 0, .35); opacity: .85; pointer-events: none; animation: ap-aparecer .5s ease-out; font-family: var(--fuente-app, 'Segoe UI', system-ui, sans-serif); font-weight: 600; }
+.ruto-btn-enfoque { margin-left: 4px; }
+
+/* Deslizar entre páginas (Apariencia → Efectos): la página nueva entra desde el lado hacia donde se va. */
+html[data-dir="adelante"]:not(.sin-transicion):not(.sin-animaciones) router-outlet + * { animation-name: ap-pag-adelante; }
+html[data-dir="atras"]:not(.sin-transicion):not(.sin-animaciones) router-outlet + * { animation-name: ap-pag-atras; }
+@keyframes ap-pag-adelante { from { opacity: 0; transform: translateX(60px); filter: blur(2px); } 60% { filter: none; } to { opacity: 1; transform: none; } }
+@keyframes ap-pag-atras { from { opacity: 0; transform: translateX(-60px); filter: blur(2px); } 60% { filter: none; } to { opacity: 1; transform: none; } }

@@ -1,4 +1,5 @@
 <app-temporada></app-temporada>
+<app-juego *ngIf="jugando" (cerrar)="jugando = false"></app-juego>
 <!-- ===== APARIENCIA ===== -->
 <div animate.leave="ap-cerrar" class="ap-fondo" *ngIf="theme.panelAbierto()" (click)="theme.panelAbierto.set(false)">
   <div class="ap-panel" (click)="$event.stopPropagation()" role="dialog" aria-label="Apariencia">
@@ -12,6 +13,19 @@
     <nav class="ap-saltos" aria-label="Ir a una sección">
       <button *ngFor="let x of saltos" class="ap-chip" (click)="saltar(x.guia)">{{ x.nombre }}</button>
     </nav>
+
+    <div class="ap-grupo" data-guia="ap-temas">
+      <div class="ap-titulo">Temas listos <small class="ap-sub">un clic y listo · después puedes cambiar lo que quieras</small></div>
+      <div class="ap-temas">
+        <button *ngFor="let t of temasListos" class="ap-tema" [class.on]="theme.temaListoActual() === t.clave" (click)="theme.aplicarTemaListo(t)" [title]="t.nombre">
+          <span class="ap-tema-muestra" [ngClass]="'muestra-' + (t.cambios.fondo || 'ninguno')" [class.claro]="t.cambios.tema === 'claro'">
+            <span class="ap-tema-punto" [style.background]="colorDeTema(t)"></span>
+            <span class="ap-tema-emoji">{{ t.emoji }}</span>
+          </span>
+          <small>{{ t.nombre }}</small>
+        </button>
+      </div>
+    </div>
 
     <div class="ap-grupo" data-guia="ap-perfil" *ngIf="!compartida">
       <div class="ap-titulo">Mi foto o avatar</div>
@@ -150,6 +164,19 @@
         <span class="ap-int-caja"></span>
         <span><strong>Sonidos al usar la app</strong><small>Un sonido distinto al guardar, aprobar, borrar, abrir o cerrar ventanas, cuando hay un error o un cambio en vivo.</small></span>
       </label>
+      <div class="ap-ambiente">
+        <span class="ap-sub-titulo"><i class="bi bi-headphones"></i> Sonido ambiente (de fondo, muy suave)</span>
+        <div class="ap-ambientes">
+          <button *ngFor="let a of ambientes" class="ap-chip" [class.on]="theme.ap.ambiente === a.valor" (click)="theme.ponerAmbiente(a.valor)"><i class="bi" [ngClass]="a.icono"></i> {{ a.nombre }}</button>
+        </div>
+        <div class="ap-volumen" *ngIf="theme.ap.ambiente">
+          <i class="bi bi-volume-down"></i>
+          <input type="range" min="5" max="100" step="5" [value]="theme.ap.ambienteVol" (input)="theme.ponerAmbienteVol(+$any($event.target).value, false)" (change)="theme.ponerAmbienteVol(+$any($event.target).value)" aria-label="Volumen del ambiente">
+          <i class="bi bi-volume-up"></i>
+          <span class="ap-vol-num">{{ theme.ap.ambienteVol }}%</span>
+        </div>
+        <p class="ap-nota" *ngIf="theme.ap.ambiente === 'temporada'">Cambia solo: villancicos en Navidad, noche de miedo en Halloween, cajita de música en San Valentín, campo el 20 de julio…</p>
+      </div>
       <ng-container *ngIf="theme.ap.sonidos">
         <div class="ap-volumen">
           <i class="bi bi-volume-down"></i>
@@ -204,7 +231,13 @@
         <option value="no">Sin decoración</option>
         <option *ngFor="let t of temporadas" [value]="t.clave">Ver siempre: {{ t.nombre }} {{ t.emoji }}</option>
       </select>
-      <p class="ap-nota">Año Nuevo, San Valentín, Día de la Mujer, Semana Santa, Día de la Madre y del Padre, 20 de Julio, Amor y Amistad, Halloween y Navidad: salen solas en su fecha.</p>
+      <p class="ap-nota">Año Nuevo, San Valentín, Día de la Mujer, Semana Santa, Día del Trabajo, Día de la Madre y del Padre, Día del Conductor, 20 de Julio, 7 de agosto, Amor y Amistad, Halloween, Velitas, Navidad y el aniversario de MAKAND: salen solas en su fecha, y cada día trae algo distinto.</p>
+      <label class="ap-interruptor">
+        <input type="checkbox" [checked]="theme.ap.contadorNavidad" (change)="theme.alternarContadorNavidad()">
+        <span class="ap-int-caja"></span>
+        <span><strong>Contador de Navidad</strong><small>Del 1 al 25 de diciembre, en la barra: "🎄 12 días".</small></span>
+      </label>
+      <button class="ap-opcion ap-jugar" (click)="jugando = true"><i class="bi bi-controller"></i> Jugar un ratico: atrapa {{ temporadaDeHoy ? 'lo de ' + temporadaDeHoy.nombre + ' ' + temporadaDeHoy.emoji : 'las cajas 📦' }}</button>
     </div>
 
     <div class="ap-grupo" data-guia="ap-efectos">
