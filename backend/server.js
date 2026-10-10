@@ -2520,7 +2520,7 @@ app.post('/api/guias/reiniciar', (req, res) => {
 // reglasAsignacion / picoPlaca: ver reglas-asignacion.js. anuncios: la pizarra.
 // comparendos: multas por vehículo y conductor. quejas: reclamos de clientes.
 // ubicaciones: coordenadas de destinos que el mapa no conocía.
-const CLAVES_CONFIG_COMPARTIDA = { transportadoras: 'array', cuposExt: 'array', festivos: 'array', reglasAsignacion: 'array', picoPlaca: 'array', anuncios: 'array', comparendos: 'array', quejas: 'array', ubicaciones: 'array' };
+const CLAVES_CONFIG_COMPARTIDA = { transportadoras: 'array', cuposExt: 'array', festivos: 'array', reglasAsignacion: 'array', picoPlaca: 'array', anuncios: 'array', comparendos: 'array', quejas: 'array', ubicaciones: 'array', celebraciones: 'array' };
 
 app.post('/api/configuracion/compartida', (req, res) => {
     try {
@@ -4596,7 +4596,7 @@ function preferenciasDe(usuario) {
         daltonismo: p.daltonismo === true,
         esquinas: ['normal', 'muy', 'rectas'].includes(p.esquinas) ? p.esquinas : 'normal',
         saludo: p.saludo !== false,
-        efectos: Object.fromEntries(['onda', 'progreso', 'cascada', 'mes', 'vivo', 'temblor', 'destello', 'brillo', 'previa', 'confeti', 'rastro'].map(e => [e, p.efectos?.[e] !== false])),
+        efectos: Object.fromEntries(['onda', 'progreso', 'cascada', 'mes', 'vivo', 'temblor', 'destello', 'brillo', 'previa', 'confeti', 'rastro', 'transicion'].map(e => [e, p.efectos?.[e] !== false])),
         temporada: typeof p.temporada === 'string' && /^[a-z-]{1,20}$/.test(p.temporada) ? p.temporada : 'auto',
         fondo: FONDOS.includes(p.fondo) ? p.fondo : 'ninguno',
         fondoBrillo: Number.isFinite(p.fondoBrillo) ? Math.max(0, Math.min(100, Math.round(p.fondoBrillo))) : 55,
@@ -4614,7 +4614,13 @@ function preferenciasDe(usuario) {
         },
         sonidos: p.sonidos !== false,
         volumen: Number.isFinite(p.volumen) ? Math.max(0, Math.min(100, Math.round(p.volumen))) : 50,
-        sonidoTemporada: p.sonidoTemporada !== false
+        sonidoTemporada: p.sonidoTemporada !== false,
+        contadorNavidad: p.contadorNavidad !== false,
+        ambiente: ['', 'temporada', 'lluvia', 'cafe', 'mar', 'campo', 'grillos', 'fogata', 'villancicos', 'misterio', 'cajita'].includes(p.ambiente) ? p.ambiente : '',
+        ambienteVol: Number.isFinite(p.ambienteVol) ? Math.max(0, Math.min(100, Math.round(p.ambienteVol))) : 35,
+        notas: Array.isArray(p.notas) ? p.notas.filter(n => n && typeof n.texto === 'string').slice(0, 30).map(n => ({
+            id: String(n.id || '').slice(0, 20), texto: String(n.texto).slice(0, 1000), color: /^[a-z]{1,12}$/.test(n.color || '') ? n.color : 'amarillo', hecha: n.hecha === true, en: String(n.en || '').slice(0, 30)
+        })) : []
     };
 }
 function esCuentaCompartida(usuario) {

@@ -117,6 +117,9 @@
       <button class="btn-zoom" (click)="cambiarZoom(-10)"><i class="bi bi-zoom-out"></i></button>
       <button class="btn-zoom" (click)="cambiarZoom(10)"><i class="bi bi-zoom-in"></i></button>
       <span class="ruto-zoom-text">{{ zoomPorcentaje }}%</span>
+      <button class="btn-zoom ruto-btn-enfoque" data-guia="ruto-enfoque" (click)="theme.alternarEnfoque()" [title]="theme.enfoque() ? 'Salir del modo enfoque (F o Esc)' : 'Modo enfoque: solo el Rutograma, a pantalla completa (F)'">
+        <i class="bi" [ngClass]="theme.enfoque() ? 'bi-fullscreen-exit' : 'bi-arrows-fullscreen'"></i>
+      </button>
     </div>
   </div>
 

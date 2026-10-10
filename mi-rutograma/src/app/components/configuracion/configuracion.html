@@ -121,6 +121,20 @@
       </button>
     </div>
 
+    <div class="card" data-guia="conf-aniversario">
+      <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">🎂 Aniversario de MAKAND</div>
+      <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 12px 0; line-height: 1.5;">
+        Ese día (y los dos anteriores) la app se decora para todos: globos, fuegos artificiales y un saludo especial.
+      </p>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <input type="date" [value]="aniversarioFecha" (change)="aniversarioFecha = $any($event.target).value" [disabled]="!auth.puedeEditar"
+               style="background: var(--color-fondo-input); color: var(--color-texto-principal); border: 1px solid var(--color-borde); border-radius: 8px; padding: 7px 10px; font-family: inherit;">
+        <button class="btn pri" *ngIf="auth.puedeEditar" (click)="guardarAniversario()"><i class="bi bi-check-lg"></i> Guardar</button>
+        <button class="btn" *ngIf="auth.puedeEditar && aniversarioFecha" (click)="aniversarioFecha = ''; guardarAniversario()">Quitar</button>
+      </div>
+      <p style="font-size: 11px; color: var(--color-texto-apagado); margin: 8px 0 0;">Solo cuenta el día y el mes; el año es solo para que el calendario lo muestre.</p>
+    </div>
+
     <div class="card" data-guia="conf-mi-cuenta">
       <div class="stitle" style="text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 16px;">Mi cuenta</div>
       <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0; line-height: 1.5;">

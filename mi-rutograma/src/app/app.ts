@@ -21,12 +21,15 @@ import { AvisoInactividadComponent } from './components/aviso-inactividad/aviso-
 import { PizarraComponent } from './components/pizarra/pizarra';
 import { AvisoCargueComponent } from './components/aviso-cargue/aviso-cargue';
 import { AvisoDeshacerComponent } from './components/aviso-deshacer/aviso-deshacer';
+import { NotasComponent } from './components/notas/notas';
 import { SonidoService } from './services/sonido.service';
+import { computed } from '@angular/core';
+import { temporadaVisible } from './services/temporadas';
 
 @Component({
   selector: 'app-root',
   standalone: true, 
-  imports: [RouterOutlet, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent, PizarraComponent, AvisoCargueComponent, AparienciaComponent, AvisoDeshacerComponent], 
+  imports: [RouterOutlet, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent, PizarraComponent, AvisoCargueComponent, AparienciaComponent, AvisoDeshacerComponent, NotasComponent], 
   templateUrl: './app.html'
 })
 export class App implements OnInit {
@@ -36,6 +39,20 @@ export class App implements OnInit {
   // de zone.js — evita el problema de que algo cambie en un setTimeout
   // pero la vista nunca se repinte sola.
   mostrarNavbar = signal(true);
+
+  /** La pantalla de carga se viste de la fiesta (con la temporada que tenga la cuenta). */
+  temporadaCarga = computed(() => this.theme.temporadaPreferida() === 'no' ? null : temporadaVisible(this.theme.temporadaPreferida()));
+  disfrazCarga = computed(() => {
+    const DISFRACES: Record<string, { emoji: string; clase: string }> = {
+      navidad: { emoji: '', clase: 'gorro' }, halloween: { emoji: '🎃', clase: 'emoji' }, 'ano-nuevo': { emoji: '🎉', clase: 'emoji' },
+      'san-valentin': { emoji: '💝', clase: 'emoji' }, 'amor-amistad': { emoji: '🎁', clase: 'emoji' }, madre: { emoji: '🌷', clase: 'emoji' },
+      padre: { emoji: '👔', clase: 'emoji' }, mujer: { emoji: '💐', clase: 'emoji' }, 'semana-santa': { emoji: '🐣', clase: 'emoji' },
+      independencia: { emoji: '', clase: 'bandera' }, boyaca: { emoji: '', clase: 'bandera' }, trabajo: { emoji: '🔧', clase: 'emoji' },
+      conductor: { emoji: '⭐', clase: 'emoji' }, velitas: { emoji: '🕯️', clase: 'emoji' }, aniversario: { emoji: '🎈', clase: 'emoji' }
+    };
+    const t = this.temporadaCarga();
+    return t ? DISFRACES[t.clave] || null : null;
+  });
   rutaActual = signal('');
 
   // Pantalla de carga que se ve un momento ANTES de mostrar el login (o
@@ -111,6 +128,15 @@ export class App implements OnInit {
     // Escuchamos los cambios de ruta
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationStart) {
+        // Deslizar entre páginas: la nueva entra desde el lado hacia donde se va (orden de la barra).
+        const ORDEN = ['/dashboard', '/rutograma', '/vehiculos', '/rutas', '/conductores', '/despachos', '/comparativo', '/historico', '/cumplimiento',
+          '/quejas', '/comparendos', '/mapa', '/aprobaciones', '/papelera', '/reglas', '/configuracion', '/sesiones', '/admin'];
+        const pos = (u: string) => ORDEN.findIndex(r => u.startsWith(r));
+        const desde = pos(this.router.url), hacia = pos(event.url);
+        if (typeof document !== 'undefined') {
+          if (desde !== -1 && hacia !== -1 && desde !== hacia) document.documentElement.setAttribute('data-dir', hacia > desde ? 'adelante' : 'atras');
+          else document.documentElement.removeAttribute('data-dir');
+        }
         // No mostrarla en la primera carga de la app — ahí ya está la
         // pantalla de carga inicial (más larga) haciendo su trabajo.
         if (this.cargandoInicial()) return;

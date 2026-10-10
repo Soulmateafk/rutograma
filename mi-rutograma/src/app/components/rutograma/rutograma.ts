@@ -2986,7 +2986,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   // "En línea" y aquí sale "Carlos está editando este viaje".
   // ============================================================
   private presencia = inject(PresenciaService);
-  private theme = inject(ThemeService);
+  public theme = inject(ThemeService);
   private sonido = inject(SonidoService);
 
   private latirPresencia(): void {

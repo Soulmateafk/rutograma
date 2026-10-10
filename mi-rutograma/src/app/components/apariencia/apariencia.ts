@@ -8,10 +8,11 @@ import { AccountService } from '../../services/account.service';
 import { COLORES_TR, Transportadora } from '../../services/theme.service';
 import { variantesAcento } from '../../services/colores';
 import { RuedaColorComponent } from './rueda-color';
+import { JuegoComponent } from './juego';
 import { ConexionService } from '../../services/conexion.service';
 import { TemporadaComponent } from './temporada';
 import { TEMPORADAS, temporadaDe } from '../../services/temporadas';
-import { EFECTOS, FONDOS, FUENTES, AVATARES, INICIOS, Fondo } from '../../services/theme.service';
+import { EFECTOS, FONDOS, FUENTES, AVATARES, INICIOS, Fondo, TEMAS_LISTOS, TemaListo, AMBIENTES } from '../../services/theme.service';
 import { SonidoService, ACCIONES_SONIDO, Accion } from '../../services/sonido.service';
 import { reducirImagen } from '../../services/imagenes';
 
@@ -23,7 +24,7 @@ import { reducirImagen } from '../../services/imagenes';
 @Component({
   selector: 'app-apariencia',
   standalone: true,
-  imports: [CommonModule, RuedaColorComponent, TemporadaComponent],
+  imports: [CommonModule, RuedaColorComponent, TemporadaComponent, JuegoComponent],
   templateUrl: './apariencia.html',
   styleUrls: ['./apariencia.css']
 })
@@ -46,6 +47,7 @@ export class AparienciaComponent {
 
   // Rueda de colores (color propio).
   public ruedaAbierta = false;
+  public jugando = false;
   public abrirRueda(): void {
     this.ruedaAbierta = !this.ruedaAbierta || this.theme.ap.acento !== 'propio';
     if (this.theme.ap.acento !== 'propio') this.theme.ponerColorPropio(this.theme.ap.colorPropio || '#3366ff');
@@ -75,6 +77,12 @@ export class AparienciaComponent {
   public readonly avatares = AVATARES;
   public readonly acciones = ACCIONES_SONIDO;
   public kitPrueba = '';
+  public readonly temasListos = TEMAS_LISTOS;
+  public readonly ambientes = AMBIENTES;
+  public colorDeTema(t: TemaListo): string {
+    if (t.cambios.acento === 'propio') return t.cambios.colorPropio || '#3366ff';
+    return this.theme.acentos.find(a => a.valor === t.cambios.acento)?.color || '#2563eb';
+  }
   public get inicial(): string { return (String(this.account.nombre || this.auth.currentUser?.email || '?').trim()[0] || '?').toUpperCase(); }
   public get fotoFondo(): string { return this.theme.fotoFondo(); }
   public get iniciosDisponibles() {
@@ -110,7 +118,7 @@ export class AparienciaComponent {
 
   public get saltos() {
     return [
-      { nombre: 'Mi foto', guia: 'ap-perfil', si: !this.compartida }, { nombre: 'Modo', guia: 'ap-tema', si: true },
+      { nombre: 'Temas', guia: 'ap-temas', si: true }, { nombre: 'Mi foto', guia: 'ap-perfil', si: !this.compartida }, { nombre: 'Modo', guia: 'ap-tema', si: true },
       { nombre: 'Color', guia: 'ap-acento', si: true }, { nombre: 'Fondo', guia: 'ap-fondo', si: true },
       { nombre: 'Letra', guia: 'ap-fuente', si: true }, { nombre: 'Sonidos', guia: 'ap-sonidos', si: true },
       { nombre: 'Temporada', guia: 'ap-temporada', si: true }, { nombre: 'Efectos', guia: 'ap-efectos', si: true }

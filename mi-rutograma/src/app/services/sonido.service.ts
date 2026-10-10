@@ -31,7 +31,7 @@ export const ACCIONES_SONIDO: Array<{ clave: Accion; nombre: string }> = [
 
 type Instrumento = 'marimba' | 'campana' | 'cajita' | 'arpa' | 'theremin' | 'organo' | 'trompeta' | 'flauta' | 'guitarra' | 'xilofono';
 type Efecto = 'cascabeles' | 'pop' | 'corcho' | 'copas' | 'cohete' | 'latido' | 'redoble' | 'platillo' | 'soplo' | 'viento' | 'aullido' | 'risa' | 'murcielago'
-  | 'puerta' | 'portazo' | 'pajaritos' | 'boing' | 'destellos' | 'rasgueo' | 'trombon' | 'fantasma' | 'trueno';
+  | 'puerta' | 'portazo' | 'pajaritos' | 'boing' | 'destellos' | 'rasgueo' | 'trombon' | 'fantasma' | 'trueno' | 'pito' | 'martillo';
 
 /** Una nota: semitonos sobre la base, cuánto falta para la siguiente (s) y cuánto suena (s). */
 type Nota = [semitono: number, paso?: number, dura?: number];
@@ -190,6 +190,21 @@ const TEMAS: Record<string, Tema> = {
     efectos: { celebrar: ['redoble', ['platillo', 1.5]], entrar: [['redoble', 0]], aprobar: [['platillo', 0.32]], error: ['trombon'], soltar: ['redoble'] }
   }
 };
+
+// Fiestas que usan los sonidos de otra, con su toque propio.
+TEMAS['boyaca'] = { ...TEMAS['independencia'], frases: { ...TEMAS['independencia'].frases } };
+TEMAS['velitas'] = { ...TEMAS['navidad'], frases: { ...TEMAS['navidad'].frases, celebrar: TEMAS['madre'].frases.celebrar! }, efectos: { ...TEMAS['navidad'].efectos, celebrar: ['destellos', ['destellos', 1.2]] } };
+TEMAS['conductor'] = {
+  inst: 'marimba', base: 523.25, eco: 0.2,
+  frases: { celebrar: { notas: [[0, .14], [4, .14], [7, .14], [12, .5, .8]] }, entrar: { notas: [[0, .12], [7, .3]] } },
+  efectos: { ok: [['pito', 0.18]], celebrar: ['pito', ['pito', 0.45], ['destellos', 0.9]], entrar: [['pito', 0.3]], soltar: ['pito'], aprobar: [['pito', 0.25]] }
+};
+TEMAS['trabajo'] = {
+  inst: 'xilofono', base: 659.25, eco: 0.2,
+  frases: { celebrar: { notas: n([0, 4, 7, 12, 7, 12], 0.12) } },
+  efectos: { ok: ['martillo'], soltar: ['martillo'], celebrar: ['martillo', ['martillo', 0.3], ['martillo', 0.6]], aprobar: ['martillo'] }
+};
+TEMAS['aniversario'] = { ...TEMAS['ano-nuevo'], frases: { ...TEMAS['ano-nuevo'].frases, celebrar: { notas: [[0, .3], [0, .15], [2, .45], [0, .45], [5, .45], [4, .9, 1.2]], inst: 'cajita' } } };   // "Cumpleaños feliz"
 
 @Injectable({ providedIn: 'root' })
 export class SonidoService {
@@ -586,6 +601,21 @@ export class SonidoService {
         acordes.forEach((ac, i) => ac.forEach((s, j) => this.nota(ctx, 'guitarra', 196 * Math.pow(2, s / 12), t + i * 0.45 + j * 0.025, 1.0, vol)));
         break;
       }
+      case 'pito':
+        // Pito de camión: dos notas graves a la vez, con un poco de "ronquido".
+        [311, 392].forEach(f => {
+          const lp = this.filtro(ctx, 'lowpass', 1600, 1.5);
+          this.osc(ctx, 'sawtooth', f, t, t + 0.4, lp);
+          lp.connect(this.env(ctx, t, 0.12 * v, 0.02, 0.08, sal, 0.28));
+        });
+        break;
+      case 'martillo':
+        [0, 0.14].forEach(d => {
+          const ti = t + d;
+          this.osc(ctx, 'sine', 1900 + Math.random() * 300, ti, ti + 0.25, this.env(ctx, ti, 0.09 * v, 0.001, 0.22, sal));
+          this.ruido(ctx, ti, 0.04).connect(this.filtro(ctx, 'bandpass', 3000, 2)).connect(this.env(ctx, ti, 0.25 * v, 0.001, 0.035, sal));
+        });
+        break;
       case 'trombon':
         // "Wah wah wah waaah": el trombón triste.
         [[0, 0.3], [-1, 0.3], [-2, 0.3], [-3, 0.9]].forEach(([s, d], i) => {
