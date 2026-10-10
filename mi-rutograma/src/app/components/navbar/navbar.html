@@ -59,6 +59,7 @@
 
   <div class="nav-r" #accionesNav>
     <span class="badge fecha-nav" id="bdg-mes" [class.oculta]="ocultarFecha">{{ fechaHoy }}</span>
+    <span class="nav-clima" *ngIf="theme.ap.efectos.clima && climaSrv.clima() as c" [title]="climaSrv.nombre(c) + ' en ' + c.ciudad + ' · ' + c.temperatura + ' °C'">{{ climaSrv.emoji(c) }} {{ c.temperatura }}°</span>
     <!-- Diciembre: cuenta regresiva a Navidad (se quita con la × o en Apariencia). -->
     <span class="nav-navidad" *ngIf="contadorNavidad as cn" [title]="cn.titulo">
       <span class="nav-navidad-arbol">🎄</span><span class="nav-navidad-txt">{{ cn.texto }}</span>

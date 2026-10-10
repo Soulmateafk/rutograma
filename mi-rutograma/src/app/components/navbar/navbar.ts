@@ -19,6 +19,7 @@ import { EnLineaComponent } from '../en-linea/en-linea';
 import { API } from '../../api-base';
 import { AtajosService } from '../../services/atajos.service';
 import { ThemeService } from '../../services/theme.service';
+import { ClimaService } from '../../services/clima.service';
 import { zoomPagina } from '../../zoom';
 
 interface ResultadoBusqueda { tipo: string; etiqueta: string; subtitulo: string; ruta: string; queryParams?: any; actual?: boolean; hacer?: () => void; }
@@ -699,6 +700,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
   // Atajos de teclado N (viaje extra) y Shift+N (novedad): ver atajos.service.ts.
   public atajos = inject(AtajosService);
   public theme = inject(ThemeService);
+  public climaSrv = inject(ClimaService);
   /** "Faltan 12 días para Navidad": solo del 1 al 25 de diciembre. */
   public get contadorNavidad(): { texto: string; titulo: string } | null {
     if (!this.theme.ap.contadorNavidad) return null;

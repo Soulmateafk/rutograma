@@ -9,6 +9,9 @@ import { COLORES_TR, Transportadora } from '../../services/theme.service';
 import { variantesAcento } from '../../services/colores';
 import { RuedaColorComponent } from './rueda-color';
 import { JuegoComponent } from './juego';
+import { ClimaComponent } from './clima';
+import { CalendarioFiestasComponent } from './calendario-fiestas';
+import { MascotaComponent } from './mascota';
 import { ConexionService } from '../../services/conexion.service';
 import { TemporadaComponent } from './temporada';
 import { TEMPORADAS, temporadaDe } from '../../services/temporadas';
@@ -24,7 +27,7 @@ import { reducirImagen } from '../../services/imagenes';
 @Component({
   selector: 'app-apariencia',
   standalone: true,
-  imports: [CommonModule, RuedaColorComponent, TemporadaComponent, JuegoComponent],
+  imports: [CommonModule, RuedaColorComponent, TemporadaComponent, JuegoComponent, ClimaComponent, CalendarioFiestasComponent, MascotaComponent],
   templateUrl: './apariencia.html',
   styleUrls: ['./apariencia.css']
 })
@@ -48,6 +51,8 @@ export class AparienciaComponent {
   // Rueda de colores (color propio).
   public ruedaAbierta = false;
   public jugando = false;
+  public calendario = false;
+  public nombreTemporada(c: string): string { const t = TEMPORADAS.find(x => x.clave === c); return t ? t.nombre + ' ' + t.emoji : c; }
   public abrirRueda(): void {
     this.ruedaAbierta = !this.ruedaAbierta || this.theme.ap.acento !== 'propio';
     if (this.theme.ap.acento !== 'propio') this.theme.ponerColorPropio(this.theme.ap.colorPropio || '#3366ff');

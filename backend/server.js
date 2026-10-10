@@ -579,9 +579,9 @@ app.use(identificarUsuario);
 // sesión (y la de rol "despachos", solo la pantalla Despachos). El resto de la información (otros viajes, vehículos, cuentas...)
 // no se les entrega aunque la pidan directo.
 const RUTAS_PARA_CONDUCTOR = ['/api/mis-viajes', '/api/mis-viajes/validar', '/api/mis-viajes/marcar', '/api/mis-viajes/visto', '/api/mis-viajes/novedad', '/api/modo', '/api/sesiones', '/api/sesiones/cerrar',
-    '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual', '/api/guias', '/api/guias/vista', '/api/guias/reiniciar'];
+    '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual', '/api/guias', '/api/guias/vista', '/api/guias/reiniciar', '/api/clima'];
 const RUTAS_PARA_DESPACHOS = ['/api/despachos', '/api/despachos/opciones', '/api/despachos/demorados', '/api/despachos/carga-sugerida', '/api/despachos/eliminar', '/api/despachos/excel', '/api/presencia', '/api/modo',
-    '/api/sesiones', '/api/sesiones/cerrar', '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual', '/api/guias', '/api/guias/vista', '/api/guias/reiniciar'];
+    '/api/sesiones', '/api/sesiones/cerrar', '/api/sesiones/cerrar-otras', '/api/sesiones/cerrar-actual', '/api/guias', '/api/guias/vista', '/api/guias/reiniciar', '/api/clima'];
 app.use((req, res, next) => {
     if (!req.path.startsWith('/api/') || req.path.startsWith('/api/auth/')) return next();
     if (req.esReplayAprobado) return next();
@@ -3452,6 +3452,40 @@ app.get('/api/usuarios/avatar/:aid', (req, res) => {
 
 // Primer nombre de cada cuenta, para mostrar "Carlos" en vez del correo
 // (última edición, choques de edición, aprobaciones...).
+// ============================================================
+// CLIMA (Apariencia → Efectos → "Clima que se ve"): el servidor le pregunta
+// a Open-Meteo (gratis, sin clave) el clima de la oficina cada 15 minutos y
+// se lo da a las pantallas: si llueve, en la app caen gotitas. Si el
+// computador no tiene internet, simplemente no se muestra nada.
+// Ciudad: CLIMA_LAT / CLIMA_LON en el .env (por defecto, Bogotá).
+// ============================================================
+let climaCache = { en: 0, datos: null };
+function tipoDeClima(codigo, nubes) {
+    if ([95, 96, 99].includes(codigo)) return 'tormenta';
+    if ((codigo >= 51 && codigo <= 67) || (codigo >= 80 && codigo <= 82)) return 'lluvia';
+    if ((codigo >= 71 && codigo <= 77) || codigo === 85 || codigo === 86) return 'nieve';
+    if (codigo === 45 || codigo === 48) return 'niebla';
+    if (codigo >= 2 || nubes > 60) return 'nublado';
+    return 'despejado';
+}
+app.get('/api/clima', async (req, res) => {
+    res.locals.auditoriaOmitir = true;
+    res.setHeader('Cache-Control', 'no-store');
+    if (climaCache.datos && Date.now() - climaCache.en < 15 * 60000) return res.json({ ok: true, ...climaCache.datos });
+    const lat = Number(process.env.CLIMA_LAT) || 4.711, lon = Number(process.env.CLIMA_LON) || -74.0721;
+    try {
+        const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,is_day,cloud_cover&timezone=auto`, { signal: AbortSignal.timeout(6000) });
+        const j = await r.json();
+        const c = j?.current || {};
+        climaCache = { en: Date.now(), datos: { tipo: tipoDeClima(Number(c.weather_code), Number(c.cloud_cover)), temperatura: Math.round(Number(c.temperature_2m)), esDeDia: c.is_day === 1, ciudad: process.env.CLIMA_CIUDAD || 'Bogotá' } };
+        res.json({ ok: true, ...climaCache.datos });
+    } catch {
+        // Sin internet: se recuerda un rato el fallo para no insistir en cada pantalla.
+        climaCache = { en: Date.now() - 10 * 60000, datos: climaCache.datos };
+        res.json({ ok: false, ...(climaCache.datos || {}) });
+    }
+});
+
 app.get('/api/usuarios/nombres', (req, res) => {
     const nombres = {};
     (leerExcel().usuarios || []).forEach(u => {
@@ -4577,7 +4611,7 @@ app.post('/api/auth/login', async (req, res) => {
 const TEMAS = ['oscuro', 'claro', 'auto', 'horario'];
 const TAMANOS_LETRA = ['pequena', 'normal', 'grande', 'muy-grande'];
 const COLOR_HEX = /^#[0-9a-f]{6}$/i;
-const FONDOS = ['ninguno', 'aurora', 'montanas', 'carretera', 'ciudad', 'camiones', 'puntos', 'olas', 'atardecer', 'campo', 'estrellas', 'foto'];
+const FONDOS = ['ninguno', 'cielo', 'aurora', 'montanas', 'carretera', 'ciudad', 'camiones', 'puntos', 'olas', 'atardecer', 'campo', 'estrellas', 'foto'];
 const FUENTES = ['sistema', 'redonda', 'lectura', 'facil', 'clasica'];
 const INICIOS = ['', '/dashboard', '/rutograma', '/vehiculos', '/rutas', '/conductores', '/despachos', '/aprobaciones', '/mapa', '/historico'];
 const FOTO_DATA = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
@@ -4596,7 +4630,7 @@ function preferenciasDe(usuario) {
         daltonismo: p.daltonismo === true,
         esquinas: ['normal', 'muy', 'rectas'].includes(p.esquinas) ? p.esquinas : 'normal',
         saludo: p.saludo !== false,
-        efectos: Object.fromEntries(['onda', 'progreso', 'cascada', 'mes', 'vivo', 'temblor', 'destello', 'brillo', 'previa', 'confeti', 'rastro', 'transicion'].map(e => [e, p.efectos?.[e] !== false])),
+        efectos: Object.fromEntries(['onda', 'progreso', 'cascada', 'mes', 'vivo', 'temblor', 'destello', 'brillo', 'previa', 'confeti', 'rastro', 'transicion', 'clima'].map(e => [e, p.efectos?.[e] !== false])),
         temporada: typeof p.temporada === 'string' && /^[a-z-]{1,20}$/.test(p.temporada) ? p.temporada : 'auto',
         fondo: FONDOS.includes(p.fondo) ? p.fondo : 'ninguno',
         fondoBrillo: Number.isFinite(p.fondoBrillo) ? Math.max(0, Math.min(100, Math.round(p.fondoBrillo))) : 55,
@@ -4616,6 +4650,7 @@ function preferenciasDe(usuario) {
         volumen: Number.isFinite(p.volumen) ? Math.max(0, Math.min(100, Math.round(p.volumen))) : 50,
         sonidoTemporada: p.sonidoTemporada !== false,
         contadorNavidad: p.contadorNavidad !== false,
+        mascota: p.mascota !== false,
         ambiente: ['', 'temporada', 'lluvia', 'cafe', 'mar', 'campo', 'grillos', 'fogata', 'villancicos', 'misterio', 'cajita'].includes(p.ambiente) ? p.ambiente : '',
         ambienteVol: Number.isFinite(p.ambienteVol) ? Math.max(0, Math.min(100, Math.round(p.ambienteVol))) : 35,
         notas: Array.isArray(p.notas) ? p.notas.filter(n => n && typeof n.texto === 'string').slice(0, 30).map(n => ({

@@ -1,5 +1,13 @@
 <app-temporada></app-temporada>
+<app-clima></app-clima>
+<app-mascota></app-mascota>
 <app-juego *ngIf="jugando" (cerrar)="jugando = false"></app-juego>
+<app-calendario-fiestas *ngIf="calendario" (cerrar)="calendario = false"></app-calendario-fiestas>
+<!-- Viendo una fiesta desde el calendario -->
+<div class="ap-vista-fiesta" *ngIf="theme.vistaTemporada() as v" animate.leave="ap-ocultar">
+  <span>Estás viendo cómo se ve <strong>{{ nombreTemporada(v) }}</strong></span>
+  <button (click)="theme.verTemporada(null)"><i class="bi bi-arrow-counterclockwise"></i> Volver</button>
+</div>
 <!-- ===== APARIENCIA ===== -->
 <div animate.leave="ap-cerrar" class="ap-fondo" *ngIf="theme.panelAbierto()" (click)="theme.panelAbierto.set(false)">
   <div class="ap-panel" (click)="$event.stopPropagation()" role="dialog" aria-label="Apariencia">
@@ -237,6 +245,7 @@
         <span class="ap-int-caja"></span>
         <span><strong>Contador de Navidad</strong><small>Del 1 al 25 de diciembre, en la barra: "🎄 12 días".</small></span>
       </label>
+      <button class="ap-opcion ap-jugar" (click)="calendario = true"><i class="bi bi-calendar-heart"></i> Calendario de fiestas: qué viene y cómo se ve</button>
       <button class="ap-opcion ap-jugar" (click)="jugando = true"><i class="bi bi-controller"></i> Jugar un ratico: atrapa {{ temporadaDeHoy ? 'lo de ' + temporadaDeHoy.nombre + ' ' + temporadaDeHoy.emoji : 'las cajas 📦' }}</button>
     </div>
 
@@ -266,6 +275,11 @@
         <input type="checkbox" [checked]="theme.ap.sinAnimaciones" (change)="theme.alternarAnimaciones()">
         <span class="ap-int-caja"></span>
         <span><strong>Quitar animaciones</strong><small>Sin efectos al abrir o cerrar pantallas, ventanas y menús, ni al tocar botones. Más rápido en equipos lentos.</small></span>
+      </label>
+      <label class="ap-interruptor" data-guia="ap-mascota">
+        <input type="checkbox" [checked]="theme.ap.mascota" (change)="theme.alternarMascota()">
+        <span class="ap-int-caja"></span>
+        <span><strong>La mascota de MAKAND 🚚</strong><small>El camioncito de la esquina: saluda, mira el mouse, celebra al guardar, se duerme si no usas la app y se disfraza en cada fiesta. Tócalo y te dice algo.</small></span>
       </label>
       <label class="ap-interruptor">
         <input type="checkbox" [checked]="theme.ap.saludo" (change)="theme.alternarSaludo()">

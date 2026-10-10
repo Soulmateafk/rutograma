@@ -3,6 +3,7 @@ import { DomSanitizer } from '@angular/platform-browser';
 import { isPlatformBrowser } from '@angular/common';
 import { SonidoService } from './sonido.service';
 import { ChispasService } from './chispas.service';
+import { Subject } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class UiService {
@@ -51,7 +52,11 @@ export class UiService {
     }
   }
 
+  /** Cada aviso que sale (la mascota reacciona: celebra o se pone triste). */
+  public avisos = new Subject<{ tipo: string; texto: string }>();
+
   public mostrarToast(msg: string, tipo: string): void {
+    this.avisos.next({ tipo, texto: String(msg || '').replace(/<[^>]*>/g, '') });
     if (this.isBrowser && tipo === 'err') this.sacudirVentana();
     if (this.isBrowser) {
       // Sonido según lo que pasó (Apariencia → Sonidos).
