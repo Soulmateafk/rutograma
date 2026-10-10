@@ -1377,6 +1377,6 @@ html.fondo-cielo:is([data-hora="noche"], [data-hora="anochecer"])::before { cont
 .muestra-cielo { background: radial-gradient(circle at 75% 25%, #fffbeb 0 7px, transparent 9px), linear-gradient(180deg, #312e81, #db2777 50%, #38bdf8 51%, #bae6fd); }
 
 /* Con la mascota en la esquina de abajo a la izquierda, lo demás se corre. */
-html.con-mascota .tp-suelo-izq { left: 136px !important; }
-html.con-mascota .ad-aviso { left: 138px; }
-@media (max-width: 600px) { html.con-mascota .tp-suelo-izq { left: 78px !important; } html.con-mascota .ad-aviso { left: 10px; bottom: 74px; } }
+html.con-mascota .tp-suelo-izq { left: 172px !important; }
+html.con-mascota .ad-aviso { left: 174px; }
+@media (max-width: 600px) { html.con-mascota .tp-suelo-izq { left: 108px !important; } html.con-mascota .ad-aviso { left: 10px; bottom: 74px; } }
