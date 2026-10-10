@@ -37,8 +37,12 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'button[title="Descargar Diario"]', titulo: 'Descargar Diario', texto: 'Descarga un archivo con los viajes de hoy, listo para abrir en Excel.' },
       { el: 'button[title="Viaje Extra"]', titulo: 'Viaje Extra', texto: 'Agrega un viaje que no estaba en la matriz. Si el vehículo está ocupado, la app te ofrece cómo resolverlo.' },
       { el: 'button[title="Novedad"]', titulo: 'Novedad', texto: 'Registra un aviso: un vehículo varado, un retraso, un cambio de última hora...' },
+      { el: '.nav-clima', titulo: 'El clima', texto: 'Cómo está el clima en la ciudad de la oficina y la temperatura. Si llueve, en la app caen gotitas. Se quita en Apariencia → Efectos → "Clima que se ve".' },
+      { el: '.nav-navidad', titulo: 'Cuenta regresiva de Navidad', texto: 'Solo en diciembre: cuántos días faltan para Navidad. Se quita con la ×.' },
       { el: 'nav-notas', titulo: 'Mis notas', texto: 'Papelitos de colores para apuntar cosas rápidas ("llamar a Polar a las 3"). Solo los ves tú y se guardan solos. También con la tecla B.' },
+      { el: '.nav-yo', titulo: 'Tu foto', texto: 'Tu foto o tu dibujito. Tócala para cambiarla (se cambia en Apariencia → Mi foto).' },
       { el: 'nav-apariencia', titulo: 'Apariencia y atajos', texto: 'Tu foto, modo claro u oscuro, colores, fondo de pantalla, tipo y tamaño de letra, sonidos, barra a un lado y más, solo para tu cuenta (las demás no cambian). Desde aquí también instalas la app y ves los atajos de teclado (tecla ?).' },
+      { el: '.ms', titulo: 'La mascota', texto: 'El camioncito de MAKAND: saluda, celebra cuando guardas, se duerme si no usas la app y se disfraza en cada fiesta. Tócalo y te dice algo. Se quita en Apariencia → Más ajustes.' },
       PASO_AYUDA
     ]
   },
@@ -253,12 +257,14 @@ export const GUIAS: Record<string, Guia> = {
     titulo: 'Mis viajes',
     pasos: [
       { el: 'mv-identificar', titulo: 'Identifícate', texto: 'Escribe tu nombre y la placa del vehículo. Luego confirmas que la información sea correcta.' },
+      { el: 'mv-confirmar', titulo: 'Confirma que eres tú', texto: 'Revisa que el nombre y la placa sean los tuyos y toca confirmar. Si no, vuelve atrás y escríbelos otra vez.' },
       { el: 'mv-cabecera', titulo: 'Tu cuenta', texto: 'Tu nombre y tu vehículo. Con los botones actualizas o cierras sesión.' },
       { el: 'mv-foto', titulo: 'Foto de tus viajes', texto: 'Descarga una imagen con tus viajes para tenerla a mano o compartirla.' },
       { el: 'mv-calendario', titulo: 'Tu calendario', texto: 'Descarga tus viajes de hoy en adelante para agregarlos al calendario del celular. Si te cambian un viaje, vuelve a descargarlo y se actualiza.' },
+      { el: 'mv-anuncios', titulo: 'Avisos de la oficina', texto: 'Lo que la oficina publica para los conductores (por ejemplo, un cierre de vía). Léelo antes de salir.' },
       { el: 'mv-reportar', titulo: 'Reportar novedad', texto: 'Si quedas varado, te retrasas o pasa algo, avísale a la oficina desde aquí. Puedes adjuntar una foto (llanta, golpe, carga). Si es urgente, llama también.' },
       { el: 'mv-avisos', titulo: 'Cambios en tus viajes', texto: 'Si te agregan, cambian o quitan un viaje, aquí te avisa y el viaje sale marcado. Toca "Entendido" cuando lo hayas visto.' },
-      { el: '.mv-acciones-viaje', titulo: 'Ya salí / Ya llegué', texto: 'Cuando arranques, toca "Ya salí"; al llegar al destino, "Ya llegué". La oficina lo ve al instante. Si tocaste por error, tienes 15 minutos para deshacerlo.' },
+      { el: '.mv-acciones-viaje', titulo: 'Ya salí / Ya llegué', texto: 'Cuando arranques, toca "Ya salí"; al llegar al destino, "Ya llegué". La oficina lo ve al instante. Si tocaste por error, tienes 15 minutos para deshacerlo. En el celular también puedes deslizar el dedo sobre el viaje hacia la derecha.' },
       { el: 'mv-dias', titulo: 'Tus viajes por día', texto: 'Hoy y los próximos días, con destino, hora, vehículo y cuándo regresas. Los días de descanso salen marcados. Se actualiza sola cada minuto.' },
       { el: 'mv-apariencia', titulo: 'Apariencia', texto: 'Modo claro (mejor de día, al sol) u oscuro y letra más grande. Si es tu propia cuenta, se guarda en ella; en la cuenta compartida queda solo en este celular.' },
       { el: '', titulo: 'Instálala en el celular', texto: 'En el mismo botón de Apariencia está "Instalar": queda el ícono de MAKAND en el celular y se abre como una aplicación, sin escribir la dirección. Si no aparece, en el menú del navegador toca "Instalar aplicación" o "Agregar a inicio".' },
@@ -286,9 +292,12 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'dp-sugerida', titulo: 'Carga de la última vez', texto: 'Al escoger el viaje, la app busca la carga de la última vez para esa ruta (primero el mismo día de la semana). Con "Usar esta carga" se llena sola; corrige lo que cambió.' },
       { el: 'dp-total', titulo: 'Total', texto: 'La suma de las cajas escogidas (las estibas se cuentan aparte), comparada con las que tenía programadas el viaje. Si a algún tipo le falta la cantidad, no deja guardar y lo marca en rojo.' },
       { el: 'dp-en-cargue', titulo: 'En el cargue', texto: 'Los vehículos que siguen en el cargue. El botón cambia según el paso: "Empezó a cargar", "Terminó de cargar" y "Salió", y pone la hora de ese momento.' },
+      { el: 'dp-fin', titulo: 'Terminó de cargar', texto: 'La hora en que terminó el cargue. Con "Ahora" se pone la de este momento.' },
+      { el: 'dp-motivo', titulo: 'Motivo de la demora', texto: 'Si el cargue tardó más del límite, hay que escoger por qué (o escribirlo si es "Otro") antes de guardar.' },
       { el: 'dp-limite', titulo: 'Cargue demorado', texto: 'Si un cargue pasa de este límite, sale en rojo como "Demorado" y la oficina ve el aviso. Para terminarlo hay que escoger el motivo de la demora (si es "Otro", escribir cuál).' },
       { el: 'dp-periodos', titulo: 'Registro', texto: 'Lo anotado por día, semana o mes, con las flechas para ir atrás. "Histórico" lleva a cada mes guardado.' },
       { el: 'dp-excel', titulo: 'Excel', texto: 'Descarga en Excel el día, la semana o el mes que estás viendo: horas, tiempo de cargue, cantidad por tipo y total de cajas.' },
+      { el: 'dp-sin-senal', titulo: 'Sin señal', texto: 'Este aviso amarillo sale cuando no hay internet o queda algo por enviar. Lo anotado espera en el celular y se envía solo.' },
       { el: '', titulo: 'Sin señal', texto: 'Si se cae el internet, sigue anotando: lo anotado queda guardado en este celular (sale un aviso amarillo) y se envía solo cuando vuelve la señal. No cierres la página mientras tanto.' },
       { el: 'dp-apariencia', titulo: 'Apariencia', texto: 'Modo claro u oscuro, letra más grande e instalar la app en este celular. Como es una cuenta compartida, lo que escojas queda solo en este equipo.' },
       { el: 'dp-tabla', titulo: 'Corregir o borrar', texto: 'Con el lápiz corriges un registro y con la caneca lo borras. La cuenta de despachos puede hacerlo con lo de hoy y ayer; lo anterior, la oficina. Todo queda en la auditoría.' },
@@ -482,6 +491,90 @@ export const TAREAS: Tarea[] = [
       { el: 'nav-apariencia', tocar: true, titulo: 'Abre Apariencia', texto: 'Toca el botón iluminado.' },
       { el: 'ap-instalar', titulo: 'Instalar', texto: 'Si el navegador lo permite, sale el botón "Instalar MAKAND": tócalo y acepta. En Android también: menú ⋮ → "Instalar aplicación". En iPhone: en Safari, Compartir → "Agregar a inicio". En el computador (Chrome o Edge): el ícono de instalar en la barra de direcciones.' },
       { el: '', titulo: '¡Listo!', texto: 'La app instalada se actualiza sola con cada actualización de la oficina. Si no hay señal, muestra "Sin conexión" y un botón para reintentar.' }
+    ]
+  },
+  {
+    clave: 'mover-viaje',
+    titulo: 'Mover un viaje arrastrándolo',
+    pagina: 'rutograma',
+    requiere: 'editar',
+    pasos: [
+      { el: '', titulo: 'Mover un viaje arrastrándolo', texto: 'Esta guía solo te muestra cómo: no mueve nada.' },
+      { el: '.ruto-card-viaje[draggable="true"]', titulo: 'Agarra el viaje', texto: 'Pon el mouse sobre el viaje, mantén oprimido el botón y arrástralo. El viaje se pone transparente mientras lo llevas.' },
+      { el: '.ruto-td-day-cell', titulo: 'Suéltalo en otro día', texto: 'La casilla donde lo vas a soltar se ilumina y dice "Soltar aquí". Puede ser otro día del mismo vehículo u otro vehículo de la misma transportadora. Los días que dura el viaje se mueven con él.' },
+      { el: '', titulo: 'Las reglas se cumplen igual', texto: 'Si el vehículo ya tiene un viaje esos días, si el día ya pasó o si la semana está cerrada, la app te avisa (y en semana cerrada pide el motivo), igual que al editarlo a mano.' + AVISO_APROBACION },
+      { el: '', titulo: 'Deshacer', texto: 'Después de moverlo sale abajo "Viaje movido — Deshacer" unos segundos. También sirve Ctrl+Z.' },
+      { el: 'ruto-viaje', titulo: 'Clic derecho', texto: 'Con clic derecho sobre un viaje sale un menú: ver, editar, duplicar, historial, hoja de ruta, avisar al conductor por WhatsApp, su agenda o fijar el vehículo arriba.' }
+    ]
+  },
+  {
+    clave: 'mis-notas',
+    titulo: 'Apuntar algo en mis notas',
+    requiere: 'todos',
+    cerrar: ['.nt-x'],
+    pasos: [
+      { el: 'nav-notas', tocar: true, titulo: 'Abre tus notas', texto: 'Toca el botón iluminado (la libreta). También con la tecla B.' },
+      { el: '.nt-nueva', titulo: 'Nueva nota', texto: 'Crea un papelito nuevo y escribes de una vez. Se guarda solo mientras escribes.' },
+      { el: '.nt-lista', titulo: 'Tus notas', texto: 'Cada nota tiene un círculo para marcarla como hecha, colores para escoger y la caneca para borrarla. El número sobre la libreta dice cuántas te faltan.' },
+      { el: '', titulo: '¡Listo!', texto: 'Solo tú ves tus notas, en cualquier equipo donde entres con tu cuenta.' }
+    ]
+  },
+  {
+    clave: 'modo-enfoque',
+    titulo: 'Ver solo el Rutograma (modo enfoque)',
+    pagina: 'rutograma',
+    requiere: 'todos',
+    pasos: [
+      { el: 'ruto-enfoque', titulo: 'Modo enfoque', texto: 'Este botón (o la tecla F) deja solo el Rutograma, a pantalla completa, sin la barra, los avisos ni los adornos.' },
+      { el: '', titulo: 'Para salir', texto: 'Oprime F o Esc, o vuelve a tocar el mismo botón.' }
+    ]
+  },
+  {
+    clave: 'tema-fondo',
+    titulo: 'Escoger un tema listo o un fondo',
+    requiere: 'todos',
+    cerrar: ['.ap-cerrar'],
+    pasos: [
+      { el: 'nav-apariencia', tocar: true, titulo: 'Abre Apariencia', texto: 'Toca el botón iluminado (la paleta). También con la tecla A.' },
+      { el: 'ap-temas', titulo: 'Temas listos', texto: 'Un clic cambia todo junto: modo, color, fondo, letra y esquinas. Después puedes ajustar lo que quieras. "MAKAND clásico" lo deja como venía.' },
+      { el: 'ap-fondo', titulo: 'Fondo de pantalla', texto: 'O escoge solo el fondo: "Cielo de verdad" cambia con la hora; también hay montañas, carretera, ciudad, mar, estrellas… o una foto tuya.' },
+      { el: '.ap-deslizador', titulo: 'Brillo y vidrio', texto: 'Con un fondo puesto salen dos barras: cuánto brilla el fondo y qué tanto se ve a través de las tarjetas.' },
+      { el: '', titulo: '¡Listo!', texto: 'Todo es solo para tu cuenta. "Restablecer", al final del panel, lo deja como venía.' }
+    ]
+  },
+  {
+    clave: 'calendario-fiestas',
+    titulo: 'Ver las fiestas que vienen',
+    requiere: 'todos',
+    cerrar: ['.cf-x', '.ap-cerrar'],
+    pasos: [
+      { el: 'nav-apariencia', tocar: true, titulo: 'Abre Apariencia', texto: 'Toca el botón iluminado (la paleta).' },
+      { el: 'ap-temporada', titulo: 'Decoración de temporada', texto: 'La app se decora sola en cada fiesta. Aquí puedes dejarla automática, quitarla o ver una fija; también el contador de Navidad y el mini juego.' },
+      { el: '.ap-jugar', tocar: true, titulo: 'Calendario de fiestas', texto: 'Toca el botón iluminado para abrirlo.' },
+      { el: '.cf-lista', titulo: 'Qué viene', texto: 'Todas las fiestas, de la más cercana a la más lejana, con su fecha, cuánto falta y la frase del día.' },
+      { el: '.cf-ver', titulo: 'Ver cómo se ve', texto: 'Pone esa decoración un rato sin cambiar nada. Arriba sale "Volver" para quitarla.' }
+    ]
+  },
+  {
+    clave: 'armar-dashboard',
+    titulo: 'Acomodar mi Dashboard',
+    pagina: 'dashboard',
+    requiere: 'todos',
+    cerrar: ['dash-armar'],
+    pasos: [
+      { el: 'dash-armar', tocar: true, titulo: 'Personalizar', texto: 'Toca el botón iluminado. Los cuadros quedan con un borde punteado.' },
+      { el: '.dash-bloque-acciones', titulo: 'Mover y ocultar', texto: 'Con las flechas subes o bajas cada cuadro; también puedes arrastrarlo. El ojo lo oculta o lo vuelve a mostrar.' },
+      { el: '.dash-armar-ayuda', titulo: 'Como venía', texto: 'Este botón deja el Dashboard como estaba al principio. Todo esto es solo para tu cuenta.' },
+      { el: '', titulo: '¡Listo!', texto: 'Al terminar se toca "Listo" y queda guardado.' }
+    ]
+  },
+  {
+    clave: 'aniversario',
+    titulo: 'Poner el aniversario de MAKAND',
+    pagina: 'configuracion',
+    requiere: 'editar',
+    pasos: [
+      { el: 'conf-aniversario', titulo: 'Aniversario', texto: 'Escoge el día y toca Guardar. Ese día (y los dos anteriores) la app se decora para todos con globos, fuegos artificiales y un saludo. "Quitar" lo borra.' }
     ]
   },
   {
