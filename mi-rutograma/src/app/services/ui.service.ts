@@ -2,11 +2,12 @@ import { Injectable, Inject, PLATFORM_ID, SecurityContext } from '@angular/core'
 import { DomSanitizer } from '@angular/platform-browser';
 import { isPlatformBrowser } from '@angular/common';
 import { SonidoService } from './sonido.service';
+import { ChispasService } from './chispas.service';
 
 @Injectable({ providedIn: 'root' })
 export class UiService {
 
-  constructor(@Inject(PLATFORM_ID) private platformId: Object, private sanitizer: DomSanitizer, private sonido: SonidoService) {}
+  constructor(@Inject(PLATFORM_ID) private platformId: Object, private sanitizer: DomSanitizer, private sonido: SonidoService, private chispas: ChispasService) {}
 
   private get isBrowser(): boolean {
     return isPlatformBrowser(this.platformId);
@@ -73,6 +74,8 @@ export class UiService {
         clearTimeout(el._t); clearTimeout(el._t2);
         el.classList.remove('ap-ocultar');
         el.style.display = 'block';
+        // Detalles de temporada: un estallido chiquito al guardar.
+        if (tipo === 'ok') requestAnimationFrame(() => { const r = el.getBoundingClientRect(); if (r.width) this.chispas.estallar(r.left + 24, r.top + r.height / 2); });
         // Al irse, baja y se desvanece (styles.css); sin animaciones se va de una.
         el._t = setTimeout(() => {
           el.classList.add('ap-ocultar');

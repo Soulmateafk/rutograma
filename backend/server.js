@@ -4577,7 +4577,7 @@ app.post('/api/auth/login', async (req, res) => {
 const TEMAS = ['oscuro', 'claro', 'auto', 'horario'];
 const TAMANOS_LETRA = ['pequena', 'normal', 'grande', 'muy-grande'];
 const COLOR_HEX = /^#[0-9a-f]{6}$/i;
-const FONDOS = ['ninguno', 'aurora', 'montanas', 'carretera', 'ciudad', 'camiones', 'puntos', 'olas', 'atardecer', 'foto'];
+const FONDOS = ['ninguno', 'aurora', 'montanas', 'carretera', 'ciudad', 'camiones', 'puntos', 'olas', 'atardecer', 'campo', 'estrellas', 'foto'];
 const FUENTES = ['sistema', 'redonda', 'lectura', 'facil', 'clasica'];
 const INICIOS = ['', '/dashboard', '/rutograma', '/vehiculos', '/rutas', '/conductores', '/despachos', '/aprobaciones', '/mapa', '/historico'];
 const FOTO_DATA = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
@@ -4596,9 +4596,11 @@ function preferenciasDe(usuario) {
         daltonismo: p.daltonismo === true,
         esquinas: ['normal', 'muy', 'rectas'].includes(p.esquinas) ? p.esquinas : 'normal',
         saludo: p.saludo !== false,
-        efectos: Object.fromEntries(['onda', 'progreso', 'cascada', 'mes', 'vivo', 'temblor', 'destello', 'brillo', 'previa', 'confeti'].map(e => [e, p.efectos?.[e] !== false])),
+        efectos: Object.fromEntries(['onda', 'progreso', 'cascada', 'mes', 'vivo', 'temblor', 'destello', 'brillo', 'previa', 'confeti', 'rastro'].map(e => [e, p.efectos?.[e] !== false])),
         temporada: typeof p.temporada === 'string' && /^[a-z-]{1,20}$/.test(p.temporada) ? p.temporada : 'auto',
         fondo: FONDOS.includes(p.fondo) ? p.fondo : 'ninguno',
+        fondoBrillo: Number.isFinite(p.fondoBrillo) ? Math.max(0, Math.min(100, Math.round(p.fondoBrillo))) : 55,
+        fondoVidrio: Number.isFinite(p.fondoVidrio) ? Math.max(0, Math.min(100, Math.round(p.fondoVidrio))) : 35,
         fuente: FUENTES.includes(p.fuente) ? p.fuente : 'sistema',
         densidad: ['normal', 'compacta', 'comoda'].includes(p.densidad) ? p.densidad : 'normal',
         barra: ['arriba', 'lado', 'flotante'].includes(p.barra) ? p.barra : 'arriba',

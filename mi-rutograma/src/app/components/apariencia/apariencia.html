@@ -89,8 +89,22 @@
         </button>
       </div>
       <input #archivoFondo type="file" accept="image/*" (change)="subirFondo($event)" hidden>
+      <ng-container *ngIf="theme.ap.fondo !== 'ninguno'">
+        <div class="ap-deslizador">
+          <span><i class="bi bi-brightness-high"></i> Brillo del fondo</span>
+          <input type="range" min="0" max="100" step="5" [value]="theme.ap.fondoBrillo" aria-label="Brillo del fondo"
+                 (input)="theme.ponerFondoAjuste('fondoBrillo', +$any($event.target).value, false)" (change)="theme.ponerFondoAjuste('fondoBrillo', +$any($event.target).value)">
+          <span class="ap-vol-num">{{ theme.ap.fondoBrillo }}%</span>
+        </div>
+        <div class="ap-deslizador">
+          <span><i class="bi bi-window-stack"></i> Verlo a través de las tarjetas</span>
+          <input type="range" min="0" max="100" step="5" [value]="theme.ap.fondoVidrio" aria-label="Transparencia de las tarjetas"
+                 (input)="theme.ponerFondoAjuste('fondoVidrio', +$any($event.target).value, false)" (change)="theme.ponerFondoAjuste('fondoVidrio', +$any($event.target).value)">
+          <span class="ap-vol-num">{{ theme.ap.fondoVidrio }}%</span>
+        </div>
+      </ng-container>
       <button class="ap-link" *ngIf="theme.ap.fondo === 'foto'" (click)="archivoFondo.click()"><i class="bi bi-upload"></i> Escoger otra foto</button>
-      <p class="ap-nota">Suave, detrás de todo, sin tapar nada. "Mi foto" queda solo en este equipo.</p>
+      <p class="ap-nota">Detrás de todo: las páginas lo dejan ver y las tarjetas se vuelven de vidrio. Sube o baja el brillo a tu gusto. "Mi foto" queda solo en este equipo.</p>
     </div>
 
     <div class="ap-grupo" data-guia="ap-fuente">
@@ -146,7 +160,7 @@
         <label class="ap-interruptor">
           <input type="checkbox" [checked]="theme.ap.sonidoTemporada" (change)="theme.alternarSonidoTemporada()">
           <span class="ap-int-caja"></span>
-          <span><strong>Sonidos de la festividad</strong><small>Campanas en Navidad, sonidos de miedo en Halloween, arpa en San Valentín, trompetas el 20 de julio…</small></span>
+          <span><strong>Sonidos de la festividad</strong><small>Jingle Bells y cascabeles en Navidad; órgano, puerta que rechina, risa de bruja y lobo en Halloween; corcho y cohetes en Año Nuevo; arpa y latidos en San Valentín; trompetas el 20 de julio…</small></span>
         </label>
         <div class="ap-probar">
           <span>Probar:</span>
