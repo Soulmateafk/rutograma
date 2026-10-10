@@ -12,8 +12,8 @@ export type TamanoLetra = 'pequena' | 'normal' | 'grande' | 'muy-grande';
 export type Acento = 'azul' | 'indigo' | 'morado' | 'rosa' | 'rojo' | 'naranja' | 'ambar' | 'lima' | 'verde' | 'turquesa' | 'cian' | 'grafito' | 'propio';
 export type Esquinas = 'normal' | 'muy' | 'rectas';
 export type Transportadora = 'makand' | 'arsitrans' | 'polar';
-export type Efecto = 'onda' | 'progreso' | 'cascada' | 'mes' | 'vivo' | 'temblor' | 'destello' | 'brillo' | 'previa' | 'confeti' | 'rastro' | 'transicion';
-export type Fondo = 'ninguno' | 'aurora' | 'montanas' | 'carretera' | 'ciudad' | 'camiones' | 'puntos' | 'olas' | 'atardecer' | 'campo' | 'estrellas' | 'foto';
+export type Efecto = 'onda' | 'progreso' | 'cascada' | 'mes' | 'vivo' | 'temblor' | 'destello' | 'brillo' | 'previa' | 'confeti' | 'rastro' | 'transicion' | 'clima';
+export type Fondo = 'ninguno' | 'cielo' | 'aurora' | 'montanas' | 'carretera' | 'ciudad' | 'camiones' | 'puntos' | 'olas' | 'atardecer' | 'campo' | 'estrellas' | 'foto';
 export type Fuente = 'sistema' | 'redonda' | 'lectura' | 'facil' | 'clasica';
 export type Densidad = 'normal' | 'compacta' | 'comoda';
 export type Barra = 'arriba' | 'lado' | 'flotante';
@@ -47,6 +47,7 @@ export interface Apariencia {
   volumen: number;                                  // 0-100
   sonidoTemporada: boolean;                         // instrumentos de la festividad (si no, el sonido de siempre)
   contadorNavidad: boolean;                         // en diciembre, "Faltan N días para Navidad" en la barra
+  mascota: boolean;                                 // el camioncito de MAKAND en la esquina
   ambiente: string;                                 // sonido ambiente ('' = ninguno, 'temporada', 'lluvia'...)
   ambienteVol: number;                              // 0-100
   enfoque: boolean;                                 // modo enfoque (solo el Rutograma, pantalla completa) — no se guarda
@@ -57,12 +58,12 @@ export interface NotaPersonal { id: string; texto: string; color: string; hecha:
 const POR_DEFECTO: Apariencia = {
   tema: 'oscuro', letra: 'normal', acento: 'azul', contraste: false, sinAnimaciones: false,
   colorPropio: '', fondoTinte: false, coloresTr: { makand: '', arsitrans: '', polar: '' }, daltonismo: false, esquinas: 'normal', saludo: true,
-  efectos: { onda: true, progreso: true, cascada: true, mes: true, vivo: true, temblor: true, destello: true, brillo: true, previa: true, confeti: true, rastro: true, transicion: true }, temporada: 'auto',
+  efectos: { onda: true, progreso: true, cascada: true, mes: true, vivo: true, temblor: true, destello: true, brillo: true, previa: true, confeti: true, rastro: true, transicion: true, clima: true }, temporada: 'auto',
   fondo: 'ninguno', fondoBrillo: 55, fondoVidrio: 35, fuente: 'sistema', densidad: 'normal', barra: 'arriba', inicio: '', avatar: '', foto: '', fijados: [],
-  tablero: { orden: [], ocultos: [] }, sonidos: true, volumen: 50, sonidoTemporada: true, contadorNavidad: true, ambiente: '', ambienteVol: 35, enfoque: false, notas: []
+  tablero: { orden: [], ocultos: [] }, sonidos: true, volumen: 50, sonidoTemporada: true, contadorNavidad: true, mascota: true, ambiente: '', ambienteVol: 35, enfoque: false, notas: []
 };
 export const FONDOS: Array<{ valor: Fondo; nombre: string }> = [
-  { valor: 'ninguno', nombre: 'Ninguno' }, { valor: 'aurora', nombre: 'Aurora' }, { valor: 'atardecer', nombre: 'Atardecer' },
+  { valor: 'ninguno', nombre: 'Ninguno' }, { valor: 'cielo', nombre: 'Cielo de verdad' }, { valor: 'aurora', nombre: 'Aurora' }, { valor: 'atardecer', nombre: 'Atardecer' },
   { valor: 'montanas', nombre: 'Montañas' }, { valor: 'carretera', nombre: 'Carretera de noche' }, { valor: 'ciudad', nombre: 'Ciudad' },
   { valor: 'campo', nombre: 'Campo' }, { valor: 'estrellas', nombre: 'Estrellas' }, { valor: 'camiones', nombre: 'Camioncitos' },
   { valor: 'puntos', nombre: 'Puntos' }, { valor: 'olas', nombre: 'Mar' }, { valor: 'foto', nombre: 'Mi foto' }
@@ -128,6 +129,7 @@ export const EFECTOS: Array<{ clave: Efecto; nombre: string; ayuda: string }> = 
   { clave: 'previa', nombre: 'Vista previa de viajes', ayuda: 'En el Rutograma, al dejar el mouse sobre un viaje sale su detalle sin abrirlo.' },
   { clave: 'confeti', nombre: 'Celebrar el mes completo', ayuda: 'Cuando todos los viajes del mes quedan entregados, cae confeti.' },
   { clave: 'transicion', nombre: 'Deslizar entre páginas', ayuda: 'Al cambiar de página, la nueva entra deslizándose desde el lado hacia donde vas.' },
+  { clave: 'clima', nombre: 'Clima que se ve', ayuda: 'Si llueve en la ciudad de la oficina, en la app caen gotitas; si hace sol, un brillo suave; si está nublado, pasan nubes. Y la temperatura en la barra.' },
   { clave: 'rastro', nombre: 'Detalles de la temporada', ayuda: 'En cada festividad: chispitas que siguen al mouse, chispas al guardar y adornos en las tarjetas (nieve en Navidad, telarañas en Halloween...).' }
 ];
 /** Colores de siempre de las tarjetas de cada transportadora (rutograma.css). */
@@ -236,7 +238,9 @@ export class ThemeService {
     // Automático: si el equipo cambia de claro a oscuro (o al revés), la app lo sigue.
     this.sistemaOscuro?.addEventListener?.('change', () => { if (this.ap.tema === 'auto') this.aplicar(); });
     // Por hora: claro de 6 a. m. a 6 p. m., oscuro el resto (se revisa cada minuto).
+    // El fondo "Cielo de verdad" también sigue la hora (amanecer, día, atardecer, noche).
     if (typeof window !== 'undefined') setInterval(() => {
+      document.documentElement.setAttribute('data-hora', ThemeService.momentoDelDia());
       if (this.ap.tema === 'horario' && (this.temaActual === 'claro') !== document.body.classList.contains('tema-claro')) this.aplicar();
     }, 60000);
   }
@@ -298,6 +302,7 @@ export class ThemeService {
       volumen: Number.isFinite(p.volumen) ? Math.max(0, Math.min(100, Math.round(p.volumen))) : 50,
       sonidoTemporada: p.sonidoTemporada !== false,
       contadorNavidad: p.contadorNavidad !== false,
+      mascota: p.mascota !== false,
       ambiente: AMBIENTES.some(a => a.valor === p.ambiente) ? p.ambiente : '',
       ambienteVol: Number.isFinite(p.ambienteVol) ? Math.max(0, Math.min(100, Math.round(p.ambienteVol))) : 35,
       enfoque: false,
@@ -381,7 +386,7 @@ export class ThemeService {
     html.classList.toggle('tr-propios', Object.values(this.ap.coloresTr).some(Boolean));
     // Efectos que la cuenta quitó: html.sin-onda, html.sin-progreso...
     for (const e of EFECTOS) html.classList.toggle('sin-' + e.clave, !this.ap.efectos[e.clave]);
-    this.temporadaPreferida.set(this.ap.temporada);
+    this.temporadaPreferida.set(this.vistaTemporada() || this.ap.temporada);
     // Fondo, letra, densidad y barra.
     for (const f of FONDOS) html.classList.toggle('fondo-' + f.valor, f.valor !== 'ninguno' && this.ap.fondo === f.valor);
     const fotoFondo = this.ap.fondo === 'foto' ? this.fotoFondo() : '';
@@ -399,6 +404,7 @@ export class ThemeService {
     html.classList.toggle('barra-lado', this.ap.barra === 'lado');
     html.classList.toggle('barra-flotante', this.ap.barra === 'flotante');
     this.barra.set(this.ap.barra);
+    html.setAttribute('data-hora', ThemeService.momentoDelDia());
     this.sonido.configurar(this.ap.sonidos, this.ap.volumen, this.ap.sonidoTemporada);
     this.ambiente.configurar(this.ap.ambiente, this.ap.ambienteVol);
     this.cambio.update(n => n + 1);
@@ -508,6 +514,13 @@ export class ThemeService {
   public temaListoActual(): string {
     return TEMAS_LISTOS.find(t => Object.entries(t.cambios).every(([k, v]) => (this.ap as any)[k] === v))?.clave || '';
   }
+  /** "Ver cómo se ve" (calendario de fiestas): se ve un rato sin guardar nada. */
+  public vistaTemporada = signal<string | null>(null);
+  public verTemporada(clave: string | null): void {
+    this.vistaTemporada.set(clave);
+    this.temporadaPreferida.set(clave || this.ap.temporada);
+  }
+  public alternarMascota(): void { this.cambiar({ mascota: !this.ap.mascota }); }
   public alternarContadorNavidad(): void { this.cambiar({ contadorNavidad: !this.ap.contadorNavidad }); }
   public ponerAmbiente(ambiente: string): void { this.cambiar({ ambiente }); }
   public ponerAmbienteVol(ambienteVol: number, guardar = true): void {
@@ -532,6 +545,12 @@ export class ThemeService {
     try { localStorage.setItem('rutograma_fondo_foto:' + this.email, dataUrl); } catch { return false; }
     this.ap.fondo === 'foto' ? this.aplicar() : this.cambiar({ fondo: 'foto' });
     return true;
+  }
+
+  /** Amanecer (5-8), día (8-16), atardecer (16-18:30), anochecer (18:30-19:30) o noche. */
+  public static momentoDelDia(d = new Date()): string {
+    const h = d.getHours() + d.getMinutes() / 60;
+    return h >= 5 && h < 8 ? 'amanecer' : h >= 8 && h < 16 ? 'dia' : h >= 16 && h < 18.5 ? 'atardecer' : h >= 18.5 && h < 19.5 ? 'anochecer' : 'noche';
   }
 
   /** Atajo T: pasa al contrario de lo que se ve ahora. */

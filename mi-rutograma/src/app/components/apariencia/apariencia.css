@@ -167,3 +167,6 @@ body.tema-claro .ap-conexion.volvio { background: #f0fdf4; color: #166534; }
 .ap-sub-titulo { display: block; font-size: 13px; font-weight: 700; margin-bottom: 8px; }
 .ap-ambientes { display: flex; flex-wrap: wrap; gap: 6px; }
 .ap-chip.on { background: var(--acento); border-color: var(--acento); color: #fff; }
+.ap-vista-fiesta { position: fixed; left: 50%; top: 66px; transform: translateX(-50%); z-index: 10055; display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 16px; border-radius: 999px;
+  background: var(--color-fondo-tarjeta); color: var(--color-texto-principal); border: 2px solid var(--tp-c1, var(--acento)); box-shadow: 0 10px 30px rgba(0,0,0,.4); font-size: 13px; white-space: nowrap; max-width: calc(100vw - 24px); }
+.ap-vista-fiesta button { background: var(--tp-c1, var(--acento)); color: #fff; border: none; border-radius: 999px; padding: 6px 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
