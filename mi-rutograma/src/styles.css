@@ -1299,3 +1299,12 @@ html[data-temporada="ano-nuevo"]:not(.sin-rastro) .kpi .val { background: linear
 /* --- Semana Santa: huevito en la esquina --- */
 html[data-temporada="semana-santa"]:not(.sin-rastro) .kpi { position: relative; }
 html[data-temporada="semana-santa"]:not(.sin-rastro) .kpi::after { content: '🥚'; position: absolute; top: 6px; right: 8px; font-size: 13px; opacity: .8; pointer-events: none; }
+
+/* Con fondo de pantalla las tarjetas de vidrio forman cada una su propia
+   capa: lo que se despliega dentro (calendario del periodo, menús, listas)
+   quedaba DEBAJO de la tarjeta siguiente. La que está en uso sube encima. */
+html.con-fondo :is(.card, .kpi, .pz-caja, .pizarra, .gestion-header, [class$="-card"], [class*="-card "], .qj-lista, .cp-lista, .pp-lista, .rg-card) { position: relative; }
+html.con-fondo :is(.card, .kpi, .pz-caja, .pizarra, .gestion-header, [class$="-card"], [class*="-card "], .qj-lista, .cp-lista, .pp-lista, .rg-card):is(:focus-within, :has(.mini-calendario, [class*="calendario"], [class*="menu"], [class*="desplegable"], [class*="resultados"], [class*="opciones"], select:focus)) { z-index: 60; }
+html.con-fondo .gestion-header { z-index: 30; }
+html.con-fondo :is(.mini-calendario, .ruto-mini-calendario, .ruto-hover-tooltip, .tp-anuncio) { background: #111827 !important; }
+html.con-fondo body.tema-claro :is(.mini-calendario, .ruto-mini-calendario, .ruto-hover-tooltip) { background: #ffffff !important; }
