@@ -11,8 +11,8 @@ export type TamanoLetra = 'pequena' | 'normal' | 'grande' | 'muy-grande';
 export type Acento = 'azul' | 'indigo' | 'morado' | 'rosa' | 'rojo' | 'naranja' | 'ambar' | 'lima' | 'verde' | 'turquesa' | 'cian' | 'grafito' | 'propio';
 export type Esquinas = 'normal' | 'muy' | 'rectas';
 export type Transportadora = 'makand' | 'arsitrans' | 'polar';
-export type Efecto = 'onda' | 'progreso' | 'cascada' | 'mes' | 'vivo' | 'temblor' | 'destello' | 'brillo' | 'previa' | 'confeti';
-export type Fondo = 'ninguno' | 'aurora' | 'montanas' | 'carretera' | 'ciudad' | 'camiones' | 'puntos' | 'olas' | 'atardecer' | 'foto';
+export type Efecto = 'onda' | 'progreso' | 'cascada' | 'mes' | 'vivo' | 'temblor' | 'destello' | 'brillo' | 'previa' | 'confeti' | 'rastro';
+export type Fondo = 'ninguno' | 'aurora' | 'montanas' | 'carretera' | 'ciudad' | 'camiones' | 'puntos' | 'olas' | 'atardecer' | 'campo' | 'estrellas' | 'foto';
 export type Fuente = 'sistema' | 'redonda' | 'lectura' | 'facil' | 'clasica';
 export type Densidad = 'normal' | 'compacta' | 'comoda';
 export type Barra = 'arriba' | 'lado' | 'flotante';
@@ -32,6 +32,8 @@ export interface Apariencia {
   efectos: Record<Efecto, boolean>;                 // cada efecto se puede quitar por separado
   temporada: string;                                // 'auto' (según la fecha), 'no' o una temporada para verla
   fondo: Fondo;                                     // dibujo de fondo ('foto' = una foto propia, guardada solo en este equipo)
+  fondoBrillo: number;                              // 0-100: qué tanto se ve el fondo (velo encima)
+  fondoVidrio: number;                              // 0-100: qué tanto se ve el fondo a través de las tarjetas
   fuente: Fuente;                                   // tipo de letra
   densidad: Densidad;                               // más filas en pantalla (compacta) o más aire (cómoda)
   barra: Barra;                                     // menú arriba, a un lado o flotante
@@ -48,14 +50,15 @@ export interface Apariencia {
 const POR_DEFECTO: Apariencia = {
   tema: 'oscuro', letra: 'normal', acento: 'azul', contraste: false, sinAnimaciones: false,
   colorPropio: '', fondoTinte: false, coloresTr: { makand: '', arsitrans: '', polar: '' }, daltonismo: false, esquinas: 'normal', saludo: true,
-  efectos: { onda: true, progreso: true, cascada: true, mes: true, vivo: true, temblor: true, destello: true, brillo: true, previa: true, confeti: true }, temporada: 'auto',
-  fondo: 'ninguno', fuente: 'sistema', densidad: 'normal', barra: 'arriba', inicio: '', avatar: '', foto: '', fijados: [],
+  efectos: { onda: true, progreso: true, cascada: true, mes: true, vivo: true, temblor: true, destello: true, brillo: true, previa: true, confeti: true, rastro: true }, temporada: 'auto',
+  fondo: 'ninguno', fondoBrillo: 55, fondoVidrio: 35, fuente: 'sistema', densidad: 'normal', barra: 'arriba', inicio: '', avatar: '', foto: '', fijados: [],
   tablero: { orden: [], ocultos: [] }, sonidos: true, volumen: 50, sonidoTemporada: true
 };
 export const FONDOS: Array<{ valor: Fondo; nombre: string }> = [
   { valor: 'ninguno', nombre: 'Ninguno' }, { valor: 'aurora', nombre: 'Aurora' }, { valor: 'atardecer', nombre: 'Atardecer' },
   { valor: 'montanas', nombre: 'Montañas' }, { valor: 'carretera', nombre: 'Carretera de noche' }, { valor: 'ciudad', nombre: 'Ciudad' },
-  { valor: 'camiones', nombre: 'Camioncitos' }, { valor: 'puntos', nombre: 'Puntos' }, { valor: 'olas', nombre: 'Olas' }, { valor: 'foto', nombre: 'Mi foto' }
+  { valor: 'campo', nombre: 'Campo' }, { valor: 'estrellas', nombre: 'Estrellas' }, { valor: 'camiones', nombre: 'Camioncitos' },
+  { valor: 'puntos', nombre: 'Puntos' }, { valor: 'olas', nombre: 'Mar' }, { valor: 'foto', nombre: 'Mi foto' }
 ];
 export const FUENTES: Array<{ valor: Fuente; nombre: string; familia: string; ayuda: string }> = [
   { valor: 'sistema', nombre: 'Moderna', familia: "'Segoe UI', system-ui, sans-serif", ayuda: 'La de siempre' },
@@ -80,7 +83,8 @@ export const EFECTOS: Array<{ clave: Efecto; nombre: string; ayuda: string }> = 
   { clave: 'destello', nombre: 'Destello al buscar', ayuda: 'Al ir a un viaje desde el buscador, la pantalla baja hasta él y destella.' },
   { clave: 'brillo', nombre: 'Detalles que brillan', ayuda: 'El logo brilla de vez en cuando, las tarjetas se levantan al pasar el mouse y otros toques.' },
   { clave: 'previa', nombre: 'Vista previa de viajes', ayuda: 'En el Rutograma, al dejar el mouse sobre un viaje sale su detalle sin abrirlo.' },
-  { clave: 'confeti', nombre: 'Celebrar el mes completo', ayuda: 'Cuando todos los viajes del mes quedan entregados, cae confeti.' }
+  { clave: 'confeti', nombre: 'Celebrar el mes completo', ayuda: 'Cuando todos los viajes del mes quedan entregados, cae confeti.' },
+  { clave: 'rastro', nombre: 'Detalles de la temporada', ayuda: 'En cada festividad: chispitas que siguen al mouse, chispas al guardar y adornos en las tarjetas (nieve en Navidad, telarañas en Halloween...).' }
 ];
 /** Colores de siempre de las tarjetas de cada transportadora (rutograma.css). */
 export const COLORES_TR: Record<Transportadora, string> = { makand: '#1e3a8a', arsitrans: '#064e3b', polar: '#0c4a6e' };
@@ -232,6 +236,8 @@ export class ThemeService {
       efectos: Object.fromEntries(EFECTOS.map(e => [e.clave, p.efectos?.[e.clave] !== false])) as Record<Efecto, boolean>,
       temporada: typeof p.temporada === 'string' && /^[a-z-]{1,20}$/.test(p.temporada) ? p.temporada : 'auto',
       fondo: FONDOS.some(f => f.valor === p.fondo) ? p.fondo : 'ninguno',
+      fondoBrillo: Number.isFinite(p.fondoBrillo) ? Math.max(0, Math.min(100, Math.round(p.fondoBrillo))) : 55,
+      fondoVidrio: Number.isFinite(p.fondoVidrio) ? Math.max(0, Math.min(100, Math.round(p.fondoVidrio))) : 35,
       fuente: FUENTES.some(f => f.valor === p.fuente) ? p.fuente : 'sistema',
       densidad: ['normal', 'compacta', 'comoda'].includes(p.densidad) ? p.densidad : 'normal',
       barra: ['arriba', 'lado', 'flotante'].includes(p.barra) ? p.barra : 'arriba',
@@ -328,6 +334,10 @@ export class ThemeService {
     const fotoFondo = this.ap.fondo === 'foto' ? this.fotoFondo() : '';
     if (fotoFondo) html.style.setProperty('--fondo-foto', `url("${fotoFondo}")`); else html.style.removeProperty('--fondo-foto');
     html.classList.toggle('con-fondo', this.ap.fondo !== 'ninguno' && (this.ap.fondo !== 'foto' || !!fotoFondo));
+    // Brillo: 0 = el fondo casi no se ve (velo de 0.88), 100 = se ve completo (velo de 0.05).
+    html.style.setProperty('--fondo-velo', (0.88 - this.ap.fondoBrillo * 0.0083).toFixed(3));
+    // Vidrio: 0 = tarjetas sólidas, 100 = muy transparentes (0.45).
+    html.style.setProperty('--vidrio', (0.97 - this.ap.fondoVidrio * 0.0052).toFixed(3));
     const fuente = FUENTES.find(f => f.valor === this.ap.fuente);
     if (fuente && fuente.valor !== 'sistema') html.style.setProperty('--fuente-app', fuente.familia); else html.style.removeProperty('--fuente-app');
     html.classList.toggle('fuente-propia', this.ap.fuente !== 'sistema');
@@ -389,6 +399,12 @@ export class ThemeService {
   public cambio = signal(0);
 
   public ponerFondo(fondo: Fondo): void { if (fondo !== this.ap.fondo) this.cambiar({ fondo }); }
+  /** Brillo / vidrio del fondo: mientras se arrastra se ve sin guardar; al soltar se guarda. */
+  public ponerFondoAjuste(campo: 'fondoBrillo' | 'fondoVidrio', valor: number, guardar = true): void {
+    if (guardar) { this.cambiar({ [campo]: valor }); return; }
+    this.ap = this.limpiar({ ...this.ap, [campo]: valor });
+    this.aplicar();
+  }
   public ponerFuente(fuente: Fuente): void { if (fuente !== this.ap.fuente) this.cambiar({ fuente }); }
   public ponerDensidad(densidad: Densidad): void { if (densidad !== this.ap.densidad) this.cambiar({ densidad }); }
   public ponerBarra(barra: Barra): void { if (barra !== this.ap.barra) this.cambiar({ barra }); }
