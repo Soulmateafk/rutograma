@@ -37,7 +37,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'button[title="Descargar Diario"]', titulo: 'Descargar Diario', texto: 'Descarga un archivo con los viajes de hoy, listo para abrir en Excel.' },
       { el: 'button[title="Viaje Extra"]', titulo: 'Viaje Extra', texto: 'Agrega un viaje que no estaba en la matriz. Si el vehículo está ocupado, la app te ofrece cómo resolverlo.' },
       { el: 'button[title="Novedad"]', titulo: 'Novedad', texto: 'Registra un aviso: un vehículo varado, un retraso, un cambio de última hora...' },
-      { el: 'nav-apariencia', titulo: 'Apariencia y atajos', texto: 'Modo claro, oscuro o automático, 12 colores principales, tamaño de letra, alto contraste y quitar animaciones, solo para tu cuenta (las demás no cambian). Desde aquí también instalas la app y ves los atajos de teclado (tecla ?).' },
+      { el: 'nav-apariencia', titulo: 'Apariencia y atajos', texto: 'Tu foto, modo claro u oscuro, colores, fondo de pantalla, tipo y tamaño de letra, sonidos, barra a un lado y más, solo para tu cuenta (las demás no cambian). Desde aquí también instalas la app y ves los atajos de teclado (tecla ?).' },
       PASO_AYUDA
     ]
   },
@@ -64,6 +64,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'dash-urgentes', titulo: 'Viajes urgentes', texto: 'Viajes marcados como prioridad que conviene vigilar.' },
       { el: '.card-tabla', titulo: 'Próximas salidas', texto: 'Los viajes que salen esta semana, con vehículo, ruta y hora.' },
       { el: '.card-novedades', titulo: 'Historial de novedades', texto: 'Los avisos registrados. Puedes marcarlos como resueltos.' },
+      { el: 'dash-armar', titulo: 'Arma tu Dashboard', texto: '"Personalizar" deja mover los cuadros (arrastrándolos o con las flechas) y ocultar los que no usas con el ojo. Es solo para tu cuenta; "Como venía" lo devuelve.' },
       { el: '.btn-cerrar-sesion', titulo: 'Cerrar sesión', texto: 'Sale de tu cuenta en este computador.' }
     ]
   },
@@ -87,6 +88,8 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'ruto-queja', titulo: 'Queja del cliente', texto: 'Dentro del detalle de un viaje, "Queja" registra una queja del cliente sobre ese viaje (devolución, carga rechazada, reclamo...), con cliente, vehículo y conductor ya puestos.' },
       { el: 'ruto-hoja-ruta', titulo: 'Hoja de ruta', texto: 'Dentro del detalle de un viaje, "Hoja de ruta" crea un PDF para entregarle al conductor: salida, hora, regreso, ruta, cliente, carga, vehículo, sus datos, la nota y espacio para firmas de entrega.' },
       { el: '.ruto-card-viaje', titulo: 'Detalle, notas e historial', texto: 'Al abrir un viaje ves sus datos; en "Editar viaje" le puedes poner una nota para el conductor (la ve en su celular). Con "Ver historial de cambios" ves quién lo cambió, qué y cuándo.' },
+      { el: '.ruto-card-viaje', titulo: 'Atajos con el mouse', texto: 'Deja el mouse quieto sobre un viaje y sale su vista previa. Clic derecho abre un menú: editar, duplicar, historial, hoja de ruta, avisar al conductor por WhatsApp o fijar el vehículo arriba. Y puedes ARRASTRAR un viaje a otro día u otro vehículo de la misma transportadora: pasa por las mismas reglas que editarlo, y luego sale "Deshacer" unos segundos (o Ctrl+Z).' },
+      { el: '.ruto-fijar', titulo: 'Fijar vehículos arriba', texto: 'El alfiler junto a la placa (sale al pasar el mouse) deja ese vehículo de primero, solo para tu cuenta.' },
       { el: '.ruto-tr-cupo-header', titulo: 'Arsitrans y Polar', texto: 'Los cupos de terceros. "+ Confirmar cupo" agrega uno; "Reacomodar" junta los viajes del mes en los menos cupos posibles, sin tocar nada más.' }
     ]
   },
@@ -431,14 +434,21 @@ export const TAREAS: Tarea[] = [
     pasos: [
       { el: '', titulo: 'Apariencia de tu cuenta', texto: 'El modo, el color principal, el tamaño de letra y los demás ajustes son solo de tu cuenta: si los cambias, los ves igual en cualquier equipo donde entres, y las demás cuentas siguen como estaban.' },
       { el: 'nav-apariencia', tocar: true, titulo: 'Abre Apariencia', texto: 'Toca el botón iluminado (la paleta). También se abre con la tecla A.' },
-      { el: 'ap-tema', titulo: 'Modo', texto: 'Oscuro (el de siempre), Claro (mejor con mucha luz) o Automático: sigue al equipo o celular, que muchas veces se pone oscuro de noche. Atajo: tecla T.' },
+      { el: 'ap-perfil', titulo: 'Tu foto o avatar', texto: 'Sube una foto o escoge un dibujito. Se ve en la barra y cuando otros ven quién está en línea o editando un viaje.' },
+      { el: 'ap-tema', titulo: 'Modo', texto: 'Oscuro (el de siempre), Claro (mejor con mucha luz), Como el equipo (sigue al computador o celular) o Por hora: claro de 6 a. m. a 6 p. m. y oscuro de noche, solo. Atajo: tecla T.' },
       { el: 'ap-acento', titulo: 'Color principal', texto: '12 colores para escoger. Se ve en los botones, la pestaña activa, la línea bajo la barra, los títulos de sección, los campos donde escribes y otros detalles.' },
       { el: 'ap-propio', titulo: 'Tu propio color', texto: 'El círculo de colores abre una rueda: arrastra sobre ella para escoger el tono, usa la barra para hacerlo más claro u oscuro, o escribe el código (ej. #ff5733). Si es muy claro para botones con letra blanca, en los botones se usa un tono un poco más oscuro.' },
       { el: 'ap-tinte', titulo: 'Fondo con el color', texto: 'El fondo de toda la app toma un toque suave de tu color.' },
       { el: 'ap-letra', titulo: 'Tamaño de letra', texto: 'Pequeña (cabe más, bueno para el Rutograma), Normal, Grande o Muy grande: cambia toda la app, no solo el texto. Atajos: + y -.' },
+      { el: 'ap-fondo', titulo: 'Fondo de pantalla', texto: 'Aurora, atardecer, montañas, carretera de noche, ciudad, camioncitos, puntos u olas, suave detrás de todo. "Mi foto" pone una foto tuya (queda solo en este equipo).' },
+      { el: 'ap-fuente', titulo: 'Tipo de letra', texto: 'Moderna (la de siempre), Redondita, Muy clara (cada letra se distingue), Fácil de leer (ayuda con la dislexia) o Clásica.' },
+      { el: 'ap-densidad', titulo: 'Espacio', texto: 'Compacta para ver más filas en pantalla, o Cómoda para que todo respire.' },
+      { el: 'ap-barra', titulo: 'Barra de menú', texto: 'Arriba (como siempre), A un lado (columna a la izquierda con todas las páginas) o Flotante (una cápsula separada del borde).' },
+      { el: 'ap-inicio', titulo: 'Pantalla al entrar', texto: 'La página que se abre apenas inicias sesión: Dashboard, Rutograma, Vehículos...' },
+      { el: 'ap-sonidos', titulo: 'Sonidos', texto: 'Un sonido distinto al guardar, aprobar, borrar, abrir o cerrar ventanas, mover un viaje, cuando hay un error o un cambio en vivo. Con "Sonidos de la festividad" cambian según la fecha: campanas en Navidad, sonidos de miedo en Halloween, arpa en San Valentín, trompetas el 20 de julio… Puedes bajar el volumen y probarlos.' },
       { el: 'ap-esquinas', titulo: 'Esquinas', texto: 'Rectas, redondeadas (como viene) o muy redondeadas: botones, tarjetas y ventanas.' },
       { el: 'ap-temporada', titulo: 'Decoración de temporada', texto: 'En Año Nuevo, San Valentín, Día de la Mujer, Semana Santa, Día de la Madre y del Padre, 20 de Julio, Amor y Amistad, Halloween y Navidad la app se decora sola (cosas que caen despacio, un detalle junto al logo, el saludo). Puedes dejarla automática, quitarla o ver una en particular.' },
-      { el: 'ap-efectos', titulo: 'Efectos', texto: 'Cada efecto se prende o apaga por separado: onda al tocar, barra de progreso arriba, filas en cascada, deslizar al cambiar de mes, resaltar cambios en vivo, avisar si falta algo y destello al buscar.' },
+      { el: 'ap-efectos', titulo: 'Efectos', texto: 'Cada efecto se prende o apaga por separado: onda al tocar, barra de progreso arriba, filas en cascada, deslizar al cambiar de mes, resaltar cambios en vivo, avisar si falta algo, destello al buscar, detalles que brillan (como el ND del logo), vista previa de los viajes y confeti cuando el mes queda completo.' },
       { el: 'ap-transportadoras', titulo: 'Colores del Rutograma', texto: 'El color de las tarjetas de Makand, Arsitrans y Polar, solo para ti. "Como siempre" lo devuelve.' },
       { el: 'ap-ajustes', titulo: 'Más ajustes', texto: 'Modo daltonismo cambia los colores de los estados del Rutograma por unos que se distinguen sin ver rojo ni verde. Alto contraste marca más las letras y los bordes. Quitar animaciones elimina los efectos al abrir y cerrar pantallas, ventanas y menús y al tocar botones (también va mejor en equipos lentos). Saludo al entrar muestra "Buenos días" con tu nombre. Si algo no te gusta, "Restablecer" lo deja como venía.' },
       { el: '', titulo: '¡Listo!', texto: 'Se guarda solo apenas lo escoges. Al terminar la guía se cierra el panel.' }

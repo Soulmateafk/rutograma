@@ -1,3 +1,5 @@
+import { VacioComponent } from '../comunes/vacio';
+import { EsqueletoComponent } from '../comunes/esqueleto';
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -20,7 +22,7 @@ const NOMBRES_DIA: Record<string, string> = { lun: 'Lun', mar: 'Mar', mie: 'Mié
 @Component({
   selector: 'app-reglas',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [VacioComponent, EsqueletoComponent, CommonModule, FormsModule],
   templateUrl: './reglas.html',
   styleUrls: ['./reglas.css']
 })

@@ -71,3 +71,12 @@ test('una ventana minimizada sigue en la lista (y se marca)', () => {
     assert.strictEqual(ana.oculta, true);
     assert.deepStrictEqual(p.enLinea('x@x.com', 'z', 95000), []);
 });
+
+test('foto o emoji de la cuenta: solo viaja el id y la versión, nunca la foto', () => {
+    const p = crearPresencia(30000);
+    p.latido('a', { email: 'ana@x.com', nombre: 'Ana', clave: 'viaje:1', avatar: '🦊', aid: 'abc123', fotoV: 'v1' }, 0);
+    p.latido('b', { email: 'luis@x.com', nombre: 'Luis', clave: 'viaje:1', avatar: '', aid: 'def456', fotoV: '' }, 0);
+    const lista = p.enLinea('nadie@x.com', 'z', 1);
+    assert.deepStrictEqual(lista.map(x => [x.nombre, x.avatar, x.aid, x.fotoV]), [['Ana', '🦊', 'abc123', 'v1'], ['Luis', undefined, undefined, undefined]]);
+    assert.deepStrictEqual(p.otros('viaje:1', 'luis@x.com', 'b', 1), [{ nombre: 'Ana', editando: false, esYo: false, avatar: '🦊', aid: 'abc123', fotoV: 'v1' }]);
+});

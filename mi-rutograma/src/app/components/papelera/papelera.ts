@@ -1,3 +1,5 @@
+import { VacioComponent } from '../comunes/vacio';
+import { EsqueletoComponent } from '../comunes/esqueleto';
 import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
@@ -20,7 +22,7 @@ const ICONOS: Record<string, string> = {
 @Component({
   selector: 'app-papelera',
   standalone: true,
-  imports: [CommonModule],
+  imports: [VacioComponent, EsqueletoComponent, CommonModule],
   templateUrl: './papelera.html',
   styleUrls: ['./papelera.css']
 })

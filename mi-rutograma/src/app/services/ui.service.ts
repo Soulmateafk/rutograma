@@ -1,11 +1,12 @@
 import { Injectable, Inject, PLATFORM_ID, SecurityContext } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
 import { isPlatformBrowser } from '@angular/common';
+import { SonidoService } from './sonido.service';
 
 @Injectable({ providedIn: 'root' })
 export class UiService {
 
-  constructor(@Inject(PLATFORM_ID) private platformId: Object, private sanitizer: DomSanitizer) {}
+  constructor(@Inject(PLATFORM_ID) private platformId: Object, private sanitizer: DomSanitizer, private sonido: SonidoService) {}
 
   private get isBrowser(): boolean {
     return isPlatformBrowser(this.platformId);
@@ -51,6 +52,14 @@ export class UiService {
 
   public mostrarToast(msg: string, tipo: string): void {
     if (this.isBrowser && tipo === 'err') this.sacudirVentana();
+    if (this.isBrowser) {
+      // Sonido según lo que pasó (Apariencia → Sonidos).
+      const texto = String(msg || '').replace(/<[^>]*>/g, '');
+      this.sonido.tocar(tipo === 'err' ? 'error' : tipo !== 'ok' ? 'aviso'
+        : /se deshizo|se rehizo/i.test(texto) ? 'deshacer'
+        : /elimin|borr|papelera|quit[óo]/i.test(texto) ? 'eliminar'
+        : /aprob|acept/i.test(texto) && !/se aplicar/i.test(texto) ? 'aprobar' : 'ok');
+    }
     if (this.isBrowser) {
       const el = document.getElementById('sp-toast') as any;
       if (el) {

@@ -11,7 +11,9 @@ import { RuedaColorComponent } from './rueda-color';
 import { ConexionService } from '../../services/conexion.service';
 import { TemporadaComponent } from './temporada';
 import { TEMPORADAS, temporadaDe } from '../../services/temporadas';
-import { EFECTOS } from '../../services/theme.service';
+import { EFECTOS, FONDOS, FUENTES, AVATARES, INICIOS, Fondo } from '../../services/theme.service';
+import { SonidoService, ACCIONES_SONIDO, Accion } from '../../services/sonido.service';
+import { reducirImagen } from '../../services/imagenes';
 
 /**
  * Panel APARIENCIA (modo claro/oscuro, tamaño de letra, instalar la app) y
@@ -65,6 +67,60 @@ export class AparienciaComponent {
   public readonly efectos = EFECTOS;
   public readonly temporadas = TEMPORADAS;
   public get temporadaDeHoy() { return temporadaDe(); }
+
+  // Foto, fondo, letra, sonidos.
+  private sonido = inject(SonidoService);
+  public readonly fondos = FONDOS;
+  public readonly fuentes = FUENTES;
+  public readonly avatares = AVATARES;
+  public readonly acciones = ACCIONES_SONIDO;
+  public kitPrueba = '';
+  public get inicial(): string { return (String(this.account.nombre || this.auth.currentUser?.email || '?').trim()[0] || '?').toUpperCase(); }
+  public get fotoFondo(): string { return this.theme.fotoFondo(); }
+  public get iniciosDisponibles() {
+    return INICIOS.filter(i => !i.valor || (i.valor === '/aprobaciones' ? this.auth.puede('aprobarCambios') : true));
+  }
+  public probar(a: Accion): void { this.sonido.tocar(a, { forzar: true, temporada: this.kitPrueba || undefined }); }
+
+  public async subirFoto(e: Event): Promise<void> {
+    const archivo = (e.target as HTMLInputElement).files?.[0];
+    (e.target as HTMLInputElement).value = '';
+    if (!archivo) return;
+    try { this.theme.ponerFoto(await reducirImagen(archivo, 128, 0.8, true)); } catch { /* imagen dañada: no se cambia */ }
+  }
+  public escogerFondo(f: Fondo): void {
+    if (f === 'foto' && !this.fotoFondo) { this.pedirFondo(); return; }
+    this.theme.ponerFondo(f);
+  }
+  private pedirFondo(): void {
+    const i = document.createElement('input');
+    i.type = 'file'; i.accept = 'image/*';
+    i.onchange = (e) => this.subirFondo(e);
+    i.click();
+  }
+  public async subirFondo(e: Event): Promise<void> {
+    const archivo = (e.target as HTMLInputElement).files?.[0];
+    (e.target as HTMLInputElement).value = '';
+    if (!archivo) return;
+    try {
+      const url = await reducirImagen(archivo, 1600, 0.72, false);
+      if (!this.theme.ponerFotoFondo(url)) alert('La foto es muy pesada para guardarla en este equipo. Prueba con otra.');
+    } catch { /* imagen dañada */ }
+  }
+
+  public get saltos() {
+    return [
+      { nombre: 'Mi foto', guia: 'ap-perfil', si: !this.compartida }, { nombre: 'Modo', guia: 'ap-tema', si: true },
+      { nombre: 'Color', guia: 'ap-acento', si: true }, { nombre: 'Fondo', guia: 'ap-fondo', si: true },
+      { nombre: 'Letra', guia: 'ap-fuente', si: true }, { nombre: 'Sonidos', guia: 'ap-sonidos', si: true },
+      { nombre: 'Temporada', guia: 'ap-temporada', si: true }, { nombre: 'Efectos', guia: 'ap-efectos', si: true }
+    ].filter(x => x.si);
+  }
+  public saltar(guia: string): void {
+    const el = document.querySelector(`.ap-panel [data-guia="${guia}"]`) as HTMLElement | null;
+    el?.scrollIntoView({ behavior: document.documentElement.classList.contains('sin-animaciones') ? 'auto' : 'smooth', block: 'start' });
+    el?.classList.remove('ap-resalte'); void el?.offsetWidth; el?.classList.add('ap-resalte');
+  }
 
   public verAtajos(): void {
     this.theme.panelAbierto.set(false);

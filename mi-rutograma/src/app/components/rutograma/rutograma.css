@@ -1666,3 +1666,50 @@ tr.ruto-fila-resaltada > .ruto-td-vehicle-info {
 .ruto-cambio-motivo { margin-top: 2px; }
 .ruto-cambio-quien { font-size: 11px; color: var(--color-texto-secundario, #94a3b8); margin-top: 2px; }
 .ruto-dia-cerrado { display: block; font-size: 10px; color: #f59e0b; line-height: 1; }
+
+/* ---- Vista previa de un viaje (al dejar el mouse encima) ---- */
+.ruto-previa { max-width: 290px; min-width: 240px; padding: 0 12px 10px; overflow: hidden; border-radius: 12px; background: var(--bg2);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px color-mix(in srgb, var(--acento) 30%, transparent); animation: ruto-previa-entrar .22s cubic-bezier(.2, .9, .3, 1.2); }
+.ruto-previa-franja { height: 5px; margin: 0 -12px 9px; }
+.ruto-previa-ruta { font-weight: 700; font-size: 13px; color: var(--text); margin: -2px 0 7px; }
+.ruto-previa-ruta i { color: var(--acento-texto); }
+.ruto-previa-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 7px; }
+.ruto-previa-chip { font-size: 10.5px; padding: 2px 7px; border-radius: 999px; background: var(--bg3); border: 1px solid var(--border2); color: var(--text2); }
+.ruto-previa .ruto-hover-tooltip-row span i { opacity: .75; margin-right: 2px; }
+.ruto-previa-aviso { margin-top: 6px; font-size: 11px; font-weight: 700; color: #fbbf24; }
+.ruto-previa-aviso.urgente { color: #f87171; }
+.ruto-previa-nota { margin-top: 6px; font-size: 11px; padding: 6px 8px; border-radius: 8px; background: rgba(250, 204, 21, 0.1); border-left: 3px solid #facc15; color: var(--text); white-space: pre-wrap; max-height: 70px; overflow: hidden; }
+.ruto-previa-pie { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border2); font-size: 10px; color: var(--text3); display: flex; flex-direction: column; gap: 2px; }
+.ruto-previa-ayuda { opacity: .85; }
+@keyframes ruto-previa-entrar { from { opacity: 0; transform: translateY(6px) scale(.97); } to { opacity: 1; transform: none; } }
+html.sin-animaciones .ruto-previa { animation: none; }
+
+/* ---- Fijar vehículo arriba ---- */
+.ruto-fijar { background: none; border: none; padding: 0 0 0 4px; cursor: pointer; color: var(--text3); font-size: 11px; opacity: .3; transition: opacity .15s, transform .15s; vertical-align: 1px; }
+.ruto-td-vehicle-info:hover .ruto-fijar, .ruto-fijar.on { opacity: 1; }
+.ruto-fijar.on { color: var(--acento-texto); }
+.ruto-fijar:hover { transform: scale(1.25) rotate(-12deg); }
+@media (hover: none) { .ruto-fijar { opacity: .6; } }
+
+/* ---- Arrastrar y soltar ---- */
+.ruto-card-viaje[draggable="true"] { cursor: grab; }
+.ruto-card-viaje[draggable="true"]:active { cursor: grabbing; }
+.ruto-arrastrado { opacity: 0.4; outline: 2px dashed var(--acento); outline-offset: -2px; }
+body.ruto-arrastrando .ruto-td-day-cell { transition: background .12s, box-shadow .12s; }
+body.ruto-arrastrando .ruto-hover-tooltip { display: none; }
+.ruto-td-day-cell.ruto-destino { background: color-mix(in srgb, var(--acento) 22%, transparent) !important; box-shadow: inset 0 0 0 2px var(--acento); }
+.ruto-td-day-cell.ruto-destino::after { content: 'Soltar aquí'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 10px; font-weight: 800;
+  background: var(--acento); color: #fff; padding: 2px 6px; border-radius: 6px; pointer-events: none; white-space: nowrap; z-index: 3; }
+.ruto-td-day-cell.ruto-destino { position: relative; }
+
+/* ---- Menú de clic derecho ---- */
+.ruto-menu-fondo { position: fixed; inset: 0; z-index: 10030; }
+.ruto-menu { position: fixed; z-index: 10031; min-width: 236px; padding: 6px; border-radius: 12px; background: var(--bg2); border: 1px solid var(--border2);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5); animation: ruto-previa-entrar .18s ease-out; }
+.ruto-menu-cab { padding: 6px 10px 8px; border-bottom: 1px solid var(--border2); margin-bottom: 4px; display: flex; flex-direction: column; }
+.ruto-menu-cab small { color: var(--text2); font-size: 11px; }
+.ruto-menu button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 7px 10px; border-radius: 8px; font-size: 12.5px; font-family: inherit; cursor: pointer; }
+.ruto-menu button:hover, .ruto-menu button:focus-visible { background: var(--acento-fondo); color: var(--acento-texto); outline: none; }
+.ruto-menu button i { width: 16px; text-align: center; }
+.ruto-menu .bi-whatsapp { color: #22c55e; }
+.ruto-menu-linea { height: 1px; background: var(--border2); margin: 4px 6px; }

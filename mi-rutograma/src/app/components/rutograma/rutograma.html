@@ -155,7 +155,10 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngIf="!ds?.S?.vehiculos || ds.S.vehiculos.length === 0">
+        <tr *ngIf="(!ds?.S?.vehiculos || ds.S.vehiculos.length === 0) && !ds.cargado">
+          <td [attr.colspan]="diasMes.length + 2" class="ruto-td-esqueleto"><app-esqueleto [filas]="6" tipo="tabla"></app-esqueleto></td>
+        </tr>
+        <tr *ngIf="(!ds?.S?.vehiculos || ds.S.vehiculos.length === 0) && ds.cargado">
           <td [attr.colspan]="diasMes.length + 2" class="ruto-td-empty">
             No hay vehículos individuales en la caché. ¡Usa el botón <b><i class="bi bi-folder2-open" style="color:#34d399;"></i> Importar Operación</b> para procesar el Excel!
           </td>
@@ -166,7 +169,9 @@
           <td class="ruto-td-vehicle-info">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
               <div>
-                <strong class="ruto-vehicle-plate">{{ v.p }}</strong><br>
+                <strong class="ruto-vehicle-plate">{{ v.p }}</strong>
+                <button class="ruto-fijar" [class.on]="estaFijado(v)" (click)="alternarFijado(v, $event)"
+                        [title]="estaFijado(v) ? 'Quitar de arriba' : 'Fijar arriba (solo para tu cuenta)'"><i class="bi" [ngClass]="estaFijado(v) ? 'bi-pin-angle-fill' : 'bi-pin-angle'"></i></button><br>
                 <span class="ruto-vehicle-desc">{{ v.t }} — {{ v.ruta }}</span>
               </div>
 
@@ -184,7 +189,9 @@
 
           <td class="ruto-td-next-delivery" [innerHTML]="safeHtml(proximaEntrega(v))"></td>
 
-          <td *ngFor="let d of diasMes" class="ruto-td-day-cell" [class.hoy]="esHoy(d)">
+          <td *ngFor="let d of diasMes" class="ruto-td-day-cell" [class.hoy]="esHoy(d)"
+              [class.ruto-destino]="arrastrando && celdaDestino === (v.p || '').toUpperCase().trim() + '-' + d"
+              (dragover)="alPasarSobreCelda($event, v, d)" (drop)="alSoltarEnCelda($event, v, d)">
 
             <!-- Varado: un registro por día, independiente del estado
                  general del vehículo — nunca lo tapa un mantenimiento
@@ -216,6 +223,10 @@
                      (mouseenter)="mostrarTooltipViaje($event, vj, v)"
                      (mousemove)="moverTooltipViaje($event)"
                      (mouseleave)="ocultarTooltipViaje()"
+                     [attr.draggable]="puedeArrastrar(vj) ? 'true' : null"
+                     (dragstart)="alEmpezarArrastre($event, vj, v)" (dragend)="alTerminarArrastre()"
+                     (contextmenu)="abrirMenuViaje($event, vj, v)"
+                     [class.ruto-arrastrado]="arrastrando?.id === vj.id"
                      class="ruto-card-viaje" [attr.data-viaje]="vj.id" [class.ap-cambio-vivo]="cambiadosVivo.has(vj.id)"
                      [ngClass]="vj.cssClass"
                      [style.border-left]="vj.prioridad === 'urgente' ? '4px solid #ef4444' : (vj.prioridad === 'alta' ? '4px solid #f59e0b' : '')">
@@ -317,7 +328,9 @@
             <td class="ruto-td-vehicle-info ruto-td-vehicle-info-cupo" [style.background]="te.col" [style.borderColor]="te.col">
               <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
                 <div>
-                  <strong class="ruto-vehicle-plate">{{ v.p }}</strong><br>
+                  <strong class="ruto-vehicle-plate">{{ v.p }}</strong>
+                <button class="ruto-fijar" [class.on]="estaFijado(v)" (click)="alternarFijado(v, $event)"
+                        [title]="estaFijado(v) ? 'Quitar de arriba' : 'Fijar arriba (solo para tu cuenta)'"><i class="bi" [ngClass]="estaFijado(v) ? 'bi-pin-angle-fill' : 'bi-pin-angle'"></i></button><br>
                   <span class="ruto-vehicle-desc">{{ v.t }} — {{ v.ruta }}</span>
                 </div>
 
@@ -335,7 +348,9 @@
 
             <td class="ruto-td-next-delivery" [innerHTML]="safeHtml(proximaEntrega(v))"></td>
 
-            <td *ngFor="let d of diasMes" class="ruto-td-day-cell" [class.hoy]="esHoy(d)">
+            <td *ngFor="let d of diasMes" class="ruto-td-day-cell" [class.hoy]="esHoy(d)"
+              [class.ruto-destino]="arrastrando && celdaDestino === (v.p || '').toUpperCase().trim() + '-' + d"
+              (dragover)="alPasarSobreCelda($event, v, d)" (drop)="alSoltarEnCelda($event, v, d)">
 
               <!-- Varado: un registro por día, independiente del estado
                    general del vehículo — nunca lo tapa un mantenimiento
@@ -367,6 +382,10 @@
                        (mouseenter)="mostrarTooltipViaje($event, vj, v)"
                        (mousemove)="moverTooltipViaje($event)"
                        (mouseleave)="ocultarTooltipViaje()"
+                       [attr.draggable]="puedeArrastrar(vj) ? 'true' : null"
+                       (dragstart)="alEmpezarArrastre($event, vj, v)" (dragend)="alTerminarArrastre()"
+                       (contextmenu)="abrirMenuViaje($event, vj, v)"
+                       [class.ruto-arrastrado]="arrastrando?.id === vj.id"
                        class="ruto-card-viaje" [attr.data-viaje]="vj.id" [class.ap-cambio-vivo]="cambiadosVivo.has(vj.id)"
                        [ngClass]="vj.cssClass">
 
@@ -1009,19 +1028,51 @@
 <!-- Tooltip flotante de viaje (pulido visual): vive fuera de la tabla y de
      cualquier contenedor con overflow, así "position: fixed" nunca se
      recorta. Se posiciona con las coordenadas del mouse. -->
-<div *ngIf="tooltipVisible && tooltipDatos"
-     class="ruto-hover-tooltip"
+<div *ngIf="tooltipVisible && tooltipDatos as t"
+     class="ruto-hover-tooltip ruto-previa"
      [style.left.px]="tooltipX"
      [style.top.px]="tooltipY">
+  <div class="ruto-previa-franja" [style.background]="t.color"></div>
   <div class="ruto-hover-tooltip-header">
-    <span class="ruto-hover-tooltip-placa">{{ tooltipDatos.placa }}</span>
-    <span class="ruto-hover-tooltip-tr">{{ tooltipDatos.transportadora }}</span>
+    <span class="ruto-hover-tooltip-placa">{{ t.placa }}</span>
+    <span class="ruto-hover-tooltip-tr">{{ t.transportadora }}</span>
   </div>
-  <div class="ruto-hover-tooltip-row"><span>Ruta</span><b>{{ tooltipDatos.ruta }}</b></div>
-  <div class="ruto-hover-tooltip-row"><span>Conductor</span><b>{{ tooltipDatos.conductor }}</b></div>
-  <div class="ruto-hover-tooltip-row"><span>Estado</span><b>{{ tooltipDatos.estado }} · {{ tooltipDatos.hora }}</b></div>
-  <div class="ruto-hover-tooltip-row"><span>Cajas</span><b>{{ tooltipDatos.cajas }} cj</b></div>
-  <div class="ruto-hover-tooltip-row" *ngIf="tooltipDatos.dia"><span>Día</span><b>{{ tooltipDatos.dia }}</b></div>
+  <div class="ruto-previa-ruta"><i class="bi bi-signpost-2-fill"></i> {{ t.ruta }}</div>
+  <div class="ruto-previa-chips">
+    <span class="ruto-previa-chip"><i class="bi bi-calendar3"></i> {{ t.cuando || ('Día ' + t.dia) }}</span>
+    <span class="ruto-previa-chip"><i class="bi bi-clock"></i> {{ t.hora }}</span>
+    <span class="ruto-previa-chip"><i class="bi bi-hourglass"></i> {{ t.dias }} {{ t.dias === 1 ? 'día' : 'días' }}</span>
+    <span class="ruto-previa-chip"><i class="bi bi-box-seam"></i> {{ t.cajas }} cj</span>
+  </div>
+  <div class="ruto-hover-tooltip-row"><span><i class="bi bi-person-fill"></i> Conductor</span><b>{{ t.conductor }}</b></div>
+  <div class="ruto-hover-tooltip-row" *ngIf="t.cliente"><span><i class="bi bi-shop"></i> Cliente</span><b>{{ t.cliente }}</b></div>
+  <div class="ruto-hover-tooltip-row"><span><i class="bi bi-flag"></i> Estado</span><b>{{ t.estado }}</b></div>
+  <div class="ruto-hover-tooltip-row" *ngIf="t.salio || t.llego"><span><i class="bi bi-geo-alt-fill"></i> En ruta</span><b>{{ t.salio ? 'Salió ' + t.salio : '' }}{{ t.salio && t.llego ? ' · ' : '' }}{{ t.llego ? 'Llegó ' + t.llego : '' }}</b></div>
+  <div class="ruto-previa-aviso urgente" *ngIf="t.prioridad"><i class="bi bi-exclamation-triangle-fill"></i> {{ t.prioridad }}</div>
+  <div class="ruto-previa-aviso" *ngIf="t.pendiente"><i class="bi bi-hourglass-split"></i> Tiene un cambio esperando aprobación</div>
+  <div class="ruto-previa-nota" *ngIf="t.obs"><i class="bi bi-sticky-fill"></i> {{ t.obs }}</div>
+  <div class="ruto-previa-pie">
+    <span *ngIf="t.editado"><i class="bi bi-pencil"></i> {{ t.editado }}</span>
+    <span class="ruto-previa-ayuda">Clic: abrir · Clic derecho: más{{ t.arrastrable ? ' · Arrastra para mover' : '' }}</span>
+  </div>
+</div>
+
+<!-- Menú con clic derecho sobre un viaje -->
+<div class="ruto-menu-fondo" *ngIf="menuViaje" (click)="cerrarMenuViaje()" (contextmenu)="$event.preventDefault(); cerrarMenuViaje()"></div>
+<div class="ruto-menu" *ngIf="menuViaje as m" animate.leave="ap-ocultar" [style.left.px]="m.x" [style.top.px]="m.y" role="menu">
+  <div class="ruto-menu-cab">
+    <strong>{{ m.vj.ruta || 'Viaje' }}</strong>
+    <small>{{ m.v.p }} · {{ m.vj.cond || conductoresMap[m.v.p] || 'Sin conductor' }}</small>
+  </div>
+  <button role="menuitem" (click)="accionMenu('ver')"><i class="bi bi-eye"></i> Ver detalle</button>
+  <button role="menuitem" *ngIf="auth.puedeEditar" (click)="accionMenu('editar')"><i class="bi bi-pencil-square"></i> Editar</button>
+  <button role="menuitem" *ngIf="auth.puedeEditar" (click)="accionMenu('duplicar')"><i class="bi bi-copy"></i> Duplicar (justo después)</button>
+  <button role="menuitem" (click)="accionMenu('historial')"><i class="bi bi-clock-history"></i> Historial de cambios</button>
+  <button role="menuitem" (click)="accionMenu('hoja')"><i class="bi bi-file-earmark-pdf"></i> Hoja de ruta (PDF)</button>
+  <div class="ruto-menu-linea"></div>
+  <button role="menuitem" (click)="accionMenu('whatsapp')"><i class="bi bi-whatsapp"></i> Avisar al conductor por WhatsApp</button>
+  <button role="menuitem" *ngIf="m.vj.cond || conductoresMap[m.v.p]" (click)="accionMenu('agenda')"><i class="bi bi-calendar-week"></i> Agenda del conductor</button>
+  <button role="menuitem" (click)="accionMenu('fijar')"><i class="bi" [ngClass]="estaFijado(m.v) ? 'bi-pin-angle-fill' : 'bi-pin-angle'"></i> {{ estaFijado(m.v) ? 'Quitar ' + m.v.p + ' de arriba' : 'Fijar ' + m.v.p + ' arriba' }}</button>
 </div>
 
 <!-- Calendario de mes flotante (pulido visual): igual que el tooltip de

@@ -13,10 +13,10 @@
     </div>
   </div>
 
-  <div *ngIf="cargando" class="apr-vacio">Cargando…</div>
-  <div *ngIf="!cargando && visibles.length === 0" class="apr-vacio">
-    {{ vista === 'pendientes' ? 'No hay cambios pendientes.' : 'Todavía no hay solicitudes decididas.' }}
-  </div>
+  <app-esqueleto *ngIf="cargando" [filas]="4" tipo="lista"></app-esqueleto>
+  <app-vacio *ngIf="!cargando && visibles.length === 0" [dibujo]="vista === 'pendientes' ? 'todo-bien' : 'carpeta'"
+             [titulo]="vista === 'pendientes' ? 'No hay cambios pendientes' : 'Todavía no hay solicitudes decididas'"
+             [texto]="vista === 'pendientes' ? '¡Todo al día! Cuando un auxiliar haga un cambio, aparecerá aquí para aprobarlo.' : ''"></app-vacio>
 
   <div class="apr-barra" *ngIf="puedeAprobar && vista === 'pendientes' && pendientes.length > 1">
     <label class="apr-check"><input type="checkbox" [checked]="todosSeleccionados" (change)="alternarTodos()"> Seleccionar todos</label>

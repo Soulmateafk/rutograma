@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { UiService } from '../../services/ui.service';
+import { ThemeService } from '../../services/theme.service';
 
 @Component({
   selector: 'app-login',
@@ -17,6 +18,7 @@ export class LoginComponent implements OnInit {
   private auth = inject(AuthService);
   private router = inject(Router);
   private ui = inject(UiService);
+  private theme = inject(ThemeService);
   private platformId = inject(PLATFORM_ID);
 
   // Datos vinculados al formulario
@@ -31,8 +33,17 @@ export class LoginComponent implements OnInit {
     const restaurada = await this.auth.intentarRestaurarSesion();
     if (restaurada && this.auth.currentUserStatus === 'APPROVED') {
       this.ui.mostrarToast(this.mensajeBienvenida(), 'ok');
-      this.router.navigate(['/resumen']);
+      this.router.navigate([this.pantallaInicial()]);
     }
+  }
+
+  /** La pantalla que la cuenta escogió para entrar (Apariencia → Pantalla al entrar); si no, Resumen. */
+  private pantallaInicial(): string {
+    const inicio = this.theme.ap.inicio;
+    const oficina = !this.auth.esConductor && !this.auth.esDespachos;
+    if (!inicio || !oficina) return '/resumen';
+    if (inicio === '/aprobaciones' && !this.auth.puede('aprobarCambios')) return '/resumen';
+    return inicio;
   }
 
   // Saludo según la hora + mensaje según el rol
@@ -89,7 +100,7 @@ export class LoginComponent implements OnInit {
         ? `<br>Tu cuenta llegó al máximo de ${this.auth.maxSesiones} sesiones: se cerró ${cerradas === 1 ? 'la que llevaba' : cerradas + ' que llevaban'} más tiempo sin usarse.`
         : '';
       this.ui.mostrarToast(this.mensajeBienvenida() + avisoTope, 'ok');
-      this.router.navigate(['/resumen']);
+      this.router.navigate([this.pantallaInicial()]);
 
     } else if (estado === 'PENDING') {
       this.router.navigate(['/pending']);

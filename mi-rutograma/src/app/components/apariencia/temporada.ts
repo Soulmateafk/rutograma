@@ -1,6 +1,7 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ThemeService } from '../../services/theme.service';
+import { SonidoService } from '../../services/sonido.service';
 import { Temporada, temporadaVisible, diasParaElDia } from '../../services/temporadas';
 
 interface Fuego { x: number; y: number; delay: number; sombra: string; color: string; }
@@ -78,6 +79,7 @@ interface Particula { tipo: string; texto: string; color: string; left: number; 
 })
 export class TemporadaComponent {
   private theme = inject(ThemeService);
+  private sonido = inject(SonidoService);
   private hoy = signal(new Date());
   public temporada = computed<Temporada | null>(() => temporadaVisible(this.theme.temporadaPreferida(), this.hoy()));
   public particulas = computed<Particula[]>(() => {
@@ -150,6 +152,7 @@ export class TemporadaComponent {
           const emoji = i % 4 === 0 && !t.particulas[0].startsWith('#') ? t.particulas[i % t.particulas.length] : '';
           return { texto: emoji, color: colores[i % colores.length], dx: Math.round(Math.cos(a) * r), dy: Math.round(Math.sin(a) * r - 120), giro: Math.round(Math.random() * 720 - 360), delay: Math.round(Math.random() * 25) / 100 };
         }));
+        this.sonido.tocar('celebrar');
         setTimeout(() => this.estallido.set([]), 4200);
       }, 1200);
     }

@@ -39,7 +39,7 @@
   </div>
 
   <div class="qj-lista" data-guia="qj-lista">
-    <div *ngIf="!lista.length" class="qj-vacio">{{ todas.length ? 'Nada con ese filtro.' : 'No hay quejas registradas.' }}</div>
+    <app-vacio *ngIf="!lista.length" [dibujo]="todas.length ? 'buscar' : 'todo-bien'" [titulo]="todas.length ? 'Nada con ese filtro' : 'No hay quejas registradas'" [texto]="todas.length ? 'Prueba con otro filtro.' : '¡Los clientes están contentos!'"></app-vacio>
     <div *ngFor="let q of lista" class="qj-fila" [class.cerrada]="q.estado === 'cerrada'">
       <div class="qj-info">
         <div><b>{{ q.cliente }}</b> · <span class="qj-tipo">{{ q.tipo }}</span> · {{ q.fecha | date:'d MMM y':'':'es' }}<span *ngIf="q.valor"> · $ {{ q.valor | number:'1.0-0':'es' }}</span></div>

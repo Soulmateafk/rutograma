@@ -49,6 +49,7 @@
 <app-guia *ngIf="!cargandoInicial()"></app-guia>
 <app-apariencia></app-apariencia>
 <app-aviso-inactividad></app-aviso-inactividad>
+<app-aviso-deshacer *ngIf="!cargandoInicial() && authService.puedeEditar && !authService.necesitaAprobacion"></app-aviso-deshacer>
 
 <!-- Aviso de choque: otra persona modificó el viaje que se estaba editando.
      Vive aquí (raíz) para verse igual sin importar desde qué pantalla se guardó. -->

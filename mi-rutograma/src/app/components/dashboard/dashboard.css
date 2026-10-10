@@ -721,3 +721,19 @@
 .tendencia-up { color: #16a34a; }
 .tendencia-down { color: #dc2626; }
 .tendencia-igual { color: var(--texto-secundario, #888); }
+/* ---- Dashboard armable ---- */
+.dash-cab-botones { display: flex; gap: 8px; align-items: center; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
+.dash-personalizar.on { background: var(--acento); border-color: var(--acento); color: #fff; }
+.dash-bloques { display: flex; flex-direction: column; }
+.dash-bloque { position: relative; border-radius: 14px; transition: box-shadow .2s, transform .2s, opacity .2s; }
+.dash-bloques.armando .dash-bloque { margin: 6px 0 10px; padding: 6px; border: 2px dashed color-mix(in srgb, var(--acento) 55%, transparent); background: color-mix(in srgb, var(--acento) 5%, transparent); cursor: grab; }
+.dash-bloques.armando .dash-bloque:active { cursor: grabbing; }
+.dash-bloques.armando .dash-bloque > :not(.dash-bloque-barra) { pointer-events: none; }
+.dash-bloque.dash-oculto > :not(.dash-bloque-barra) { opacity: .3; filter: grayscale(1); max-height: 90px; overflow: hidden; }
+.dash-bloque.dash-sobre { box-shadow: 0 0 0 3px var(--acento); transform: scale(1.01); }
+.dash-bloque-barra { display: flex; align-items: center; gap: 8px; padding: 4px 6px 8px; font-size: 13px; color: var(--acento-texto); }
+.dash-bloque-acciones { margin-left: auto; display: flex; gap: 4px; }
+.dash-bloque-acciones button { background: var(--bg3); border: 1px solid var(--border2); color: var(--text); border-radius: 8px; width: 32px; height: 28px; cursor: pointer; }
+.dash-bloque-acciones button:hover { border-color: var(--acento); color: var(--acento-texto); }
+.dash-armar-ayuda { margin: 0 20px 4px; padding: 10px 14px; border-radius: 10px; background: var(--acento-fondo); border: 1px solid var(--acento); font-size: 13px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.dash-armar-ayuda .btn { margin-left: auto; }

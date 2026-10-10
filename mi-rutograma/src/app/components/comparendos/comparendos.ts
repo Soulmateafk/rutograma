@@ -1,3 +1,5 @@
+import { VacioComponent } from '../comunes/vacio';
+import { EsqueletoComponent } from '../comunes/esqueleto';
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -17,7 +19,7 @@ const pegada = (p: any): string => String(p ?? '').toUpperCase().replace(/[^A-Z0
 @Component({
   selector: 'app-comparendos',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [VacioComponent, EsqueletoComponent, CommonModule, FormsModule],
   templateUrl: './comparendos.html',
   styleUrls: ['./comparendos.css']
 })
