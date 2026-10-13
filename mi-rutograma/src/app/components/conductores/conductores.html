@@ -40,7 +40,7 @@
   <div class="title-row">
     <h1 class="main-title">Conductores</h1>
     <div data-guia="cond-acciones" style="display:flex; gap:10px;">
-      <button class="btn" (click)="mostrarHistorial = !mostrarHistorial"><i class="bi bi-calendar-week" style="color:#60a5fa;"></i> Ver histórico</button>
+      <button class="btn" (click)="alternarHistorial()"><i class="bi bi-calendar-week" style="color:#60a5fa;"></i> Ver histórico</button>
       <button class="btn-nuevo-cond" *ngIf="auth.puedeEditar" (click)="abrirModal('m-cond')"><i class="bi bi-person-plus-fill"></i> Nuevo Conductor</button>
     </div>
   </div>
@@ -65,6 +65,10 @@
     </div>
 
     <div *ngIf="cargandoHistorial" style="margin-top:12px; color: var(--color-texto-apagado);">Cargando...</div>
+    <p class="hist-nota" *ngIf="!cargandoHistorial && conductoresHistorial?.length">
+      <i class="bi" [ngClass]="historialFuente === 'foto' ? 'bi-camera' : 'bi-signpost-split'"></i>
+      {{ historialFuente === 'foto' ? 'Cómo estaban los conductores en ' + historialMes + ' ' + historialAnio + ', con los viajes que hizo cada uno ese mes.' : 'Ese mes no tiene foto guardada: se armó con los ' + historialViajes + ' viajes que hubo en ' + historialMes + ' ' + historialAnio + ' (datos de cada conductor como están hoy).' }}
+    </p>
 
     <div class="table-responsive" *ngIf="!cargandoHistorial && conductoresHistorial !== null" style="margin-top:12px;">
       <table class="custom-table">
@@ -76,6 +80,9 @@
             <th>Vehículo asignado</th>
             <th>Estado</th>
             <th>Licencia</th>
+            <th>Viajes del mes</th>
+            <th>Vehículos que manejó</th>
+            <th>Rutas</th>
           </tr>
         </thead>
         <tbody>
@@ -86,10 +93,13 @@
             <td><span class="plate-badge">{{ c.veh || c.placa || 'Sin asignar' }}</span></td>
             <td><span class="status-indicator" [class]="c.est">{{ c.est | titlecase }}</span></td>
             <td>{{ c.lic || 'N/A' }}</td>
+            <td><strong>{{ c.viajesMes || 0 }}</strong><small class="hist-sub" *ngIf="c.viajesMes"> · {{ c.entregadosMes }} entregados · {{ c.diasMes }} días</small></td>
+            <td>{{ c.conQuienMes || '—' }}</td>
+            <td>{{ c.rutasMes || '—' }}</td>
           </tr>
           <tr *ngIf="!conductoresHistorial.length">
-            <td colspan="6" style="text-align:center; color: var(--color-texto-apagado); font-style:italic; padding:16px;">
-              No hay una foto guardada de {{ historialMes }} {{ historialAnio }} — se guarda automáticamente al generar la matriz de ese mes.
+            <td colspan="9" style="text-align:center; color: var(--color-texto-apagado); font-style:italic; padding:16px;">
+              {{ historialFuente === 'error' ? 'No se pudo consultar el histórico. Revisa la conexión e inténtalo de nuevo.' : 'En ' + historialMes + ' ' + historialAnio + ' no hubo viajes ni hay foto guardada de los conductores.' }}
             </td>
           </tr>
         </tbody>

@@ -95,11 +95,23 @@ export class VehiculosComponent implements OnInit, OnDestroy {
   public historialAnio: number = new Date().getFullYear();
   public vehiculosHistorial: any[] | null = null;
   public cargandoHistorial: boolean = false;
+  /** 'foto' = guardada ese mes; 'reconstruido' = armada con los viajes del mes. */
+  public historialFuente: string = 'foto';
+  public historialViajes: number = 0;
+
+  /** Abre (y carga de una vez) o cierra el histórico. */
+  public alternarHistorial(): void {
+    this.mostrarHistorial = !this.mostrarHistorial;
+    if (this.mostrarHistorial) this.verHistorialMes(); else this.vehiculosHistorial = null;
+  }
 
   public async verHistorialMes(): Promise<void> {
     this.cargandoHistorial = true;
     this.cdr.detectChanges();
-    this.vehiculosHistorial = await this.ds.obtenerHistorialVehiculos(this.historialMes, this.historialAnio);
+    const h = await this.ds.obtenerHistorialVehiculos(this.historialMes, this.historialAnio);
+    this.vehiculosHistorial = h.filas;
+    this.historialFuente = h.fuente;
+    this.historialViajes = h.totalViajes;
     this.cargandoHistorial = false;
     this.cdr.detectChanges();
   }

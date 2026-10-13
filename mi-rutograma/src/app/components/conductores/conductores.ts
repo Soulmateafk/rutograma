@@ -116,11 +116,23 @@ export class ConductoresComponent implements OnInit, OnDestroy {
   public historialAnio: number = new Date().getFullYear();
   public conductoresHistorial: any[] | null = null;
   public cargandoHistorial: boolean = false;
+  /** 'foto' = guardada ese mes; 'reconstruido' = armada con los viajes del mes. */
+  public historialFuente: string = 'foto';
+  public historialViajes: number = 0;
+
+  /** Abre (y carga de una vez) o cierra el histórico. */
+  public alternarHistorial(): void {
+    this.mostrarHistorial = !this.mostrarHistorial;
+    if (this.mostrarHistorial) this.verHistorialMes(); else this.conductoresHistorial = null;
+  }
 
   public async verHistorialMes(): Promise<void> {
     this.cargandoHistorial = true;
     this.cdr.detectChanges();
-    this.conductoresHistorial = await this.dataService.obtenerHistorialConductores(this.historialMes, this.historialAnio);
+    const h = await this.dataService.obtenerHistorialConductores(this.historialMes, this.historialAnio);
+    this.conductoresHistorial = h.filas;
+    this.historialFuente = h.fuente;
+    this.historialViajes = h.totalViajes;
     this.cargandoHistorial = false;
     this.cdr.detectChanges();
   }

@@ -8,6 +8,8 @@ import { AccountService } from './account.service';
 import { Subject } from 'rxjs';
 import { API } from '../api-base';
 
+export interface HistoricoMes { filas: any[]; fuente: 'foto' | 'reconstruido' | 'vacio' | 'error'; totalViajes: number; }
+
 @Injectable({ providedIn: 'root' })
 export class DataService {
 
@@ -907,15 +909,16 @@ export class DataService {
    * que el Rutograma se vuelva a pintar con el dato correcto.
    */
   // --- HISTÓRICO MENSUAL: consulta la foto de vehículos/rutas de un mes ---
-  public async obtenerHistorialVehiculos(mes: string, anio: number): Promise<any[]> {
+  /** Histórico de un mes: la foto guardada o, si no hay, lo que muestran los viajes de ese mes. */
+  public async obtenerHistorialVehiculos(mes: string, anio: number): Promise<HistoricoMes> {
     try {
       const res: any = await firstValueFrom(
         this.http.get(`${this.API_URL}/historial-vehiculos`, { params: { mes, anio: String(anio) } })
       );
-      return res?.vehiculos || [];
+      return { filas: res?.vehiculos || [], fuente: res?.fuente || 'foto', totalViajes: res?.totalViajes || 0 };
     } catch (e) {
       console.error('Error consultando historial de vehículos:', e);
-      return [];
+      return { filas: [], fuente: 'error', totalViajes: 0 };
     }
   }
 
@@ -931,15 +934,16 @@ export class DataService {
     }
   }
 
-  public async obtenerHistorialConductores(mes: string, anio: number): Promise<any[]> {
+  /** Histórico de un mes: la foto guardada o, si no hay, lo que muestran los viajes de ese mes. */
+  public async obtenerHistorialConductores(mes: string, anio: number): Promise<HistoricoMes> {
     try {
       const res: any = await firstValueFrom(
         this.http.get(`${this.API_URL}/historial-conductores`, { params: { mes, anio: String(anio) } })
       );
-      return res?.conductores || [];
+      return { filas: res?.conductores || [], fuente: res?.fuente || 'foto', totalViajes: res?.totalViajes || 0 };
     } catch (e) {
       console.error('Error consultando historial de conductores:', e);
-      return [];
+      return { filas: [], fuente: 'error', totalViajes: 0 };
     }
   }
 

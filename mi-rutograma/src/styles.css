@@ -654,7 +654,7 @@ input[type="checkbox"], input[type="radio"], input[type="range"], progress { acc
    "Menos animaciones" en Apariencia (html.sin-animaciones).
    ============================================================ */
 /* Duraciones: todo en un solo lugar. Se notan, pero no hacen esperar. */
-:root { --dur-pagina: 0.38s; --dur-fondo: 0.26s; --dur-ventana: 0.34s; --dur-menu: 0.24s; --dur-cerrar: 0.26s; }
+:root { --dur-pagina: 0.42s; --dur-fondo: 0.28s; --dur-ventana: 0.38s; --dur-menu: 0.26s; --dur-cerrar: 0.34s; }
 @keyframes ap-aparecer { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ap-subir { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes ap-bajar { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
@@ -689,9 +689,9 @@ router-outlet + * { display: block; animation: ap-pagina var(--dur-pagina) cubic
    mientras se desvanece; los menús suben y se desvanecen.
    ============================================================ */
 @keyframes ap-fondo-salir { to { opacity: 0; } }
-@keyframes ap-ventana-salir { to { opacity: 0; transform: scale(0.95) translateY(8px); } }
-@keyframes ap-menu-salir { to { opacity: 0; transform: translateY(-6px); } }
-@keyframes ap-aviso-salir { to { opacity: 0; transform: translateY(12px); } }
+@keyframes ap-ventana-salir { 0% { opacity: 1; transform: none; } 30% { opacity: 1; transform: scale(1.02); } 100% { opacity: 0; transform: scale(0.86) translateY(26px); } }
+@keyframes ap-menu-salir { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-12px) scale(0.94); } }
+@keyframes ap-aviso-salir { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateX(40px) scale(0.92); } }
 .ap-cerrar { animation: ap-fondo-salir var(--dur-cerrar) ease-in forwards !important; pointer-events: none !important; }
 .ap-cerrar > * { animation: ap-ventana-salir var(--dur-cerrar) cubic-bezier(0.4, 0, 1, 1) forwards !important; }
 .ap-ocultar { animation: ap-menu-salir var(--dur-menu) ease-in forwards !important; pointer-events: none !important; }
@@ -1421,3 +1421,35 @@ html[data-temporada="navidad"]:not(.sin-rastro) :is(.login-card, .resumen-card, 
 html[data-temporada="halloween"]:not(.sin-rastro) .login-title h2::after { content: ' 🎃'; }
 html[data-temporada="navidad"]:not(.sin-rastro) .login-title h2::after { content: ' 🎄'; }
 html[data-temporada]:not([data-temporada="halloween"]):not([data-temporada="navidad"]):not(.sin-rastro) .login-title h2::after { content: ' ' var(--temporada-emoji); }
+
+
+/* ============================================================
+   HISTÓRICO DE VEHÍCULOS Y CONDUCTORES
+   ============================================================ */
+.hist-nota { margin: 12px 0 0; padding: 8px 12px; border-radius: 9px; font-size: 12.5px; line-height: 1.45;
+  background: color-mix(in srgb, var(--acento, #2563eb) 10%, transparent); border: 1px solid color-mix(in srgb, var(--acento, #2563eb) 30%, transparent); }
+.hist-nota i { color: var(--acento, #2563eb); margin-right: 4px; }
+.hist-sub { color: var(--text3, var(--color-texto-apagado, #94a3b8)); font-size: 11px; }
+
+/* ============================================================
+   TRANSICIÓN ENTRE PÁGINAS (View Transitions, app.config.ts): la página
+   que se va sale y la nueva entra al mismo tiempo, desde el lado hacia
+   donde se va según el orden de la barra (html[data-dir]). La barra de
+   arriba se queda quieta: solo se mueve el contenido.
+   ============================================================ */
+router-outlet + * { view-transition-name: pagina; }
+html.vt-activa router-outlet + * { animation: none !important; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .2s; }
+::view-transition-group(pagina) { animation-duration: .45s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+::view-transition-old(pagina) { animation: vt-salir .3s cubic-bezier(.4, 0, 1, 1) both; }
+::view-transition-new(pagina) { animation: vt-entrar .45s cubic-bezier(.2, .8, .2, 1) .06s both; }
+html[data-dir="adelante"]::view-transition-old(pagina) { animation-name: vt-salir-izq; }
+html[data-dir="adelante"]::view-transition-new(pagina) { animation-name: vt-entrar-der; }
+html[data-dir="atras"]::view-transition-old(pagina) { animation-name: vt-salir-der; }
+html[data-dir="atras"]::view-transition-new(pagina) { animation-name: vt-entrar-izq; }
+@keyframes vt-salir { to { opacity: 0; transform: scale(.96) translateY(-10px); } }
+@keyframes vt-entrar { from { opacity: 0; transform: scale(1.02) translateY(22px); } }
+@keyframes vt-salir-izq { to { opacity: 0; transform: translateX(-90px) scale(.97); } }
+@keyframes vt-entrar-der { from { opacity: 0; transform: translateX(110px); } }
+@keyframes vt-salir-der { to { opacity: 0; transform: translateX(90px) scale(.97); } }
+@keyframes vt-entrar-izq { from { opacity: 0; transform: translateX(-110px); } }
