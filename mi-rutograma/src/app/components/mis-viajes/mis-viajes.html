@@ -17,6 +17,7 @@
       <button class="mv-btn mv-salir" (click)="salir()" title="Cerrar sesión"><i class="bi bi-box-arrow-right"></i></button>
     </div>
   </header>
+  <app-saludo-fiesta></app-saludo-fiesta>
 
   <app-esqueleto *ngIf="cargando" [filas]="3" tipo="lista"></app-esqueleto>
   <div *ngIf="!cargando && error" class="mv-error"><i class="bi bi-info-circle"></i> {{ error }}</div>

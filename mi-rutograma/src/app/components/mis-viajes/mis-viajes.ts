@@ -1,3 +1,4 @@
+import { SaludoFiestaComponent } from '../comunes/saludo-fiesta';
 import { VacioComponent } from '../comunes/vacio';
 import { EsqueletoComponent } from '../comunes/esqueleto';
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, PLATFORM_ID, inject } from '@angular/core';
@@ -30,7 +31,7 @@ import { ThemeService } from '../../services/theme.service';
 @Component({
   selector: 'app-mis-viajes',
   standalone: true,
-  imports: [VacioComponent, EsqueletoComponent, CommonModule, RouterLink, FormsModule, CambiarClaveComponent],
+  imports: [SaludoFiestaComponent, VacioComponent, EsqueletoComponent, CommonModule, RouterLink, FormsModule, CambiarClaveComponent],
   templateUrl: './mis-viajes.html',
   styleUrls: ['./mis-viajes.css']
 })

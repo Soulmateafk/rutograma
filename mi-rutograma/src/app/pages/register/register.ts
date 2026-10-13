@@ -1,3 +1,4 @@
+import { SaludoFiestaComponent } from '../../components/comunes/saludo-fiesta';
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -9,7 +10,7 @@ import { DEPARTAMENTOS, REQUISITOS_CLAVE, errorDepartamento, errorEmail, errorNo
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink], 
+  imports: [SaludoFiestaComponent, CommonModule, FormsModule, RouterLink], 
   templateUrl: './register.html',
   // Asegúrate de que esta ruta sea correcta según donde guardaste tu CSS
   // BUG REAL encontrado y corregido: esto apuntaba al CSS de LOGIN
