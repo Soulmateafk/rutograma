@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID, SecurityContext } from '@angular/core';
+import { Injectable, Inject, PLATFORM_ID, SecurityContext, signal } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
 import { isPlatformBrowser } from '@angular/common';
 import { SonidoService } from './sonido.service';
@@ -7,6 +7,9 @@ import { Subject } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class UiService {
+  /** Frase de la búsqueda hablada abierta (null = cerrada). La abre el buscador de arriba. */
+  public busquedaHablada = signal<string | null>(null);
+
 
   constructor(@Inject(PLATFORM_ID) private platformId: Object, private sanitizer: DomSanitizer, private sonido: SonidoService, private chispas: ChispasService) {}
 

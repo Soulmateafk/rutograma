@@ -27,6 +27,7 @@
     </div>
     <div class="dash-cab-botones">
       <button class="btn sm dash-personalizar" [class.on]="armando" data-guia="dash-armar" (click)="alternarArmado()"><i class="bi" [ngClass]="armando ? 'bi-check-lg' : 'bi-grid-1x2'"></i> {{ armando ? 'Listo' : 'Personalizar' }}</button>
+      <button class="btn sm dash-cierre" [class.listo]="cierreListo" (click)="cierreAbierto = true" title="Resumen de la semana: cumplido, cancelado y pendiente, listo para enviar"><i class="bi bi-calendar2-check"></i> Cierre de semana<span class="dash-cierre-punto" *ngIf="cierreListo"></span></button>
       <button class="btn-cerrar-sesion" (click)="cerrarSesion()">Cerrar sesión</button>
     </div>
   </div>
@@ -139,6 +140,7 @@
             <strong>{{ a.tt }}</strong>
             <p>{{ a.d }}</p>
           </div>
+          <button *ngIf="a.planB && auth.puedeEditar" class="alerta-planb" (click)="planBPlaca = a.planB" title="Pasar sus viajes próximos a otros vehículos libres"><i class="bi bi-life-preserver"></i> Plan B</button>
         </div>
         <app-vacio *ngIf="!alertas.length" chico dibujo="todo-bien" titulo="Sin alertas por ahora"></app-vacio>
       </div>
@@ -350,3 +352,7 @@
   </div>
 
 </div>
+
+<app-plan-b *ngIf="planBPlaca" [placa]="planBPlaca" (cerrar)="planBPlaca = null"></app-plan-b>
+
+<app-cierre-semana *ngIf="cierreAbierto" (cerrar)="cierreAbierto = false"></app-cierre-semana>

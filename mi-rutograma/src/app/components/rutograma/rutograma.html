@@ -113,7 +113,7 @@
       <input type="file" #fileInput (change)="cargarExcel($event)" accept=".xlsx, .xls" class="ruto-file-input" hidden>
       <button class="btn-import" *ngIf="auth.puedeEditar" (click)="fileInput.click()"><i class="bi bi-folder2-open" style="color:#34d399;"></i> Importar Operación</button>
       <button class="btn-export" (click)="descargarRutograma()"><i class="bi bi-download"></i> Exportar</button>
-      <button class="btn-export" (click)="abrirFotoMes()"><i class="bi bi-camera-fill" style="color:#c084fc;"></i> Foto del mes</button>
+      <button class="btn-export" (click)="abrirFotoMes()"><i class="bi bi-camera-fill" style="color:#c084fc;"></i> Foto</button>
       <button class="btn-zoom" (click)="cambiarZoom(-10)"><i class="bi bi-zoom-out"></i></button>
       <button class="btn-zoom" (click)="cambiarZoom(10)"><i class="bi bi-zoom-in"></i></button>
       <span class="ruto-zoom-text">{{ zoomPorcentaje }}%</span>
@@ -150,7 +150,7 @@
         <tr class="ruto-thead-tr">
           <th class="ruto-th-vehicle">Vehículo</th>
           <th class="ruto-th-delivery">Prox. Entrega</th>
-          <th *ngFor="let d of diasMes" class="ruto-th-day" [class.hoy]="esHoy(d)">
+          <th *ngFor="let d of diasMes" class="ruto-th-day" [class.hoy]="esHoy(d)" [attr.data-dia]="d">
             <span class="ruto-day-name">{{ getDiaSem(d) }}</span><br><b>{{ d }}</b>
             <span *ngIf="esFestivo(d)" class="ruto-festivo-icon"><i class="bi bi-ban" style="color:#ef4444;"></i></span>
             <span *ngIf="diaEnSemanaCerrada(d)" class="ruto-dia-cerrado" title="Semana cerrada: cambiar su plan pide motivo"><i class="bi bi-lock-fill"></i></span>
@@ -192,7 +192,7 @@
 
           <td class="ruto-td-next-delivery" [innerHTML]="safeHtml(proximaEntrega(v))"></td>
 
-          <td *ngFor="let d of diasMes" class="ruto-td-day-cell" [class.hoy]="esHoy(d)"
+          <td *ngFor="let d of diasMes" class="ruto-td-day-cell" [class.hoy]="esHoy(d)" [attr.data-dia]="d"
               [class.ruto-destino]="arrastrando && celdaDestino === (v.p || '').toUpperCase().trim() + '-' + d"
               (dragover)="alPasarSobreCelda($event, v, d)" (drop)="alSoltarEnCelda($event, v, d)">
 
@@ -351,7 +351,7 @@
 
             <td class="ruto-td-next-delivery" [innerHTML]="safeHtml(proximaEntrega(v))"></td>
 
-            <td *ngFor="let d of diasMes" class="ruto-td-day-cell" [class.hoy]="esHoy(d)"
+            <td *ngFor="let d of diasMes" class="ruto-td-day-cell" [class.hoy]="esHoy(d)" [attr.data-dia]="d"
               [class.ruto-destino]="arrastrando && celdaDestino === (v.p || '').toUpperCase().trim() + '-' + d"
               (dragover)="alPasarSobreCelda($event, v, d)" (drop)="alSoltarEnCelda($event, v, d)">
 
@@ -879,6 +879,7 @@
     </div>
 
     <div class="ruto-modal-footer" style="margin-top: 14px;">
+      <button class="btn-close" [disabled]="procesandoVarado" (click)="abrirPlanBDesdeVarado()" title="Ver con qué vehículo cubrir cada uno de sus próximos viajes" style="margin-right:auto;"><i class="bi bi-life-preserver" style="color:#f97316;"></i> Plan B para todos sus viajes</button>
       <button class="btn-close" [disabled]="procesandoVarado" (click)="cerrarVarado()">Cancelar</button>
     </div>
   </div>
@@ -1108,13 +1109,33 @@
      transportadora, y la descarga como imagen. -->
 <div animate.leave="ap-cerrar" *ngIf="isModalFotoOpen" class="ruto-modal-backdrop" style="z-index: 10003;">
   <div class="ruto-modal-content foto-modal">
-    <h3 style="margin: 0 0 4px 0;"><i class="bi bi-camera-fill"></i> Foto del mes</h3>
+    <h3 style="margin: 0 0 4px 0;"><i class="bi bi-camera-fill"></i> Foto del Rutograma</h3>
     <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0;">
-      La vista previa muestra la foto tal cual va a salir: cambia las opciones y se actualiza sola. Tócala para verla en grande.
+      La vista previa muestra la foto tal cual va a salir (de un día, una semana o el mes): cambia las opciones y se actualiza sola. Tócala para verla en grande.
     </p>
 
     <div class="foto-cuerpo">
       <div class="foto-opciones">
+        <div>
+          <label style="display:block; font-size: 12px; color: var(--color-texto-secundario); margin-bottom: 4px;">Foto de</label>
+          <div class="foto-periodos">
+            <button type="button" [class.on]="fotoPeriodo === 'dia'" (click)="cambiarPeriodoFoto('dia')"><i class="bi bi-calendar-day"></i> Un día</button>
+            <button type="button" [class.on]="fotoPeriodo === 'semana'" (click)="cambiarPeriodoFoto('semana')"><i class="bi bi-calendar-week"></i> Semana</button>
+            <button type="button" [class.on]="fotoPeriodo === 'mes'" (click)="cambiarPeriodoFoto('mes')"><i class="bi bi-calendar3"></i> Mes</button>
+          </div>
+        </div>
+        <div *ngIf="fotoPeriodo === 'dia'">
+          <label style="display:block; font-size: 12px; color: var(--color-texto-secundario); margin-bottom: 4px;">Día</label>
+          <select [(ngModel)]="fotoDia" (ngModelChange)="actualizarPreviewFoto()" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:6px 8px;border-radius:6px;">
+            <option *ngFor="let d of diasMes" [ngValue]="d">{{ nombreDiaFoto(d) }}</option>
+          </select>
+        </div>
+        <div *ngIf="fotoPeriodo === 'semana'">
+          <label style="display:block; font-size: 12px; color: var(--color-texto-secundario); margin-bottom: 4px;">Semana</label>
+          <select [(ngModel)]="fotoSemana" (ngModelChange)="actualizarPreviewFoto()" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:6px 8px;border-radius:6px;">
+            <option *ngFor="let w of semanasFoto; let i = index" [ngValue]="i">{{ w.texto }}</option>
+          </select>
+        </div>
         <div>
           <label style="display:block; font-size: 12px; color: var(--color-texto-secundario); margin-bottom: 4px;">Transportadora</label>
           <select [(ngModel)]="fotoTransportadora" (ngModelChange)="actualizarPreviewFoto()" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:6px 8px;border-radius:6px;">
@@ -1187,3 +1208,4 @@
     <img [src]="fotoPreviewUrl" [style.width]="fotoZoom === 1 ? null : (fotoZoom * 100) + '%'" [class.ajustada]="fotoZoom === 1" alt="Foto del mes en grande">
   </div>
 </div>
+<app-plan-b *ngIf="planBPlaca" [placa]="planBPlaca" (cerrar)="planBPlaca = null"></app-plan-b>

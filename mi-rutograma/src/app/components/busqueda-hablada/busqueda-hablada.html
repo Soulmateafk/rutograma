@@ -1,0 +1,50 @@
+<div class="bh-fondo" animate.leave="ap-cerrar" (click)="cerrar.emit()">
+  <div class="bh-ventana" role="dialog" aria-label="Búsqueda" (click)="$event.stopPropagation()">
+    <div class="bh-cab">
+      <i class="bi bi-chat-square-text"></i>
+      <input class="bh-input" type="text" [value]="texto()" (input)="escribir($any($event.target).value)" (keydown.escape)="cerrar.emit()"
+             placeholder="Escribe como hablas: viajes de D1 la semana pasada con LUN 428" autofocus>
+      <button class="bh-x" (click)="cerrar.emit()" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+    </div>
+
+    <ng-container *ngIf="interp() as it; else ayuda">
+      <div class="bh-entendi">
+        <span class="bh-entendi-t">Entendí:</span>
+        <span class="bh-chip" *ngFor="let e of it.entendidos" [class.bh-chip-no]="e.tipo === 'Excluye'" [class.bh-chip-txt]="e.tipo === 'Texto'"><i class="bi" [ngClass]="e.icono"></i> {{ e.texto }}</span>
+        <span class="bh-chip bh-chip-txt" *ngIf="!it.entendidos.length">todos los viajes</span>
+      </div>
+      <p class="bh-ignore" *ngIf="ignoradas().length"><i class="bi bi-info-circle"></i> No encontré nada con {{ ignoradas().length === 1 ? 'la palabra' : 'las palabras' }} "{{ ignoradas().join('", "') }}", así que no la{{ ignoradas().length === 1 ? '' : 's' }} tuve en cuenta.</p>
+
+      <div class="bh-resumen">
+        <div class="bh-total"><strong>{{ resumen().total }}</strong> viaje{{ resumen().total === 1 ? '' : 's' }}</div>
+        <div class="bh-kpi" *ngIf="resumen().entregados"><span class="bh-punto bh-est-entregado"></span>{{ resumen().entregados }} entregados</div>
+        <div class="bh-kpi" *ngIf="resumen().enRuta"><span class="bh-punto bh-est-en-ruta"></span>{{ resumen().enRuta }} en ruta</div>
+        <div class="bh-kpi" *ngIf="resumen().porSalir"><span class="bh-punto bh-est-programado"></span>{{ resumen().porSalir }} por salir</div>
+        <div class="bh-kpi" *ngIf="resumen().cancelados"><span class="bh-punto bh-est-cancelado"></span>{{ resumen().cancelados }} cancelados</div>
+        <div class="bh-kpi" *ngIf="resumen().cajas"><i class="bi bi-box-seam"></i> {{ resumen().cajas | number }} cajas</div>
+        <div class="bh-kpi" *ngIf="resumen().vehiculos"><i class="bi bi-truck"></i> {{ resumen().vehiculos }} vehículo{{ resumen().vehiculos === 1 ? '' : 's' }}</div>
+        <div class="bh-kpi" *ngFor="let t of resumen().transportadoras">{{ t[0] }}: {{ t[1] }}</div>
+        <button class="bh-descargar" *ngIf="resumen().total" (click)="descargar()" title="Descargar la lista para Excel"><i class="bi bi-download"></i> Excel</button>
+      </div>
+
+      <div class="bh-lista" *ngIf="viajes().length; else nada">
+        <div class="bh-fila" *ngFor="let v of viajes().slice(0, mostrar())" (click)="abrir(v)" tabindex="0" (keydown.enter)="abrir(v)">
+          <div class="bh-fecha"><strong>{{ fecha(v) }}</strong><small *ngIf="hora(v)">{{ hora(v) }}</small></div>
+          <div class="bh-placa">{{ v.p || v.placa }}<small>{{ v.tr || 'Makand' }}</small></div>
+          <div class="bh-ruta">{{ v.ruta || v.codigo }}<small>{{ v.destinoReal || v.destino }}{{ (v.cliente || v.cli) ? ' · ' + (v.cliente || v.cli) : '' }}</small></div>
+          <div class="bh-cond">{{ conductor(v) || 'Sin conductor' }}</div>
+          <div class="bh-est"><span class="bh-estado" [ngClass]="claseEstado(v)">{{ v.estado || 'Programado' }}</span><small *ngIf="v.cajas">{{ v.cajas }} cj</small></div>
+        </div>
+        <button class="bh-mas" *ngIf="viajes().length > mostrar()" (click)="mostrar.set(mostrar() + 120)">Ver {{ viajes().length - mostrar() > 120 ? 120 : viajes().length - mostrar() }} más (de {{ viajes().length }})</button>
+      </div>
+      <ng-template #nada><div class="bh-vacio"><i class="bi bi-search"></i> No hay viajes con todo eso junto. Prueba quitando algo de la frase.</div></ng-template>
+    </ng-container>
+
+    <ng-template #ayuda>
+      <div class="bh-ayuda">
+        <p>Escribe como le hablarías a alguien de la oficina. Entiendo fechas ("ayer", "el martes pasado", "del 5 al 10", "la primera quincena de agosto"), horas ("en la tarde", "antes de las 8"), placas, conductores (aunque escribas mal el apellido), clientes, ciudades, rutas, transportadoras, estados, cajas y lo que no quieres ("sin Polar", "excepto D1").</p>
+        <div class="bh-ejemplos"><button *ngFor="let e of ejemplos" (click)="usarEjemplo(e)">{{ e }}</button></div>
+      </div>
+    </ng-template>
+  </div>
+</div>

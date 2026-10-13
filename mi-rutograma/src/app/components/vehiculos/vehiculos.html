@@ -18,6 +18,9 @@
     <p class="conflicto-mant-texto">
       Se crearon antes de registrar el mantenimiento o antes de que existiera esta regla. Cancélalos o muévelos a otro vehículo desde el Rutograma.
     </p>
+    <div class="conflicto-mant-planb" *ngIf="auth.puedeEditar">
+      <button class="btn-action planb" *ngFor="let pl of placasEnMantenimiento" (click)="abrirPlanB(pl, true)"><i class="bi bi-life-preserver"></i> Plan B para {{ pl }}</button>
+    </div>
     <div class="tabla-scroll">
       <table class="main-table">
         <thead>
@@ -162,6 +165,7 @@
           <ng-container *ngIf="auth.puedeEditar">
             <button class="btn-action edit" (click)="editarVehiculo(v.index)">Editar</button>
             <button class="btn-action mant" data-guia="veh-mant" (click)="abrirMantenimiento(v.index)">Mant.</button>
+            <button class="btn-action planb" *ngIf="!esCupo(v.p)" (click)="abrirPlanB(v.p)" title="Plan B: pasar sus viajes próximos a otros vehículos libres"><i class="bi bi-life-preserver"></i> Plan B</button>
             <button class="btn-action del" *ngIf="auth.puede('eliminar')" (click)="eliminarVehiculo(v.index)">X</button>
           </ng-container>
           </td>
@@ -382,3 +386,4 @@
     </div>
   </div>
 </div>
+<app-plan-b *ngIf="planBPlaca" [placa]="planBPlaca" [viajes]="planBViajes" (cerrar)="planBPlaca = null"></app-plan-b>

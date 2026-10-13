@@ -40,7 +40,7 @@ import { AuthService } from '../../services/auth.service';
     .cl-nube { position: absolute; left: -260px; width: 240px; height: 70px; opacity: .55; filter: blur(2px); animation: cl-nube linear infinite;
       background: radial-gradient(circle at 30% 60%, #e2e8f0 28px, transparent 29px), radial-gradient(circle at 52% 40%, #f1f5f9 38px, transparent 39px), radial-gradient(circle at 74% 60%, #e2e8f0 28px, transparent 29px), radial-gradient(ellipse at 50% 80%, #cbd5e1 100px, transparent 101px); }
     .cl-lluvia .cl-nube, .cl-tormenta .cl-nube { filter: blur(2px) brightness(.55); opacity: .7; }
-    @keyframes cl-nube { to { left: calc(100vw + 40px); } }
+    @keyframes cl-nube { to { translate: calc(100vw + 300px) 0; } }
     .cl-sol { position: absolute; top: -140px; right: -140px; width: 420px; height: 420px; border-radius: 50%; background: radial-gradient(circle, rgba(254, 240, 138, .45), rgba(253, 224, 71, .15) 40%, transparent 70%); animation: cl-sol 8s ease-in-out infinite alternate; }
     @keyframes cl-sol { from { transform: scale(1); opacity: .8; } to { transform: scale(1.1); opacity: 1; } }
     .cl-niebla { position: absolute; left: 0; right: 0; bottom: 0; height: 45%; background: linear-gradient(transparent, rgba(226, 232, 240, .28)); animation: cl-niebla 12s ease-in-out infinite alternate; }

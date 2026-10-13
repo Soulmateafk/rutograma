@@ -9,6 +9,7 @@ import { ModalService } from '../../services/modal';
 import { AuthService } from '../../services/auth.service';
 import { UiService } from '../../services/ui.service';
 import { viajesEnMantenimiento, ViajeEnMantenimiento } from '../../services/mantenimiento';
+import { PlanBComponent } from '../plan-b/plan-b';
 import { reprogramarViajesDesde, buscarViajesTercerosRobables, tomarViajeTerceroParaVehiculo, obtenerViajesEnConflicto, reprogramarViajeConflictivo, buscarVehiculosDisponiblesParaVarado, transferirViajeAOtroVehiculo } from '../rutograma/rutograma.utils.js';
 
 import { PresenciaService } from '../../services/presencia.service';
@@ -17,7 +18,7 @@ import { OcupacionCargaComponent } from '../analisis/analisis';
 @Component({
   selector: 'app-vehiculos',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, OtrosAquiComponent, OcupacionCargaComponent],
+  imports: [CommonModule, FormsModule, RouterLink, OtrosAquiComponent, OcupacionCargaComponent, PlanBComponent],
   templateUrl: './vehiculos.html',
   styleUrls: ['./vehiculos.css']
 })
@@ -95,6 +96,18 @@ export class VehiculosComponent implements OnInit, OnDestroy {
   public historialAnio: number = new Date().getFullYear();
   public vehiculosHistorial: any[] | null = null;
   public cargandoHistorial: boolean = false;
+
+  // --- Plan B: pasar los viajes de un vehículo varado o en taller a otros ---
+  public planBPlaca: string | null = null;
+  public planBViajes: any[] | null = null;
+  public abrirPlanB(placa: string, soloEnMantenimiento = false): void {
+    this.planBViajes = soloEnMantenimiento
+      ? this.viajesEnMantenimiento.filter(i => i.placa === String(placa).toUpperCase().trim()).map(i => i.viaje)
+      : null;
+    this.planBPlaca = placa;
+  }
+  public get placasEnMantenimiento(): string[] { return [...new Set(this.viajesEnMantenimiento.map(i => i.placa))]; }
+  public esCupo(placa: any): boolean { return /^(ARSITRANS|POLAR)\s*\d+$/i.test(String(placa || '').trim()); }
   /** 'foto' = guardada ese mes; 'reconstruido' = armada con los viajes del mes. */
   public historialFuente: string = 'foto';
   public historialViajes: number = 0;

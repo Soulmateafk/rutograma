@@ -33,7 +33,7 @@
         <input *ngIf="puedeAprobar && s.estado === 'PENDIENTE' && pendientes.length > 1" type="checkbox" class="apr-sel"
                [checked]="seleccion.has(s.id)" (change)="alternarSeleccion(s)" [disabled]="procesandoId">
         <div class="apr-info">
-          <div class="apr-desc">{{ s.descripcion }}</div>
+          <div class="apr-desc">{{ descripcion(s) }}</div>
           <div class="apr-meta">
             Pidió <strong>{{ s.nombreSolicitante || s.solicitante }}</strong> · {{ fecha(s.creada) }}
             <span *ngIf="s.modo === 'pruebas'" class="apr-tag">Modo Prueba</span>
@@ -56,14 +56,39 @@
           </ng-container>
         </div>
       </div>
-      <pre class="apr-detalle" *ngIf="abiertaId === s.id">{{ detalle(s) }}</pre>
+      <div class="apr-detalle" *ngIf="abiertaId === s.id" animate.leave="ap-ocultar">
+        <div class="apr-bloque" *ngFor="let b of bloquesAbiertos" [ngClass]="'apr-bloque-' + b.tipo">
+          <div class="apr-bloque-tit">
+            <i class="bi" [ngClass]="b.icono"></i> {{ b.titulo }}
+            <span class="apr-etq" *ngIf="b.tipo === 'nuevo'">Nuevo</span>
+            <span class="apr-etq apr-etq-borrar" *ngIf="b.tipo === 'borrar'">Se borra</span>
+            <span class="apr-etq apr-etq-cambio" *ngIf="b.tipo === 'cambio' && b.filas.length">{{ b.filas.filter(f => f.cambio).length }} cambio{{ b.filas.filter(f => f.cambio).length === 1 ? '' : 's' }}</span>
+          </div>
+          <p class="apr-nota" *ngIf="b.nota">{{ b.nota }}</p>
+          <table class="apr-tabla" *ngIf="filasVisibles(b).length">
+            <thead *ngIf="b.tipo === 'cambio'"><tr><th></th><th>Antes</th><th></th><th>Queda así</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let f of filasVisibles(b)" [class.apr-cambio]="f.cambio">
+                <td class="apr-campo">{{ f.etiqueta }}</td>
+                <ng-container *ngIf="b.tipo === 'cambio'; else soloValor">
+                  <td class="apr-antes">{{ f.antes }}</td>
+                  <td class="apr-flecha"><i class="bi" [ngClass]="f.cambio ? 'bi-arrow-right' : 'bi-dot'"></i></td>
+                  <td class="apr-ahora">{{ f.ahora }}</td>
+                </ng-container>
+                <ng-template #soloValor><td class="apr-ahora" colspan="3">{{ b.tipo === 'borrar' ? (f.ahora !== '—' ? f.ahora : f.antes) : f.ahora }}</td></ng-template>
+              </tr>
+            </tbody>
+          </table>
+          <button class="apr-ver-todo" *ngIf="hayOcultas(b)" (click)="verTodo = !verTodo">{{ verTodo ? 'Ver solo lo que cambia' : 'Ver también los datos que no cambian' }}</button>
+        </div>
+      </div>
     </div>
   </div>
 
   <div animate.leave="ap-cerrar" class="apr-modal-fondo" *ngIf="rechazando || rechazandoVarios">
     <div class="apr-modal">
       <h3>{{ rechazandoVarios ? 'Rechazar ' + seleccion.size + ' cambios' : 'Rechazar cambio' }}</h3>
-      <p *ngIf="rechazando && !rechazandoVarios">{{ rechazando.descripcion }}</p>
+      <p *ngIf="rechazando && !rechazandoVarios">{{ descripcion(rechazando) }}</p>
       <label>Motivo (lo verá quien pidió {{ rechazandoVarios ? 'cada cambio' : 'el cambio' }})</label>
       <textarea rows="3" [(ngModel)]="motivoRechazo" placeholder="Ej: esa ruta sigue activa"></textarea>
       <div class="apr-modal-acciones">

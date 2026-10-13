@@ -2,68 +2,46 @@ import { Routes } from '@angular/router';
 import { authGuard, adminGuard } from './pages/auth.guard/auth.guard';
 
 // Componentes Base
+// Solo el login va en la carga inicial; cada pantalla se descarga la primera
+// vez que se abre (loadComponent) y queda guardada en el navegador.
 import { LoginComponent } from './pages/login/login';
-import { RegisterComponent } from './pages/register/register';
-import { PendingComponent } from './pages/pending/pending'; // Asegúrate de tener este componente
-import { Admin } from './pages/admin/admin';     // Asegúrate de tener este componente
 
 // Componentes del Dashboard
-import { Dashboard } from './components/dashboard/dashboard';
-import { RutogramaComponent } from './components/rutograma/rutograma';
-import { VehiculosComponent } from './components/vehiculos/vehiculos';
-import { RutasComponent } from './components/rutas/rutas';
-import { ConductoresComponent } from './components/conductores/conductores';
-import { Configuracion } from './components/configuracion/configuracion';
-import { Historico } from './components/historico/historico';
-import { Comparativo } from './components/comparativo/comparativo';
-import { ResumenComponent } from './components/resumen/resumen';
-import { SesionesComponent } from './components/sesiones/sesiones';
-import { AprobacionesComponent } from './components/aprobaciones/aprobaciones';
-import { MisViajesComponent } from './components/mis-viajes/mis-viajes';
-import { HojaVidaComponent } from './components/hoja-vida/hoja-vida';
-import { CumplimientoComponent } from './components/cumplimiento/cumplimiento';
 
-import { AgendaConductorComponent } from './components/agenda-conductor/agenda-conductor';
-import { ReglasComponent } from './components/reglas/reglas';
-import { ComparendosComponent } from './components/comparendos/comparendos';
-import { QuejasComponent } from './components/quejas/quejas';
-import { MapaComponent } from './components/mapa/mapa';
-import { DespachosComponent } from './components/despachos/despachos';
-import { PapeleraComponent } from './components/papelera/papelera';
 export const routes: Routes = [
   // 1. Redirección automática
   { path: '', redirectTo: '/login', pathMatch: 'full' },
   
   // 2. Rutas Públicas (Sin protección)
   { path: 'login', component: LoginComponent },
-  { path: 'register', component: RegisterComponent },
-  { path: 'pending', component: PendingComponent }, // Accesible para el usuario en espera
+  { path: 'register', loadComponent: () => import('./pages/register/register').then(m => m.RegisterComponent) },
+  { path: 'pending', loadComponent: () => import('./pages/pending/pending').then(m => m.PendingComponent) }, // Accesible para el usuario en espera
   
   // 3. Rutas Protegidas (Solo accesibles si authGuard permite el paso)
-  { path: 'dashboard', component: Dashboard, canActivate: [authGuard] },
-  { path: 'rutograma', component: RutogramaComponent, canActivate: [authGuard] },
-  { path: 'vehiculos', component: VehiculosComponent, canActivate: [authGuard] },
-  { path: 'hoja-de-vida/:placa', component: HojaVidaComponent, canActivate: [authGuard] },
-  { path: 'rutas', component: RutasComponent, canActivate: [authGuard] },
-  { path: 'conductores', component: ConductoresComponent, canActivate: [authGuard] }, 
-  { path: 'agenda/:nombre', component: AgendaConductorComponent, canActivate: [authGuard] },
-  { path: 'reglas', component: ReglasComponent, canActivate: [authGuard] },
-  { path: 'comparendos', component: ComparendosComponent, canActivate: [authGuard] },
-  { path: 'quejas', component: QuejasComponent, canActivate: [authGuard] },
-  { path: 'mapa', component: MapaComponent, canActivate: [authGuard] },
-  { path: 'despachos', component: DespachosComponent, canActivate: [authGuard] },
-  { path: 'papelera', component: PapeleraComponent, canActivate: [authGuard] },
-  { path: 'configuracion', component: Configuracion, canActivate: [authGuard] },
-  { path: 'historico', component: Historico, canActivate: [authGuard] },
-  { path: 'comparativo', component: Comparativo, canActivate: [authGuard] },
-  { path: 'cumplimiento', component: CumplimientoComponent, canActivate: [authGuard] },
-  { path: 'resumen', component: ResumenComponent, canActivate: [authGuard] },
-  { path: 'sesiones', component: SesionesComponent, canActivate: [authGuard] },
-  { path: 'aprobaciones', component: AprobacionesComponent, canActivate: [authGuard] },
-  { path: 'mis-viajes', component: MisViajesComponent, canActivate: [authGuard] },
+  { path: 'dashboard', loadComponent: () => import('./components/dashboard/dashboard').then(m => m.Dashboard), canActivate: [authGuard] },
+  { path: 'rutograma', loadComponent: () => import('./components/rutograma/rutograma').then(m => m.RutogramaComponent), canActivate: [authGuard] },
+  { path: 'vehiculos', loadComponent: () => import('./components/vehiculos/vehiculos').then(m => m.VehiculosComponent), canActivate: [authGuard] },
+  { path: 'hoja-de-vida/:placa', loadComponent: () => import('./components/hoja-vida/hoja-vida').then(m => m.HojaVidaComponent), canActivate: [authGuard] },
+  { path: 'rutas', loadComponent: () => import('./components/rutas/rutas').then(m => m.RutasComponent), canActivate: [authGuard] },
+  { path: 'conductores', loadComponent: () => import('./components/conductores/conductores').then(m => m.ConductoresComponent), canActivate: [authGuard] }, 
+  { path: 'agenda/:nombre', loadComponent: () => import('./components/agenda-conductor/agenda-conductor').then(m => m.AgendaConductorComponent), canActivate: [authGuard] },
+  { path: 'reglas', loadComponent: () => import('./components/reglas/reglas').then(m => m.ReglasComponent), canActivate: [authGuard] },
+  { path: 'comparendos', loadComponent: () => import('./components/comparendos/comparendos').then(m => m.ComparendosComponent), canActivate: [authGuard] },
+  { path: 'quejas', loadComponent: () => import('./components/quejas/quejas').then(m => m.QuejasComponent), canActivate: [authGuard] },
+  { path: 'mapa', loadComponent: () => import('./components/mapa/mapa').then(m => m.MapaComponent), canActivate: [authGuard] },
+  { path: 'despachos', loadComponent: () => import('./components/despachos/despachos').then(m => m.DespachosComponent), canActivate: [authGuard] },
+  { path: 'papelera', loadComponent: () => import('./components/papelera/papelera').then(m => m.PapeleraComponent), canActivate: [authGuard] },
+  { path: 'configuracion', loadComponent: () => import('./components/configuracion/configuracion').then(m => m.Configuracion), canActivate: [authGuard] },
+  { path: 'historico', loadComponent: () => import('./components/historico/historico').then(m => m.Historico), canActivate: [authGuard] },
+  { path: 'comparativo', loadComponent: () => import('./components/comparativo/comparativo').then(m => m.Comparativo), canActivate: [authGuard] },
+  { path: 'cumplimiento', loadComponent: () => import('./components/cumplimiento/cumplimiento').then(m => m.CumplimientoComponent), canActivate: [authGuard] },
+  { path: 'resumen', loadComponent: () => import('./components/resumen/resumen').then(m => m.ResumenComponent), canActivate: [authGuard] },
+  { path: 'sesiones', loadComponent: () => import('./components/sesiones/sesiones').then(m => m.SesionesComponent), canActivate: [authGuard] },
+  { path: 'aprobaciones', loadComponent: () => import('./components/aprobaciones/aprobaciones').then(m => m.AprobacionesComponent), canActivate: [authGuard] },
+  { path: 'mis-viajes', loadComponent: () => import('./components/mis-viajes/mis-viajes').then(m => m.MisViajesComponent), canActivate: [authGuard] },
   
   // 4. Ruta de Administración (Protegida)
-  { path: 'admin', component: Admin, canActivate: [authGuard, adminGuard] },
+  { path: 'admin', loadComponent: () => import('./pages/admin/admin').then(m => m.Admin), canActivate: [authGuard, adminGuard] },
 
   // 5. Ruta comodín
   { path: '**', redirectTo: '/login' }

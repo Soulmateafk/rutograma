@@ -10,6 +10,7 @@ import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
 import { UiService } from '../../services/ui.service';
 import html2canvas from 'html2canvas';
+import { PlanBComponent } from '../plan-b/plan-b';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { viajeCerrado, motivoFechaAnterior, fechaDelDia } from '../../services/dias-cerrados';
@@ -54,7 +55,7 @@ interface Viaje {
   selector: 'app-rutograma',
   templateUrl: './rutograma.html',
   standalone: true,
-  imports: [EsqueletoComponent, CommonModule, FormsModule, RouterLink, FotoNovedadComponent, OtrosAquiComponent], 
+  imports: [EsqueletoComponent, CommonModule, FormsModule, RouterLink, FotoNovedadComponent, OtrosAquiComponent, PlanBComponent], 
   styleUrls: ['./rutograma.css']
 })
 export class RutogramaComponent implements OnInit, OnDestroy {
@@ -3146,6 +3147,14 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     this.isModalVaradoOpen = true;
   }
 
+  // Plan B: todos los viajes próximos de la placa varada, no solo este.
+  public planBPlaca: string | null = null;
+  public abrirPlanBDesdeVarado(): void {
+    const placa = String(this.viajeVaradoOriginal?.p || this.viajeVaradoOriginal?.placa || '').toUpperCase().trim();
+    this.cerrarVarado();
+    if (placa) this.planBPlaca = placa;
+  }
+
   public cerrarVarado(): void {
     this.isModalVaradoOpen = false;
     this.varadoRazon = '';
@@ -4014,6 +4023,49 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   // ============================================================
   public isModalFotoOpen: boolean = false;
   public fotoTransportadora: string = 'Makand';
+  // De qué período es la foto: un día, una semana (lunes a domingo, dentro del mes) o el mes.
+  public fotoPeriodo: 'dia' | 'semana' | 'mes' = 'mes';
+  public fotoDia: number = 1;
+  public fotoSemana: number = 0;
+  private readonly DIAS_FOTO = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  private fechaFoto(d: number): Date { return new Date(Number(this.ds.S.anio), Number(this.ds.S.mes), d); }
+  public nombreDiaFoto(d: number): string { const f = this.fechaFoto(d); return `${this.DIAS_FOTO[f.getDay()]} ${d}`; }
+  /** Semanas del mes (lunes a domingo, recortadas al mes). */
+  public get semanasFoto(): Array<{ desde: number; hasta: number; texto: string }> {
+    const lista: Array<{ desde: number; hasta: number; texto: string }> = [];
+    const total = this.diasMes.length;
+    let d = 1;
+    while (d <= total) {
+      const dow = (this.fechaFoto(d).getDay() + 6) % 7;            // 0 = lunes
+      const hasta = Math.min(total, d + (6 - dow));
+      lista.push({ desde: d, hasta, texto: `Del ${this.nombreDiaFoto(d)} al ${this.nombreDiaFoto(hasta)}` });
+      d = hasta + 1;
+    }
+    return lista;
+  }
+  /** Días (del mes) que entran en la foto. */
+  private diasDeLaFoto(): number[] {
+    if (this.fotoPeriodo === 'dia') return [this.fotoDia];
+    if (this.fotoPeriodo === 'semana') { const w = this.semanasFoto[this.fotoSemana] || this.semanasFoto[0]; return w ? Array.from({ length: w.hasta - w.desde + 1 }, (_, i) => w.desde + i) : []; }
+    return [...this.diasMes];
+  }
+  /** Texto del período para el título y el nombre del archivo. */
+  private textoPeriodoFoto(corto = false): string {
+    const mes = this.meses[this.ds.S.mes], anio = this.ds.S.anio;
+    if (this.fotoPeriodo === 'dia') return corto ? `${this.fotoDia}_${mes}_${anio}` : `${this.nombreDiaFoto(this.fotoDia)} de ${mes.toLowerCase()} ${anio}`;
+    if (this.fotoPeriodo === 'semana') { const w = this.semanasFoto[this.fotoSemana]; return corto ? `semana_${w?.desde}-${w?.hasta}_${mes}_${anio}` : `semana del ${w?.desde} al ${w?.hasta} de ${mes.toLowerCase()} ${anio}`; }
+    return corto ? `${mes}_${anio}` : `${mes} ${anio}`;
+  }
+  public cambiarPeriodoFoto(p: 'dia' | 'semana' | 'mes'): void {
+    if (this.fotoPeriodo === p) return;
+    this.fotoPeriodo = p;
+    // Por defecto, hoy (si se está viendo el mes de hoy) o el primer día / la primera semana.
+    const hoy = new Date();
+    const diaHoy = hoy.getMonth() === Number(this.ds.S.mes) && hoy.getFullYear() === Number(this.ds.S.anio) ? hoy.getDate() : 1;
+    this.fotoDia = diaHoy;
+    this.fotoSemana = Math.max(0, this.semanasFoto.findIndex(w => diaHoy >= w.desde && diaHoy <= w.hasta));
+    this.actualizarPreviewFoto();
+  }
   public fotoOrientacion: 'horizontal' | 'vertical' = 'horizontal';
   public fotoTamano: 'A1' | 'A2' | 'A3' | 'A4' = 'A2';
   public generandoFoto: boolean = false;
@@ -4066,6 +4118,13 @@ export class RutogramaComponent implements OnInit, OnDestroy {
 
     const clone = original.cloneNode(true) as HTMLElement;
 
+    // Día o semana: se quitan del CLON las columnas de los demás días.
+    if (this.fotoPeriodo !== 'mes') {
+      const dias = new Set(this.diasDeLaFoto().map(String));
+      clone.querySelectorAll('[data-dia]').forEach(el => { if (!dias.has(String(el.getAttribute('data-dia')))) el.remove(); });
+      clone.querySelectorAll('td[colspan]').forEach(el => el.setAttribute('colspan', String(dias.size + 2)));
+    }
+
     if (this.fotoTransportadora !== 'Todas') {
       const filas = Array.from(clone.querySelectorAll('tr[data-transportadora]'));
       filas.forEach((fila: any) => {
@@ -4097,7 +4156,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
       cab.style.cssText = 'display:flex;align-items:baseline;gap:14px;margin-bottom:10px;';
       const tr = this.fotoTransportadora === 'Todas' ? 'Todas las transportadoras' : this.fotoTransportadora;
       cab.innerHTML = `<span style="font-size:26px;font-weight:800;letter-spacing:.06em;">MAKA<span style="color:#f97316;">ND</span></span>`
-        + `<span style="font-size:20px;font-weight:700;">Rutograma ${this.meses[this.ds.S.mes]} ${this.ds.S.anio} · ${tr}</span>`
+        + `<span style="font-size:20px;font-weight:700;">Rutograma ${this.textoPeriodoFoto()} · ${tr}</span>`
         + `<span style="margin-left:auto;font-size:12px;color:#94a3b8;">Generado el ${new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })}</span>`;
       lienzo.appendChild(cab);
     }
@@ -4212,7 +4271,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
       const dataUrl = canvas.toDataURL('image/png');
       const a = document.createElement('a');
       a.href = dataUrl;
-      a.download = `Rutograma_${this.fotoTransportadora}_${this.meses[this.ds.S.mes]}_${this.ds.S.anio}.png`;
+      a.download = `Rutograma_${this.fotoTransportadora}_${this.textoPeriodoFoto(true)}.png`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -4260,7 +4319,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
 
       const dataUrl = canvas.toDataURL('image/png');
       doc.addImage(dataUrl, 'PNG', 0, 0, anchoPagina, altoPagina);
-      doc.save(`Rutograma_${this.fotoTransportadora}_${this.meses[this.ds.S.mes]}_${this.ds.S.anio}.pdf`);
+      doc.save(`Rutograma_${this.fotoTransportadora}_${this.textoPeriodoFoto(true)}.pdf`);
 
       this.ui.mostrarToast('PDF descargado correctamente.', 'ok');
     } catch (err) {

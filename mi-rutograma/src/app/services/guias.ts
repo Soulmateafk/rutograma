@@ -31,7 +31,7 @@ export const GUIAS: Record<string, Guia> = {
     titulo: 'La barra de navegación',
     pasos: [
       { el: '.tabs', titulo: 'Pestañas', texto: 'Cada pestaña es una pantalla de la app. Si alguna no cabe, queda dentro de "Más".' },
-      { el: '.nav-search', titulo: 'Buscador (Ctrl + K)', texto: 'Escribe un viaje ("PRZ 065 12", "cali d1"), una placa, un conductor, una ruta, una pantalla o una acción ("viaje extra", "novedad", "diario") y salta directo. Con las flechas te mueves y con Enter abres.' },
+      { el: '.nav-search', titulo: 'Buscador (Ctrl + K)', texto: 'Escribe un viaje ("PRZ 065 12", "cali d1"), una placa, un conductor, una ruta, una pantalla o una acción ("viaje extra", "novedad", "diario") y salta directo. Con las flechas te mueves y con Enter abres. También entiende frases como se habla: "viajes de D1 la semana pasada con LUN 428", "cuántos a Cali entregados en septiembre", "extras sin conductor del 5 al 10, sin Polar"; el primer resultado abre la lista completa con lo que entendió, un resumen y para descargar a Excel.' },
       { el: 'nav-en-linea', titulo: 'En línea', texto: 'Quién más está usando la app ahora mismo, en qué página y qué está haciendo. También salen tus otras ventanas o equipos abiertos con tu cuenta, como "Tú". No queda en ningún historial.' },
       { el: 'nav-deshacer', titulo: 'Deshacer y Rehacer', texto: 'Revierte tus últimos cambios (hasta 30). Pasa el mouse por encima para ver qué cambio se va a deshacer.' },
       { el: 'button[title="Descargar Diario"]', titulo: 'Descargar Diario', texto: 'Descarga un archivo con los viajes de hoy, listo para abrir en Excel.' },
@@ -70,6 +70,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: '.card-tabla', titulo: 'Próximas salidas', texto: 'Los viajes que salen esta semana, con vehículo, ruta y hora.' },
       { el: '.card-novedades', titulo: 'Historial de novedades', texto: 'Los avisos registrados. Puedes marcarlos como resueltos.' },
       { el: 'dash-armar', titulo: 'Arma tu Dashboard', texto: '"Personalizar" deja mover los cuadros (arrastrándolos o con las flechas) y ocultar los que no usas con el ojo. Es solo para tu cuenta; "Como venía" lo devuelve.' },
+      { el: '.dash-cierre', titulo: 'Cierre de semana', texto: 'El resumen de la semana: cuánto se cumplió, qué se canceló y por qué, lo que quedó sin salir, clientes, conductores y la próxima semana. Llega solo por correo cada viernes desde las 4 p. m.; aquí lo ves cuando quieras, lo copias para WhatsApp o lo mandas por correo. El viernes el botón se pone verde.' },
       { el: '.btn-cerrar-sesion', titulo: 'Cerrar sesión', texto: 'Sale de tu cuenta en este computador.' }
     ]
   },
@@ -106,6 +107,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'input[placeholder^="Buscar por placa"]', titulo: 'Buscar', texto: 'Filtra por placa, conductor o transportadora.' },
       { el: '.header-actions', titulo: 'Histórico y nuevo vehículo', texto: '"Ver histórico" muestra cómo estaba la flota en meses anteriores. "+ Nuevo Vehículo" registra uno.' },
       { el: 'veh-tabla', titulo: 'La flota', texto: 'Cada vehículo con su conductor, estado, documentos y viajes del mes. "Editar" cambia sus datos; "Mant." lo manda a mantenimiento.' },
+      { el: '.btn-action.planb', titulo: 'Plan B', texto: 'Si un vehículo se vara o entra al taller, "Plan B" muestra sus viajes que todavía no salen y propone para cada uno el mejor vehículo libre (sin otro viaje, documentos al día, reglas y pico y placa, capacidad) o un cupo de tercero. Reasignas uno por uno o todos, y cada uno se puede deshacer. También sale en las alertas del Dashboard y en "Vehículo varado" del Rutograma.' },
       { el: 'veh-hoja', titulo: 'Hoja de vida', texto: 'Todo lo de un vehículo en una pantalla: viajes por mes, conductores que lo han manejado, mantenimientos, veces que se ha varado, documentos y novedades. Se puede imprimir.' },
       { el: 'veh-viajes', titulo: 'Viajes por vehículo', texto: 'Los viajes de cada vehículo de Makand en el mes.' },
       { el: 'veh-ocupacion', titulo: 'Qué tan lleno va cada camión', texto: 'Promedio de cajas por viaje frente a la capacidad de cada vehículo en el mes. En rojo los que van a menos de la mitad: se podría juntar carga o usar uno más pequeño.' }

@@ -43,6 +43,7 @@ const { faltasDeClave, mensajeClave, errorNombre, errorEmail, errorDepartamento,
 // bloque sobre qué poner en ese archivo.
 require('dotenv').config();
 const nodemailer = require('nodemailer');
+const cierreSemana = require('./cierre-semana');
 
 const app = express();
 
@@ -1074,6 +1075,58 @@ const revisarResumenSemanalVencimientos = async () => {
         }
     } catch (err) {
         console.error('⚠️ Error en la revisión del resumen semanal de vencimientos:', err.message);
+    }
+};
+
+// ============================================================
+// CIERRE DE SEMANA (cierre-semana.js) — cada viernes desde las 4:00 p. m.
+// (o apenas arranque el servidor el sábado o el domingo, si estaba
+// apagado) se arma el resumen de la semana y se manda por correo a los
+// jefes y al administrador. Se guardan los últimos cierres para verlos en
+// el Dashboard. Usa los datos del modo REAL, igual que los vencimientos.
+// ============================================================
+const ARCHIVO_CIERRES_SEMANA = path.join(CARPETA_DATOS, 'cierres-semana.json');
+const leerCierresSemana = () => { try { return JSON.parse(fs.readFileSync(ARCHIVO_CIERRES_SEMANA, 'utf8')); } catch { return { enviados: [], ultimoIntento: '' }; } };
+const guardarCierresSemana = (estado) => { try { fs.writeFileSync(ARCHIVO_CIERRES_SEMANA, JSON.stringify(estado)); } catch (err) { console.error('⚠️ No se pudo guardar el cierre de semana:', err.message); } };
+
+const destinatariosCierreSemana = (data) => {
+    const lista = String(process.env.EMAIL_CIERRE_SEMANA_DESTINO || '').split(',').map(normalizarEmail).filter(Boolean);
+    if (lista.length) return lista;
+    const destinos = new Set(correosAvisosAdmin().length ? correosAvisosAdmin() : [normalizarEmail(ADMIN_EMAIL)]);
+    (data.usuarios || []).forEach(u => { if (u.estado === 'APPROVED' && permisosDeCuenta(u, false).aprobarCambios) destinos.add(normalizarEmail(u.email)); });
+    return [...destinos].filter(Boolean);
+};
+
+const enviarCierreSemana = async (data, lunes, para = null) => {
+    const r = cierreSemana.resumenSemana(data, lunes, fechaLocalISO(new Date()));
+    const asunto = `Cierre de semana — ${r.total} viajes${r.cumplimiento !== null ? ', ' + r.cumplimiento + '% cumplido' : ''}`;
+    const html = cierreSemana.htmlCorreo(r);
+    const resultados = [];
+    for (const d of (para && para.length ? para : destinatariosCierreSemana(data))) resultados.push({ destinatario: d, ...(await enviarCorreo(d, asunto, html)) });
+    const enviadoA = resultados.filter(x => x.enviado).map(x => x.destinatario);
+    return { resumen: r, enviadoA, motivo: resultados.filter(x => !x.enviado).map(x => `${x.destinatario}: ${x.motivo}`).join(' | ') };
+};
+
+const revisarCierreSemana = async () => {
+    try {
+        const ahora = new Date();
+        const dia = ahora.getDay();
+        const listo = (dia === 5 && ahora.getHours() >= 16) || dia === 6 || dia === 0;
+        if (!listo) return;
+        const hoyStr = fechaLocalISO(ahora);
+        const lunes = cierreSemana.lunesDe(hoyStr);
+        const estado = leerCierresSemana();
+        if ((estado.enviados || []).some(c => c.desde === lunes)) return;
+        if (estado.ultimoIntento === hoyStr) return;
+        const { resumen, enviadoA, motivo } = await enviarCierreSemana(leerDB('real'), lunes);
+        estado.ultimoIntento = hoyStr;
+        if (enviadoA.length) {
+            estado.enviados = [{ desde: resumen.desde, hasta: resumen.hasta, enviadoEn: new Date().toISOString(), enviadoA, total: resumen.total, cumplimiento: resumen.cumplimiento }, ...(estado.enviados || [])].slice(0, 26);
+            console.log(`📊 Cierre de semana enviado a ${enviadoA.join(', ')}${motivo ? ' (no llegó a: ' + motivo + ')' : ''}`);
+        } else console.log(`ℹ️ Cierre de semana NO enviado: ${motivo || 'sin destinatarios'}`);
+        guardarCierresSemana(estado);
+    } catch (err) {
+        console.error('⚠️ Error en el cierre de semana automático:', err.message);
     }
 };
 
@@ -3468,6 +3521,37 @@ function tipoDeClima(codigo, nubes) {
     if (codigo >= 2 || nubes > 60) return 'nublado';
     return 'despejado';
 }
+// Cierre de semana: ver el resumen de cualquier semana (por defecto la actual).
+app.get('/api/cierre-semana', (req, res) => {
+    try {
+        const lunes = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.lunes || '')) ? String(req.query.lunes) : cierreSemana.lunesDe(fechaLocalISO(new Date()));
+        const r = cierreSemana.resumenSemana(leerExcel(), lunes, fechaLocalISO(new Date()));
+        const estado = leerCierresSemana();
+        res.setHeader('Cache-Control', 'no-store');
+        return res.json({ ok: true, resumen: r, whatsapp: cierreSemana.textoWhatsApp(r), enviado: (estado.enviados || []).find(c => c.desde === r.desde) || null, historial: (estado.enviados || []).slice(0, 12) });
+    } catch (err) {
+        console.error('❌ Error armando el cierre de semana:', err);
+        return res.status(500).json({ ok: false, msg: 'No se pudo armar el cierre de semana.' });
+    }
+});
+// Mandarlo por correo ahora (a los jefes, o a un correo puntual).
+app.post('/api/cierre-semana/enviar', async (req, res) => {
+    try {
+        const lunes = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body?.lunes || '')) ? String(req.body.lunes) : cierreSemana.lunesDe(fechaLocalISO(new Date()));
+        const para = String(req.body?.para || '').split(',').map(normalizarEmail).filter(e => /@/.test(e));
+        const { resumen, enviadoA, motivo } = await enviarCierreSemana(leerExcel(), lunes, para);
+        if (!enviadoA.length) return res.status(502).json({ ok: false, msg: `No se pudo enviar el correo${motivo ? ': ' + motivo : '.'}` });
+        const estado = leerCierresSemana();
+        estado.enviados = [{ desde: resumen.desde, hasta: resumen.hasta, enviadoEn: new Date().toISOString(), enviadoA, total: resumen.total, cumplimiento: resumen.cumplimiento, aMano: true },
+            ...(estado.enviados || []).filter(c => !(c.desde === resumen.desde && !c.aMano))].slice(0, 26);
+        guardarCierresSemana(estado);
+        return res.json({ ok: true, enviadoA, msg: `Cierre enviado a ${enviadoA.join(', ')}${motivo ? '. No llegó a: ' + motivo : ''}` });
+    } catch (err) {
+        console.error('❌ Error enviando el cierre de semana:', err);
+        return res.status(500).json({ ok: false, msg: 'No se pudo enviar el cierre de semana.' });
+    }
+});
+
 app.get('/api/clima', async (req, res) => {
     res.locals.auditoriaOmitir = true;
     res.setHeader('Cache-Control', 'no-store');
@@ -5835,6 +5919,9 @@ const alArrancar = (conHttps) => {
     // (por si el servidor estaba apagado el lunes) y luego cada 30 minutos.
     setTimeout(revisarResumenSemanalVencimientos, 30 * 1000);
     setInterval(revisarResumenSemanalVencimientos, 30 * 60 * 1000);
+    // Cierre de semana: viernes desde las 4 p. m. (revisa cada 30 minutos).
+    setTimeout(revisarCierreSemana, 45 * 1000);
+    setInterval(revisarCierreSemana, 30 * 60 * 1000);
     // Foto del histórico del mes: al arrancar y cada hora (para el día 1).
     setTimeout(asegurarFotoDelMes, 20 * 1000);
     setInterval(asegurarFotoDelMes, 60 * 60 * 1000);
