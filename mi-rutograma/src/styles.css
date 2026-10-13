@@ -1137,7 +1137,11 @@ html:not(.sin-brillo):not(.sin-animaciones) {
 
   /* Fila del Rutograma bajo el mouse: se ilumina toda la fila. */
   .ruto-tr-vehicle:hover > td.ruto-td-vehicle-info { box-shadow: inset 3px 0 0 var(--acento); }
-  .ruto-tr-vehicle:hover > td { background-color: color-mix(in srgb, var(--acento) 6%, transparent); }
+  .ruto-tr-vehicle:hover > td:not(.ruto-td-vehicle-info, .ruto-td-next-delivery) { background-color: color-mix(in srgb, var(--acento) 6%, transparent); }
+  /* Placa y próximo viaje van fijos a la izquierda: el tinte va ENCIMA de su
+     fondo sólido (si el fondo se volviera transparente, los viajes que pasan
+     por debajo al desplazar se verían a través y la placa "desaparecería"). */
+  .ruto-tr-vehicle:hover > td:is(.ruto-td-vehicle-info, .ruto-td-next-delivery) { background-image: linear-gradient(color-mix(in srgb, var(--acento) 8%, transparent), color-mix(in srgb, var(--acento) 8%, transparent)); }
 
   /* Ventanas con una línea de color arriba que se dibuja al abrir. */
   .modal, .ruto-modal-content, .nb-modal, .ap-panel { position: relative; }
