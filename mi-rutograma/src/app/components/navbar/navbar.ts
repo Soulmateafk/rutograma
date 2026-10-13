@@ -10,6 +10,7 @@ import { AccountService } from '../../services/account.service';
 // nada de reinventar la regla de disponibilidad en un segundo lugar.
 // @ts-ignore
 import { mantenimientoQueChoca, rangosMantenimiento } from '../../services/mantenimiento';
+import { interpretar, filtrarViajes } from '../../services/buscar-hablado';
 import { obtenerDiasViaje, obtenerViajesEnConflicto, reprogramarViajeConflictivo, siguienteNumeroCupo, buscarCupoLibre, reprogramarViajesDesde } from '../rutograma/rutograma.utils.js';
 import { fechaLocal, viajeEnRuta, textoEnRuta } from '../../services/dias-cerrados';
 import { choquesDeAgenda } from '../../services/revision-viajes';
@@ -861,6 +862,20 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     const S = this.dataService.S;
     const resultados: ResultadoBusqueda[] = [];
     const pad = (n: number) => String(n).padStart(2, '0');
+
+    // Búsqueda hablada: si la frase trae fechas, estados, clientes, etc., el primer
+    // resultado abre la lista completa con lo que se entendió.
+    const it = interpretar(this.busquedaGlobal, S);
+    const entendido = it.entendidos.filter(e => e.tipo !== 'Texto');
+    if (entendido.length && (palabras.length >= 2 || entendido.some(e => ['Fecha', 'Estado', 'Tipo', 'Horario', 'Día', 'Cajas', 'Excluye', 'Orden'].includes(e.tipo)))) {
+      const n = filtrarViajes(it.filtros, S).length;
+      const consulta = this.busquedaGlobal;
+      resultados.push({ tipo: 'Búsqueda', etiqueta: `${n} viaje${n === 1 ? '' : 's'}: ${entendido.map(e => e.texto).join(' · ')}`,
+        subtitulo: 'Ver la lista completa', ruta: '', hacer: () => this.ui.busquedaHablada.set(consulta) });
+    } else if (palabras.length >= 3) {
+      const consulta = this.busquedaGlobal;
+      resultados.push({ tipo: 'Búsqueda', etiqueta: `Buscar "${consulta}" en los viajes`, subtitulo: 'Búsqueda hablada', ruta: '', hacer: () => this.ui.busquedaHablada.set(consulta) });
+    }
 
     // Acciones
     this.accionesBuscables.filter(a => a.permitido() && coincide(a.nombre, a.claves)).forEach(a =>

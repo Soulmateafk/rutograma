@@ -56,6 +56,7 @@
 <app-apariencia></app-apariencia>
 <app-aviso-inactividad></app-aviso-inactividad>
 <app-notas *ngIf="!cargandoInicial() && authService.currentUser"></app-notas>
+<app-busqueda-hablada *ngIf="ui.busquedaHablada() !== null" [consulta]="ui.busquedaHablada() || ''" (cerrar)="ui.busquedaHablada.set(null)"></app-busqueda-hablada>
 <app-aviso-deshacer *ngIf="!cargandoInicial() && authService.puedeEditar && !authService.necesitaAprobacion"></app-aviso-deshacer>
 
 <!-- Aviso de choque: otra persona modificó el viaje que se estaba editando.

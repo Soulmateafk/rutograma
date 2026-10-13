@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { Router, NavigationStart, NavigationEnd, RouterOutlet } from '@angular/router'; 
 import { Title } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common'; 
@@ -11,6 +11,8 @@ import { ThemeService } from './services/theme.service';
 import { AtajosService } from './services/atajos.service';
 import { InstalarService } from './services/instalar.service';
 import { CierreAnimadoService } from './services/cierre-animado.service';
+import { BusquedaHabladaComponent } from './components/busqueda-hablada/busqueda-hablada';
+import { UiService } from './services/ui.service';
 import { ConexionService } from './services/conexion.service';
 import { EfectosService } from './services/efectos.service';
 import { AparienciaComponent } from './components/apariencia/apariencia';
@@ -29,7 +31,7 @@ import { temporadaVisible } from './services/temporadas';
 @Component({
   selector: 'app-root',
   standalone: true, 
-  imports: [RouterOutlet, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent, PizarraComponent, AvisoCargueComponent, AparienciaComponent, AvisoDeshacerComponent, NotasComponent], 
+  imports: [RouterOutlet, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent, PizarraComponent, AvisoCargueComponent, AparienciaComponent, AvisoDeshacerComponent, NotasComponent, BusquedaHabladaComponent], 
   templateUrl: './app.html'
 })
 export class App implements OnInit {
@@ -99,6 +101,8 @@ export class App implements OnInit {
     const coincidencia = this.titulosPorRuta.find(r => url.startsWith(r.prefijo));
     this.titleService.setTitle(coincidencia ? coincidencia.titulo : 'Makand');
   }
+
+  public ui = inject(UiService);
 
   constructor(
     public dataService: DataService,
