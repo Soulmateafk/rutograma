@@ -142,3 +142,9 @@
 }
 
 .btn-action.hv { text-decoration: none; display: inline-flex; align-items: center; gap: 4px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+
+/* Plan B: botón naranja (reasignar viajes de un vehículo varado o en taller). */
+.btn-action.planb { background: color-mix(in srgb, #f97316 16%, transparent); color: #fdba74; border: 1px solid color-mix(in srgb, #f97316 45%, transparent); }
+.btn-action.planb:hover { background: color-mix(in srgb, #f97316 28%, transparent); }
+:host-context(body.tema-claro) .btn-action.planb { color: #c2410c; }
+.conflicto-mant-planb { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }

@@ -10,6 +10,7 @@ import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
 import { UiService } from '../../services/ui.service';
 import html2canvas from 'html2canvas';
+import { PlanBComponent } from '../plan-b/plan-b';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { viajeCerrado, motivoFechaAnterior, fechaDelDia } from '../../services/dias-cerrados';
@@ -54,7 +55,7 @@ interface Viaje {
   selector: 'app-rutograma',
   templateUrl: './rutograma.html',
   standalone: true,
-  imports: [EsqueletoComponent, CommonModule, FormsModule, RouterLink, FotoNovedadComponent, OtrosAquiComponent], 
+  imports: [EsqueletoComponent, CommonModule, FormsModule, RouterLink, FotoNovedadComponent, OtrosAquiComponent, PlanBComponent], 
   styleUrls: ['./rutograma.css']
 })
 export class RutogramaComponent implements OnInit, OnDestroy {
@@ -3144,6 +3145,14 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     this.varadoCandidatos = buscarVehiculosDisponiblesParaVarado(dia, this.ds.S, placaOriginal, mesTexto, Number(this.ds.S.anio));
 
     this.isModalVaradoOpen = true;
+  }
+
+  // Plan B: todos los viajes próximos de la placa varada, no solo este.
+  public planBPlaca: string | null = null;
+  public abrirPlanBDesdeVarado(): void {
+    const placa = String(this.viajeVaradoOriginal?.p || this.viajeVaradoOriginal?.placa || '').toUpperCase().trim();
+    this.cerrarVarado();
+    if (placa) this.planBPlaca = placa;
   }
 
   public cerrarVarado(): void {

@@ -1,0 +1,53 @@
+<div class="pb-fondo" animate.leave="ap-cerrar" (click)="cerrar.emit()">
+  <div class="pb-ventana" role="dialog" aria-label="Plan B" (click)="$event.stopPropagation()">
+    <div class="pb-cab">
+      <div>
+        <h3><i class="bi bi-life-preserver"></i> Plan B · {{ placa }}</h3>
+        <p class="pb-sub">{{ estado ? 'Estado: ' + estado + '. ' : '' }}Para cada viaje que todavía no sale te proponemos el mejor vehículo libre: sin otro viaje esos días, con documentos al día, que cumple las reglas y el pico y placa, y con capacidad.</p>
+      </div>
+      <button class="pb-x" (click)="cerrar.emit()" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+    </div>
+
+    <div class="pb-filtros" *ngIf="!viajes?.length">
+      <label>Desde <input type="date" [(ngModel)]="desde" (change)="calcular()"></label>
+      <label>Hasta <input type="date" [(ngModel)]="hasta" (change)="calcular()"></label>
+      <label class="pb-check"><input type="checkbox" [(ngModel)]="cambiarConductor"> Pasar también al conductor del vehículo nuevo</label>
+    </div>
+    <label class="pb-check" *ngIf="viajes?.length"><input type="checkbox" [(ngModel)]="cambiarConductor"> Pasar también al conductor del vehículo nuevo</label>
+
+    <div class="pb-vacio" *ngIf="!propuestas().length">
+      <i class="bi bi-check2-circle"></i> {{ placa }} no tiene viajes por mover entre esas fechas.
+    </div>
+
+    <div class="pb-lista" *ngIf="propuestas().length">
+      <div class="pb-fila" *ngFor="let p of propuestas()" [class.listo]="listos.has(p.viaje.id)" [class.sin]="p.elegida < 0">
+        <div class="pb-viaje">
+          <strong>{{ fechaCorta(p.viaje.fecha) }}</strong>
+          <span>{{ p.viaje.ruta || p.viaje.codigo }}<small *ngIf="p.viaje.cliente || p.viaje.cli"> · {{ p.viaje.cliente || p.viaje.cli }}</small></span>
+          <small class="pb-cond" *ngIf="p.viaje.cond">Iba con {{ p.viaje.cond }}</small>
+        </div>
+        <i class="bi bi-arrow-right pb-flecha"></i>
+        <div class="pb-opcion">
+          <ng-container *ngIf="p.opciones.length; else ninguna">
+            <select [(ngModel)]="p.elegida" [disabled]="listos.has(p.viaje.id)">
+              <option *ngFor="let o of p.opciones; let i = index" [ngValue]="i">{{ o.placa }}{{ o.tercero ? ' (' + o.tr + ')' : '' }} — {{ o.detalle }}</option>
+            </select>
+          </ng-container>
+          <ng-template #ninguna><span class="pb-nada"><i class="bi bi-exclamation-triangle"></i> No hay vehículo libre: créale un cupo o cancélalo desde el Rutograma.</span></ng-template>
+        </div>
+        <div class="pb-accion">
+          <span class="pb-hecho" *ngIf="listos.has(p.viaje.id)"><i class="bi bi-check-circle-fill"></i> Reasignado</span>
+          <button *ngIf="!listos.has(p.viaje.id) && p.elegida >= 0 && auth.puedeEditar" class="pb-btn" [disabled]="trabajando" (click)="reasignar(p)">Reasignar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pb-pie">
+      <span class="pb-resumen">{{ propuestas().length }} viaje{{ propuestas().length === 1 ? '' : 's' }} · {{ listos.size }} reasignado{{ listos.size === 1 ? '' : 's' }}</span>
+      <button class="pb-btn-sec" (click)="cerrar.emit()">Cerrar</button>
+      <button class="pb-btn" *ngIf="auth.puedeEditar" [disabled]="trabajando || !pendientes.length" (click)="reasignarTodos()">
+        <i class="bi" [ngClass]="trabajando ? 'bi-hourglass-split' : 'bi-lightning-charge-fill'"></i> Reasignar todos ({{ pendientes.length }})
+      </button>
+    </div>
+  </div>
+</div>

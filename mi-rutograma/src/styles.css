@@ -1467,4 +1467,4 @@ html[data-dir="atras"]::view-transition-new(pagina) { animation-name: vt-entrar-
 @keyframes vt-entrar-izq { from { opacity: 0; transform: translateX(-110px); } }
 
 /* La foto del mes en grande tapa también la barra de arriba (main tiene z-index 1). */
-main:has(.foto-grande) { z-index: 10100; }
+main:has(.foto-grande, .pb-fondo) { z-index: 10100; }

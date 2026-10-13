@@ -879,6 +879,7 @@
     </div>
 
     <div class="ruto-modal-footer" style="margin-top: 14px;">
+      <button class="btn-close" [disabled]="procesandoVarado" (click)="abrirPlanBDesdeVarado()" title="Ver con qué vehículo cubrir cada uno de sus próximos viajes" style="margin-right:auto;"><i class="bi bi-life-preserver" style="color:#f97316;"></i> Plan B para todos sus viajes</button>
       <button class="btn-close" [disabled]="procesandoVarado" (click)="cerrarVarado()">Cancelar</button>
     </div>
   </div>
@@ -1187,3 +1188,4 @@
     <img [src]="fotoPreviewUrl" [style.width]="fotoZoom === 1 ? null : (fotoZoom * 100) + '%'" [class.ajustada]="fotoZoom === 1" alt="Foto del mes en grande">
   </div>
 </div>
+<app-plan-b *ngIf="planBPlaca" [placa]="planBPlaca" (cerrar)="planBPlaca = null"></app-plan-b>

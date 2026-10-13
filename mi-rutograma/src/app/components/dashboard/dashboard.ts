@@ -15,10 +15,11 @@ import { ThemeService } from '../../services/theme.service';
 import { SonidoService } from '../../services/sonido.service';
 import { inject } from '@angular/core';
 import { picoPlacaProximos } from '../../services/reglas-asignacion';
+import { PlanBComponent } from '../plan-b/plan-b';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [VacioComponent, CommonModule, FormsModule, ContarDirective, FotoNovedadComponent, CapacidadSemanaComponent],
+  imports: [VacioComponent, CommonModule, FormsModule, ContarDirective, FotoNovedadComponent, CapacidadSemanaComponent, PlanBComponent],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css']
 })
@@ -298,7 +299,7 @@ export class Dashboard implements OnInit, OnDestroy {
 
   private subDataChanged?: Subscription;
 
-  constructor(public ds: DataService, private router: Router, private cdr: ChangeDetectorRef, private auth: AuthService) {}
+  constructor(public ds: DataService, private router: Router, private cdr: ChangeDetectorRef, public auth: AuthService) {}
 
   async cerrarSesion(): Promise<void> {
     await this.auth.cerrarSesion();
@@ -1058,7 +1059,7 @@ export class Dashboard implements OnInit, OnDestroy {
       alertasEmitidas.add(pComp);
       const tieneViaje = viajesValidosSemana.some((vj: any) => vj.placa === v.p);
       if (tieneViaje) {
-        this.alertas.push({ t: 'r', ic: '<i class="bi bi-exclamation-triangle-fill"></i>', tt: `CRÍTICA: ${v.p} en mantenimiento tiene viajes asignados esta semana`, d: 'Reasignar unidad urgente' });
+        this.alertas.push({ t: 'r', ic: '<i class="bi bi-exclamation-triangle-fill"></i>', tt: `CRÍTICA: ${v.p} en mantenimiento tiene viajes asignados esta semana`, d: 'Reasignar unidad urgente', planB: v.p });
       } else {
         this.alertas.push({ t: 'a', ic: '<i class="bi bi-tools"></i>', tt: `${v.p} en mantenimiento`, d: 'Unidad inmovilizada en taller' });
       }
@@ -1087,11 +1088,15 @@ export class Dashboard implements OnInit, OnDestroy {
     novedadesActivas.forEach((n: any) => {
       const tipoTexto = String(n.tipo || '').toLowerCase();
       const esCritica = tipoTexto === 'incidente' || tipoTexto === 'avería' || tipoTexto === 'averia';
+      // Si la novedad es de un vehículo varado o averiado, se ofrece el Plan B.
+      const varado = esCritica || /varad|aver[ií]a|taller|da[nñ]o/i.test(`${n.tipo} ${n.titulo}`);
+      const placaNov = varado ? this.placaDeNovedad(n) : '';
       this.alertas.push({
         t: esCritica ? 'r' : 'a',
         ic: '<i class="bi bi-lightning-charge-fill"></i>',
         tt: `${n.tipo || 'Novedad'}: ${n.titulo}`,
-        d: n.desc || ''
+        d: n.desc || '',
+        planB: placaNov || undefined
       });
     });
 
@@ -1217,6 +1222,19 @@ export class Dashboard implements OnInit, OnDestroy {
       this.alertas.push({ t: 'g', ic: '<i class="bi bi-check-circle-fill"></i>', tt: 'Sin conflictos activos esta semana', d: 'Operación en orden' });
     }
   }
+
+  /** Placa de un vehículo propio mencionada en la novedad (campo o texto). */
+  private placaDeNovedad(n: any): string {
+    const pegada = (x: any) => String(x ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const propias = (this.ds.S?.vehiculos || []).map((v: any) => String(v.p || v.placa || '').toUpperCase().trim())
+      .filter((p: string) => p && !/^(ARSITRANS|POLAR)\s*\d+$/.test(p));
+    const directa = pegada(n.placa || n.p || n.veh || n.vehiculo);
+    const texto = pegada(`${n.titulo || ''} ${n.desc || ''}`);
+    return propias.find((p: string) => (directa && pegada(p) === directa) || texto.includes(pegada(p))) || '';
+  }
+
+  // --- Plan B (alertas): reasignar los viajes del vehículo afectado ---
+  public planBPlaca: string | null = null;
 
   // --- HELPERS TRADICIONALES DE SOPORTE ---
   public obtenerColor(tr: string): string {

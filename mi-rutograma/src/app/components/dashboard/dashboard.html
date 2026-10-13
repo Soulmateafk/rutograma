@@ -139,6 +139,7 @@
             <strong>{{ a.tt }}</strong>
             <p>{{ a.d }}</p>
           </div>
+          <button *ngIf="a.planB && auth.puedeEditar" class="alerta-planb" (click)="planBPlaca = a.planB" title="Pasar sus viajes próximos a otros vehículos libres"><i class="bi bi-life-preserver"></i> Plan B</button>
         </div>
         <app-vacio *ngIf="!alertas.length" chico dibujo="todo-bien" titulo="Sin alertas por ahora"></app-vacio>
       </div>
@@ -350,3 +351,5 @@
   </div>
 
 </div>
+
+<app-plan-b *ngIf="planBPlaca" [placa]="planBPlaca" (cerrar)="planBPlaca = null"></app-plan-b>
