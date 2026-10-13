@@ -1713,3 +1713,26 @@ body.ruto-arrastrando .ruto-hover-tooltip { display: none; }
 .ruto-menu button i { width: 16px; text-align: center; }
 .ruto-menu .bi-whatsapp { color: #22c55e; }
 .ruto-menu-linea { height: 1px; background: var(--border2); margin: 4px 6px; }
+
+/* ===== Foto del mes: vista previa grande y opciones ===== */
+.foto-modal { max-width: 1500px !important; width: 96vw !important; max-height: 94vh; display: flex; flex-direction: column; }
+.foto-cuerpo { display: flex; gap: 18px; flex: 1; min-height: 0; }
+.foto-opciones { flex: 0 0 230px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+.foto-check { display: flex; gap: 8px; align-items: center; font-size: 13px; cursor: pointer; }
+.foto-tamano { font-size: 11.5px; color: var(--color-texto-apagado); margin: 0; }
+.foto-previa { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; justify-content: center; background: var(--color-fondo-input);
+  border-radius: 10px; padding: 12px; min-height: 260px; max-height: calc(94vh - 190px); overflow: auto; }
+.foto-previa img { max-width: 100%; max-height: calc(94vh - 215px); border-radius: 4px; box-shadow: 0 6px 24px rgba(0, 0, 0, .45); cursor: zoom-in; transition: opacity .2s; }
+.foto-previa.cargando img { opacity: .55; }
+.foto-actualizando { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 2; background: rgba(15, 23, 42, .9); color: #e2e8f0; font-size: 12px; padding: 4px 12px; border-radius: 999px; }
+.foto-actualizando i { display: inline-block; animation: foto-girar 1s linear infinite; }
+@keyframes foto-girar { to { transform: rotate(360deg); } }
+.foto-lupa { position: absolute; right: 18px; bottom: 18px; background: rgba(15, 23, 42, .85); color: #fff; border: 1px solid #334155; border-radius: 8px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+@media (max-width: 800px) { .foto-cuerpo { flex-direction: column; } .foto-opciones { flex: none; } }
+.foto-grande { position: fixed; inset: 0; z-index: 10200; background: rgba(2, 6, 23, .92); display: flex; flex-direction: column; animation: ap-aparecer .25s ease-out; }
+.foto-grande-barra { display: flex; gap: 6px; align-items: center; justify-content: center; padding: 10px; color: #e2e8f0; font-size: 13px; }
+.foto-grande-barra button { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+.foto-grande-barra span { min-width: 48px; text-align: center; }
+.foto-grande-lienzo { flex: 1; overflow: auto; padding: 0 16px 16px; text-align: center; }
+.foto-grande-lienzo img { max-width: none; border-radius: 4px; box-shadow: 0 10px 40px rgba(0, 0, 0, .6); }
+.foto-grande-lienzo img.ajustada { max-width: 100%; max-height: calc(100vh - 80px); }

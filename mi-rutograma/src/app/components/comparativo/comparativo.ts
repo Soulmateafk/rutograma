@@ -7,6 +7,7 @@ import { DataService } from '../../services/data';
 import { AuthService } from '../../services/auth.service';
 import { analizarMeses, viajesDelMes, AnalisisMeses, FilaCambio, IndicadorMes } from '../../services/comparar-meses';
 import { API } from '../../api-base';
+import { GraficosAnalisisComponent } from './graficos-analisis';
 
 interface DesgloseTransportadora {
   nombre: string;
@@ -46,7 +47,7 @@ interface RitmoMes {
 @Component({
   selector: 'app-comparativo',
   standalone: true,
-  imports: [CommonModule, FormsModule, ContarDirective],
+  imports: [CommonModule, FormsModule, ContarDirective, GraficosAnalisisComponent],
   templateUrl: './comparativo.html',
   styleUrls: ['./comparativo.css']
 })

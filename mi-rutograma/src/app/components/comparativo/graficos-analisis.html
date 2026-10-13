@@ -1,0 +1,120 @@
+<div class="ga" (mouseleave)="salir()">
+  <div class="ga-cab">
+    <div class="ga-titulo"><i class="bi bi-pie-chart"></i> Gráficos y desglose</div>
+    <div class="ga-dims" role="tablist" aria-label="Repartir los viajes por">
+      <span class="ga-dims-label">Repartir por:</span>
+      <button *ngFor="let d of dimensiones" role="tab" [attr.aria-selected]="dim() === d.clave" [class.on]="dim() === d.clave" (click)="cambiarDim(d.clave)">
+        <i class="bi" [ngClass]="d.icono"></i> {{ d.nombre }}
+      </button>
+    </div>
+  </div>
+
+  <div class="ga-fila">
+    <!-- PASTEL -->
+    <div class="ga-caja ga-caja-pastel">
+      <div class="ga-caja-cab">
+        <span>¿Cómo se repartieron?</span>
+        <div class="ga-mes">
+          <button [class.on]="mesPastel() === 'a'" (click)="mesPastel.set('a')">{{ corta(analisis.etiquetaA) }}</button>
+          <button [class.on]="mesPastel() === 'b'" (click)="mesPastel.set('b')">{{ corta(analisis.etiquetaB) }}</button>
+        </div>
+      </div>
+      <div class="ga-pastel-cuerpo" *ngIf="totalPastel(); else sinViajes">
+        <svg viewBox="0 0 200 200" class="ga-pastel" role="img" [attr.aria-label]="'Reparto de viajes por ' + dim()">
+          <path *ngFor="let s of tajadas()" [attr.d]="s.d" [style.fill]="s.color" class="ga-tajada"
+                [class.apagada]="elegido() !== null && elegido() !== s.nombre"
+                [style.transform]="elegido() === s.nombre ? 'translate(' + s.dx + 'px,' + s.dy + 'px)' : null"
+                (mousemove)="tipTajada($event, s)" (mouseleave)="salir()" (click)="elegir(s.nombre)"></path>
+          <text x="100" y="98" text-anchor="middle" class="ga-centro-n">{{ totalPastel() }}</text>
+          <text x="100" y="116" text-anchor="middle" class="ga-centro-t">viajes</text>
+        </svg>
+        <ul class="ga-leyenda">
+          <li *ngFor="let p of principales()" [class.on]="elegido() === p.nombre" [class.apagada]="elegido() !== null && elegido() !== p.nombre" (click)="elegir(p.nombre)" tabindex="0" (keydown.enter)="elegir(p.nombre)">
+            <span class="ga-punto" [style.background]="p.color"></span>
+            <span class="ga-ley-nombre" [title]="p.nombre">{{ p.nombre }}</span>
+            <strong>{{ mesPastel() === 'a' ? p.a : p.b }}</strong>
+            <span class="ga-ley-pct">{{ totalPastel() ? ((mesPastel() === 'a' ? p.a : p.b) / totalPastel() * 100 | number:'1.0-1') : 0 }}%</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- BARRAS MES CONTRA MES -->
+    <div class="ga-caja">
+      <div class="ga-caja-cab">
+        <span>Mes contra mes</span>
+        <span class="ga-ley-mini"><i class="ga-muestra ga-muestra-a"></i>{{ corta(analisis.etiquetaA) }} <i class="ga-muestra ga-muestra-b"></i>{{ corta(analisis.etiquetaB) }}</span>
+      </div>
+      <div class="ga-barras" *ngIf="barras().length; else sinViajes">
+        <div class="ga-barra-fila" *ngFor="let f of barras()" [class.on]="elegido() === f.nombre" [class.apagada]="elegido() !== null && elegido() !== f.nombre"
+             (mousemove)="tipBarra($event, f)" (mouseleave)="salir()" (click)="elegir(f.nombre)">
+          <span class="ga-barra-nombre" [title]="f.nombre"><span class="ga-punto" [style.background]="f.color"></span>{{ f.nombre }}</span>
+          <span class="ga-barra-pistas">
+            <span class="ga-barra ga-barra-a" [style.width.%]="f.wa"></span>
+            <span class="ga-barra ga-barra-b" [style.width.%]="f.wb"></span>
+          </span>
+          <span class="ga-barra-val">{{ f.a }} → <strong>{{ f.b }}</strong>
+            <em [class.sube]="f.dif > 0" [class.baja]="f.dif < 0">{{ f.dif ? conSigno(f.dif) : '=' }}</em></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LÍNEA POR DÍA -->
+  <div class="ga-caja">
+    <div class="ga-caja-cab">
+      <span>Viajes por día del mes<span class="ga-filtro" *ngIf="elegido()"> · solo {{ elegido() }}</span></span>
+      <span class="ga-ley-mini"><i class="ga-linea-a"></i>{{ corta(analisis.etiquetaA) }} <i class="ga-linea-b"></i>{{ corta(analisis.etiquetaB) }}</span>
+    </div>
+    <svg *ngIf="linea() as l" [attr.viewBox]="'0 0 ' + l.W + ' ' + l.H" class="ga-lineal" role="img" aria-label="Viajes por día de los dos meses">
+      <line *ngFor="let m of l.ejeY" [attr.x1]="l.iz" [attr.x2]="l.W - l.de" [attr.y1]="m.y" [attr.y2]="m.y" class="ga-grid"></line>
+      <text *ngFor="let m of l.ejeY" [attr.x]="l.iz - 6" [attr.y]="m.y + 3" text-anchor="end" class="ga-eje">{{ m.v }}</text>
+      <text *ngFor="let m of l.ejeX" [attr.x]="m.x" [attr.y]="l.H - 8" text-anchor="middle" class="ga-eje">{{ m.d }}</text>
+      <path [attr.d]="l.area" class="ga-area"></path>
+      <path [attr.d]="l.pa" class="ga-trazo ga-trazo-a"></path>
+      <path [attr.d]="l.pb" class="ga-trazo ga-trazo-b"></path>
+      <ng-container *ngIf="diaHover() !== null">
+        <line [attr.x1]="l.puntos[diaHover()!].x" [attr.x2]="l.puntos[diaHover()!].x" [attr.y1]="l.ar" [attr.y2]="l.H - l.ab" class="ga-cruz"></line>
+        <circle [attr.cx]="l.puntos[diaHover()!].x" [attr.cy]="l.puntos[diaHover()!].ya" r="4" class="ga-pt ga-pt-a"></circle>
+        <circle [attr.cx]="l.puntos[diaHover()!].x" [attr.cy]="l.puntos[diaHover()!].yb" r="4.5" class="ga-pt ga-pt-b"></circle>
+      </ng-container>
+      <rect *ngFor="let p of l.puntos" [attr.x]="p.x - l.ancho / 2" [attr.y]="0" [attr.width]="l.ancho" [attr.height]="l.H" class="ga-hit"
+            (mousemove)="tipDia($event, p.i)" (mouseleave)="salir()"></rect>
+    </svg>
+  </div>
+
+  <!-- DESGLOSE DE LO ELEGIDO -->
+  <div class="ga-desglose" id="ga-desglose" *ngIf="desglose() as d" animate.leave="ap-ocultar">
+    <div class="ga-des-cab">
+      <span class="ga-punto ga-punto-grande" [style.background]="d.color"></span>
+      <div>
+        <div class="ga-des-tipo">{{ d.dimNombre }}</div>
+        <div class="ga-des-nombre">{{ d.nombre }}</div>
+      </div>
+      <button class="ga-des-x" (click)="elegido.set(null)" title="Cerrar el desglose" aria-label="Cerrar el desglose"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="ga-des-kpis">
+      <div><small>{{ analisis.etiquetaA }}</small><strong>{{ d.a }}</strong></div>
+      <div><small>{{ analisis.etiquetaB }}</small><strong>{{ d.b }}</strong></div>
+      <div><small>Cambio</small><strong [class.sube]="d.dif > 0" [class.baja]="d.dif < 0">{{ d.dif ? conSigno(d.dif) : '=' }}<span *ngIf="d.pct !== null && d.dif"> ({{ conSigno(d.pct) }}%)</span></strong></div>
+      <div><small>Parte de {{ corta(analisis.etiquetaB) }}</small><strong>{{ d.parte }}%</strong></div>
+    </div>
+    <div class="ga-des-cortes">
+      <div class="ga-corte" *ngFor="let c of d.cortes">
+        <div class="ga-corte-tit"><i class="bi" [ngClass]="c.icono"></i> Por {{ c.nombre.toLowerCase() }}</div>
+        <div class="ga-corte-fila" *ngFor="let f of c.filas" [title]="f.nombre + ': ' + f.a + ' → ' + f.b">
+          <span class="ga-corte-nombre">{{ f.nombre }}</span>
+          <span class="ga-corte-pista"><span class="ga-corte-a" [style.width.%]="f.wa"></span><span class="ga-corte-b" [style.width.%]="f.w" [style.background]="d.color"></span></span>
+          <span class="ga-corte-val">{{ f.a }} → <strong>{{ f.b }}</strong></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ga-tip" *ngIf="tip() as tp" [style.left.px]="tp.x" [style.top.px]="tp.y">
+    <strong>{{ tp.titulo }}</strong>
+    <span *ngFor="let ln of tp.lineas" [class.ga-tip-ayuda]="ln.startsWith('Toca')">{{ ln }}</span>
+  </div>
+</div>
+
+<ng-template #sinViajes><div class="ga-vacio">No hay viajes en este mes para graficar.</div></ng-template>

@@ -5491,16 +5491,104 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
 });
 
 // --- INICIO DEL SERVIDOR ---
-// --- HISTÓRICO MENSUAL: consultar la foto de vehículos/rutas de un mes ---
+// --- HISTÓRICO MENSUAL: consultar la foto de vehículos/conductores de un mes ---
+// La "foto" se guarda al generar la matriz y, además, sola al empezar cada
+// mes (ver asegurarFotoDelMes). Para los meses que no tienen foto (por
+// ejemplo, los que se importaron o se armaron a mano) el histórico se
+// RECONSTRUYE con los viajes que hubo ese mes: qué placas y qué conductores
+// trabajaron, cuántos viajes hicieron y con quién. Así nunca sale vacío un
+// mes que sí tuvo operación.
+const VIAJE_NO_CUENTA = new Set(['Cancelado', 'Mantenimiento']);
+const viajesDelMes = (data, mes, anio) => {
+    const n = MESES_MAP[mes];
+    if (!n) return [];
+    const prefijo = `${anio}-${String(n).padStart(2, '0')}`;
+    return (data.viajes || []).filter(vj => String(vj.fecha || '').startsWith(prefijo) && !VIAJE_NO_CUENTA.has(vj.estado));
+};
+const agruparViajes = (viajes, clave, otra) => {
+    const grupos = new Map();
+    viajes.forEach(vj => {
+        const k = String(clave(vj) || '').trim();
+        if (!k) return;
+        const g = grupos.get(k.toUpperCase()) || { nombre: k, viajes: 0, entregados: 0, otros: new Set(), rutas: new Set(), dias: new Set() };
+        g.viajes++;
+        if (vj.estado === 'Entregado') g.entregados++;
+        const o = String(otra(vj) || '').trim(); if (o) g.otros.add(o);
+        if (vj.ruta) g.rutas.add(String(vj.ruta));
+        if (vj.fecha) g.dias.add(String(vj.fecha).slice(0, 10));
+        grupos.set(k.toUpperCase(), g);
+    });
+    return grupos;
+};
+const resumenGrupo = (g) => g ? {
+    viajesMes: g.viajes, entregadosMes: g.entregados, diasMes: g.dias.size,
+    conQuienMes: [...g.otros].slice(0, 4).join(', '), rutasMes: [...g.rutas].slice(0, 4).join(', ')
+} : { viajesMes: 0, entregadosMes: 0, diasMes: 0, conQuienMes: '', rutasMes: '' };
+
+const historicoDelMes = (tipo, mes, anio) => {
+    const data = leerExcel();
+    const esVeh = tipo === 'vehiculos';
+    const lista = esVeh ? data.historialvehiculos : data.historialconductores;
+    const fila = (lista || []).find(h => h.mes === mes && String(h.anio) === String(anio));
+    const viajes = viajesDelMes(data, mes, anio);
+    const grupos = esVeh
+        ? agruparViajes(viajes, vj => vj.p || vj.placa, vj => vj.cond)
+        : agruparViajes(viajes, vj => vj.cond, vj => vj.p || vj.placa);
+    const llave = (x) => String(esVeh ? (x.p || x.placa || '') : (x.nom || x.nombre || '')).trim().toUpperCase();
+    const actuales = new Map(((esVeh ? data.vehiculos : data.conductores) || []).map(x => [llave(x), x]));
+
+    // Base: la foto del mes si existe; si no, quienes tuvieron viajes ese mes
+    // con sus datos de hoy (o lo poco que diga el viaje si ya no existen).
+    const base = fila ? (fila.datos || []) : [...grupos.values()].map(g => {
+        const hoy = actuales.get(g.nombre.toUpperCase());
+        if (hoy) return hoy;
+        return esVeh ? { p: g.nombre, est: 'Ya no está en la flota' } : { nom: g.nombre, est: 'Ya no está registrado' };
+    });
+    const filas = base.map(x => ({ ...x, ...resumenGrupo(grupos.get(llave(x))) }));
+    // Si hay foto, se suman también los que trabajaron ese mes sin estar en ella.
+    if (fila) {
+        const enFoto = new Set(filas.map(llave));
+        grupos.forEach((g, k) => {
+            if (enFoto.has(k)) return;
+            const hoy = actuales.get(k) || (esVeh ? { p: g.nombre } : { nom: g.nombre });
+            filas.push({ ...hoy, ...resumenGrupo(g) });
+        });
+    }
+    filas.sort((x, y) => (y.viajesMes - x.viajesMes) || llave(x).localeCompare(llave(y)));
+    return { fuente: fila ? 'foto' : (filas.length ? 'reconstruido' : 'vacio'), filas, totalViajes: viajes.length };
+};
+
+// Foto automática al empezar cada mes (y al arrancar, si el mes no tiene
+// una): así el histórico se va llenando aunque nadie genere la matriz.
+const asegurarFotoDelMes = () => {
+    try {
+        const data = leerExcel();
+        if (!(data.vehiculos || []).length && !(data.conductores || []).length) return;
+        const hoy = new Date();
+        const mes = Object.keys(MESES_MAP)[hoy.getMonth()];
+        const anio = hoy.getFullYear();
+        const tiene = (l) => (l || []).some(h => h.mes === mes && String(h.anio) === String(anio));
+        let cambio = false;
+        for (const [campo, origen] of [['historialvehiculos', 'vehiculos'], ['historialrutas', 'rutas'], ['historialconductores', 'conductores']]) {
+            if (!data[campo]) data[campo] = [];
+            if (tiene(data[campo])) continue;
+            data[campo].push({ mes, anio, datos: JSON.parse(JSON.stringify(data[origen] || [])) });
+            cambio = true;
+        }
+        if (cambio) { guardarEnExcel(data); console.log(`📸 Foto del histórico de ${mes} ${anio} guardada.`); }
+    } catch (e) {
+        console.error('❌ No se pudo guardar la foto del histórico del mes:', e.message);
+    }
+};
+
 app.get('/api/historial-vehiculos', (req, res) => {
     try {
         const { mes, anio } = req.query;
         if (!mes || !anio) {
             return res.status(400).json({ ok: false, msg: 'Faltan parámetros (mes o año).' });
         }
-        const data = leerExcel();
-        const fila = (data.historialvehiculos || []).find(h => h.mes === mes && String(h.anio) === String(anio));
-        return res.status(200).json({ ok: true, vehiculos: fila ? (fila.datos || []) : [] });
+        const h = historicoDelMes('vehiculos', mes, anio);
+        return res.status(200).json({ ok: true, vehiculos: h.filas, fuente: h.fuente, totalViajes: h.totalViajes });
     } catch (error) {
         console.error('❌ Error leyendo historial de vehículos:', error);
         return res.status(500).json({ ok: false, msg: 'Error interno del servidor.' });
@@ -5528,9 +5616,8 @@ app.get('/api/historial-conductores', (req, res) => {
         if (!mes || !anio) {
             return res.status(400).json({ ok: false, msg: 'Faltan parámetros (mes o año).' });
         }
-        const data = leerExcel();
-        const fila = (data.historialconductores || []).find(h => h.mes === mes && String(h.anio) === String(anio));
-        return res.status(200).json({ ok: true, conductores: fila ? (fila.datos || []) : [] });
+        const h = historicoDelMes('conductores', mes, anio);
+        return res.status(200).json({ ok: true, conductores: h.filas, fuente: h.fuente, totalViajes: h.totalViajes });
     } catch (error) {
         console.error('❌ Error leyendo historial de conductores:', error);
         return res.status(500).json({ ok: false, msg: 'Error interno del servidor.' });
@@ -5748,6 +5835,9 @@ const alArrancar = (conHttps) => {
     // (por si el servidor estaba apagado el lunes) y luego cada 30 minutos.
     setTimeout(revisarResumenSemanalVencimientos, 30 * 1000);
     setInterval(revisarResumenSemanalVencimientos, 30 * 60 * 1000);
+    // Foto del histórico del mes: al arrancar y cada hora (para el día 1).
+    setTimeout(asegurarFotoDelMes, 20 * 1000);
+    setInterval(asegurarFotoDelMes, 60 * 60 * 1000);
 };
 
 // ============================================================

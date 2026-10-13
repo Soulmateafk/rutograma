@@ -395,6 +395,7 @@
 .alerta-a { background: #2d1b00; border-color: #92400e; color: #fde68a; }
 .alerta-g { background: #052e16; border-color: #14532d; color: #bbf7d0; }
 .alerta-b { background: #0c1a3d; border-color: #1e40af; color: #bfdbfe; }
+.alerta-p { background: #2a0d3d; border-color: #7e22ce; color: #e9d5ff; }
 .alerta-icon { font-size: 15px; line-height: 1; margin-top: 1px; }
 .alerta-body strong { display: block; margin-bottom: 2px; font-size: 12px; }
 .alerta-body p { color: inherit; font-size: 11px; margin: 0; opacity: 0.85; }

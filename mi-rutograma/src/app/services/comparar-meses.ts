@@ -49,6 +49,9 @@ export interface AnalisisMeses {
   cancelaciones: FilaCambio[];
   demoras: FilaCambio[];     // motivos de demora en el cargue (Despachos)
   conclusiones: string[];
+  /** Viajes de cada mes ya cortados (incluye cancelados), para los gráficos y el desglose. */
+  viajesA: any[];
+  viajesB: any[];
 }
 
 const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -61,7 +64,7 @@ const esMakand = (v: any) => trDe(v).toLowerCase() === 'makand';
 const cancelado = (v: any) => v.estado === 'Cancelado';
 const cajasDe = (v: any) => { const n = Number(v.cajas); return isFinite(n) && n > 0 ? n : 0; };
 
-function diaDelViaje(v: any): number {
+export function diaDelViaje(v: any): number {
   const f = texto(v.fecha);
   if (/^\d{4}-\d{2}-\d{2}/.test(f)) return Number(f.slice(8, 10));
   const d = Number(v.salida ?? v.dia);
@@ -192,7 +195,7 @@ export function analizarMeses(A: MesParaComparar, B: MesParaComparar, hastaDia: 
     contar(corteFecha(A.despachos?.registros || []), r => texto(r.motivoDemora)),
     contar(corteFecha(B.despachos?.registros || []), r => texto(r.motivoDemora)));
 
-  const analisis: AnalisisMeses = { etiquetaA: A.etiqueta, etiquetaB: B.etiqueta, hastaDia, indicadores, grupos, cancelaciones, demoras, conclusiones: [] };
+  const analisis: AnalisisMeses = { etiquetaA: A.etiqueta, etiquetaB: B.etiqueta, hastaDia, indicadores, grupos, cancelaciones, demoras, conclusiones: [], viajesA: todosA, viajesB: todosB };
   analisis.conclusiones = conclusiones(analisis, { va, vb, makA, makB, canA, canB, A, B });
   return analisis;
 }

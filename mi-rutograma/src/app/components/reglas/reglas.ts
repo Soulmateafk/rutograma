@@ -7,7 +7,7 @@ import { Subscription } from 'rxjs';
 import { DataService } from '../../services/data';
 import { AuthService } from '../../services/auth.service';
 import { UiService } from '../../services/ui.service';
-import { DIAS } from '../../services/reglas-asignacion';
+import { DIAS, vehiculosConPico } from '../../services/reglas-asignacion';
 
 const NOMBRES_DIA: Record<string, string> = { lun: 'Lun', mar: 'Mar', mie: 'Mié', jue: 'Jue', vie: 'Vie', sab: 'Sáb', dom: 'Dom' };
 
@@ -41,6 +41,8 @@ export class ReglasComponent implements OnInit, OnDestroy {
   get puedeEditar(): boolean { return this.auth.puede('editarConfiguracion'); }
   get reglas(): any[] { return this.ds.S?.reglasAsignacion || []; }
   get picos(): any[] { return this.ds.S?.picoPlaca || []; }
+  /** Placas propias a las que les aplica una regla de pico y placa. */
+  afectados(p: any): string[] { return vehiculosConPico(p, this.ds.S?.vehiculos || []); }
 
   /** Tipos de vehículo que ya existen (para sugerir al escribir). */
   get tiposVehiculo(): string[] {
@@ -93,7 +95,10 @@ export class ReglasComponent implements OnInit, OnDestroy {
     if (!digitos.length) { this.ui.mostrarToast('Escribe los últimos dígitos de placa (ej. 1, 2).', 'err'); return; }
     if (!p.desde || !p.hasta || p.desde >= p.hasta) { this.ui.mostrarToast('El horario debe ir de una hora a otra más tarde.', 'err'); return; }
     const nuevo = { id: this.id(), dias: [...p.dias], digitos: digitos.join(', '), desde: p.desde, hasta: p.hasta, nota: String(p.nota).trim() };
-    await this.guardar('picoPlaca', [...this.picos, nuevo], 'Pico y placa agregado.');
+    const af = this.afectados(nuevo).length;
+    await this.guardar('picoPlaca', [...this.picos, nuevo], af
+      ? `Pico y placa agregado: afecta a ${af} vehículo${af === 1 ? '' : 's'}. Saldrá en las alertas del Dashboard desde 2 días antes.`
+      : 'Pico y placa agregado (por ahora ningún vehículo propio termina en esos dígitos).');
     this.nuevoPico = this.picoVacio();
   }
 

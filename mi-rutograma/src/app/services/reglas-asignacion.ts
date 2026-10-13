@@ -93,3 +93,41 @@ export function reglasIncumplidas(v: any, data: any): string[] {
   return avisos;
 }
 
+
+export interface PicoProximo { placa: string; fecha: string; enDias: number; cuando: string; dia: string; desde: string; hasta: string; nota: string; ultimo: string; viajes: number; }
+
+/** Vehículos propios a los que una regla de pico y placa les aplica (por el último dígito). */
+export function vehiculosConPico(regla: any, vehiculos: any[]): string[] {
+  const digitos = String(regla?.digitos || '').split(/[^0-9]+/).filter(Boolean);
+  return (vehiculos || []).map(v => String(v.p ?? v.placa ?? '').toUpperCase().trim())
+    .filter(p => p && !esPlacaCupo(p) && digitos.includes(p.replace(/\D/g, '').slice(-1)));
+}
+
+/**
+ * Pico y placa de los próximos días (hoy, mañana… hasta diasAviso): un aviso
+ * por vehículo, el más cercano. Cuenta cuántos viajes tiene ese día para
+ * que se revise la hora de salida.
+ */
+export function picoPlacaProximos(vehiculos: any[], picoPlaca: any[], viajes: any[] = [], hoy: Date = new Date(), diasAviso = 2): PicoProximo[] {
+  const out: PicoProximo[] = [];
+  const vistos = new Set<string>();
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  for (let n = 0; n <= diasAviso; n++) {
+    const f = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + n);
+    const dia = DIAS[f.getDay()], fecha = iso(f);
+    for (const r of picoPlaca || []) {
+      if (!(r.dias || []).includes(dia) || !HORA.test(String(r.desde || '')) || !HORA.test(String(r.hasta || ''))) continue;
+      // Hoy, si el horario ya pasó, no se avisa.
+      if (n === 0 && hoy.getHours() * 60 + hoy.getMinutes() >= aMinutos(r.hasta)) continue;
+      for (const placa of vehiculosConPico(r, vehiculos)) {
+        if (vistos.has(placa)) continue;
+        vistos.add(placa);
+        const deEseDia = (viajes || []).filter(v => String(v.fecha || '').slice(0, 10) === fecha && pegada(v.p ?? v.placa) === pegada(placa)
+          && !['Cancelado', 'Mantenimiento'].includes(v.estado)).length;
+        out.push({ placa, fecha, enDias: n, cuando: n === 0 ? 'hoy' : n === 1 ? 'mañana' : `en ${n} días`, dia: NOMBRE_DIA[dia],
+          desde: dosDigitos(r.desde), hasta: dosDigitos(r.hasta), nota: String(r.nota || ''), ultimo: placa.replace(/\D/g, '').slice(-1), viajes: deEseDia });
+      }
+    }
+  }
+  return out;
+}

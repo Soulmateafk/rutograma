@@ -16,6 +16,7 @@ import { ContarDirective } from '../../directivas/contar';
 import { ThemeService } from '../../services/theme.service';
 import { SonidoService } from '../../services/sonido.service';
 import { inject } from '@angular/core';
+import { picoPlacaProximos } from '../../services/reglas-asignacion';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -1195,6 +1196,16 @@ export class Dashboard implements OnInit, OnDestroy {
     urgsSemana.forEach((vj: any) => {
       const r = rutas.find((x: any) => x.cod === vj.ruta);
       this.alertas.push({ t: 'r', ic: '<i class="bi bi-exclamation-octagon-fill"></i>', tt: 'URGENTE: ' + vj.placa + ' > ' + (r ? r.dest : vj.ruta), d: vj.cli });
+    });
+
+    // Pico y placa de hoy a pasado mañana (Reglas): aviso morado, solo si falta poco.
+    picoPlacaProximos(this.ds.S?.vehiculos || [], this.ds.S?.picoPlaca || [], this.ds.S?.viajes || []).forEach(pp => {
+      const [, m, d] = pp.fecha.split('-');
+      this.alertas.push({ t: 'p', ic: '<i class="bi bi-sign-stop-fill"></i>',
+        tt: `Pico y placa ${pp.cuando}: ${pp.placa}`,
+        d: `${pp.dia.charAt(0).toUpperCase() + pp.dia.slice(1)} ${Number(d)}/${Number(m)} de ${pp.desde} a ${pp.hasta} (termina en ${pp.ultimo})`
+          + (pp.viajes ? ` — tiene ${pp.viajes} viaje${pp.viajes > 1 ? 's' : ''} ese día: revisa la hora de salida` : ' — sin viajes ese día')
+          + (pp.nota ? ` · ${pp.nota}` : '') });
     });
 
     this.alertasCriticasCount = this.alertas.filter(a => a.t === 'r').length;
