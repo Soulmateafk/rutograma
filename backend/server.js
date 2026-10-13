@@ -44,6 +44,8 @@ const { faltasDeClave, mensajeClave, errorNombre, errorEmail, errorDepartamento,
 require('dotenv').config();
 const nodemailer = require('nodemailer');
 const cierreSemana = require('./cierre-semana');
+const tareasEquipo = require('./tareas');
+const { horaReal, notaSinSenal } = require('./sin-senal');
 
 const app = express();
 
@@ -3438,8 +3440,8 @@ app.post('/api/mis-viajes/novedad', (req, res) => {
             id: idNovedad,
             tipo: TIPOS_NOVEDAD_CONDUCTOR[tipo],
             titulo: [tipo, placa, r.conductor.nombre].filter(Boolean).join(' · '),
-            desc: desc + (viaje ? ` — Viaje del ${viaje.fecha}, ruta ${viaje.ruta}${viaje.destino ? ' a ' + viaje.destino : ''}.` : ''),
-            fecha: new Date().toLocaleString('es-CO'),
+            desc: desc + (viaje ? ` — Viaje del ${viaje.fecha}, ruta ${viaje.ruta}${viaje.destino ? ' a ' + viaje.destino : ''}.` : '') + notaSinSenal(horaReal(b.cuando)),
+            fecha: (horaReal(b.cuando) || new Date()).toLocaleString('es-CO'),
             resuelta: false,
             ...(fotoJpeg ? { foto: true } : {})
         };
@@ -3568,6 +3570,103 @@ app.get('/api/clima', async (req, res) => {
         climaCache = { en: Date.now() - 10 * 60000, datos: climaCache.datos };
         res.json({ ok: false, ...(climaCache.datos || {}) });
     }
+});
+
+// ============================================================
+// TAREAS DEL EQUIPO (tareas.js) — se guardan aparte (data/tareas.json),
+// iguales en modo Real y Prueba, y no pasan por la cola de aprobaciones
+// (no tocan la operación). A quien se le asigna le llega un correo.
+// ============================================================
+const ARCHIVO_TAREAS = path.join(CARPETA_DATOS, 'tareas.json');
+const leerTareas = () => { try { return JSON.parse(fs.readFileSync(ARCHIVO_TAREAS, 'utf8')); } catch { return []; } };
+const guardarTareas = (lista) => fs.writeFileSync(ARCHIVO_TAREAS, JSON.stringify(lista.slice(0, 2000), null, 1));
+const quienTareas = (req) => {
+    const email = correoDeQuienPide(req);
+    if (!email) return null;
+    const esAdmin = email === normalizarEmail(ADMIN_EMAIL);
+    const cuenta = (leerExcel().usuarios || []).find(u => normalizarEmail(u.email) === email) || null;
+    if (!cuenta && !esAdmin) return null;
+    const rol = rolDeCuenta(cuenta, esAdmin);
+    if (rol === 'conductor' || rol === 'despachos') return null;
+    return { email, esJefe: !!permisosDeCuenta(cuenta, esAdmin).aprobarCambios, nombre: cuenta?.nombre || 'Administrador' };
+};
+const personasTareas = () => {
+    const lista = (leerExcel().usuarios || [])
+        .filter(u => u.estado === 'APPROVED' && !['conductor', 'despachos'].includes(rolDeCuenta(u, false)))
+        .map(u => ({ email: normalizarEmail(u.email), nombre: u.nombre || u.email }));
+    if (!lista.some(p => p.email === normalizarEmail(ADMIN_EMAIL))) lista.push({ email: normalizarEmail(ADMIN_EMAIL), nombre: 'Administrador' });
+    return lista.sort((a, b) => a.nombre.localeCompare(b.nombre));
+};
+const nombreDe = (email) => personasTareas().find(p => p.email === email)?.nombre || email;
+
+app.get('/api/tareas', (req, res) => {
+    const yo = quienTareas(req);
+    if (!yo) return res.status(403).json({ ok: false, msg: 'Las tareas son para las cuentas de la oficina.' });
+    res.setHeader('Cache-Control', 'no-store');
+    res.locals.auditoriaOmitir = true;
+    return res.json({ ok: true, yo: yo.email, esJefe: yo.esJefe, personas: personasTareas(), tareas: tareasEquipo.ordenar(leerTareas(), fechaLocalISO(new Date())) });
+});
+
+app.post('/api/tareas', (req, res) => {
+    const yo = quienTareas(req);
+    if (!yo) return res.status(403).json({ ok: false, msg: 'Las tareas son para las cuentas de la oficina.' });
+    const lista = leerTareas();
+    const anterior = req.body?.id ? lista.find(t => t.id === req.body.id) : null;
+    if (req.body?.id && !anterior) return res.status(404).json({ ok: false, msg: 'Esa tarea ya no existe.' });
+    if (anterior && !tareasEquipo.puedeTocar(anterior, yo.email, yo.esJefe)) return res.status(403).json({ ok: false, msg: 'Solo quien la creó, a quien se le asignó o un jefe pueden cambiarla.' });
+    const { tarea, error } = tareasEquipo.validarTarea(req.body || {}, anterior);
+    if (error) return res.status(400).json({ ok: false, msg: error });
+    let guardada;
+    if (anterior) { Object.assign(anterior, tarea, { editadaEn: new Date().toISOString() }); guardada = anterior; }
+    else { guardada = tareasEquipo.nuevaTarea(tarea, yo.email); lista.unshift(guardada); }
+    guardarTareas(lista);
+    // Aviso por correo a quien le toca (si no se la asignó a sí mismo).
+    if (guardada.para !== yo.email && (!anterior || anterior.para !== guardada.para || !req.body.id)) {
+        avisarPorCorreo(guardada.para, 'Tienes una tarea nueva',
+            `<strong>${escaparHtml(yo.nombre)}</strong> te asignó: ${escaparHtml(guardada.titulo)}${guardada.vence ? ` — para el <strong>${escaparHtml(guardada.vence)}</strong>` : ''}${guardada.prioridad === 'alta' ? ' <strong style="color:#b91c1c;">(prioridad alta)</strong>' : ''}`,
+            '<p>La ves en el Rutograma, pestaña <strong>Tareas</strong>.</p>');
+    }
+    return res.json({ ok: true, tarea: guardada });
+});
+
+app.post('/api/tareas/estado', (req, res) => {
+    const yo = quienTareas(req);
+    if (!yo) return res.status(403).json({ ok: false, msg: 'Las tareas son para las cuentas de la oficina.' });
+    const lista = leerTareas();
+    const t = lista.find(x => x.id === req.body?.id);
+    if (!t) return res.status(404).json({ ok: false, msg: 'Esa tarea ya no existe.' });
+    if (!tareasEquipo.puedeTocar(t, yo.email, yo.esJefe)) return res.status(403).json({ ok: false, msg: 'Solo quien la creó, a quien se le asignó o un jefe pueden marcarla.' });
+    t.hecha = !!req.body.hecha;
+    t.hechaEn = t.hecha ? new Date().toISOString() : '';
+    t.hechaPor = t.hecha ? yo.email : '';
+    guardarTareas(lista);
+    if (t.hecha && t.de !== yo.email) avisarPorCorreo(t.de, 'Una tarea quedó hecha', `<strong>${escaparHtml(yo.nombre)}</strong> terminó: ${escaparHtml(t.titulo)}`);
+    return res.json({ ok: true, tarea: t });
+});
+
+app.post('/api/tareas/comentar', (req, res) => {
+    const yo = quienTareas(req);
+    if (!yo) return res.status(403).json({ ok: false, msg: 'Las tareas son para las cuentas de la oficina.' });
+    const texto = String(req.body?.texto || '').trim().slice(0, 600);
+    if (!texto) return res.status(400).json({ ok: false, msg: 'Escribe el comentario.' });
+    const lista = leerTareas();
+    const t = lista.find(x => x.id === req.body?.id);
+    if (!t) return res.status(404).json({ ok: false, msg: 'Esa tarea ya no existe.' });
+    t.comentarios = [...(t.comentarios || []), { de: yo.email, nombre: nombreDe(yo.email), texto, en: new Date().toISOString() }].slice(-50);
+    guardarTareas(lista);
+    for (const otro of new Set([t.de, t.para])) if (otro && otro !== yo.email) avisarPorCorreo(otro, 'Comentario en una tarea', `<strong>${escaparHtml(yo.nombre)}</strong> en "${escaparHtml(t.titulo)}": ${escaparHtml(texto)}`);
+    return res.json({ ok: true, tarea: t });
+});
+
+app.post('/api/tareas/borrar', (req, res) => {
+    const yo = quienTareas(req);
+    if (!yo) return res.status(403).json({ ok: false, msg: 'Las tareas son para las cuentas de la oficina.' });
+    const lista = leerTareas();
+    const t = lista.find(x => x.id === req.body?.id);
+    if (!t) return res.json({ ok: true });
+    if (!(yo.esJefe || t.de === yo.email)) return res.status(403).json({ ok: false, msg: 'Solo quien la creó o un jefe pueden borrarla.' });
+    guardarTareas(lista.filter(x => x.id !== t.id));
+    return res.json({ ok: true });
 });
 
 app.get('/api/usuarios/nombres', (req, res) => {
@@ -3942,11 +4041,12 @@ app.post('/api/mis-viajes/marcar', (req, res) => {
         }
         const viaje = (data.viajes || []).find(v => v.id === b.id);
         if (!viaje) return res.status(404).json({ ok: false, msg: 'Viaje no encontrado.' });
-        const hoy = fechaLocal();
-        const ayer = fechaLocal(new Date(Date.now() - 86400000));
-        const manana = fechaLocal(new Date(Date.now() + 86400000));
-        const ahora = new Date().toISOString();
         const accion = String(b.accion || '');
+        // Sin señal: el celular manda la hora en que de verdad se tocó el botón (ver sin-senal.js).
+        const real = accion !== 'deshacer' ? (horaReal(b.cuando) || new Date()) : new Date();
+        const ayer = fechaLocal(new Date(real.getTime() - 86400000));
+        const manana = fechaLocal(new Date(real.getTime() + 86400000));
+        const ahora = real.toISOString();
 
         if (accion === 'salida') {
             if (viaje.estado === 'Cancelado') return res.status(400).json({ ok: false, msg: 'Este viaje está cancelado.' });
@@ -3957,7 +4057,7 @@ app.post('/api/mis-viajes/marcar', (req, res) => {
         } else if (accion === 'llegada') {
             if (!viaje.salidaReal) return res.status(400).json({ ok: false, msg: 'Primero marca "Ya salí".' });
             if (viaje.llegadaReal) return res.status(400).json({ ok: false, msg: 'Ya habías marcado la llegada.' });
-            viaje.llegadaReal = ahora;
+            viaje.llegadaReal = new Date(viaje.salidaReal) > real ? viaje.salidaReal : ahora;
             if (viaje.estado !== 'Cancelado') viaje.estado = 'Entregado';
         } else if (accion === 'deshacer') {
             const campo = viaje.llegadaReal ? 'llegadaReal' : (viaje.salidaReal ? 'salidaReal' : '');
@@ -3971,7 +4071,7 @@ app.post('/api/mis-viajes/marcar', (req, res) => {
             return res.status(400).json({ ok: false, msg: 'Acción inválida.' });
         }
         viaje.editadoPor = normalizarEmail(req.headers['x-user-email']);
-        viaje.editadoEn = ahora;
+        viaje.editadoEn = new Date().toISOString();
         guardarEnExcel(data);
         res.locals.auditoriaResumen = { id: viaje.id, placa: viaje.p || viaje.placa, ruta: viaje.ruta, fecha: viaje.fecha, accion, conductor: r.conductor.nombre };
         console.log(`🚚 ${r.conductor.nombre} marcó ${accion} del viaje ${viaje.id}`);

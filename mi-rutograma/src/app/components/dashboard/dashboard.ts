@@ -17,6 +17,7 @@ import { inject } from '@angular/core';
 import { picoPlacaProximos } from '../../services/reglas-asignacion';
 import { PlanBComponent } from '../plan-b/plan-b';
 import { CierreSemanaComponent } from '../cierre-semana/cierre-semana';
+import { TareasService } from '../../services/tareas.service';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -1234,11 +1235,19 @@ export class Dashboard implements OnInit, OnDestroy {
     return propias.find((p: string) => (directa && pegada(p) === directa) || texto.includes(pegada(p))) || '';
   }
 
+
   // --- Plan B (alertas): reasignar los viajes del vehículo afectado ---
   public planBPlaca: string | null = null;
 
   // --- Cierre de semana: el botón se marca de viernes (2 p. m.) a domingo ---
   public cierreAbierto = false;
+  public tareas = inject(TareasService);
+  /** Tareas tuyas para hoy o vencidas (se actualiza solo cuando llegan las tareas). */
+  public get textoTareas(): { tt: string; d: string } | null {
+    const u = this.tareas.urgentesMias(); if (!u.length) return null;
+    const hoyT = this.aISO(new Date()); const venc = u.filter(t => t.vence < hoyT).length;
+    return { tt: `Tienes ${u.length} tarea${u.length === 1 ? '' : 's'} para hoy${venc ? ` (${venc} vencida${venc === 1 ? '' : 's'})` : ''}`, d: u.slice(0, 3).map(t => t.titulo).join(' · ') };
+  }
   public get cierreListo(): boolean { const d = new Date(); return (d.getDay() === 5 && d.getHours() >= 14) || d.getDay() === 6 || d.getDay() === 0; }
 
   // --- HELPERS TRADICIONALES DE SOPORTE ---

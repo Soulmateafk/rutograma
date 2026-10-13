@@ -88,6 +88,9 @@
       <img *ngIf="theme.ap.foto" [src]="theme.ap.foto" alt="">
       <ng-container *ngIf="!theme.ap.foto">{{ theme.ap.avatar || inicialYo }}</ng-container>
     </button>
+    <a class="btn sm nav-tareas" data-guia="nav-tareas" routerLink="/tareas" routerLinkActive="on" [class.urgente]="tareas.urgentesMias().length" [title]="tareas.mias().length ? 'Tienes ' + tareas.mias().length + ' tarea(s) pendiente(s)' + (tareas.urgentesMias().length ? ', ' + tareas.urgentesMias().length + ' para hoy o vencidas' : '') : 'Tareas del equipo'">
+      <i class="bi bi-check2-square"></i><span class="nav-notas-num" *ngIf="tareas.mias().length">{{ tareas.mias().length }}</span>
+    </a>
     <button class="btn sm nav-notas" data-guia="nav-notas" [class.on]="theme.notasAbiertas()" title="Mis notas (B)" (click)="theme.notasAbiertas.update(v => !v)">
       <i class="bi bi-sticky"></i><span class="nav-notas-num" *ngIf="notasPendientes">{{ notasPendientes }}</span>
     </button>

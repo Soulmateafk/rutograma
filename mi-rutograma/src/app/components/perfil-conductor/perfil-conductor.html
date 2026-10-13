@@ -1,0 +1,77 @@
+<div class="pc-pagina" *ngIf="p() as p">
+  <button class="pc-volver" routerLink="/conductores"><i class="bi bi-arrow-left"></i> Conductores</button>
+
+  <div class="pc-cab">
+    <div class="pc-avatar">{{ iniciales() }}</div>
+    <div class="pc-quien">
+      <h2>{{ p.nombre }}</h2>
+      <div class="pc-datos">
+        <span *ngIf="p.conductor?.ced"><i class="bi bi-person-vcard"></i> {{ p.conductor.ced }}</span>
+        <span *ngIf="p.conductor?.veh"><i class="bi bi-truck"></i> {{ p.conductor.veh }}</span>
+        <span *ngIf="p.conductor?.est" class="pc-estado">{{ p.conductor.est | titlecase }}</span>
+        <span class="pc-lic" [ngClass]="licencia().clase"><i class="bi bi-card-heading"></i> {{ licencia().texto }}</span>
+      </div>
+      <div class="pc-desde">En la app desde {{ desde(p.primerViaje) }} · último viaje {{ fecha(p.ultimoViaje) }}</div>
+      <div class="pc-ideal" *ngIf="p.idealPara.length"><i class="bi bi-stars"></i> Conoce bien: <b *ngFor="let d of p.idealPara; let u = last">{{ d }}{{ u ? '' : ', ' }}</b></div>
+    </div>
+    <div class="pc-botones">
+      <a *ngIf="telefono()" class="pc-btn" [href]="'tel:' + telefono()"><i class="bi bi-telephone"></i> Llamar</a>
+      <a *ngIf="whatsapp()" class="pc-btn pc-wa" [href]="whatsapp()" target="_blank"><i class="bi bi-whatsapp"></i> WhatsApp</a>
+      <a class="pc-btn" [routerLink]="['/agenda', p.nombre]"><i class="bi bi-calendar3"></i> Agenda</a>
+      <a class="pc-btn" routerLink="/tareas" [queryParams]="{ nueva: 'conductor:' + p.nombre }"><i class="bi bi-check2-square"></i> Tarea</a>
+    </div>
+  </div>
+
+  <div class="pc-kpis">
+    <div class="pc-kpi"><strong [appContar]="p.total"></strong><span>viajes en total</span></div>
+    <div class="pc-kpi"><strong [appContar]="p.esteMes"></strong><span>este mes</span></div>
+    <div class="pc-kpi"><strong [appContar]="p.diasEnRuta"></strong><span>días en ruta</span></div>
+    <div class="pc-kpi"><strong [appContar]="p.destinos.length"></strong><span>destinos distintos</span></div>
+    <div class="pc-kpi"><strong [appContar]="p.clientes.length"></strong><span>clientes</span></div>
+    <div class="pc-kpi" [class.malo]="p.comparendos.length"><strong>{{ p.comparendos.length }}</strong><span>comparendos</span></div>
+  </div>
+
+  <div class="pc-grid">
+    <div class="pc-caja">
+      <h3><i class="bi bi-signpost-split"></i> Rutas que más conoce</h3>
+      <div class="pc-barra" *ngFor="let r of p.rutas.slice(0, 7)" [title]="'Última vez: ' + fecha(r.ultima, true)"><span>{{ r.nombre }}</span><div><i [style.width.%]="ancho(r.n, max(p.rutas))"></i></div><b>{{ r.n }}</b></div>
+      <p class="pc-vacio" *ngIf="!p.rutas.length">Todavía no tiene viajes hechos.</p>
+    </div>
+    <div class="pc-caja">
+      <h3><i class="bi bi-geo-alt"></i> Destinos</h3>
+      <div class="pc-barra" *ngFor="let r of p.destinos.slice(0, 7)" [title]="'Última vez: ' + fecha(r.ultima, true)"><span>{{ r.nombre }}</span><div><i class="v2" [style.width.%]="ancho(r.n, max(p.destinos))"></i></div><b>{{ r.n }}</b></div>
+    </div>
+    <div class="pc-caja">
+      <h3><i class="bi bi-shop"></i> Clientes donde ha entregado</h3>
+      <div class="pc-chips"><span *ngFor="let c of p.clientes" [title]="'Última vez: ' + fecha(c.ultima, true)">{{ c.nombre }} <b>{{ c.n }}</b></span></div>
+      <h3 style="margin-top:14px"><i class="bi bi-truck"></i> Vehículos que ha manejado</h3>
+      <div class="pc-chips"><a *ngFor="let v of p.vehiculos" [routerLink]="['/hoja-de-vida', v.nombre]">{{ v.nombre }} <b>{{ v.n }}</b></a></div>
+    </div>
+    <div class="pc-caja">
+      <h3><i class="bi bi-bar-chart"></i> Viajes por mes</h3>
+      <div class="pc-meses">
+        <div class="pc-mes" *ngFor="let m of p.porMes" [title]="m.n + ' viajes'"><b>{{ m.n }}</b><div class="pc-mes-pista"><i [style.height.%]="ancho(m.n, max(p.porMes))"></i></div><span>{{ m.etiqueta }}</span></div>
+      </div>
+    </div>
+    <div class="pc-caja">
+      <h3><i class="bi bi-calendar-week"></i> Próximos viajes</h3>
+      <div class="pc-viaje" *ngFor="let v of p.proximos" (click)="abrirViaje(v)"><b>{{ fecha(v.fecha) }}</b> {{ v.ruta || v.codigo }} <small>{{ v.p || v.placa }} · {{ v.destino }}</small></div>
+      <p class="pc-vacio" *ngIf="!p.proximos.length">No tiene viajes programados.</p>
+      <h3 style="margin-top:14px"><i class="bi bi-clock-history"></i> Últimos viajes</h3>
+      <div class="pc-viaje" *ngFor="let v of p.recientes" (click)="abrirViaje(v)"><b>{{ fecha(v.fecha) }}</b> {{ v.ruta || v.codigo }} <small>{{ v.estado }}</small></div>
+    </div>
+    <div class="pc-caja">
+      <h3><i class="bi bi-shield-check"></i> Calidad</h3>
+      <div class="pc-calidad">
+        <div><strong>{{ p.novedades.length }}</strong><span>novedades</span></div>
+        <div><strong>{{ p.comparendos.length }}</strong><span>comparendos{{ p.valorComparendos ? ' · $' + (p.valorComparendos | number:'1.0-0':'es') : '' }}</span></div>
+        <div><strong>{{ p.quejas.length }}</strong><span>quejas</span></div>
+        <div><strong>{{ p.cancelados }}</strong><span>viajes cancelados</span></div>
+      </div>
+      <div class="pc-nov" *ngFor="let n of p.novedades.slice(0, 4)"><i class="bi bi-lightning-charge"></i> {{ n.tipo }}: {{ n.titulo }} <small>{{ n.resuelta ? 'resuelta' : 'sin resolver' }}</small></div>
+      <div class="pc-nov" *ngFor="let c of p.comparendos.slice(0, 3)"><i class="bi bi-receipt"></i> {{ c.motivo || 'Comparendo' }} · {{ c.fecha }} <small>{{ c.pagado ? 'pagado' : 'sin pagar' }}</small></div>
+      <p class="pc-vacio" *ngIf="!p.novedades.length && !p.comparendos.length && !p.quejas.length">✨ Hoja limpia: sin novedades, comparendos ni quejas.</p>
+    </div>
+  </div>
+  <p class="pc-nota">Los viajes cuentan con el conductor anotado en el viaje o, si no tiene, con el titular del vehículo.</p>
+</div>

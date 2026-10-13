@@ -39,6 +39,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'button[title="Novedad"]', titulo: 'Novedad', texto: 'Registra un aviso: un vehículo varado, un retraso, un cambio de última hora...' },
       { el: '.nav-clima', titulo: 'El clima', texto: 'Cómo está el clima en la ciudad de la oficina y la temperatura. Si llueve, en la app caen gotitas. Se quita en Apariencia → Efectos → "Clima que se ve".' },
       { el: '.nav-navidad', titulo: 'Cuenta regresiva de Navidad', texto: 'Solo en diciembre: cuántos días faltan para Navidad. Se quita con la ×.' },
+      { el: 'nav-tareas', titulo: 'Tareas del equipo', texto: 'Las tareas que te asignaron (o que te anotaste). El número dice cuántas tienes pendientes y se pone rojo si alguna es para hoy o ya venció.' },
       { el: 'nav-notas', titulo: 'Mis notas', texto: 'Papelitos de colores para apuntar cosas rápidas ("llamar a Polar a las 3"). Solo los ves tú y se guardan solos. También con la tecla B.' },
       { el: '.nav-yo', titulo: 'Tu foto', texto: 'Tu foto o tu dibujito. Tócala para cambiarla (se cambia en Apariencia → Mi foto).' },
       { el: 'nav-apariencia', titulo: 'Apariencia y atajos', texto: 'Tu foto, modo claro u oscuro, colores, fondo de pantalla, tipo y tamaño de letra, sonidos, barra a un lado y más, solo para tu cuenta (las demás no cambian). Desde aquí también instalas la app y ves los atajos de teclado (tecla ?).' },
@@ -238,6 +239,24 @@ export const GUIAS: Record<string, Guia> = {
     ]
   },
 
+  tareas: {
+    titulo: 'Tareas del equipo',
+    pasos: [
+      { el: '.ta-nueva', titulo: 'Nueva tarea', texto: 'Qué hay que hacer, para quién, para cuándo, si es urgente y de qué trata (un vehículo, un conductor, una ruta o un cliente). A quien se la asignas le llega un correo.' },
+      { el: '.ta-tabs', titulo: 'Para mí, las que asigné o todo el equipo', texto: 'Arriba van las vencidas y las urgentes. "Ver las hechas" muestra lo terminado.' },
+      { el: '.ta-lista', titulo: 'Cada tarea', texto: 'Toca el círculo para marcarla como hecha (quien la creó se entera). Tócala para ver el detalle, comentar, editarla o borrarla. El nombre del vehículo o conductor lleva a su hoja de vida o su perfil.' }
+    ]
+  },
+
+  conductor: {
+    titulo: 'Perfil del conductor',
+    pasos: [
+      { el: '.pc-cab', titulo: 'Quién es', texto: 'Sus datos, la licencia, desde cuándo tiene viajes en la app y los destinos que mejor conoce. Desde aquí lo llamas, le escribes por WhatsApp, ves su agenda o le creas una tarea.' },
+      { el: '.pc-kpis', titulo: 'Sus números', texto: 'Viajes en total y este mes, días en ruta, destinos y clientes distintos y comparendos.' },
+      { el: '.pc-grid', titulo: 'Su historia', texto: 'Rutas, destinos y clientes que más conoce (para asignar al que conoce el camino), vehículos que ha manejado, viajes por mes, próximos y últimos viajes y su calidad: novedades, comparendos y quejas.' }
+    ]
+  },
+
   presentacion: {
     titulo: 'Modo presentación',
     pasos: [
@@ -271,7 +290,7 @@ export const GUIAS: Record<string, Guia> = {
     pasos: [
       { el: 'mv-identificar', titulo: 'Identifícate', texto: 'Escribe tu nombre y la placa del vehículo. Luego confirmas que la información sea correcta.' },
       { el: 'mv-confirmar', titulo: 'Confirma que eres tú', texto: 'Revisa que el nombre y la placa sean los tuyos y toca confirmar. Si no, vuelve atrás y escríbelos otra vez.' },
-      { el: 'mv-cabecera', titulo: 'Tu cuenta', texto: 'Tu nombre y tu vehículo. Con los botones actualizas o cierras sesión.' },
+      { el: 'mv-cabecera', titulo: 'Tu cuenta', texto: 'Tu nombre y tu vehículo. Con los botones actualizas o cierras sesión. Si te quedas sin señal, igual ves tu ruta guardada y puedes marcar "Ya salí", "Ya llegué" o reportar novedades: se envían solos cuando vuelva la señal, con la hora en que los tocaste.' },
       { el: 'mv-foto', titulo: 'Foto de tus viajes', texto: 'Descarga una imagen con tus viajes para tenerla a mano o compartirla.' },
       { el: 'mv-calendario', titulo: 'Tu calendario', texto: 'Descarga tus viajes de hoy en adelante para agregarlos al calendario del celular. Si te cambian un viaje, vuelve a descargarlo y se actualiza.' },
       { el: 'mv-anuncios', titulo: 'Avisos de la oficina', texto: 'Lo que la oficina publica para los conductores (por ejemplo, un cierre de vía). Léelo antes de salir.' },

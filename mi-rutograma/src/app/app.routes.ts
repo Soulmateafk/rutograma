@@ -34,6 +34,8 @@ export const routes: Routes = [
   { path: 'configuracion', loadComponent: () => import('./components/configuracion/configuracion').then(m => m.Configuracion), canActivate: [authGuard] },
   { path: 'historico', loadComponent: () => import('./components/historico/historico').then(m => m.Historico), canActivate: [authGuard] },
   { path: 'comparativo', loadComponent: () => import('./components/comparativo/comparativo').then(m => m.Comparativo), canActivate: [authGuard] },
+  { path: 'tareas', loadComponent: () => import('./components/tareas/tareas').then(m => m.TareasComponent), canActivate: [authGuard] },
+  { path: 'conductor/:nombre', loadComponent: () => import('./components/perfil-conductor/perfil-conductor').then(m => m.PerfilConductorComponent), canActivate: [authGuard] },
   { path: 'presentacion', loadComponent: () => import('./components/presentacion/presentacion').then(m => m.PresentacionComponent), canActivate: [authGuard] },
   { path: 'cumplimiento', loadComponent: () => import('./components/cumplimiento/cumplimiento').then(m => m.CumplimientoComponent), canActivate: [authGuard] },
   { path: 'resumen', loadComponent: () => import('./components/resumen/resumen').then(m => m.ResumenComponent), canActivate: [authGuard] },

@@ -344,7 +344,8 @@
 </div>
 
 <!-- Conexión con el servidor (services/conexion.service.ts). -->
-<div class="ap-conexion sin" *ngIf="conexion.estado() === 'sin'" animate.leave="ap-ocultar" role="status">
+<!-- El conductor tiene su propio aviso en Mis viajes (ruta guardada). -->
+<div class="ap-conexion sin" *ngIf="conexion.estado() === 'sin' && !auth.esConductor" animate.leave="ap-ocultar" role="status">
   <i class="bi bi-wifi-off ap-conexion-icono"></i>
   <span><strong>Sin conexión con el servidor.</strong> Revisa la señal o Tailscale. Los cambios de viajes y despachos se guardan aquí y se envían solos al volver.</span>
   <button class="ap-conexion-btn" (click)="conexion.revisar()" [disabled]="conexion.reintentando()">

@@ -27,6 +27,7 @@ interface DiaConViajes { fecha: string; titulo: string; esHoy: boolean; descanso
 import { armarIcs } from '../../services/calendario-ics';
 import { API } from '../../api-base';
 import { ThemeService } from '../../services/theme.service';
+import { agregarPendiente, borrarTodoSinSenal, esFaltaDeSenal, guardarCopia, leerCopia, leerPendientes, prepararAppSinSenal, quitarPendiente, Pendiente } from '../../services/sin-senal';
 @Component({
   selector: 'app-mis-viajes',
   standalone: true,
@@ -71,16 +72,75 @@ export class MisViajesComponent implements OnInit, OnDestroy {
       const guardado = sessionStorage.getItem(MisViajesComponent.CLAVE_ELEGIDO);
       if (guardado) this.elegido = JSON.parse(guardado);
     } catch { /* sin almacenamiento: se vuelve a preguntar */ }
+    this.pendientes = leerPendientes();
     this.cargar();
     this.reloj = setInterval(() => { if (document.visibilityState === 'visible') this.cargar(true); }, 60000);
+    window.addEventListener('online', this.alVolverSenal);
   }
 
   ngOnDestroy(): void {
     if (this.reloj) clearInterval(this.reloj);
+    window.removeEventListener('online', this.alVolverSenal);
+  }
+
+  // ---------- Sin señal (ver services/sin-senal.ts) ----------
+
+  /** Hora en que se guardó la ruta que se está viendo sin señal (null = con señal). */
+  sinSenalDesde: Date | null = null;
+  /** Lo que se tocó sin señal y espera para enviarse. */
+  pendientes: Pendiente[] = [];
+  private appPreparada = false;
+  private enviandoPendientes = false;
+  private alVolverSenal = () => this.cargar(true);
+
+  get textoPendientes(): string {
+    return this.pendientes.map(p => p.texto).join(', ');
+  }
+
+  private get correo(): string { return String(this.auth.currentUser?.email || ''); }
+
+  /** Envía en orden lo guardado sin señal. Se detiene si la señal se vuelve a ir. */
+  private async enviarPendientes(): Promise<void> {
+    if (this.enviandoPendientes || !leerPendientes().length) return;
+    this.enviandoPendientes = true;
+    let enviados = 0;
+    try {
+      for (const p of leerPendientes()) {
+        const url = `${API_URL}/mis-viajes/${p.tipo === 'marcar' ? 'marcar' : 'novedad'}`;
+        let res: Response;
+        try {
+          res = await this.auth.fetchAutenticado(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...p.body, cuando: p.cuando }) });
+        } catch { break; } // sin señal otra vez: se intenta en el próximo minuto
+        if (res.status >= 500 || res.status === 401) break;
+        quitarPendiente(p.id);
+        if (res.ok) enviados++;
+        else {
+          const data = await res.json().catch(() => null);
+          this.ui.mostrarToast(`No se pudo enviar "${p.texto}": ${data?.msg || 'la oficina no lo aceptó.'}`, 'err');
+        }
+      }
+    } finally {
+      this.enviandoPendientes = false;
+      this.pendientes = leerPendientes();
+    }
+    if (enviados) this.ui.mostrarToast(`Volvió la señal: se envió ${enviados === 1 ? 'lo que guardaste' : `lo que guardaste (${enviados})`} sin señal.`, 'ok');
+  }
+
+  /** Muestra encima de los viajes lo marcado sin señal que aún no se envía. */
+  private ponerPendientesEnViajes(): void {
+    const viajes = this.dias.flatMap(d => d.viajes);
+    for (const p of this.pendientes) {
+      if (p.tipo !== 'marcar') continue;
+      const v = viajes.find((x: any) => x.id === p.body.id);
+      if (!v) continue;
+      if (p.body.accion === 'salida' && !v.salidaReal) { v.salidaReal = p.cuando; v.estado = 'En ruta'; v.porEnviar = true; }
+      if (p.body.accion === 'llegada' && !v.llegadaReal) { v.llegadaReal = p.cuando; v.estado = 'Entregado'; v.porEnviar = true; }
+    }
   }
 
   async cargar(silencioso = false): Promise<void> {
     if (!silencioso) { this.cargando = true; this.cdr.markForCheck(); }
+    await this.enviarPendientes();
     try {
       const params = this.elegido ? `?ced=${encodeURIComponent(this.elegido.ced)}&placa=${encodeURIComponent(this.elegido.placa)}` : '';
       const res = await this.auth.fetchAutenticado(`${API_URL}/mis-viajes${params}`);
@@ -98,23 +158,43 @@ export class MisViajesComponent implements OnInit, OnDestroy {
           this.olvidarElegido();
           if (data.msg) this.error = data.msg;
         } else {
-          this.paso = 'viajes';
-          this.conductor = data.conductor || null;
-          this.buscadoPor = data.buscadoPor || '';
-          this.placaBuscada = data.placaBuscada || '';
-          this.dias = this.agruparPorDia(data.viajes || []);
-          this.quitados = data.quitados || [];
-          this.hayAvisos = !!data.hayAvisos;
-          this.anuncios = data.anuncios || [];
-          this.cuentaAvisos = (data.viajes || []).filter((v: any) => v.aviso).reduce((n: any, v: any) => { n[v.aviso.tipo] = (n[v.aviso.tipo] || 0) + 1; return n; }, {});
+          this.mostrarViajes(data);
           this.ultimaActualizacion = new Date();
+          this.sinSenalDesde = null;
+          guardarCopia(this.correo, this.elegido, data);
+          if (!this.appPreparada) { this.appPreparada = true; prepararAppSinSenal(); }
         }
       }
-    } catch {
-      if (!silencioso) this.error = 'Sin conexión con el servidor. Inténtalo de nuevo en un momento.';
+    } catch (e) {
+      // Sin señal: se muestra la última ruta guardada en el celular.
+      const copia = esFaltaDeSenal(e) ? leerCopia(this.correo) : null;
+      if (copia) {
+        if (!this.elegido && copia.elegido) this.elegido = copia.elegido;
+        this.mostrarViajes(copia.data);
+        this.compartida = !!copia.data.compartida;
+        this.sinSenalDesde = new Date(copia.guardadoEn);
+        this.ultimaActualizacion = this.sinSenalDesde;
+        this.error = '';
+      } else if (!silencioso) {
+        this.error = 'Sin conexión con el servidor. Inténtalo de nuevo en un momento.';
+      }
     }
     this.cargando = false;
     this.cdr.markForCheck();
+  }
+
+  private mostrarViajes(data: any): void {
+    this.paso = 'viajes';
+    this.conductor = data.conductor || null;
+    this.buscadoPor = data.buscadoPor || '';
+    this.placaBuscada = data.placaBuscada || '';
+    this.dias = this.agruparPorDia(data.viajes || []);
+    this.quitados = data.quitados || [];
+    this.hayAvisos = !!data.hayAvisos;
+    this.anuncios = data.anuncios || [];
+    this.cuentaAvisos = (data.viajes || []).filter((v: any) => v.aviso).reduce((n: any, v: any) => { n[v.aviso.tipo] = (n[v.aviso.tipo] || 0) + 1; return n; }, {});
+    this.pendientes = leerPendientes();
+    this.ponerPendientesEnViajes();
   }
 
   private iso(d: Date): string {
@@ -335,11 +415,27 @@ export class MisViajesComponent implements OnInit, OnDestroy {
       } else {
         this.ui.mostrarToast(data?.msg || 'No se pudo enviar. Inténtalo de nuevo.', 'err');
       }
-    } catch {
-      this.ui.mostrarToast('Sin conexión: no se pudo enviar. Si es urgente, llama a la oficina.', 'err');
+    } catch (e) {
+      if (esFaltaDeSenal(e) && this.guardarReporteSinSenal()) {
+        this.reporte = null;
+        this.ui.mostrarToast('Sin señal: quedó guardado en el celular y se enviará solo cuando vuelva la señal. Si es urgente, llama a la oficina.', 'info');
+      } else {
+        this.ui.mostrarToast('Sin conexión: no se pudo enviar. Si es urgente, llama a la oficina.', 'err');
+      }
     }
     this.enviandoReporte = false;
     this.cdr.markForCheck();
+  }
+
+  private guardarReporteSinSenal(): boolean {
+    const r = this.reporte!;
+    const nombre = this.tiposNovedad.find(t => t.valor === r.tipo)?.nombre || 'Novedad';
+    const body = { tipo: r.tipo, desc: r.desc, viajeId: r.viajeId || undefined, foto: r.foto || undefined, ...(this.elegido || {}) };
+    const base = { tipo: 'novedad' as const, cuando: new Date().toISOString(), texto: `Novedad: ${nombre}` };
+    // Si el celular no tiene espacio para la foto, se guarda sin ella.
+    const ok = agregarPendiente({ ...base, body }) || (!!body.foto && agregarPendiente({ ...base, body: { ...body, foto: undefined } }));
+    this.pendientes = leerPendientes();
+    return ok;
   }
 
   // ---------- Avisos: viajes nuevos o cambiados ----------
@@ -443,6 +539,8 @@ export class MisViajesComponent implements OnInit, OnDestroy {
 
   async marcar(v: any, accion: 'salida' | 'llegada' | 'deshacer'): Promise<void> {
     if (this.marcandoId) return;
+    // Deshacer algo que aún no se ha enviado: basta con olvidarlo.
+    if (accion === 'deshacer' && v.porEnviar) { this.deshacerSinEnviar(v); return; }
     this.marcandoId = v.id;
     this.cdr.markForCheck();
     try {
@@ -461,10 +559,36 @@ export class MisViajesComponent implements OnInit, OnDestroy {
         this.ui.mostrarToast(accion === 'salida' ? '¡Buen viaje! Quedó marcada tu salida.'
           : accion === 'llegada' ? 'Listo, quedó marcada tu llegada.' : 'Se deshizo la última marca.', 'ok');
       }
-    } catch {
-      this.ui.mostrarToast('Sin conexión: no se pudo marcar. Inténtalo de nuevo.', 'err');
+    } catch (e) {
+      if (accion !== 'deshacer' && esFaltaDeSenal(e) && this.marcarSinSenal(v, accion)) {
+        this.ui.mostrarToast(`Sin señal: tu ${accion === 'salida' ? 'salida' : 'llegada'} quedó guardada con la hora de ahora y se enviará sola cuando vuelva la señal.`, 'info');
+      } else {
+        this.ui.mostrarToast(accion === 'deshacer' ? 'Sin señal: para deshacer necesitas conexión. Avísale a la oficina si es urgente.' : 'Sin conexión: no se pudo marcar. Inténtalo de nuevo.', 'err');
+      }
     }
     this.marcandoId = null;
+    this.cdr.markForCheck();
+  }
+
+  private marcarSinSenal(v: any, accion: 'salida' | 'llegada'): boolean {
+    const cuando = new Date().toISOString();
+    const ok = agregarPendiente({ tipo: 'marcar', cuando, body: { id: v.id, accion, ...(this.elegido || {}) },
+      texto: `${accion === 'salida' ? 'Salida' : 'Llegada'} del viaje a ${v.destino || v.ruta}` });
+    if (!ok) return false;
+    if (accion === 'salida') { v.salidaReal = cuando; v.estado = 'En ruta'; } else { v.llegadaReal = cuando; v.estado = 'Entregado'; }
+    v.porEnviar = true;
+    this.pendientes = leerPendientes();
+    return true;
+  }
+
+  private deshacerSinEnviar(v: any): void {
+    const accion = v.llegadaReal ? 'llegada' : 'salida';
+    const p = [...this.pendientes].reverse().find(x => x.tipo === 'marcar' && x.body.id === v.id && x.body.accion === accion);
+    if (p) quitarPendiente(p.id);
+    if (accion === 'llegada') { v.llegadaReal = null; v.estado = 'En ruta'; } else { v.salidaReal = null; v.estado = 'Planificado'; }
+    this.pendientes = leerPendientes();
+    v.porEnviar = this.pendientes.some(x => x.tipo === 'marcar' && x.body.id === v.id);
+    this.ui.mostrarToast('Listo, se borró (todavía no se había enviado).', 'ok');
     this.cdr.markForCheck();
   }
 
@@ -491,7 +615,9 @@ export class MisViajesComponent implements OnInit, OnDestroy {
   }
 
   async salir(): Promise<void> {
+    if (this.pendientes.length && !confirm(`Tienes ${this.pendientes.length} cosa(s) guardadas sin señal que aún no se envían. Si cierras sesión se pierden. ¿Cerrar de todas formas?`)) return;
     this.olvidarElegido();
+    borrarTodoSinSenal();
     await this.auth.cerrarSesion();
   }
 }

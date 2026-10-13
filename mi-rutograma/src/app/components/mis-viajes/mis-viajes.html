@@ -19,6 +19,19 @@
   </header>
   <app-saludo-fiesta></app-saludo-fiesta>
 
+  <!-- Sin señal: se ve la última ruta guardada en el celular (services/sin-senal.ts). -->
+  <div *ngIf="!cargando && (sinSenalDesde || pendientes.length)" class="mv-sin-senal" [class.con-senal]="!sinSenalDesde" data-guia="mv-sin-senal">
+    <i class="bi" [ngClass]="sinSenalDesde ? 'bi-wifi-off' : 'bi-cloud-arrow-up'"></i>
+    <div>
+      <strong *ngIf="sinSenalDesde">Sin señal · estás viendo tu ruta guardada</strong>
+      <strong *ngIf="!sinSenalDesde">Enviando lo que guardaste sin señal…</strong>
+      <span *ngIf="sinSenalDesde">Guardada el {{ sinSenalDesde | date:'EEEE d MMM, h:mm a':'':'es' }} · Si la oficina cambió algo después, lo verás cuando vuelva la señal.</span>
+      <span *ngIf="pendientes.length">
+        {{ pendientes.length === 1 ? '1 cosa espera' : pendientes.length + ' cosas esperan' }} para enviarse: {{ textoPendientes }}. Se envía{{ pendientes.length === 1 ? '' : 'n' }} solo{{ pendientes.length === 1 ? '' : 's' }} cuando vuelva la señal.
+      </span>
+    </div>
+  </div>
+
   <app-esqueleto *ngIf="cargando" [filas]="3" tipo="lista"></app-esqueleto>
   <div *ngIf="!cargando && error" class="mv-error"><i class="bi bi-info-circle"></i> {{ error }}</div>
 
@@ -127,6 +140,7 @@
           <div class="mv-marcas" *ngIf="v.salidaReal || v.llegadaReal">
             <span *ngIf="v.salidaReal"><i class="bi bi-play-circle-fill"></i> Salió {{ v.salidaReal | date:'h:mm a' }}</span>
             <span *ngIf="v.llegadaReal"><i class="bi bi-flag-fill"></i> Llegó {{ v.llegadaReal | date:'h:mm a' }}</span>
+            <span *ngIf="v.porEnviar" class="mv-por-enviar"><i class="bi bi-hourglass-split"></i> Por enviar</span>
           </div>
           <!-- Botones (no salen en la foto). -->
           <div class="mv-acciones-viaje mv-no-foto" *ngIf="puedeMarcar(v)">
