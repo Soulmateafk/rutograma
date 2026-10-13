@@ -133,6 +133,7 @@ const RUTAS_SIN_APROBACION = [
     '/api/cache/refrescar',
     '/api/aprobaciones/decidir',
     '/api/cierre-semana/enviar',
+    '/api/tareas', '/api/tareas/estado', '/api/tareas/comentar', '/api/tareas/borrar',
     '/api/auth/decidir', '/api/auth/rol', '/api/auth/resetear-clave', '/api/auth/eliminar', '/api/auth/cambiar-clave'
 ];
 

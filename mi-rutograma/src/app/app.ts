@@ -91,6 +91,8 @@ export class App implements OnInit {
     { prefijo: '/historico', titulo: 'Histórico · Makand' },
     { prefijo: '/comparativo', titulo: 'Comparativo · Makand' },
     { prefijo: '/presentacion', titulo: 'Presentación · Makand' },
+    { prefijo: '/tareas', titulo: 'Tareas · Makand' },
+    { prefijo: '/conductor/', titulo: 'Perfil del conductor · Makand' },
     { prefijo: '/cumplimiento', titulo: 'Cumplimiento · Makand' },
     { prefijo: '/resumen', titulo: 'Bienvenido · Makand' },
     { prefijo: '/admin', titulo: 'Administrador · Makand' },
@@ -134,7 +136,7 @@ export class App implements OnInit {
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationStart) {
         // Deslizar entre páginas: la nueva entra desde el lado hacia donde se va (orden de la barra).
-        const ORDEN = ['/dashboard', '/rutograma', '/vehiculos', '/rutas', '/conductores', '/despachos', '/comparativo', '/presentacion', '/historico', '/cumplimiento',
+        const ORDEN = ['/dashboard', '/rutograma', '/vehiculos', '/rutas', '/conductores', '/despachos', '/comparativo', '/presentacion', '/tareas', '/historico', '/cumplimiento',
           '/quejas', '/comparendos', '/mapa', '/aprobaciones', '/papelera', '/reglas', '/configuracion', '/sesiones', '/admin'];
         const pos = (u: string) => ORDEN.findIndex(r => u.startsWith(r));
         const desde = pos(this.router.url), hacia = pos(event.url);

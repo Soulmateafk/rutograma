@@ -5,6 +5,7 @@ import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { DataService } from '../../services/data';
 import { UiService } from '../../services/ui.service';
+import { TareasService } from '../../services/tareas.service';
 import { AccountService } from '../../services/account.service';
 // Reutilizamos la MISMA lógica de conflictos que ya usa el Rutograma —
 // nada de reinventar la regla de disponibilidad en un segundo lugar.
@@ -102,6 +103,8 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
   private zone = inject(NgZone);
   private cdr = inject(ChangeDetectorRef);
   private ui = inject(UiService);
+  // Tareas del equipo: el botón de la barra muestra cuántas te tocan.
+  public tareas = inject(TareasService);
 
   // ============================================================
   // DESHACER / REHACER — botones visibles en la barra de navegación
@@ -592,6 +595,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     { nombre: 'Histórico', ruta: '/historico' },
     { nombre: 'Comparativo', ruta: '/comparativo' },
     { nombre: 'Presentación', ruta: '/presentacion' },
+    { nombre: 'Tareas', ruta: '/tareas' },
     { nombre: 'Cumplimiento', ruta: '/cumplimiento' },
     { nombre: 'Reglas', ruta: '/reglas' },
     { nombre: 'Comparendos', ruta: '/comparendos' },
@@ -621,6 +625,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     { nombre: 'Histórico', ruta: '/historico' },
     { nombre: 'Comparativo', ruta: '/comparativo' },
     { nombre: 'Presentación', ruta: '/presentacion' },
+    { nombre: 'Tareas', ruta: '/tareas' },
     { nombre: 'Cumplimiento', ruta: '/cumplimiento' },
     { nombre: 'Reglas', ruta: '/reglas' },
     { nombre: 'Comparendos', ruta: '/comparendos' },
@@ -683,6 +688,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
   private ajustePendiente = 0;
 
   ngAfterViewInit(): void {
+    this.tareas.empezar();
     if (typeof window === 'undefined' || typeof ResizeObserver === 'undefined') return;
     // Se vuelve a medir si cambia el ancho de la ventana/zoom o el de los
     // botones de la derecha (por ejemplo, al cambiar la fecha o el rol).
@@ -916,6 +922,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
       const cedula = String(c.ced || c.cedula || '');
       if (coincide(nombre, cedula)) {
         resultados.push({ tipo: 'Conductor', etiqueta: nombre, subtitulo: c.veh || c.placa || 'Sin vehículo', ruta: '/conductores', queryParams: { buscarCedula: cedula } });
+        resultados.push({ tipo: 'Perfil', etiqueta: `Perfil de ${nombre}`, subtitulo: 'Rutas que conoce, clientes, vehículos y calidad', ruta: `/conductor/${nombre}` });
         resultados.push({ tipo: 'Agenda', etiqueta: `Agenda de ${nombre}`, subtitulo: 'Sus viajes y descansos', ruta: `/agenda/${nombre}` });
       }
     });

@@ -1,0 +1,96 @@
+<div class="ta-pagina">
+  <div class="ta-cab">
+    <div>
+      <h2><i class="bi bi-check2-square"></i> Tareas del equipo</h2>
+      <p>Pendientes que se asignan entre la oficina. A quien se le asigna le llega un correo, y quien la creó se entera cuando queda hecha.</p>
+    </div>
+    <button class="ta-nueva" (click)="nueva()"><i class="bi bi-plus-lg"></i> Nueva tarea</button>
+  </div>
+
+  <div class="ta-filtros">
+    <div class="ta-tabs" role="tablist">
+      <button [class.on]="filtro() === 'mias'" (click)="filtro.set('mias')">Para mí <span *ngIf="cuenta().mias">{{ cuenta().mias }}</span></button>
+      <button [class.on]="filtro() === 'asigne'" (click)="filtro.set('asigne')">Las que asigné <span *ngIf="cuenta().asigne">{{ cuenta().asigne }}</span></button>
+      <button [class.on]="filtro() === 'todas'" (click)="filtro.set('todas')">Todo el equipo <span *ngIf="cuenta().todas">{{ cuenta().todas }}</span></button>
+    </div>
+    <label class="ta-hechas"><input type="checkbox" [checked]="verHechas()" (change)="verHechas.set(!verHechas())"> Ver las hechas</label>
+  </div>
+
+  <div class="ta-lista">
+    <div class="ta-item" *ngFor="let x of visibles()" [class.hecha]="x.hecha" [class.alta]="x.prioridad === 'alta'" [ngClass]="'ta-v-' + estadoVence(x)" (click)="abierta.set(abierta() === x.id ? null : x.id)">
+      <button class="ta-check" (click)="marcar(x, $event)" [disabled]="!puedeTocar(x)" [title]="x.hecha ? 'Marcar como pendiente' : 'Marcar como hecha'">
+        <i class="bi" [ngClass]="x.hecha ? 'bi-check-circle-fill' : 'bi-circle'"></i>
+      </button>
+      <div class="ta-cuerpo">
+        <div class="ta-titulo">{{ x.titulo }} <span class="ta-alta" *ngIf="x.prioridad === 'alta' && !x.hecha"><i class="bi bi-exclamation-lg"></i> Alta</span></div>
+        <div class="ta-meta">
+          <span class="ta-vence" [ngClass]="'ta-v-' + estadoVence(x)"><i class="bi bi-calendar-event"></i> {{ textoVence(x) }}</span>
+          <span class="ta-persona" [title]="'Para ' + t.nombre(x.para)"><span class="ta-ini">{{ inicial(x.para) }}</span>{{ x.para === t.yo() ? 'Para ti' : t.nombre(x.para) }}</span>
+          <span class="ta-de" *ngIf="x.de !== x.para">· de {{ x.de === t.yo() ? 'ti' : t.nombre(x.de) }}</span>
+          <button class="ta-sobre" *ngIf="x.sobre" (click)="irASobre(x, $event)"><i class="bi" [ngClass]="iconoSobre(x.sobre.tipo)"></i> {{ x.sobre.valor }}</button>
+          <span class="ta-com" *ngIf="x.comentarios?.length"><i class="bi bi-chat"></i> {{ x.comentarios.length }}</span>
+          <span class="ta-hecha-por" *ngIf="x.hecha">✔ {{ t.nombre(x.hechaPor) }} · {{ hace(x.hechaEn) }}</span>
+        </div>
+        <div class="ta-detalle" *ngIf="abierta() === x.id" (click)="$event.stopPropagation()" animate.leave="ap-ocultar">
+          <p *ngIf="x.detalle" class="ta-texto">{{ x.detalle }}</p>
+          <div class="ta-comentarios">
+            <div class="ta-c" *ngFor="let c of x.comentarios"><span class="ta-ini">{{ inicial(c.de) }}</span><div><b>{{ c.nombre }}</b> <small>{{ hace(c.en) }}</small><p>{{ c.texto }}</p></div></div>
+            <div class="ta-c-nuevo"><input [(ngModel)]="comentario" placeholder="Escribe un comentario…" (keydown.enter)="comentar(x)"><button (click)="comentar(x)" [disabled]="!comentario.trim()"><i class="bi bi-send"></i></button></div>
+          </div>
+          <div class="ta-acciones" *ngIf="puedeTocar(x)">
+            <small>Creada {{ hace(x.creada) }} por {{ t.nombre(x.de) }}</small>
+            <button (click)="editar(x)"><i class="bi bi-pencil"></i> Editar</button>
+            <button class="ta-borrar" *ngIf="t.esJefe() || x.de === t.yo()" (click)="borrar(x)"><i class="bi bi-trash"></i> Borrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <app-vacio *ngIf="!visibles().length" [dibujo]="verHechas() ? 'carpeta' : 'todo-bien'" [titulo]="verHechas() ? 'Todavía no hay tareas hechas aquí' : (filtro() === 'mias' ? '¡No tienes pendientes!' : 'No hay pendientes aquí')" [texto]="verHechas() ? '' : 'Crea una con “Nueva tarea”.'"></app-vacio>
+  </div>
+</div>
+
+<!-- Formulario -->
+<div class="ta-fondo" *ngIf="formulario() as f" animate.leave="ap-cerrar" (click)="formulario.set(null)">
+  <div class="ta-modal" (click)="$event.stopPropagation()">
+    <h3>{{ f.id ? 'Editar tarea' : 'Nueva tarea' }}</h3>
+    <label>¿Qué hay que hacer?</label>
+    <input [(ngModel)]="f.titulo" maxlength="140" placeholder="Ej. Renovar el SOAT de LUN 428" autofocus>
+    <label>Detalle <small>(opcional)</small></label>
+    <textarea [(ngModel)]="f.detalle" rows="3" maxlength="1000" placeholder="Lo que haga falta saber"></textarea>
+    <div class="ta-dos">
+      <div>
+        <label>¿Para quién?</label>
+        <select [(ngModel)]="f.para"><option *ngFor="let p of t.personas()" [value]="p.email">{{ p.email === t.yo() ? p.nombre + ' (yo)' : p.nombre }}</option></select>
+      </div>
+      <div>
+        <label>Prioridad</label>
+        <div class="ta-prior">
+          <button type="button" [class.on]="f.prioridad !== 'alta'" (click)="f.prioridad = 'normal'">Normal</button>
+          <button type="button" class="ta-prior-alta" [class.on]="f.prioridad === 'alta'" (click)="f.prioridad = 'alta'"><i class="bi bi-exclamation-lg"></i> Alta</button>
+        </div>
+      </div>
+    </div>
+    <label>Fecha límite <small>(opcional)</small></label>
+    <div class="ta-fecha">
+      <input type="date" [(ngModel)]="f.vence">
+      <button type="button" (click)="atajoFecha('hoy')">Hoy</button><button type="button" (click)="atajoFecha('manana')">Mañana</button>
+      <button type="button" (click)="atajoFecha('viernes')">Viernes</button><button type="button" (click)="atajoFecha('semana')">En una semana</button>
+      <button type="button" *ngIf="f.vence" (click)="f.vence = ''">Sin fecha</button>
+    </div>
+    <label>¿De qué trata? <small>(opcional)</small></label>
+    <div class="ta-dos" *ngIf="f.sobre as s">
+      <select [(ngModel)]="s.tipo" (ngModelChange)="s.valor = ''">
+        <option value="">Nada en particular</option><option value="vehiculo">Un vehículo</option><option value="conductor">Un conductor</option>
+        <option value="ruta">Una ruta</option><option value="cliente">Un cliente</option>
+      </select>
+      <ng-container *ngIf="s.tipo">
+        <input [(ngModel)]="s.valor" [attr.list]="'ta-ops-' + s.tipo" placeholder="Escribe o escoge">
+        <datalist [id]="'ta-ops-' + s.tipo"><option *ngFor="let o of opcionesSobre(s.tipo)" [value]="o"></option></datalist>
+      </ng-container>
+    </div>
+    <div class="ta-modal-acc">
+      <button class="ta-sec" (click)="formulario.set(null)">Cancelar</button>
+      <button class="ta-nueva" [disabled]="guardando || !f.titulo?.trim() || !f.para" (click)="guardar()"><i class="bi" [ngClass]="guardando ? 'bi-hourglass-split' : 'bi-check-lg'"></i> {{ f.id ? 'Guardar' : (f.para === t.yo() ? 'Anotar' : 'Asignar') }}</button>
+    </div>
+  </div>
+</div>

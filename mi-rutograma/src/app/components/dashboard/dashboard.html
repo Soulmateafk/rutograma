@@ -134,7 +134,11 @@
         <span class="criticas-count">{{ alertasCriticasCount }} críticas</span>
       </div>
       <div class="lista-alertas">
-        <div *ngFor="let a of alertas" class="alerta-base" [ngClass]="'alerta-' + a.t">
+        <div *ngIf="textoTareas as tt" class="alerta-base alerta-b alerta-clic" (click)="irA('tareas')">
+          <span class="alerta-icon"><i class="bi bi-check2-square"></i></span>
+          <div class="alerta-body"><strong>{{ tt.tt }}</strong><p>{{ tt.d }}</p></div>
+        </div>
+        <div *ngFor="let a of alertas" class="alerta-base" [ngClass]="'alerta-' + a.t" [class.alerta-clic]="a.ir" (click)="a.ir && irA(a.ir)">
           <span class="alerta-icon" [innerHTML]="a.ic"></span>
           <div class="alerta-body">
             <strong>{{ a.tt }}</strong>

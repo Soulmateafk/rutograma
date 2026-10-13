@@ -87,7 +87,7 @@
         </thead>
         <tbody>
           <tr *ngFor="let c of conductoresHistorial">
-            <td class="font-bold">{{ c.nom || c.nombre }}</td>
+            <td class="font-bold"><a class="cond-perfil" [routerLink]="['/conductor', c.nom || c.nombre]" title="Ver su perfil">{{ c.nom || c.nombre }}</a></td>
             <td>{{ c.ced || c.cedula || '—' }}</td>
             <td>{{ c.tel || '—' }}</td>
             <td><span class="plate-badge">{{ c.veh || c.placa || 'Sin asignar' }}</span></td>
@@ -130,7 +130,7 @@
           <tbody>
             @for (c of conductoresFiltrados; track $index) {
               <tr>
-                <td class="font-bold">{{ c.nom || c.nombre }}</td>
+                <td class="font-bold"><a class="cond-perfil" [routerLink]="['/conductor', c.nom || c.nombre]" title="Ver su perfil">{{ c.nom || c.nombre }}</a></td>
                 <td>{{ c.ced || c.cedula || '—' }}</td>
                 <td>{{ c.tel || '—' }}</td>
                 <td>
@@ -337,6 +337,9 @@
         <p><strong>Nombre:</strong> {{ conductorSeleccionado.nom || conductorSeleccionado.nombre }}</p>
         <p><strong>Cédula:</strong> {{ conductorSeleccionado.ced || conductorSeleccionado.cedula }}</p>
         <p><strong>Teléfono:</strong> {{ conductorSeleccionado.tel }}
+          <a class="btn-wa btn-agenda" [routerLink]="['/conductor', conductorSeleccionado.nom || conductorSeleccionado.nombre]" (click)="cerrarModal('m-vista')">
+            <i class="bi bi-person-badge"></i> Ver perfil
+          </a>
           <a class="btn-wa btn-agenda" [routerLink]="['/agenda', conductorSeleccionado.nom || conductorSeleccionado.nombre]" (click)="cerrarModal('m-vista')">
             <i class="bi bi-calendar3"></i> Ver agenda
           </a>
