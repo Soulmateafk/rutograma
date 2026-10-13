@@ -1380,3 +1380,40 @@ html.fondo-cielo:is([data-hora="noche"], [data-hora="anochecer"])::before { cont
 html.con-mascota .tp-suelo-izq { left: 172px !important; }
 html.con-mascota .ad-aviso { left: 174px; }
 @media (max-width: 600px) { html.con-mascota .tp-suelo-izq { left: 108px !important; } html.con-mascota .ad-aviso { left: 10px; bottom: 74px; } }
+
+/* ============================================================
+   PANTALLAS SIN BARRA VESTIDAS DE FIESTA (login, registro, cuenta
+   pendiente, resumen, Mis viajes, Despachos): la tarjeta, el logo, los
+   botones y las luces de fondo toman los colores de la temporada.
+   Se quita con la decoración de temporada ("Sin decoración").
+   ============================================================ */
+html[data-temporada] :is(.login-card, .pending-card, .resumen-card) { box-shadow: 0 24px 70px rgba(0, 0, 0, .55), 0 0 0 1px color-mix(in srgb, var(--tp-c1) 45%, transparent), 0 0 40px color-mix(in srgb, var(--tp-c2) 25%, transparent) !important; }
+html[data-temporada] .login-card-accent { background: linear-gradient(90deg, var(--tp-c1), var(--tp-c2), var(--tp-c1)) !important; height: 4px !important; }
+html[data-temporada] :is(.login-glow-blue, .reg-glow-blue) { background: var(--tp-c2) !important; }
+html[data-temporada] :is(.login-glow-amber, .reg-glow-orange) { background: var(--tp-c1) !important; }
+html[data-temporada] :is(.login-route-dot, .reg-route-dot) { background: var(--tp-c1) !important; box-shadow: 0 0 8px var(--tp-c1); }
+html[data-temporada] .login-route-pulse { background: var(--tp-c2) !important; box-shadow: 0 0 10px var(--tp-c2) !important; }
+html[data-temporada] :is(.login-badge, .reg-badge, .resumen-banner-icon) { position: relative; color: var(--tp-c1) !important; border-color: color-mix(in srgb, var(--tp-c1) 60%, transparent) !important; background: color-mix(in srgb, var(--tp-c1) 14%, transparent) !important; }
+html[data-temporada] :is(.login-badge, .reg-badge, .resumen-banner-icon)::after { content: var(--temporada-emoji); position: absolute; top: -12px; right: -14px; font-size: 20px; animation: tp-balanceo 2.6s ease-in-out infinite; }
+html[data-temporada] :is(.login-wordmark, .reg-wordmark, .mv-logo, .dp-logo) span { background: linear-gradient(110deg, var(--tp-c1) 35%, #ffffff 50%, var(--tp-c2) 65%) !important; background-size: 250% 100% !important;
+  -webkit-background-clip: text !important; background-clip: text !important; -webkit-text-fill-color: transparent !important; }
+html[data-temporada] :is(.login-card, .reg-field, .login-input-wrap) input:focus { border-color: var(--tp-c1) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tp-c1) 25%, transparent) !important; }
+html[data-temporada] :is(.login-card .btn-primary, .btn-logout, .resumen-btn) {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tp-c1) 75%, #000), color-mix(in srgb, var(--tp-c2) 75%, #000)) !important; border-color: transparent !important; color: #fff !important;
+  box-shadow: 0 8px 22px -6px color-mix(in srgb, var(--tp-c1) 70%, transparent) !important; text-shadow: 0 1px 2px rgba(0, 0, 0, .4); }
+html[data-temporada] :is(.login-footer a, .reg-footer a) { color: color-mix(in srgb, var(--tp-c1) 75%, #fff) !important; }
+html[data-temporada] .resumen-stat-destacado { border-color: color-mix(in srgb, var(--tp-c1) 70%, transparent) !important; background: color-mix(in srgb, var(--tp-c1) 12%, transparent) !important; }
+html[data-temporada] .reloj-animado { color: var(--tp-c1) !important; }
+html[data-temporada] :is(.mv-cabecera, .dp-cabecera) { padding-bottom: 10px; border-bottom: 3px solid transparent; border-image: linear-gradient(90deg, var(--tp-c1), var(--tp-c2), transparent) 1; }
+html[data-temporada] .mv-marcar-salida { background: linear-gradient(135deg, color-mix(in srgb, var(--tp-c1) 75%, #000), color-mix(in srgb, var(--tp-c2) 75%, #000)) !important; }
+
+/* Halloween: telaraña en la tarjeta del login y del resumen; Navidad: nieve encima. */
+html[data-temporada="halloween"]:not(.sin-rastro) :is(.login-card, .resumen-card) ::selection { background: rgba(249, 115, 22, .5); }
+html[data-temporada="halloween"]:not(.sin-rastro) :is(.login-card, .resumen-card, .pending-card)::after { content: ''; position: absolute; top: 0; right: 0; width: 70px; height: 70px; pointer-events: none; opacity: .5; z-index: 2;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg fill='none' stroke='%23cbd5e1' stroke-width='.7'%3E%3Cpath d='M40 0 L0 40 M40 0 L14 40 M40 0 L28 40 M40 0 L0 26 M40 0 L0 12'/%3E%3Cpath d='M40 8 Q34 6 32 0 M40 16 Q28 12 24 0 M40 26 Q22 18 16 0 M40 36 Q16 24 8 0'/%3E%3C/g%3E%3C/svg%3E") no-repeat top right / contain; }
+html[data-temporada="navidad"]:not(.sin-rastro) :is(.login-card, .resumen-card, .pending-card)::after { content: ''; position: absolute; left: 10px; right: 10px; top: -7px; height: 14px; pointer-events: none; z-index: 2; border-radius: 12px 12px 6px 6px;
+  background: radial-gradient(circle at 10% 100%, #fff 8px, transparent 9px), radial-gradient(circle at 30% 90%, #fff 10px, transparent 11px), radial-gradient(circle at 55% 100%, #fff 8px, transparent 9px), radial-gradient(circle at 78% 90%, #fff 10px, transparent 11px), radial-gradient(circle at 95% 100%, #fff 7px, transparent 8px), linear-gradient(#fff, #f1f5f9);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, .25); }
+html[data-temporada="halloween"]:not(.sin-rastro) .login-title h2::after { content: ' 🎃'; }
+html[data-temporada="navidad"]:not(.sin-rastro) .login-title h2::after { content: ' 🎄'; }
+html[data-temporada]:not([data-temporada="halloween"]):not([data-temporada="navidad"]):not(.sin-rastro) .login-title h2::after { content: ' ' var(--temporada-emoji); }

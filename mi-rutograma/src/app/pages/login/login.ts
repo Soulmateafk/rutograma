@@ -1,3 +1,4 @@
+import { SaludoFiestaComponent } from '../../components/comunes/saludo-fiesta';
 import { Component, inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -9,7 +10,7 @@ import { ThemeService } from '../../services/theme.service';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [FormsModule, RouterLink, CommonModule],
+  imports: [SaludoFiestaComponent, FormsModule, RouterLink, CommonModule],
   templateUrl: './login.html',
   styleUrls: ['./login.css']
 })

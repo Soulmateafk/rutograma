@@ -13,6 +13,7 @@
       <button class="dp-btn-icono dp-salir" (click)="salir()" title="Cerrar sesión"><i class="bi bi-box-arrow-right"></i></button>
     </div>
   </header>
+  <app-saludo-fiesta *ngIf="esCuentaDespachos"></app-saludo-fiesta>
   <div *ngIf="!esCuentaDespachos" class="dp-titulo">
     <h1><i class="bi bi-box-seam"></i> Despachos</h1>
     <p>A qué hora llega cada vehículo a cargar, a dónde va y a qué hora terminó de cargar.</p>

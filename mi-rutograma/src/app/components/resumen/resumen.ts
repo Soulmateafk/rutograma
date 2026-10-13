@@ -1,3 +1,4 @@
+import { SaludoFiestaComponent } from '../comunes/saludo-fiesta';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
@@ -7,7 +8,7 @@ import { DataService } from '../../services/data';
 @Component({
   selector: 'app-resumen',
   standalone: true,
-  imports: [CommonModule],
+  imports: [SaludoFiestaComponent, CommonModule],
   templateUrl: './resumen.html',
   styleUrls: ['./resumen.css']
 })

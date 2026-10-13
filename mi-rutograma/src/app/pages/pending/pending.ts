@@ -1,3 +1,4 @@
+import { SaludoFiestaComponent } from '../../components/comunes/saludo-fiesta';
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
@@ -5,7 +6,7 @@ import { AuthService } from '../../services/auth.service';
 @Component({
   selector: 'app-pending',
   standalone: true,
-  imports: [CommonModule],
+  imports: [SaludoFiestaComponent, CommonModule],
   templateUrl: './pending.html',
   styleUrls: ['./pending.css']
 })

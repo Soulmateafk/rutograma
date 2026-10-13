@@ -1,3 +1,4 @@
+import { SaludoFiestaComponent } from '../comunes/saludo-fiesta';
 import { VacioComponent } from '../comunes/vacio';
 import { EsqueletoComponent } from '../comunes/esqueleto';
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, PLATFORM_ID, inject } from '@angular/core';
@@ -99,7 +100,7 @@ const pegada = (p: any) => String(p ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '
 @Component({
   selector: 'app-despachos',
   standalone: true,
-  imports: [VacioComponent, EsqueletoComponent, CommonModule, FormsModule, RouterLink],
+  imports: [SaludoFiestaComponent, VacioComponent, EsqueletoComponent, CommonModule, FormsModule, RouterLink],
   templateUrl: './despachos.html',
   styleUrls: ['./despachos.css']
 })
