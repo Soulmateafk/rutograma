@@ -1468,3 +1468,11 @@ html[data-dir="atras"]::view-transition-new(pagina) { animation-name: vt-entrar-
 
 /* La foto del mes en grande tapa también la barra de arriba (main tiene z-index 1). */
 main:has(.foto-grande, .pb-fondo) { z-index: 10100; }
+
+/* Imprimir solo el cierre de semana (Dashboard → Cierre de semana → Imprimir / PDF). */
+@media print {
+  html.imprimiendo-cierre body * { visibility: hidden !important; }
+  html.imprimiendo-cierre .cs-ventana, html.imprimiendo-cierre .cs-ventana * { visibility: visible !important; }
+  html.imprimiendo-cierre .cs-ventana { position: absolute; left: 0; top: 0; width: 100%; }
+}
+main:has(.cs-fondo) { z-index: 10100; }

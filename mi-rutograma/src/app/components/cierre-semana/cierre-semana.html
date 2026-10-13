@@ -1,0 +1,81 @@
+<div class="cs-fondo" animate.leave="ap-cerrar" (click)="cerrar.emit()">
+  <div class="cs-ventana" role="dialog" aria-label="Cierre de semana" (click)="$event.stopPropagation()">
+    <div class="cs-cab">
+      <div>
+        <h3><i class="bi bi-calendar2-check"></i> Cierre de semana</h3>
+        <p class="cs-sub">Se arma solo y llega por correo cada viernes desde las 4 p. m. También lo puedes ver y mandar cuando quieras.</p>
+      </div>
+      <button class="cs-x" (click)="cerrar.emit()" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+    </div>
+
+    <div class="cs-nav">
+      <button (click)="mover(-1)" title="Semana anterior"><i class="bi bi-chevron-left"></i></button>
+      <strong>{{ datos()?.resumen?.titulo || 'Cargando…' }}</strong>
+      <button (click)="mover(1)" [disabled]="esEstaSemana" title="Semana siguiente"><i class="bi bi-chevron-right"></i></button>
+      <span class="cs-enviado" *ngIf="datos()?.enviado as e"><i class="bi bi-envelope-check"></i> Enviado el {{ e.enviadoEn | date:'d/M h:mm a' }}</span>
+    </div>
+
+    <div class="cs-cuerpo" *ngIf="datos()?.resumen as r" [class.cargando]="cargando()">
+      <div class="cs-kpis">
+        <div class="cs-kpi azul"><strong>{{ r.total }}</strong><span>viajes</span></div>
+        <div class="cs-kpi verde"><strong>{{ r.cumplimiento === null ? '—' : r.cumplimiento + '%' }}</strong><span>cumplido a hoy</span></div>
+        <div class="cs-kpi verde2"><strong>{{ r.entregados }}</strong><span>entregados</span></div>
+        <div class="cs-kpi ambar"><strong>{{ r.enRuta }}</strong><span>en ruta</span></div>
+        <div class="cs-kpi azul2"><strong>{{ r.porSalir }}</strong><span>por salir</span></div>
+        <div class="cs-kpi rojo"><strong>{{ r.cancelados }}</strong><span>cancelados</span></div>
+        <div class="cs-kpi naranja"><strong>{{ r.totalPendientes }}</strong><span>quedaron sin salir</span></div>
+      </div>
+
+      <div class="cs-dias">
+        <div class="cs-dia" *ngFor="let d of r.porDia" [title]="d.viajes + ' viajes, ' + d.entregados + ' entregados'">
+          <div class="cs-barra"><span class="cs-barra-total" [style.height.%]="ancho(d.viajes, maxDia())"><span class="cs-barra-ok" [style.height.%]="d.viajes ? (d.entregados / d.viajes * 100) : 0"></span></span></div>
+          <strong>{{ d.viajes }}</strong>
+          <small>{{ d.dia.slice(0, 3) }} {{ fechaCorta(d.fecha) }}</small>
+        </div>
+      </div>
+
+      <div class="cs-grid">
+        <div class="cs-bloque" *ngIf="r.totalPendientes">
+          <h4><i class="bi bi-exclamation-triangle"></i> Quedaron sin salir ({{ r.totalPendientes }})</h4>
+          <div class="cs-fila" *ngFor="let p of r.pendientes"><b>{{ fechaCorta(p.fecha) }}</b> {{ p.placa }} · {{ p.ruta }}<small>{{ p.cliente }}{{ p.conductor ? ' · ' + p.conductor : '' }}</small></div>
+        </div>
+        <div class="cs-bloque" *ngIf="r.motivosCancelacion.length">
+          <h4><i class="bi bi-x-circle"></i> Cancelaciones</h4>
+          <div class="cs-fila" *ngFor="let m of r.motivosCancelacion">{{ m.nombre }} <b>{{ m.n }}</b></div>
+        </div>
+        <div class="cs-bloque">
+          <h4><i class="bi bi-building"></i> Transportadoras</h4>
+          <div class="cs-fila" *ngFor="let t of r.porTransportadora">{{ t.nombre }} <b>{{ t.n }}</b></div>
+        </div>
+        <div class="cs-bloque" *ngIf="r.porCliente.length">
+          <h4><i class="bi bi-shop"></i> Clientes</h4>
+          <div class="cs-fila" *ngFor="let t of r.porCliente">{{ t.nombre }} <b>{{ t.n }}</b></div>
+        </div>
+        <div class="cs-bloque" *ngIf="r.conductoresTop.length">
+          <h4><i class="bi bi-trophy"></i> Conductores con más viajes</h4>
+          <div class="cs-fila" *ngFor="let c of r.conductoresTop; let i = index">{{ i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '' }} {{ c.nombre }} <b>{{ c.n }}</b></div>
+        </div>
+        <div class="cs-bloque">
+          <h4><i class="bi bi-clipboard-data"></i> Además</h4>
+          <div class="cs-fila">Cajas <b>{{ r.cajas | number }}</b></div>
+          <div class="cs-fila">Vehículos usados <b>{{ r.vehiculos }}</b></div>
+          <div class="cs-fila">Extras <b>{{ r.extras }}</b></div>
+          <div class="cs-fila">Reasignados (Plan B / varados) <b>{{ r.reasignados }}</b></div>
+          <div class="cs-fila">Novedades <b>{{ r.novedades.length }}</b></div>
+          <div class="cs-fila">Quejas <b>{{ r.quejas }}</b> · Comparendos <b>{{ r.comparendos }}</b></div>
+          <div class="cs-fila cs-prox">Próxima semana <b>{{ r.proxima.viajes }} viajes</b><small *ngIf="r.proxima.sinConductor" class="cs-alerta">{{ r.proxima.sinConductor }} sin conductor</small></div>
+        </div>
+      </div>
+    </div>
+    <div class="cs-vacio" *ngIf="!datos() && !cargando()">No se pudo armar el resumen.</div>
+
+    <div class="cs-pie">
+      <button class="cs-btn cs-wa" [disabled]="!datos()" (click)="whatsapp()"><i class="bi bi-whatsapp"></i> WhatsApp</button>
+      <button class="cs-btn-sec" [disabled]="!datos()" (click)="copiar()"><i class="bi bi-clipboard"></i> Copiar texto</button>
+      <button class="cs-btn-sec" [disabled]="!datos()" (click)="imprimir()"><i class="bi bi-printer"></i> Imprimir / PDF</button>
+      <span class="cs-espacio"></span>
+      <input *ngIf="auth.puedeEditar" class="cs-correo" type="email" [(ngModel)]="correoPuntual" placeholder="Correo (vacío = a los jefes)">
+      <button *ngIf="auth.puedeEditar" class="cs-btn" [disabled]="!datos() || enviando()" (click)="enviar()"><i class="bi" [ngClass]="enviando() ? 'bi-hourglass-split' : 'bi-envelope'"></i> Enviar por correo</button>
+    </div>
+  </div>
+</div>

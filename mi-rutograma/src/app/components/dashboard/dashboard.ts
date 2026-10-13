@@ -16,10 +16,11 @@ import { SonidoService } from '../../services/sonido.service';
 import { inject } from '@angular/core';
 import { picoPlacaProximos } from '../../services/reglas-asignacion';
 import { PlanBComponent } from '../plan-b/plan-b';
+import { CierreSemanaComponent } from '../cierre-semana/cierre-semana';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [VacioComponent, CommonModule, FormsModule, ContarDirective, FotoNovedadComponent, CapacidadSemanaComponent, PlanBComponent],
+  imports: [VacioComponent, CommonModule, FormsModule, ContarDirective, FotoNovedadComponent, CapacidadSemanaComponent, PlanBComponent, CierreSemanaComponent],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css']
 })
@@ -1235,6 +1236,10 @@ export class Dashboard implements OnInit, OnDestroy {
 
   // --- Plan B (alertas): reasignar los viajes del vehículo afectado ---
   public planBPlaca: string | null = null;
+
+  // --- Cierre de semana: el botón se marca de viernes (2 p. m.) a domingo ---
+  public cierreAbierto = false;
+  public get cierreListo(): boolean { const d = new Date(); return (d.getDay() === 5 && d.getHours() >= 14) || d.getDay() === 6 || d.getDay() === 0; }
 
   // --- HELPERS TRADICIONALES DE SOPORTE ---
   public obtenerColor(tr: string): string {
