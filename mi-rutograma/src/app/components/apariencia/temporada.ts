@@ -1,5 +1,7 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { dibujoTemporada } from '../../services/dibujos-temporada';
 import { ThemeService } from '../../services/theme.service';
 import { SonidoService } from '../../services/sonido.service';
 import { Temporada, temporadaVisible, diasParaElDia, delDia, versionCelebraciones, ponerAniversario } from '../../services/temporadas';
@@ -28,7 +30,7 @@ interface Particula { tipo: string; texto: string; color: string; left: number; 
         <span *ngFor="let p of particulas()" class="tp-p" [ngClass]="'tp-' + p.tipo"
               [style.left.%]="p.left" [style.animation-delay.s]="p.delay" [style.animation-duration.s]="p.dur"
               [style.font-size.px]="p.tam" [style.--tam]="p.tam + 'px'" [style.--c]="p.color || null" [style.--op]="p.opacidad"
-              [style.--deriva]="p.deriva + 'px'" [style.--giro]="p.giro + 'deg'">{{ p.texto }}</span>
+              [style.--deriva]="p.deriva + 'px'" [style.--giro]="p.giro + 'deg'" [innerHTML]="html(p.texto)"></span>
       </div>
       <!-- Fuegos artificiales (Año Nuevo, 20 de Julio). -->
       <div class="tp-capa tp-fondo" *ngIf="fuegos().length" aria-hidden="true">
@@ -36,10 +38,10 @@ interface Particula { tipo: string; texto: string; color: string; left: number; 
               [style.box-shadow]="f.sombra" [style.color]="f.color"></span>
       </div>
       <!-- Adornos en las esquinas de abajo. -->
-      <div class="tp-suelo tp-suelo-izq" *ngIf="t.suelo" aria-hidden="true"><span *ngFor="let e of t.suelo; let i = index" [style.animation-delay.s]="i * 0.4">{{ e }}</span></div>
-      <div class="tp-suelo tp-suelo-der" *ngIf="t.suelo" aria-hidden="true"><span *ngFor="let e of t.suelo.slice().reverse(); let i = index" [style.animation-delay.s]="0.2 + i * 0.4">{{ e }}</span></div>
+      <div class="tp-suelo tp-suelo-izq" *ngIf="t.suelo" aria-hidden="true"><span *ngFor="let e of t.suelo; let i = index" [style.animation-delay.s]="i * 0.4" [innerHTML]="html(e)"></span></div>
+      <div class="tp-suelo tp-suelo-der" *ngIf="t.suelo" aria-hidden="true"><span *ngFor="let e of t.suelo.slice().reverse(); let i = index" [style.animation-delay.s]="0.2 + i * 0.4" [innerHTML]="html(e)"></span></div>
       <!-- Lo que cruza la pantalla de vez en cuando (encima, sin tapar: no se puede tocar). -->
-      <div class="tp-capa" *ngIf="cruzaHoy() as c" aria-hidden="true"><span class="tp-cruza" [ngClass]="c.clase" [class.tp-nochebuena]="nochebuena()">{{ c.emoji }}</span></div>
+      <div class="tp-capa" *ngIf="cruzaHoy() as c" aria-hidden="true"><span class="tp-cruza" [ngClass]="c.clase" [class.tp-nochebuena]="nochebuena()" [innerHTML]="html(c.emoji, true)"></span></div>
 
       <!-- Velitas (7 y 8 de diciembre): se encienden una por una. -->
       <div class="tp-velitas" *ngIf="t.clave === 'velitas'" aria-hidden="true">
@@ -57,36 +59,46 @@ interface Particula { tipo: string; texto: string; color: string; left: number; 
         <div class="tp-relampago" aria-hidden="true"></div>
         <div class="tp-ojos tp-ojos-izq" aria-hidden="true"><i></i><i></i></div>
         <div class="tp-ojos tp-ojos-der" aria-hidden="true"><i></i><i></i></div>
-        <div class="tp-arana" aria-hidden="true"><span class="tp-hilo"></span><span class="tp-arana-cuerpo">🕷️</span></div>
+        <div class="tp-arana" aria-hidden="true"><span class="tp-hilo"></span><span class="tp-arana-cuerpo" [innerHTML]="html('🕷️')"></span></div>
         <div class="tp-niebla" aria-hidden="true"></div>
         <div class="tp-capa" aria-hidden="true">
-          <span class="tp-murcielago" style="top: 18%; animation-delay: 2s;">🦇</span>
-          <span class="tp-murcielago tp-m2" style="top: 32%; animation-delay: 11s;">🦇</span>
-          <span class="tp-murcielago tp-m3" style="top: 12%; animation-delay: 19s;">🦇</span>
-          <span class="tp-fantasma">👻</span>
+          <span class="tp-murcielago" style="top: 18%; animation-delay: 2s;" [innerHTML]="html('🦇')"></span>
+          <span class="tp-murcielago tp-m2" style="top: 32%; animation-delay: 11s;" [innerHTML]="html('🦇')"></span>
+          <span class="tp-murcielago tp-m3" style="top: 12%; animation-delay: 19s;" [innerHTML]="html('🦇')"></span>
+          <span class="tp-fantasma" [innerHTML]="html('👻')"></span>
         </div>
         <!-- Sustos suaves: una nube que tapa la luna y un fantasma que se asoma por el borde. -->
         <div class="tp-nube" aria-hidden="true"></div>
-        <span class="tp-asoma" aria-hidden="true" [class.tp-asoma-izq]="asoma().izq" [style.top.px]="asoma().top" [style.left.px]="asoma().izq ? asoma().x : null" [style.right.px]="asoma().izq ? null : asoma().x" *ngIf="asoma().visible">👻</span>
+        <span class="tp-asoma" aria-hidden="true" [class.tp-asoma-izq]="asoma().izq" [style.top.px]="asoma().top" [style.left.px]="asoma().izq ? asoma().x : null" [style.right.px]="asoma().izq ? null : asoma().x" *ngIf="asoma().visible" [innerHTML]="html('👻')"></span>
       </ng-container>
       <div class="tp-nieve-suelo" *ngIf="t.clave === 'navidad'" aria-hidden="true"></div>
       <div class="tp-escarcha" *ngIf="t.clave === 'navidad'" aria-hidden="true"></div>
 
       <!-- Cuenta regresiva de la temporada (una vez por sesión, se va sola o con la ×). -->
       <div class="tp-anuncio" *ngIf="anuncio() as an" animate.leave="ap-ocultar" role="status">
-        <span class="tp-anuncio-emoji">{{ t.emoji }}</span>
+        <span class="tp-anuncio-emoji" [innerHTML]="html(t.emoji)"></span>
         <span class="tp-anuncio-texto"><strong>{{ an.titulo }}</strong><small>{{ an.detalle }}</small></span>
         <button class="tp-anuncio-x" (click)="anuncio.set(null)" aria-label="Cerrar">×</button>
       </div>
       <!-- El día grande: estallido de papelitos y fuegos, una vez por día. -->
       <div class="tp-estallido" *ngIf="estallido().length" aria-hidden="true">
         <span *ngFor="let e of estallido()" [class.tp-papel]="!e.texto" [style.background]="e.texto ? null : e.color"
-              [style.--dx]="e.dx + 'px'" [style.--dy]="e.dy + 'px'" [style.--giro]="e.giro + 'deg'" [style.animation-delay.s]="e.delay">{{ e.texto }}</span>
+              [style.--dx]="e.dx + 'px'" [style.--dy]="e.dy + 'px'" [style.--giro]="e.giro + 'deg'" [style.animation-delay.s]="e.delay" [innerHTML]="html(e.texto)"></span>
       </div>
     </ng-container>
   `
 })
 export class TemporadaComponent {
+  // Dibujos propios en vez de emojis (services/dibujos-temporada.ts). Son textos fijos del código: seguros.
+  private sanitizer = inject(DomSanitizer);
+  private htmlCache = new Map<string, SafeHtml>();
+  public html(texto: string, invertir = false): SafeHtml | '' {
+    if (!texto) return '';
+    const clave = (invertir ? '↔' : '') + texto;
+    let h = this.htmlCache.get(clave);
+    if (!h) { h = this.sanitizer.bypassSecurityTrustHtml(dibujoTemporada(texto, invertir)); this.htmlCache.set(clave, h); }
+    return h;
+  }
   private theme = inject(ThemeService);
   private sonido = inject(SonidoService);
   private hoy = signal(new Date());
@@ -108,7 +120,7 @@ export class TemporadaComponent {
       const elemento = lista[i % lista.length];
       // "tipo:#color" = figura dibujada; "#color" = papelito; lo demás = emoji.
       const [tipo, color] = elemento.includes(':') ? elemento.split(':') : elemento.startsWith('#') ? ['papel', elemento] : ['emoji', ''];
-      const tamBase: Record<string, number> = { nieve: 6, bokeh: 34, petalo: 16, corazon: 16, estrella: 14, papel: 10, emoji: 20 };
+      const tamBase: Record<string, number> = { nieve: 6, bokeh: 34, petalo: 16, corazon: 16, estrella: 14, papel: 10, emoji: 24 };
       const lento = tipo === 'bokeh' ? 1.8 : tipo === 'nieve' ? 1.1 : 1;
       return {
         tipo, texto: tipo === 'emoji' ? elemento : '', color: color || '',
