@@ -7,6 +7,7 @@ import { AuthService } from '../../services/auth.service';
 import { UiService } from '../../services/ui.service';
 import { DataService } from '../../services/data';
 import { API } from '../../api-base';
+import { detalleCambio, BloqueDetalle, legible } from './detalle-cambio';
 
 const API_URL = API;
 
@@ -170,7 +171,16 @@ export class AprobacionesComponent implements OnInit, OnDestroy {
 
   alternarDetalle(s: Solicitud) {
     this.abiertaId = this.abiertaId === s.id ? null : s.id;
+    this.verTodo = false;
+    // Se compara con lo que hay hoy al abrirlo (en palabras, no los datos crudos).
+    if (this.abiertaId) this.bloquesAbiertos = detalleCambio(s, this.ds.S);
   }
+  bloquesAbiertos: BloqueDetalle[] = [];
+  /** La descripción con las fechas en palabras ("2026-10-29" -> "jue 29 oct 2026"). */
+  descripcion(s: Solicitud): string { return String(s.descripcion || '').replace(/\d{4}-\d{2}-\d{2}/g, f => legible(f)); }
+  verTodo = false;
+  filasVisibles(b: BloqueDetalle) { return b.tipo === 'cambio' && !this.verTodo ? b.filas.filter(f => f.cambio) : b.filas; }
+  hayOcultas(b: BloqueDetalle) { return b.tipo === 'cambio' && b.filas.some(f => !f.cambio); }
 
   async aprobar(s: Solicitud) {
     await this.decidir(s, 'APROBAR');
@@ -229,7 +239,5 @@ export class AprobacionesComponent implements OnInit, OnDestroy {
     return iso ? new Date(iso).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : '';
   }
 
-  detalle(s: Solicitud): string {
-    return JSON.stringify(s.cuerpo || {}, null, 2);
-  }
+
 }
