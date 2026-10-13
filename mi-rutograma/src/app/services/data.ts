@@ -750,7 +750,8 @@ export class DataService {
       // Solo avisamos en la TRANSICIÓN hacia sin conexión — la
       // sincronización reintenta cada 20s, y si avisáramos en cada
       // intento fallido sería un toast nuevo cada 20 segundos.
-      if (!this.sinConexion) {
+      // El conductor ya ve su propio aviso de "sin señal" en Mis viajes.
+      if (!this.sinConexion && !this.auth.esConductor) {
         this.ui.mostrarToast('<i class="bi bi-wifi-off"></i> Sin conexión con el servidor — mostrando los últimos datos guardados.', 'err');
       }
       this.sinConexion = true;

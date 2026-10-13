@@ -31,7 +31,7 @@
 
 <app-navbar *ngIf="mostrarNavbar() && !cargandoInicial()"></app-navbar>
 
-<div class="banner-sin-conexion" *ngIf="dataService.sinConexion && !cargandoInicial()">
+<div class="banner-sin-conexion" *ngIf="dataService.sinConexion && !cargandoInicial() && !authService.esConductor">
   <i class="bi bi-wifi-off"></i>
   Sin conexión con el servidor — mostrando los últimos datos guardados en este navegador.
   <span *ngIf="dataService.cantidadCambiosPendientes > 0">

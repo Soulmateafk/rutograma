@@ -45,6 +45,7 @@ require('dotenv').config();
 const nodemailer = require('nodemailer');
 const cierreSemana = require('./cierre-semana');
 const tareasEquipo = require('./tareas');
+const { horaReal, notaSinSenal } = require('./sin-senal');
 
 const app = express();
 
@@ -3439,8 +3440,8 @@ app.post('/api/mis-viajes/novedad', (req, res) => {
             id: idNovedad,
             tipo: TIPOS_NOVEDAD_CONDUCTOR[tipo],
             titulo: [tipo, placa, r.conductor.nombre].filter(Boolean).join(' · '),
-            desc: desc + (viaje ? ` — Viaje del ${viaje.fecha}, ruta ${viaje.ruta}${viaje.destino ? ' a ' + viaje.destino : ''}.` : ''),
-            fecha: new Date().toLocaleString('es-CO'),
+            desc: desc + (viaje ? ` — Viaje del ${viaje.fecha}, ruta ${viaje.ruta}${viaje.destino ? ' a ' + viaje.destino : ''}.` : '') + notaSinSenal(horaReal(b.cuando)),
+            fecha: (horaReal(b.cuando) || new Date()).toLocaleString('es-CO'),
             resuelta: false,
             ...(fotoJpeg ? { foto: true } : {})
         };
@@ -4040,11 +4041,12 @@ app.post('/api/mis-viajes/marcar', (req, res) => {
         }
         const viaje = (data.viajes || []).find(v => v.id === b.id);
         if (!viaje) return res.status(404).json({ ok: false, msg: 'Viaje no encontrado.' });
-        const hoy = fechaLocal();
-        const ayer = fechaLocal(new Date(Date.now() - 86400000));
-        const manana = fechaLocal(new Date(Date.now() + 86400000));
-        const ahora = new Date().toISOString();
         const accion = String(b.accion || '');
+        // Sin señal: el celular manda la hora en que de verdad se tocó el botón (ver sin-senal.js).
+        const real = accion !== 'deshacer' ? (horaReal(b.cuando) || new Date()) : new Date();
+        const ayer = fechaLocal(new Date(real.getTime() - 86400000));
+        const manana = fechaLocal(new Date(real.getTime() + 86400000));
+        const ahora = real.toISOString();
 
         if (accion === 'salida') {
             if (viaje.estado === 'Cancelado') return res.status(400).json({ ok: false, msg: 'Este viaje está cancelado.' });
@@ -4055,7 +4057,7 @@ app.post('/api/mis-viajes/marcar', (req, res) => {
         } else if (accion === 'llegada') {
             if (!viaje.salidaReal) return res.status(400).json({ ok: false, msg: 'Primero marca "Ya salí".' });
             if (viaje.llegadaReal) return res.status(400).json({ ok: false, msg: 'Ya habías marcado la llegada.' });
-            viaje.llegadaReal = ahora;
+            viaje.llegadaReal = new Date(viaje.salidaReal) > real ? viaje.salidaReal : ahora;
             if (viaje.estado !== 'Cancelado') viaje.estado = 'Entregado';
         } else if (accion === 'deshacer') {
             const campo = viaje.llegadaReal ? 'llegadaReal' : (viaje.salidaReal ? 'salidaReal' : '');
@@ -4069,7 +4071,7 @@ app.post('/api/mis-viajes/marcar', (req, res) => {
             return res.status(400).json({ ok: false, msg: 'Acción inválida.' });
         }
         viaje.editadoPor = normalizarEmail(req.headers['x-user-email']);
-        viaje.editadoEn = ahora;
+        viaje.editadoEn = new Date().toISOString();
         guardarEnExcel(data);
         res.locals.auditoriaResumen = { id: viaje.id, placa: viaje.p || viaje.placa, ruta: viaje.ruta, fecha: viaje.fecha, accion, conductor: r.conductor.nombre };
         console.log(`🚚 ${r.conductor.nombre} marcó ${accion} del viaje ${viaje.id}`);

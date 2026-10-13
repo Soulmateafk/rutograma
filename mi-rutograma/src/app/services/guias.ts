@@ -290,7 +290,7 @@ export const GUIAS: Record<string, Guia> = {
     pasos: [
       { el: 'mv-identificar', titulo: 'Identifícate', texto: 'Escribe tu nombre y la placa del vehículo. Luego confirmas que la información sea correcta.' },
       { el: 'mv-confirmar', titulo: 'Confirma que eres tú', texto: 'Revisa que el nombre y la placa sean los tuyos y toca confirmar. Si no, vuelve atrás y escríbelos otra vez.' },
-      { el: 'mv-cabecera', titulo: 'Tu cuenta', texto: 'Tu nombre y tu vehículo. Con los botones actualizas o cierras sesión.' },
+      { el: 'mv-cabecera', titulo: 'Tu cuenta', texto: 'Tu nombre y tu vehículo. Con los botones actualizas o cierras sesión. Si te quedas sin señal, igual ves tu ruta guardada y puedes marcar "Ya salí", "Ya llegué" o reportar novedades: se envían solos cuando vuelva la señal, con la hora en que los tocaste.' },
       { el: 'mv-foto', titulo: 'Foto de tus viajes', texto: 'Descarga una imagen con tus viajes para tenerla a mano o compartirla.' },
       { el: 'mv-calendario', titulo: 'Tu calendario', texto: 'Descarga tus viajes de hoy en adelante para agregarlos al calendario del celular. Si te cambian un viaje, vuelve a descargarlo y se actualiza.' },
       { el: 'mv-anuncios', titulo: 'Avisos de la oficina', texto: 'Lo que la oficina publica para los conductores (por ejemplo, un cierre de vía). Léelo antes de salir.' },

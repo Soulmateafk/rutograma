@@ -166,3 +166,16 @@
 .mv-deslizable[data-accion="llegada"] .mv-deslizar-fondo { background: linear-gradient(90deg, #2563eb, #3b82f6); }
 .mv-deslizar-pista { margin-top: 6px; font-size: 11px; color: var(--color-texto-apagado, #94a3b8); text-align: right; }
 @media (hover: hover) and (pointer: fine) { .mv-deslizar-pista { display: none; } }
+
+/* Sin señal: la ruta guardada en el celular. */
+.mv-sin-senal { display: flex; gap: 12px; align-items: flex-start; background: rgba(148, 163, 184, 0.12); border: 1px solid rgba(148, 163, 184, 0.4); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; font-size: 13px; line-height: 1.45; color: #e2e8f0; animation: mv-sin-senal-entra .35s ease-out; }
+.mv-sin-senal > i { font-size: 22px; color: #fbbf24; flex: none; }
+.mv-sin-senal strong { display: block; font-size: 14px; }
+.mv-sin-senal span { display: block; color: #cbd5e1; }
+.mv-sin-senal.con-senal { background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.35); }
+.mv-sin-senal.con-senal > i { color: #60a5fa; }
+.mv-por-enviar { color: #fbbf24; font-weight: 700; }
+@keyframes mv-sin-senal-entra { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+:host-context(body.tema-claro) .mv-sin-senal { color: #1e293b; }
+:host-context(body.tema-claro) .mv-sin-senal span { color: #475569; }
+:host-context(body.tema-claro) .mv-por-enviar { color: #b45309; }

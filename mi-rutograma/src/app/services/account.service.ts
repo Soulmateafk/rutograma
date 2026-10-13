@@ -154,6 +154,21 @@ export class AccountService {
     this.alCargarCuenta.next({ email: this.emailActivo, preferencias: this.preferencias, compartida: this.cuentaCompartida });
   }
 
+  /** Modo sin señal: lo mínimo para abrir "Mis viajes" sin internet (solo cuentas de conductor). */
+  private static readonly CLAVE_SIN_SENAL = 'rutograma_conductor_sin_senal';
+  /** true si la sesión se abrió sin poder hablar con el servidor (ver mis-viajes). */
+  public sinSenal = false;
+
+  private recordarParaSinSenal(estado: UserStatus): void {
+    try {
+      if (this.rol === 'conductor' && estado === 'APPROVED') {
+        localStorage.setItem(AccountService.CLAVE_SIN_SENAL, JSON.stringify({ email: this.emailActivo, nombre: this.nombre, compartida: this.cuentaCompartida }));
+      } else {
+        localStorage.removeItem(AccountService.CLAVE_SIN_SENAL);
+      }
+    } catch { /* sin almacenamiento */ }
+  }
+
   /** Guarda la apariencia en la cuenta (las compartidas no: cada equipo la suya). */
   public async guardarPreferencias(p: Record<string, any>): Promise<void> {
     if (!this.token || this.cuentaCompartida) return;
@@ -313,6 +328,8 @@ export class AccountService {
     this.motivoRechazo = '';
     this.preferencias = null;
     this.cuentaCompartida = false;
+    this.sinSenal = false;
+    try { localStorage.removeItem(AccountService.CLAVE_SIN_SENAL); } catch { /* sin almacenamiento */ }
     this.alCargarCuenta.next(null);
   }
 
@@ -380,6 +397,8 @@ export class AccountService {
     this.sesionesCerradasAlEntrar = Number(res.sesionesCerradas) || 0;
     this.tomarApariencia(res);
     if (Number(res.maxSesiones) > 0) this.maxSesiones = Number(res.maxSesiones);
+    this.sinSenal = false;
+    this.recordarParaSinSenal(res.estado);
     return { estado: res.estado, esAdmin: !!res.esAdmin, rol: this.rol };
   }
 
@@ -410,10 +429,28 @@ export class AccountService {
       this.tomarPermisos(res);
       this.motivoRechazo = res.motivoRechazo || '';
       this.tomarApariencia(res);
+      this.sinSenal = false;
+      this.recordarParaSinSenal(res.estado);
       return { estado: res.estado, esAdmin: !!res.esAdmin, rol: this.rol };
-    } catch {
-      // Cuenta borrada, servidor caído, etc. — no hay sesión que
-      // restaurar, y no es un error que la persona necesite ver.
+    } catch (e: any) {
+      // Sin señal (status 0: ni siquiera llegó al servidor) y es un
+      // conductor que ya había entrado en este celular: se abre "Mis
+      // viajes" con su ruta guardada. Lo demás (cuenta borrada, pase
+      // vencido, otras cuentas) sigue igual: no hay sesión que restaurar.
+      if (e?.status === 0) {
+        try {
+          const guardado = JSON.parse(localStorage.getItem(AccountService.CLAVE_SIN_SENAL) || 'null');
+          if (guardado?.email === correo) {
+            this.rol = 'conductor';
+            this.permisos = permisosDeRol('conductor');
+            this.esAdmin = false;
+            this.nombre = String(guardado.nombre || '');
+            this.cuentaCompartida = !!guardado.compartida;
+            this.sinSenal = true;
+            return { estado: 'APPROVED', esAdmin: false, rol: 'conductor' };
+          }
+        } catch { /* sin almacenamiento */ }
+      }
       return null;
     }
   }
