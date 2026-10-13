@@ -1,7 +1,8 @@
 import { ApplicationConfig, ApplicationRef, inject } from '@angular/core';
 import { registerLocaleData } from '@angular/common';
 import localeEs from '@angular/common/locales/es';
-import { provideRouter, withViewTransitions } from '@angular/router';
+import { provideRouter, withViewTransitions, withPreloading } from '@angular/router';
+import { PrecargaOficina } from './precarga';
 import { routes } from './app.routes';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
 // 1. IMPORTA withFetch
@@ -18,7 +19,7 @@ export const appConfig: ApplicationConfig = {
     // Cambio de página animado: la página que se va sale deslizándose y la
     // nueva entra (styles.css, "TRANSICIÓN ENTRE PÁGINAS"). Se salta si la
     // cuenta apagó "Deslizar entre páginas" o "Quitar animaciones".
-    provideRouter(routes, withViewTransitions({
+    provideRouter(routes, withPreloading(PrecargaOficina), withViewTransitions({
       skipInitialTransition: true,
       onViewTransitionCreated: ({ transition }) => {
         const html = document.documentElement;

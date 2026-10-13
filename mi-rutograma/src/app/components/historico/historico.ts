@@ -7,7 +7,6 @@ import autoTable from 'jspdf-autotable';
 import { DataService } from '../../services/data'; // <--- Usamos este
 import { UiService } from '../../services/ui.service';
 import { AuthService } from '../../services/auth.service';
-import { Configuracion } from '../configuracion/configuracion';
 
 // 🚀 IMPORTAMOS LA LÓGICA PURA DESDE EL JAVASCRIPT
 // @ts-ignore
@@ -20,7 +19,7 @@ import {
 @Component({
   selector: 'app-historico',
   standalone: true,
-  imports: [CommonModule, FormsModule, Configuracion],
+  imports: [CommonModule, FormsModule],
   templateUrl: './historico.html',
   styleUrl: './historico.css',
 })

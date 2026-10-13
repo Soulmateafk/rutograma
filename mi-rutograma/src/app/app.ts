@@ -185,5 +185,21 @@ export class App implements OnInit {
     setTimeout(() => {
       this.cargandoInicial.set(false);
     }, 1500);
+    // Reflejo del "ND" del logo (styles.css, "Detalles que brillan"): en vez
+    // de una animación que corre sin parar, se enciende un momento cada 3,5 s
+    // (logos del login) y cada 7 s (logo de la barra). Con la pestaña oculta no hace nada.
+    if (typeof document !== 'undefined') {
+      let vuelta = 0;
+      setInterval(() => {
+        if (document.hidden) return;
+        const html = document.documentElement;
+        vuelta++;
+        const clases = vuelta % 2 === 0 ? ['nd-reflejo', 'nd-reflejo-corto'] : ['nd-reflejo-corto'];
+        html.classList.remove(...clases);
+        void html.offsetWidth;
+        html.classList.add(...clases);
+        setTimeout(() => html.classList.remove(...clases), 1200);
+      }, 3500);
+    }
   }
 }

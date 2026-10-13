@@ -759,8 +759,10 @@ html.esquinas-muy :is(.bg-makand, .bg-arsitrans, .bg-polar, .bg-extra, .bg-entre
    EL DÍA DE HOY LATE y los viajes EN RUTA llevan un punto que parpadea
    (Rutograma). Se detienen con "Quitar animaciones".
    ============================================================ */
-@keyframes ap-latido-hoy { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(255, 255, 255, 0); } 50% { box-shadow: inset 0 -3px 0 0 rgba(255, 255, 255, 0.85), 0 0 14px rgba(245, 158, 11, 0.7); } }
-.ruto-th-day.hoy { animation: ap-latido-hoy 2.6s ease-in-out infinite; }
+/* El brillo va en una capa aparte que solo cambia de opacidad (más liviano que animar la sombra). */
+@keyframes ap-latido-hoy { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+.ruto-th-day.hoy { position: relative; }
+.ruto-th-day.hoy::before { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 -3px 0 0 rgba(255, 255, 255, 0.85), 0 0 14px rgba(245, 158, 11, 0.7); opacity: 0; animation: ap-latido-hoy 2.6s ease-in-out infinite; }
 @keyframes ap-punto { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.25; transform: scale(0.6); } }
 .bg-en-ruta { position: relative; }
 .bg-en-ruta::after { content: ''; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25); animation: ap-punto 1.6s ease-in-out infinite; pointer-events: none; }
@@ -869,8 +871,8 @@ body.tema-claro .tp-telarana { color: rgba(15, 23, 42, 0.16); }
 /* --- Navidad: luces en la barra --- */
 html[data-temporada="navidad"] nav::after { content: ''; position: absolute; left: 0; right: 0; bottom: -7px; height: 10px; pointer-events: none;
   background: radial-gradient(circle, #ef4444 3px, transparent 4px) 0 0 / 42px 10px repeat-x, radial-gradient(circle, #22c55e 3px, transparent 4px) 14px 0 / 42px 10px repeat-x, radial-gradient(circle, #facc15 3px, transparent 4px) 28px 0 / 42px 10px repeat-x;
-  animation: tp-luces 1.8s ease-in-out infinite alternate; }
-@keyframes tp-luces { from { opacity: 0.45; filter: saturate(0.7); } to { opacity: 1; filter: saturate(1.4) drop-shadow(0 0 3px #fff); } }
+  filter: saturate(1.2) drop-shadow(0 0 2px rgba(255, 255, 255, .7)); animation: tp-luces 1.8s ease-in-out infinite alternate; }
+@keyframes tp-luces { from { opacity: 0.45; } to { opacity: 1; } }
 html[data-temporada="navidad"] .tp-p:not(.tp-papel) { color: #e0f2fe; text-shadow: 0 0 6px rgba(255, 255, 255, 0.7); }
 body.tema-claro .tp-p:not(.tp-papel) { text-shadow: none; }
 html[data-temporada="navidad"] body.tema-claro .tp-p:not(.tp-papel) { color: #60a5fa; }
@@ -920,11 +922,15 @@ html[data-temporada="navidad"] nav::after { bottom: -14px; }
 @keyframes tp-fuego { 0% { opacity: 0; transform: scale(0.1); } 4% { opacity: 1; transform: scale(0.3); } 22% { opacity: 1; transform: scale(1); } 34%, 100% { opacity: 0; transform: scale(1.15) translateY(14px); } }
 /* Halloween: luna, araña y niebla. */
 .tp-luna { position: fixed; top: 70px; right: 120px; font-size: 54px; opacity: 0.55; pointer-events: none; z-index: -1; filter: drop-shadow(0 0 22px rgba(253, 224, 71, 0.6)); }
-.tp-arana { position: fixed; top: 54px; left: 22%; width: 20px; pointer-events: none; z-index: 9988; animation: tp-arana 14s ease-in-out infinite; transform-origin: top center; }
-.tp-hilo { position: absolute; left: 50%; top: 0; width: 1px; height: 100%; background: rgba(255, 255, 255, 0.35); }
+/* La araña baja y sube moviendo solo transform (antes cambiaba la altura y
+   obligaba a recalcular toda la página en cada cuadro). */
+.tp-arana { position: fixed; top: 54px; left: 22%; width: 20px; height: 150px; pointer-events: none; z-index: 9988; animation: tp-arana 14s ease-in-out infinite; transform-origin: top center; }
+.tp-hilo { position: absolute; left: 50%; top: 0; width: 1px; height: 100%; background: rgba(255, 255, 255, 0.35); transform-origin: top center; animation: tp-arana-hilo 14s ease-in-out infinite; }
 body.tema-claro .tp-hilo { background: rgba(15, 23, 42, 0.35); }
-.tp-arana-cuerpo { position: absolute; bottom: -18px; left: -4px; font-size: 22px; }
-@keyframes tp-arana { 0%, 100% { height: 10px; } 40%, 60% { height: 150px; } 50% { transform: rotate(4deg); } }
+.tp-arana-cuerpo { position: absolute; top: -8px; left: -4px; font-size: 22px; animation: tp-arana-baja 14s ease-in-out infinite; }
+@keyframes tp-arana { 0%, 45%, 55%, 100% { transform: none; } 50% { transform: rotate(4deg); } }
+@keyframes tp-arana-hilo { 0%, 100% { transform: scaleY(0.067); } 40%, 60% { transform: scaleY(1); } }
+@keyframes tp-arana-baja { 0%, 100% { transform: translateY(10px); } 40%, 60% { transform: translateY(150px); } }
 .tp-niebla { position: fixed; left: -20%; right: -20%; bottom: 0; height: 140px; pointer-events: none; z-index: -1; opacity: 0.35;
   background: radial-gradient(ellipse 30% 60% at 20% 100%, rgba(167, 139, 250, 0.5), transparent 70%), radial-gradient(ellipse 30% 60% at 60% 100%, rgba(203, 213, 225, 0.4), transparent 70%), radial-gradient(ellipse 30% 60% at 95% 100%, rgba(167, 139, 250, 0.45), transparent 70%);
   animation: tp-niebla 26s ease-in-out infinite alternate; }
@@ -1002,8 +1008,9 @@ body.tema-claro .tp-nieve { background: radial-gradient(circle, #93c5fd 0 40%, r
 .tp-ojos i { width: 11px; height: 6px; border-radius: 50%; background: radial-gradient(circle at 50% 60%, #111 0 1.5px, #facc15 2px, #f97316 100%); box-shadow: 0 0 8px 2px rgba(250, 204, 21, 0.7); animation: tp-parpadeo 5s ease-in-out infinite; }
 .tp-ojos-der i { animation-delay: 2.3s; }
 @keyframes tp-parpadeo { 0%, 44%, 50%, 100% { transform: scaleY(1); } 47% { transform: scaleY(0.1); } }
-@keyframes tp-neon { 0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; text-shadow: 0 0 6px #f97316, 0 0 14px #f97316; } 20%, 24%, 55% { opacity: 0.35; text-shadow: none; } }
-html[data-temporada="halloween"] .logo span { color: #fb923c !important; animation: tp-neon 6s linear infinite; }
+/* Solo parpadea la opacidad (el resplandor queda fijo): así lo mueve la tarjeta gráfica. */
+@keyframes tp-neon { 0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; } 20%, 24%, 55% { opacity: 0.35; } }
+html[data-temporada="halloween"] .logo span { color: #fb923c !important; text-shadow: 0 0 6px #f97316, 0 0 14px #f97316; animation: tp-neon 6s linear infinite; }
 
 /* --- Navidad: escarcha en las esquinas y gorro en el logo --- */
 .tp-escarcha { position: fixed; inset: 0; pointer-events: none; z-index: 9987;
@@ -1103,9 +1110,13 @@ html.densidad-comoda .btn { padding: 8px 16px; }
 html:not(.sin-brillo):not(.sin-animaciones) {
   /* El "ND" del logo brilla de vez en cuando (un reflejo que lo cruza). */
   &:not([data-temporada="halloween"]) .logo span { background: linear-gradient(110deg, var(--acento-texto) 0%, var(--acento-texto) 40%, #ffffff 50%, var(--acento-texto) 60%, var(--acento-texto) 100%);
-    background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: dt-reflejo 7s ease-in-out infinite; }
-  .mv-logo span, .dp-logo span { background: linear-gradient(110deg, var(--acento-texto) 40%, #ffffff 50%, var(--acento-texto) 60%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: dt-reflejo 7s ease-in-out infinite; }
-  .pci-logo span, .login-wordmark span, .reg-wordmark span { background: linear-gradient(110deg, #3b82f6 40%, #ffffff 50%, #3b82f6 60%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: dt-reflejo 3.5s ease-in-out infinite; }
+    background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; background-position: 100% 0; }
+  .mv-logo span, .dp-logo span { background: linear-gradient(110deg, var(--acento-texto) 40%, #ffffff 50%, var(--acento-texto) 60%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; background-position: 100% 0; }
+  .pci-logo span, .login-wordmark span, .reg-wordmark span { background: linear-gradient(110deg, #3b82f6 40%, #ffffff 50%, #3b82f6 60%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; background-position: 100% 0; }
+  /* El reflejo cruza solo un momento: app.ts pone estas clases cada 7 s y 3,5 s
+     (antes la animación corría sin parar, aunque casi siempre estaba quieta). */
+  &.nd-reflejo:not([data-temporada="halloween"]) .logo span, &.nd-reflejo :is(.mv-logo, .dp-logo) span { animation: dt-reflejo 1.05s ease-in-out forwards; }
+  &.nd-reflejo-corto :is(.pci-logo, .login-wordmark, .reg-wordmark) span { animation: dt-reflejo .53s ease-in-out forwards; }
   .logo { transition: transform .3s; }
   .logo:hover { transform: scale(1.06) rotate(-1deg); }
 
@@ -1160,7 +1171,7 @@ html:not(.sin-brillo):not(.sin-animaciones) {
 @keyframes dt-linea { from { transform: scaleX(0); opacity: 0; } to { transform: scaleX(1); opacity: 1; } }
 @keyframes dt-salto { 0% { transform: none; } 40% { transform: translateY(-4px) scale(1.06); } 100% { transform: none; } }
 @keyframes dt-icono { 0%, 100% { transform: none; } 30% { transform: rotate(-12deg) scale(1.15); } 60% { transform: rotate(8deg); } }
-@keyframes dt-reflejo { 0%, 70% { background-position: 100% 0; } 85%, 100% { background-position: 0% 0; } }
+@keyframes dt-reflejo { from { background-position: 100% 0; } to { background-position: 0% 0; } }
 @keyframes dt-boton { to { left: 130%; } }
 @keyframes dt-latido { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
 @keyframes dt-toast { from { opacity: 0; transform: translateY(14px) scale(.96); } to { opacity: 1; transform: none; } }
