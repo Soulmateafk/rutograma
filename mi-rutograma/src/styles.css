@@ -1437,8 +1437,9 @@ html[data-temporada]:not([data-temporada="halloween"]):not([data-temporada="navi
    donde se va según el orden de la barra (html[data-dir]). La barra de
    arriba se queda quieta: solo se mueve el contenido.
    ============================================================ */
-router-outlet + * { view-transition-name: pagina; }
-html.vt-activa router-outlet + * { animation: none !important; }
+/* Solo mientras dura la transición: el nombre crea una capa propia y, si se
+   quedara puesto, las ventanas de cada página quedarían debajo de la barra. */
+html.vt-activa router-outlet + * { view-transition-name: pagina; animation: none !important; }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .2s; }
 ::view-transition-group(pagina) { animation-duration: .45s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
 ::view-transition-old(pagina) { animation: vt-salir .3s cubic-bezier(.4, 0, 1, 1) both; }
@@ -1453,3 +1454,6 @@ html[data-dir="atras"]::view-transition-new(pagina) { animation-name: vt-entrar-
 @keyframes vt-entrar-der { from { opacity: 0; transform: translateX(110px); } }
 @keyframes vt-salir-der { to { opacity: 0; transform: translateX(90px) scale(.97); } }
 @keyframes vt-entrar-izq { from { opacity: 0; transform: translateX(-110px); } }
+
+/* La foto del mes en grande tapa también la barra de arriba (main tiene z-index 1). */
+main:has(.foto-grande) { z-index: 10100; }

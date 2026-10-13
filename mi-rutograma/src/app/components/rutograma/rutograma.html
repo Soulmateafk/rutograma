@@ -1107,15 +1107,15 @@
      tarjetas de verdad) sobre una copia clonada, filtrada por
      transportadora, y la descarga como imagen. -->
 <div animate.leave="ap-cerrar" *ngIf="isModalFotoOpen" class="ruto-modal-backdrop" style="z-index: 10003;">
-  <div class="ruto-modal-content" style="max-width: 1100px; width: 95%;">
+  <div class="ruto-modal-content foto-modal">
     <h3 style="margin: 0 0 4px 0;"><i class="bi bi-camera-fill"></i> Foto del mes</h3>
-    <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 16px 0;">
-      Vista previa de la matriz, filtrada por transportadora — cambia las opciones y se actualizara por si sola.
+    <p style="font-size: 12px; color: var(--color-texto-secundario); margin: 0 0 14px 0;">
+      La vista previa muestra la foto tal cual va a salir: cambia las opciones y se actualiza sola. Tócala para verla en grande.
     </p>
 
-    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-      <div style="flex: 0 0 220px;">
-        <div style="margin-bottom: 12px;">
+    <div class="foto-cuerpo">
+      <div class="foto-opciones">
+        <div>
           <label style="display:block; font-size: 12px; color: var(--color-texto-secundario); margin-bottom: 4px;">Transportadora</label>
           <select [(ngModel)]="fotoTransportadora" (ngModelChange)="actualizarPreviewFoto()" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:6px 8px;border-radius:6px;">
             <option value="Makand">Makand</option>
@@ -1124,35 +1124,38 @@
             <option value="Todas">Todas juntas</option>
           </select>
         </div>
-
-        <div style="margin-bottom: 12px;">
-          <label style="display:block; font-size: 12px; color: var(--color-texto-secundario); margin-bottom: 4px;">Orientación final</label>
-          <select [(ngModel)]="fotoOrientacion" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:6px 8px;border-radius:6px;">
+        <div>
+          <label style="display:block; font-size: 12px; color: var(--color-texto-secundario); margin-bottom: 4px;">Orientación</label>
+          <select [(ngModel)]="fotoOrientacion" (ngModelChange)="actualizarPreviewFoto()" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:6px 8px;border-radius:6px;">
             <option value="horizontal">Horizontal (tal cual se ve)</option>
             <option value="vertical">Vertical (rotada 90°)</option>
           </select>
         </div>
-
-        <div style="margin-bottom: 12px;">
+        <div>
           <label style="display:block; font-size: 12px; color: var(--color-texto-secundario); margin-bottom: 4px;">Tamaño de papel (nitidez)</label>
-          <select [(ngModel)]="fotoTamano" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:6px 8px;border-radius:6px;">
+          <select [(ngModel)]="fotoTamano" (ngModelChange)="actualizarPreviewFoto()" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:6px 8px;border-radius:6px;">
             <option value="A1">A1 (máxima resolución)</option>
             <option value="A2">A2</option>
             <option value="A3">A3</option>
             <option value="A4">A4</option>
           </select>
         </div>
-
-        <p style="font-size: 10px; color: var(--color-texto-apagado); line-height: 1.4;">
-          La orientación y el tamaño solo afectan la imagen final descargada, no a la vista previa.
-        </p>
+        <label class="foto-check"><input type="checkbox" [(ngModel)]="fotoTitulo" (ngModelChange)="actualizarPreviewFoto()"> Título con mes y transportadora</label>
+        <label class="foto-check"><input type="checkbox" [(ngModel)]="fotoLeyenda" (ngModelChange)="actualizarPreviewFoto()"> Leyenda de colores</label>
+        <div>
+          <label style="display:block; font-size: 12px; color: var(--color-texto-secundario); margin-bottom: 4px;">Nota en la foto (opcional)</label>
+          <input type="text" maxlength="140" [(ngModel)]="fotoNota" (change)="actualizarPreviewFoto()" (keydown.enter)="actualizarPreviewFoto()" placeholder="Ej. Versión del 13 de octubre" style="width:100%;background: var(--color-fondo-input);border:1px solid var(--color-borde);color: var(--color-texto-principal);padding:6px 8px;border-radius:6px;">
+        </div>
+        <p class="foto-tamano" *ngIf="fotoTamanoFinal"><i class="bi bi-aspect-ratio"></i> Imagen final: {{ fotoTamanoFinal }}</p>
       </div>
 
       <!-- Vista previa — una imagen REAL de la tabla (capturada de una
            copia, nunca la tabla en pantalla), no un dibujo aparte. -->
-      <div style="flex: 1; min-width: 320px; display: flex; align-items: center; justify-content: center; background: var(--color-fondo-input); border-radius: 8px; padding: 12px; min-height: 200px;">
-        <div *ngIf="generandoPreviewFoto" style="color: var(--color-texto-secundario); font-size: 12px;">Generando vista previa...</div>
-        <img *ngIf="!generandoPreviewFoto && fotoPreviewUrl" [src]="fotoPreviewUrl" style="max-width: 100%; max-height: 420px; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
+      <div class="foto-previa" [class.cargando]="generandoPreviewFoto">
+        <div *ngIf="generandoPreviewFoto && !fotoPreviewUrl" style="color: var(--color-texto-secundario); font-size: 12px;">Generando vista previa...</div>
+        <div *ngIf="generandoPreviewFoto && fotoPreviewUrl" class="foto-actualizando"><i class="bi bi-arrow-repeat"></i> Actualizando…</div>
+        <img *ngIf="fotoPreviewUrl" [src]="fotoPreviewUrl" (click)="verFotoGrande()" title="Ver en grande" alt="Vista previa de la foto del mes">
+        <button *ngIf="fotoPreviewUrl" class="foto-lupa" (click)="verFotoGrande()"><i class="bi bi-arrows-fullscreen"></i> Ver en grande</button>
         <div *ngIf="!generandoPreviewFoto && !fotoPreviewUrl" style="color: var(--color-texto-apagado); font-size: 12px; font-style: italic;">No se pudo generar la vista previa.</div>
       </div>
     </div>
@@ -1168,5 +1171,19 @@
         {{ generandoFoto ? 'Generando imagen...' : 'Descargar como imagen' }}
       </button>
     </div>
+  </div>
+</div>
+
+<!-- Foto del mes en grande, con zoom -->
+<div *ngIf="isModalFotoOpen && fotoGrande && fotoPreviewUrl" class="foto-grande" animate.leave="ap-cerrar" (click)="fotoGrande = false">
+  <div class="foto-grande-barra" (click)="$event.stopPropagation()">
+    <button (click)="zoomFoto(-0.25)" title="Alejar"><i class="bi bi-zoom-out"></i></button>
+    <span>{{ (fotoZoom * 100) | number:'1.0-0' }}%</span>
+    <button (click)="zoomFoto(0.25)" title="Acercar"><i class="bi bi-zoom-in"></i></button>
+    <button (click)="fotoZoom = 1" title="Ajustar a la pantalla"><i class="bi bi-arrows-angle-contract"></i></button>
+    <button (click)="fotoGrande = false" title="Cerrar"><i class="bi bi-x-lg"></i></button>
+  </div>
+  <div class="foto-grande-lienzo" (click)="$event.stopPropagation()" (wheel)="ruedaFoto($event)">
+    <img [src]="fotoPreviewUrl" [style.width]="fotoZoom === 1 ? null : (fotoZoom * 100) + '%'" [class.ajustada]="fotoZoom === 1" alt="Foto del mes en grande">
   </div>
 </div>

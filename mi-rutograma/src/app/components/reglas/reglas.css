@@ -21,3 +21,6 @@
 .rg-dia.on { background: #2563eb; border-color: #2563eb; color: #fff; }
 .rg-hora { display: inline-flex; gap: 5px; align-items: center; font-size: 13px; color: var(--color-texto-secundario); }
 @media (max-width: 600px) { .rg-page { padding: 12px; } }
+.rg-afecta { display: block; margin-top: 4px; font-size: 12px; color: var(--text3, #94a3b8); }
+.rg-afecta i { color: #a855f7; margin-right: 3px; }
+.rg-placa { display: inline-block; margin: 2px 4px 0 0; padding: 1px 7px; border-radius: 6px; font-size: 11px; background: color-mix(in srgb, #a855f7 18%, transparent); color: inherit; border: 1px solid color-mix(in srgb, #a855f7 40%, transparent); color: #d8b4fe; }

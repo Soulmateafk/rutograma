@@ -35,7 +35,13 @@
     <div class="rg-lista">
       <app-vacio *ngIf="!picos.length" chico dibujo="calendario" titulo="Todavía no hay pico y placa"></app-vacio>
       <div *ngFor="let p of picos" class="rg-fila">
-        <span><b>{{ textoDias(p) }}</b> · placas terminadas en <b>{{ p.digitos }}</b> · de {{ p.desde }} a {{ p.hasta }}<span class="rg-nota" *ngIf="p.nota"> · {{ p.nota }}</span></span>
+        <span><b>{{ textoDias(p) }}</b> · placas terminadas en <b>{{ p.digitos }}</b> · de {{ p.desde }} a {{ p.hasta }}<span class="rg-nota" *ngIf="p.nota"> · {{ p.nota }}</span>
+          <span class="rg-afecta" *ngIf="afectados(p) as af">
+            <i class="bi bi-truck"></i>
+            <ng-container *ngIf="af.length; else ninguno">Afecta a {{ af.length }} vehículo{{ af.length === 1 ? '' : 's' }}: <b *ngFor="let pl of af; let u = last" class="rg-placa">{{ pl }}</b></ng-container>
+            <ng-template #ninguno>Ningún vehículo propio termina en esos dígitos.</ng-template>
+          </span>
+        </span>
         <button *ngIf="puedeEditar" class="rg-quitar" [disabled]="guardando" (click)="quitar('picoPlaca', p.id)" title="Quitar"><i class="bi bi-trash"></i></button>
       </div>
     </div>

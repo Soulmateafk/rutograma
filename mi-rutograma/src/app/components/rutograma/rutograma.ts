@@ -4020,6 +4020,14 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   public generandoPDF: boolean = false;
   public generandoPreviewFoto: boolean = false;
   public fotoPreviewUrl: string | null = null;
+  // Lo que lleva la foto además de la matriz (se ve en la vista previa).
+  public fotoTitulo: boolean = true;
+  public fotoLeyenda: boolean = true;
+  public fotoNota: string = '';
+  /** Tamaño en píxeles de la imagen final (ancho × alto), para mostrarlo. */
+  public fotoTamanoFinal: string = '';
+  public fotoGrande: boolean = false;
+  public fotoZoom: number = 1;
 
   // Tamaño de papel → factor de resolución para la captura final (no
   // fuerza una proporción de página — eso distorsionaría la matriz
@@ -4039,7 +4047,14 @@ export class RutogramaComponent implements OnInit, OnDestroy {
 
   public cerrarFotoMes(): void {
     this.isModalFotoOpen = false;
+    this.fotoGrande = false;
   }
+
+  /** Vista en grande de la foto (con zoom). */
+  public verFotoGrande(): void { if (this.fotoPreviewUrl) { this.fotoZoom = 1; this.fotoGrande = true; } }
+  /** Ctrl + rueda del mouse: acercar o alejar la foto en grande. */
+  public ruedaFoto(e: WheelEvent): void { if (!e.ctrlKey) return; e.preventDefault(); this.zoomFoto(e.deltaY < 0 ? 0.25 : -0.25); }
+  public zoomFoto(paso: number): void { this.fotoZoom = Math.min(4, Math.max(0.5, Math.round((this.fotoZoom + paso) * 100) / 100)); }
 
   // Clona la tabla REAL (#rtbl) y, si se eligió una transportadora
   // específica (no "Todas"), quita del CLON las filas que no sean de
@@ -4074,7 +4089,36 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     contenedor.style.position = 'fixed';
     contenedor.style.left = '-99999px';
     contenedor.style.top = '0';
-    contenedor.appendChild(clone);
+    // Lienzo: título y leyenda opcionales arriba de la matriz.
+    const lienzo = document.createElement('div');
+    lienzo.style.cssText = 'background:#0f172a;padding:18px 18px 14px;display:inline-block;font-family:Segoe UI,system-ui,sans-serif;color:#f1f5f9;';
+    if (this.fotoTitulo) {
+      const cab = document.createElement('div');
+      cab.style.cssText = 'display:flex;align-items:baseline;gap:14px;margin-bottom:10px;';
+      const tr = this.fotoTransportadora === 'Todas' ? 'Todas las transportadoras' : this.fotoTransportadora;
+      cab.innerHTML = `<span style="font-size:26px;font-weight:800;letter-spacing:.06em;">MAKA<span style="color:#f97316;">ND</span></span>`
+        + `<span style="font-size:20px;font-weight:700;">Rutograma ${this.meses[this.ds.S.mes]} ${this.ds.S.anio} · ${tr}</span>`
+        + `<span style="margin-left:auto;font-size:12px;color:#94a3b8;">Generado el ${new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })}</span>`;
+      lienzo.appendChild(cab);
+    }
+    const nota = String(this.fotoNota || '').trim();
+    if (nota) {
+      const n = document.createElement('div');
+      n.style.cssText = 'font-size:14px;color:#e2e8f0;background:#1e293b;border-left:4px solid #f97316;padding:6px 10px;border-radius:6px;margin-bottom:10px;';
+      n.textContent = nota;
+      lienzo.appendChild(n);
+    }
+    if (this.fotoLeyenda) {
+      const ley = document.querySelector('.ruto-legend');
+      if (ley) {
+        const copia = ley.cloneNode(true) as HTMLElement;
+        copia.querySelectorAll('.ruto-legend-atenuado, .ruto-legend-activo').forEach(e => e.classList.remove('ruto-legend-atenuado', 'ruto-legend-activo'));
+        copia.style.marginBottom = '10px';
+        lienzo.appendChild(copia);
+      }
+    }
+    lienzo.appendChild(clone);
+    contenedor.appendChild(lienzo);
     document.body.appendChild(contenedor);
 
     // Columnas como "Vehículo"/"Próx. Entrega" usan position:sticky en
@@ -4095,7 +4139,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     });
 
     try {
-      const canvas = await html2canvas(clone, {
+      const canvas = await html2canvas(lienzo, {
         scale: escala,
         backgroundColor: '#0f172a',
         useCORS: true
@@ -4109,19 +4153,41 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   // Vista previa rápida (resolución baja, para que sea instantánea) —
   // se actualiza sola al abrir el modal y cada vez que cambian las
   // opciones.
+  private rotarSiVertical(canvas: HTMLCanvasElement): HTMLCanvasElement {
+    if (this.fotoOrientacion !== 'vertical') return canvas;
+    const rotado = document.createElement('canvas');
+    rotado.width = canvas.height;
+    rotado.height = canvas.width;
+    const ctx = rotado.getContext('2d');
+    if (!ctx) return canvas;
+    ctx.translate(rotado.width / 2, rotado.height / 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
+    return rotado;
+  }
+
+  private prevPendiente = false;
   public async actualizarPreviewFoto(): Promise<void> {
-    if (this.generandoPreviewFoto) return;
+    // Si ya se está generando, se repite al terminar (para no perder el último cambio).
+    if (this.generandoPreviewFoto) { this.prevPendiente = true; return; }
     this.generandoPreviewFoto = true;
     this.cdr.detectChanges();
 
     try {
-      const canvas = await this.capturarClon(0.5);
+      // La vista previa ya muestra la foto tal cual saldrá: título, leyenda, nota y orientación.
+      const base = await this.capturarClon(0.75);
+      const canvas = base ? this.rotarSiVertical(base) : null;
       this.fotoPreviewUrl = canvas ? canvas.toDataURL('image/png') : null;
+      if (canvas) {
+        const f = (this.ESCALA_POR_TAMANO[this.fotoTamano] || 2) / 0.75;
+        this.fotoTamanoFinal = `${Math.round(canvas.width * f)} × ${Math.round(canvas.height * f)} px`;
+      }
     } catch (err) {
       console.error('Error generando la vista previa:', err);
     } finally {
       this.generandoPreviewFoto = false;
       this.zone.run(() => this.cdr.detectChanges());
+      if (this.prevPendiente) { this.prevPendiente = false; this.actualizarPreviewFoto(); }
     }
   }
 
@@ -4141,18 +4207,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
         return;
       }
 
-      if (this.fotoOrientacion === 'vertical') {
-        const rotado = document.createElement('canvas');
-        rotado.width = canvas.height;
-        rotado.height = canvas.width;
-        const ctx = rotado.getContext('2d');
-        if (ctx) {
-          ctx.translate(rotado.width / 2, rotado.height / 2);
-          ctx.rotate(Math.PI / 2);
-          ctx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
-          canvas = rotado;
-        }
-      }
+      canvas = this.rotarSiVertical(canvas);
 
       const dataUrl = canvas.toDataURL('image/png');
       const a = document.createElement('a');
@@ -4184,11 +4239,12 @@ export class RutogramaComponent implements OnInit, OnDestroy {
 
     try {
       const escala = this.ESCALA_POR_TAMANO[this.fotoTamano] || 2;
-      const canvas = await this.capturarClon(escala);
-      if (!canvas) {
+      const base = await this.capturarClon(escala);
+      if (!base) {
         this.ui.mostrarToast('No se encontró la matriz para capturar.', 'err');
         return;
       }
+      const canvas = this.rotarSiVertical(base);
 
       // Página apaisada, tamaño ajustado a la proporción real de la
       // imagen capturada (en vez de un A4 fijo) — así nunca queda con

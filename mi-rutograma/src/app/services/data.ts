@@ -529,6 +529,10 @@ export class DataService {
       const texto = avisos.length === 1
         ? avisos[0]
         : `${avisos.length} cambios enviados para aprobación del jefe.`;
+      // Se pide TODO otra vez: como el servidor no cambió, con la huella
+      // respondería "sin cambios" y la pantalla se quedaba mostrando el
+      // cambio como si ya estuviera hecho.
+      this.versionDatos = '';
       await this.inicializarApp(true);
       this.ui.mostrarToast(`<i class="bi bi-hourglass-split"></i> ${texto} Se aplicarán cuando un jefe los apruebe.`, 'ok');
     }, 400);
