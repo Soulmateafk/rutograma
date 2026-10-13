@@ -1736,3 +1736,6 @@ body.ruto-arrastrando .ruto-hover-tooltip { display: none; }
 .foto-grande-lienzo { flex: 1; overflow: auto; padding: 0 16px 16px; text-align: center; }
 .foto-grande-lienzo img { max-width: none; border-radius: 4px; box-shadow: 0 10px 40px rgba(0, 0, 0, .6); }
 .foto-grande-lienzo img.ajustada { max-width: 100%; max-height: calc(100vh - 80px); }
+.foto-periodos { display: flex; gap: 4px; }
+.foto-periodos button { flex: 1; padding: 6px 4px; font-size: 12px; border-radius: 7px; border: 1px solid var(--color-borde); background: var(--color-fondo-input); color: var(--color-texto-principal); cursor: pointer; font-family: inherit; white-space: nowrap; }
+.foto-periodos button.on { background: var(--acento, #2563eb); border-color: var(--acento, #2563eb); color: #fff; font-weight: 700; }
