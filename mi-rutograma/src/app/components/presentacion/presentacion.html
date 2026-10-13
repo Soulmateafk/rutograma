@@ -1,0 +1,261 @@
+<!-- ===================== ESCOGER QUÉ PRESENTAR ===================== -->
+<div class="pr-config" *ngIf="!viendo()">
+  <div class="pr-cab">
+    <div>
+      <h2><i class="bi bi-easel2"></i> Modo presentación</h2>
+      <p>Escoge una o varias semanas o meses y la app arma las diapositivas solas: los números de cada período y, si eliges más de uno, la comparación con conclusiones. Se ve en pantalla completa y se puede guardar en PDF.</p>
+    </div>
+  </div>
+
+  <div class="pr-paso">
+    <div class="pr-paso-tit">1. ¿Qué quieres presentar?</div>
+    <div class="pr-modos">
+      <button [class.on]="modo() === 'semana'" (click)="modo.set('semana')"><i class="bi bi-calendar-week"></i> Semanas</button>
+      <button [class.on]="modo() === 'mes'" (click)="modo.set('mes')"><i class="bi bi-calendar3"></i> Meses</button>
+      <button [class.on]="modo() === 'ambos'" (click)="modo.set('ambos')"><i class="bi bi-calendar2-range"></i> Ambos</button>
+    </div>
+    <div class="pr-rapidos">
+      <span>Rápido:</span>
+      <button (click)="rapido('mes')">Este mes</button>
+      <button (click)="rapido('mesVsPasado')">Este mes vs. el pasado</button>
+      <button (click)="rapido('3meses')">Últimos 3 meses</button>
+      <button (click)="rapido('semana')">Esta semana</button>
+      <button (click)="rapido('semanaVsPasada')">Esta semana vs. la pasada</button>
+      <button (click)="rapido('4semanas')">Últimas 4 semanas</button>
+    </div>
+  </div>
+
+  <div class="pr-paso">
+    <div class="pr-paso-tit">2. Marca los períodos <small>(hasta 6; con 2 o más se comparan)</small></div>
+    <div class="pr-grupo" *ngIf="modo() !== 'semana'">
+      <div class="pr-grupo-tit">Meses</div>
+      <div class="pr-chips">
+        <button *ngFor="let p of listaMeses()" class="pr-chip" [class.on]="estaElegido(p)" (click)="alternar(p)"><i class="bi" [ngClass]="estaElegido(p) ? 'bi-check-circle-fill' : 'bi-circle'"></i> {{ p.etiqueta }}</button>
+      </div>
+    </div>
+    <div class="pr-grupo" *ngIf="modo() !== 'mes'">
+      <div class="pr-grupo-tit">Semanas</div>
+      <div class="pr-chips">
+        <button *ngFor="let p of listaSemanas()" class="pr-chip" [class.on]="estaElegido(p)" (click)="alternar(p)"><i class="bi" [ngClass]="estaElegido(p) ? 'bi-check-circle-fill' : 'bi-circle'"></i> {{ p.etiqueta.replace('Semana del ', '') }}</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="pr-paso">
+    <div class="pr-paso-tit">3. Así va a quedar</div>
+    <div class="pr-elegidos">
+      <span class="pr-elegido" *ngFor="let p of elegidos(); let i = index" [style.border-color]="colorSerie(i)"><span class="pr-punto" [style.background]="colorSerie(i)"></span>{{ p.etiqueta }} <button (click)="alternar(p)" aria-label="Quitar">×</button></span>
+      <span class="pr-vacio" *ngIf="!elegidos().length">Todavía no has escogido nada.</span>
+      <button class="pr-link" *ngIf="elegidos().length" (click)="limpiar()">Quitar todos</button>
+    </div>
+    <label class="pr-check" *ngIf="elegidos().length > 1"><input type="checkbox" [checked]="detalle()" (change)="detalle.set(!detalle())"> Incluir el detalle de cada período (si no, solo la comparación)</label>
+    <p class="pr-nota" *ngIf="mezcla()"><i class="bi bi-info-circle"></i> Mezclaste semanas y meses: en la comparación se usa también el promedio de viajes por día, para que sea justa.</p>
+    <div class="pr-miniaturas" *ngIf="elegidos().length">
+      <div class="pr-mini" *ngFor="let d of diapositivas(); let i = index" (click)="actual.set(i); empezar()" [title]="'Diapositiva ' + (i + 1)">
+        <div class="pr-mini-escala"><ng-container *ngTemplateOutlet="diapo; context: { $implicit: d }"></ng-container></div>
+        <span>{{ i + 1 }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pr-acciones">
+    <span>{{ diapositivas().length }} diapositivas</span>
+    <button class="pr-btn-sec" [disabled]="!elegidos().length" (click)="imprimir()"><i class="bi bi-file-earmark-pdf"></i> Imprimir / PDF</button>
+    <button class="pr-btn" [disabled]="!elegidos().length" (click)="empezar()"><i class="bi bi-play-fill"></i> Presentar</button>
+  </div>
+</div>
+
+<!-- ===================== VISOR ===================== -->
+<div class="pr-visor" *ngIf="viendo()" (click)="tocar($event)">
+  <div class="pr-escena">
+    <!-- Se vuelve a crear en cada cambio de diapositiva, para que entre con su animación. -->
+    <div class="pr-diapo" *ngFor="let n of [actual()]" [ngClass]="direccion() === 1 ? 'pr-entra-der' : 'pr-entra-izq'">
+      <ng-container *ngTemplateOutlet="diapo; context: { $implicit: diapositivas()[n] }"></ng-container>
+    </div>
+  </div>
+  <div class="pr-controles">
+    <button (click)="ir(actual() - 1)" [disabled]="actual() === 0" aria-label="Anterior"><i class="bi bi-chevron-left"></i></button>
+    <span>{{ actual() + 1 }} / {{ diapositivas().length }}</span>
+    <button (click)="ir(actual() + 1)" [disabled]="actual() === diapositivas().length - 1" aria-label="Siguiente"><i class="bi bi-chevron-right"></i></button>
+    <button (click)="salir()" title="Salir (Esc)"><i class="bi bi-x-lg"></i></button>
+  </div>
+  <div class="pr-progreso"><span [style.width.%]="(actual() + 1) / diapositivas().length * 100"></span></div>
+</div>
+
+<!-- ===================== PARA IMPRIMIR (una por hoja) ===================== -->
+<div class="pr-impresion" *ngIf="imprimiendo()">
+  <div class="pr-hoja" *ngFor="let d of diapositivas()"><ng-container *ngTemplateOutlet="diapo; context: { $implicit: d }"></ng-container></div>
+</div>
+
+<!-- ===================== LAS DIAPOSITIVAS ===================== -->
+<ng-template #diapo let-d>
+  <div class="pr-d" [ngClass]="'pr-d-' + d.tipo">
+    <div class="pr-marca">MAKA<span>ND</span></div>
+
+    <ng-container [ngSwitch]="d.tipo">
+      <!-- Portada -->
+      <div *ngSwitchCase="'portada'" class="pr-portada">
+        <div class="pr-logo">MAKA<span>ND</span></div>
+        <h1>{{ elegidos().length > 1 ? 'Comparativo de operación' : 'Resumen de operación' }}</h1>
+        <div class="pr-portada-periodos">
+          <span *ngFor="let m of metricasElegidas(); let i = index" [style.border-color]="colorSerie(i)">{{ m.periodo.etiqueta }}</span>
+        </div>
+        <p>Logística de transporte · {{ hoyTexto() }}</p>
+      </div>
+
+      <!-- KPIs -->
+      <div *ngSwitchCase="'kpis'" class="pr-cont">
+        <h2>{{ d.m.periodo.etiqueta }}</h2>
+        <div class="pr-kpis">
+          <div class="pr-kpi pr-k-azul"><strong [appContar]="d.m.total"></strong><span>viajes</span></div>
+          <div class="pr-kpi pr-k-verde"><strong>{{ d.m.cumplimiento === null ? '—' : d.m.cumplimiento + '%' }}</strong><span>cumplimiento</span></div>
+          <div class="pr-kpi"><strong [appContar]="d.m.entregados"></strong><span>entregados</span></div>
+          <div class="pr-kpi"><strong [appContar]="d.m.cancelados"></strong><span>cancelados</span></div>
+          <div class="pr-kpi"><strong>{{ d.m.partePropia }}%</strong><span>con flota propia</span></div>
+          <div class="pr-kpi"><strong>{{ d.m.promedioDia }}</strong><span>viajes por día</span></div>
+          <div class="pr-kpi"><strong>{{ d.m.viajesPorVehiculo }}</strong><span>viajes por vehículo</span></div>
+          <div class="pr-kpi"><strong [appContar]="d.m.cajas"></strong><span>cajas</span></div>
+        </div>
+        <p class="pr-pie" *ngIf="d.m.mejorDia">Día con más viajes: <b>{{ d.m.mejorDia.etiqueta }}</b> ({{ d.m.mejorDia.n }}).</p>
+      </div>
+
+      <!-- Serie -->
+      <div *ngSwitchCase="'serie'" class="pr-cont">
+        <h2>{{ d.m.periodo.tipo === 'semana' ? 'Viajes por día' : 'Viajes por semana' }} <small>{{ d.m.periodo.etiqueta }}</small></h2>
+        <div class="pr-barras">
+          <div class="pr-barra" *ngFor="let s of d.m.serie" [title]="s.etiqueta + ': ' + s.n + ' viajes, ' + s.entregados + ' entregados'">
+            <b>{{ s.n }}</b>
+            <div class="pr-barra-pista"><div class="pr-barra-total" [style.height.%]="alto(s.n, max(d.m.serie))"><div class="pr-barra-ok" [style.height.%]="s.n ? s.entregados / s.n * 100 : 0"></div></div></div>
+            <span>{{ s.etiqueta }}</span>
+          </div>
+        </div>
+        <div class="pr-leyenda"><span><i style="background: var(--pr-s1)"></i> Viajes</span><span><i style="background: var(--pr-ok)"></i> De esos, entregados</span></div>
+      </div>
+
+      <!-- Reparto -->
+      <div *ngSwitchCase="'reparto'" class="pr-cont">
+        <h2>¿Quién y para quién? <small>{{ d.m.periodo.etiqueta }}</small></h2>
+        <div class="pr-dos">
+          <div class="pr-caja">
+            <h3>Transportadoras</h3>
+            <div class="pr-dona-fila">
+              <svg viewBox="0 0 200 200" class="pr-dona"><path *ngFor="let t of dona(d.m.porTransportadora)" [attr.d]="t.d" [style.fill]="t.color"><title>{{ t.nombre }}: {{ t.n }} ({{ t.pct }}%)</title></path>
+                <text x="100" y="104" text-anchor="middle" class="pr-dona-n">{{ d.m.total }}</text></svg>
+              <ul class="pr-ley-lista"><li *ngFor="let t of dona(d.m.porTransportadora)"><i [style.background]="t.color"></i>{{ t.nombre }} <b>{{ t.n }}</b> <small>{{ t.pct }}%</small></li></ul>
+            </div>
+          </div>
+          <div class="pr-caja">
+            <h3>Clientes</h3>
+            <div class="pr-hbarras">
+              <div class="pr-hbarra" *ngFor="let c of d.m.porCliente.slice(0, 6)"><span>{{ c.nombre }}</span><div><i [style.width.%]="alto(c.n, max(d.m.porCliente))"></i></div><b>{{ c.n }}</b></div>
+            </div>
+            <h3 style="margin-top:14px">Destinos</h3>
+            <div class="pr-hbarras">
+              <div class="pr-hbarra" *ngFor="let c of d.m.porDestino.slice(0, 5)"><span>{{ c.nombre }}</span><div><i class="pr-i2" [style.width.%]="alto(c.n, max(d.m.porDestino))"></i></div><b>{{ c.n }}</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Equipo -->
+      <div *ngSwitchCase="'equipo'" class="pr-cont">
+        <h2>El equipo <small>{{ d.m.periodo.etiqueta }}</small></h2>
+        <div class="pr-dos">
+          <div class="pr-caja">
+            <h3>Conductores con más viajes</h3>
+            <div class="pr-podio" *ngIf="d.m.conductores.length">
+              <div class="pr-podio-p p2" *ngIf="d.m.conductores[1]"><span>🥈</span><b>{{ d.m.conductores[1].nombre }}</b><small>{{ d.m.conductores[1].n }} viajes</small><i></i></div>
+              <div class="pr-podio-p p1"><span>🥇</span><b>{{ d.m.conductores[0].nombre }}</b><small>{{ d.m.conductores[0].n }} viajes</small><i></i></div>
+              <div class="pr-podio-p p3" *ngIf="d.m.conductores[2]"><span>🥉</span><b>{{ d.m.conductores[2].nombre }}</b><small>{{ d.m.conductores[2].n }} viajes</small><i></i></div>
+            </div>
+            <p class="pr-vacio" *ngIf="!d.m.conductores.length">Sin viajes de la flota propia.</p>
+          </div>
+          <div class="pr-caja">
+            <h3>Vehículos con más viajes</h3>
+            <div class="pr-hbarras">
+              <div class="pr-hbarra" *ngFor="let c of d.m.vehiculosTop.slice(0, 8)"><span>{{ c.nombre }}</span><div><i [style.width.%]="alto(c.n, max(d.m.vehiculosTop))"></i></div><b>{{ c.n }}</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calidad -->
+      <div *ngSwitchCase="'calidad'" class="pr-cont">
+        <h2>Calidad del servicio <small>{{ d.m.periodo.etiqueta }}</small></h2>
+        <div class="pr-kpis pr-kpis-4">
+          <div class="pr-kpi"><strong>{{ d.m.cancelados }}</strong><span>cancelados</span></div>
+          <div class="pr-kpi"><strong>{{ d.m.quejas }}</strong><span>quejas de clientes</span></div>
+          <div class="pr-kpi"><strong>{{ d.m.comparendos }}</strong><span>comparendos{{ d.m.valorComparendos ? ' · $' + (d.m.valorComparendos | number:'1.0-1':'es') : '' }}</span></div>
+          <div class="pr-kpi"><strong>{{ d.m.novedades }}</strong><span>novedades ({{ d.m.novedadesAbiertas }} sin resolver)</span></div>
+        </div>
+        <div class="pr-caja" *ngIf="d.m.motivosCancelacion.length" style="margin-top:16px">
+          <h3>Por qué se cancelaron</h3>
+          <div class="pr-hbarras">
+            <div class="pr-hbarra" *ngFor="let c of d.m.motivosCancelacion.slice(0, 5)"><span>{{ c.nombre }}</span><div><i class="pr-i3" [style.width.%]="alto(c.n, max(d.m.motivosCancelacion))"></i></div><b>{{ c.n }}</b></div>
+          </div>
+        </div>
+        <p class="pr-pie" *ngIf="!d.m.cancelados && !d.m.quejas && !d.m.comparendos">✨ Un período limpio: sin cancelaciones, quejas ni comparendos.</p>
+      </div>
+
+      <!-- Comparación: tabla -->
+      <div *ngSwitchCase="'comparaKpis'" class="pr-cont">
+        <h2>Comparación</h2>
+        <table class="pr-tabla">
+          <thead><tr><th></th><th *ngFor="let m of metricasElegidas(); let i = index"><span class="pr-punto" [style.background]="colorSerie(i)"></span>{{ m.periodo.corta }}</th><th *ngIf="metricasElegidas().length === 2">Cambio</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let f of filasComparacion">
+              <td>{{ f.nombre }}</td>
+              <td *ngFor="let m of metricasElegidas()"><b>{{ f.valor(m) === null ? '—' : (f.valor(m) | number:'1.0-1':'es') + (f.sufijo || '') }}</b></td>
+              <td *ngIf="metricasElegidas().length === 2" [ngClass]="tonoDif(f.valor(metricasElegidas()[0]), f.valor(metricasElegidas()[1]), f.mejor)">{{ dif(f.valor(metricasElegidas()[0]), f.valor(metricasElegidas()[1])) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Comparación: viajes por período -->
+      <div *ngSwitchCase="'comparaSerie'" class="pr-cont">
+        <h2>{{ mezcla() ? 'Viajes por día en cada período' : 'Viajes en cada período' }}</h2>
+        <div class="pr-barras pr-barras-comp">
+          <div class="pr-barra" *ngFor="let m of metricasElegidas(); let i = index" [title]="m.periodo.etiqueta + ': ' + valorComparable(m)">
+            <b>{{ valorComparable(m) }}</b>
+            <div class="pr-barra-pista"><div class="pr-barra-total" [style.height.%]="alto(valorComparable(m), maxTotal())" [style.background]="colorSerie(i)"></div></div>
+            <span>{{ m.periodo.corta }}</span>
+          </div>
+        </div>
+        <div class="pr-pila">
+          <div class="pr-pila-fila" *ngFor="let m of metricasElegidas()">
+            <span>{{ m.periodo.corta }}</span>
+            <div class="pr-pila-barra"><i *ngFor="let t of m.porTransportadora; let j = index" [style.flex]="t.n" [style.background]="colorSerie(j)" [title]="t.nombre + ': ' + t.n">{{ t.n > 4 ? t.nombre + ' ' + t.n : '' }}</i></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comparación: clientes -->
+      <div *ngSwitchCase="'comparaClientes'" class="pr-cont">
+        <h2>Clientes, período contra período</h2>
+        <div class="pr-grupos">
+          <div class="pr-grupo-c" *ngFor="let c of clientesComparados().nombres">
+            <div class="pr-grupo-barras">
+              <div *ngFor="let m of metricasElegidas(); let i = index" class="pr-gb" [style.height.%]="alto(clientesComparados().valor(m, c), clientesComparados().max)" [style.background]="colorSerie(i)" [title]="m.periodo.etiqueta + ': ' + clientesComparados().valor(m, c)"><b>{{ clientesComparados().valor(m, c) }}</b></div>
+            </div>
+            <span>{{ c }}</span>
+          </div>
+        </div>
+        <div class="pr-leyenda"><span *ngFor="let m of metricasElegidas(); let i = index"><i [style.background]="colorSerie(i)"></i>{{ m.periodo.etiqueta }}</span></div>
+      </div>
+
+      <!-- Conclusiones -->
+      <div *ngSwitchCase="'conclusiones'" class="pr-cont">
+        <h2>Lo más importante</h2>
+        <ul class="pr-conclusiones"><li *ngFor="let f of frases(); let i = index" [style.animation-delay.ms]="i * 120">{{ f }}</li></ul>
+      </div>
+
+      <!-- Cierre -->
+      <div *ngSwitchCase="'cierre'" class="pr-portada">
+        <div class="pr-logo">MAKA<span>ND</span></div>
+        <h1>¡Gracias!</h1>
+        <p>{{ metricasElegidas().length }} período{{ metricasElegidas().length === 1 ? '' : 's' }} · {{ metricasElegidas()[0]?.total ?? 0 }}{{ metricasElegidas().length > 1 ? ' → ' + metricasElegidas()[metricasElegidas().length - 1].total : '' }} viajes</p>
+      </div>
+    </ng-container>
+  </div>
+</ng-template>

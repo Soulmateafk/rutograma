@@ -1476,3 +1476,11 @@ main:has(.foto-grande, .pb-fondo) { z-index: 10100; }
   html.imprimiendo-cierre .cs-ventana { position: absolute; left: 0; top: 0; width: 100%; }
 }
 main:has(.cs-fondo) { z-index: 10100; }
+
+/* Modo presentación: el visor tapa todo y al imprimir solo salen las diapositivas. */
+main:has(.pr-visor) { z-index: 10300; }
+@media print {
+  html.imprimiendo-presentacion body * { visibility: hidden !important; }
+  html.imprimiendo-presentacion .pr-impresion, html.imprimiendo-presentacion .pr-impresion * { visibility: visible !important; }
+  html.imprimiendo-presentacion .pr-impresion { position: absolute !important; left: 0 !important; top: 0 !important; }
+}

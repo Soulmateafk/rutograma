@@ -238,6 +238,17 @@ export const GUIAS: Record<string, Guia> = {
     ]
   },
 
+  presentacion: {
+    titulo: 'Modo presentación',
+    pasos: [
+      { el: '.pr-modos', titulo: 'Semanas, meses o ambos', texto: 'Escoge qué quieres mostrar. Con "Ambos" puedes mezclar semanas y meses: en la comparación se usa también el promedio de viajes por día para que sea justa.' },
+      { el: '.pr-rapidos', titulo: 'Rápido', texto: 'Atajos para lo más común: este mes contra el pasado, las últimas 4 semanas, etc.' },
+      { el: '.pr-chips', titulo: 'Marca los períodos', texto: 'Hasta 6. Con uno solo ves su resumen; con dos o más, además, la comparación y las conclusiones.' },
+      { el: '.pr-miniaturas', titulo: 'Así va a quedar', texto: 'Las diapositivas que se van a mostrar. Toca una para empezar desde ahí.' },
+      { el: '.pr-acciones', titulo: 'Presentar o imprimir', texto: '"Presentar" abre en pantalla completa: flechas o clic para avanzar, Esc para salir. "Imprimir / PDF" saca una diapositiva por hoja.' }
+    ]
+  },
+
   sesiones: {
     titulo: 'Sesiones',
     pasos: [
