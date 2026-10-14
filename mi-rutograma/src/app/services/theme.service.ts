@@ -113,7 +113,7 @@ export const TEMAS_LISTOS: TemaListo[] = [
   { clave: 'contraste', nombre: 'Alto contraste', emoji: '🔆', cambios: { tema: 'oscuro', acento: 'ambar', fondo: 'ninguno', fuente: 'lectura', esquinas: 'normal', fondoTinte: false, contraste: true } }
 ];
 export const INICIOS: Array<{ valor: string; nombre: string }> = [
-  { valor: '', nombre: 'La de siempre' }, { valor: '/dashboard', nombre: 'Dashboard' }, { valor: '/rutograma', nombre: 'Rutograma' },
+  { valor: '', nombre: 'Resumen del día' }, { valor: '/dashboard', nombre: 'Dashboard' }, { valor: '/rutograma', nombre: 'Rutograma' },
   { valor: '/vehiculos', nombre: 'Vehículos' }, { valor: '/rutas', nombre: 'Rutas' }, { valor: '/conductores', nombre: 'Conductores' },
   { valor: '/despachos', nombre: 'Despachos' }, { valor: '/aprobaciones', nombre: 'Aprobaciones' }, { valor: '/mapa', nombre: 'Mapa' }, { valor: '/historico', nombre: 'Histórico' }
 ];

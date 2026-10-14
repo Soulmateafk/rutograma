@@ -587,6 +587,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
   // que ir al menú a buscarlas.
   private readonly paginasBuscables: Array<{ nombre: string; ruta: string }> = [
     { nombre: 'Dashboard', ruta: '/dashboard' },
+    { nombre: 'Resumen del día', ruta: '/resumen' },
     { nombre: 'Rutograma', ruta: '/rutograma' },
     { nombre: 'Vehículos', ruta: '/vehiculos' },
     { nombre: 'Rutas', ruta: '/rutas' },
@@ -635,7 +636,8 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     { nombre: 'Papelera', ruta: '/papelera' },
     { nombre: 'Sesiones', ruta: '/sesiones' },
     { nombre: 'Aprobaciones', ruta: '/aprobaciones' },
-    { nombre: 'Administrador', ruta: '/admin' }
+    { nombre: 'Administrador', ruta: '/admin' },
+    { nombre: 'Resumen del día', ruta: '/resumen' }
   ];
   private cachePaginas: { clave: string; lista: Array<{ nombre: string; ruta: string }> } = { clave: '', lista: [] };
 

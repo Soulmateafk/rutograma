@@ -1,9 +1,18 @@
 import { SaludoFiestaComponent } from '../comunes/saludo-fiesta';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
+import { marcarResumenVisto } from './resumen-del-dia';
 import { Subscription } from 'rxjs';
 import { DataService } from '../../services/data';
+
+const NOMBRES: Record<string, string> = {
+  rutograma: 'el Rutograma', vehiculos: 'Vehículos', rutas: 'Rutas', conductores: 'Conductores', configuracion: 'Configuración',
+  historico: 'el Histórico', comparativo: 'el Comparativo', presentacion: 'la Presentación', tareas: 'Tareas', cumplimiento: 'Cumplimiento',
+  reglas: 'Reglas', comparendos: 'Comparendos', quejas: 'Quejas', mapa: 'el Mapa', despachos: 'Despachos', papelera: 'la Papelera',
+  sesiones: 'Sesiones', aprobaciones: 'Aprobaciones', admin: 'Administrador', conductor: 'el perfil del conductor', agenda: 'la agenda', 'hoja-de-vida': 'la hoja de vida'
+};
 
 @Component({
   selector: 'app-resumen',
@@ -26,7 +35,11 @@ export class ResumenComponent implements OnInit, OnDestroy {
 
   private sub?: Subscription;
 
-  constructor(public ds: DataService, private router: Router) {}
+  /** Página que se iba a abrir cuando salió el Resumen del día (ver auth.guard). */
+  public volver = '';
+  public nombreVolver = '';
+
+  constructor(public ds: DataService, private router: Router, private route: ActivatedRoute, private auth: AuthService) {}
 
   ngOnInit(): void {
     const hoy = new Date();
@@ -35,8 +48,20 @@ export class ResumenComponent implements OnInit, OnDestroy {
     // Primer cálculo (puede salir en cero si los datos reales aún no
     // han llegado del servidor) y recalcular apenas lleguen — mismo
     // patrón que ya usa el Dashboard.
+    marcarResumenVisto(this.auth.currentUser?.email || '');
+    const v = String(this.route.snapshot.queryParamMap.get('volver') || '');
+    if (v.startsWith('/') && !v.startsWith('//') && !v.startsWith('/resumen') && !v.startsWith('/dashboard')) {
+      this.volver = v;
+      const pag = v.split(/[?#]/)[0].split('/')[1] || '';
+      const n = NOMBRES[pag] || 'donde ibas';
+      this.nombreVolver = n.startsWith('el ') ? 'al ' + n.slice(3) : 'a ' + n;
+    }
     this.calcular();
     this.sub = this.ds.dataChanged.subscribe(() => this.calcular());
+    // Al entrar, los datos aún no han llegado (la carga de la app empezó
+    // antes de iniciar sesión): se piden ya, en vez de mostrar ceros
+    // hasta la próxima sincronización.
+    this.ds.inicializarApp(true);
   }
 
   ngOnDestroy(): void {
@@ -95,14 +120,18 @@ export class ResumenComponent implements OnInit, OnDestroy {
 
     this.novedadesSinResolver = (this.ds.S?.novedades || []).filter((n: any) => !n.resuelta).length;
 
-    this.cargando = false;
+    this.cargando = !(this.ds.S?.vehiculos || []).length && !viajes.length;
   }
 
   public get hayAlertas(): boolean {
-    return this.vehiculosEnMantenimiento > 0 || this.licenciasPorVencer > 0 || this.documentosPorVencer > 0;
+    return this.vehiculosEnMantenimiento > 0 || this.licenciasPorVencer > 0 || this.documentosPorVencer > 0 || this.novedadesSinResolver > 0;
   }
 
   public irADashboard(): void {
     this.router.navigate(['/dashboard']);
+  }
+
+  public seguir(): void {
+    this.router.navigateByUrl(this.volver);
   }
 }

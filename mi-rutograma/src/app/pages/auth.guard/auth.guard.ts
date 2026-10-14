@@ -1,10 +1,13 @@
 import { inject } from '@angular/core';
 import { Router, CanActivateFn } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { ThemeService } from '../../services/theme.service';
+import { resumenPendienteHoy } from '../../components/resumen/resumen-del-dia';
 
 export const authGuard: CanActivateFn = async (_route, state) => {
   const authService = inject(AuthService);
   const router = inject(Router);
+  const theme = inject(ThemeService);
 
   console.log('GUARD: Verificando acceso...');
   console.log('GUARD: Usuario actual:', authService.currentUser);
@@ -45,6 +48,14 @@ export const authGuard: CanActivateFn = async (_route, state) => {
     }
     if (!authService.esConductor && pagina === '/mis-viajes') {
       return router.createUrlTree(['/dashboard']);
+    }
+    // Cuentas de oficina: el Resumen sale la primera vez de cada día, aunque
+    // la sesión siga abierta de ayer (antes solo salía al escribir la
+    // contraseña, así que quien deja la sesión iniciada nunca lo veía).
+    // Si la cuenta escogió otra "Pantalla al entrar", se respeta.
+    if (!authService.esConductor && !authService.esDespachos && pagina !== '/resumen' && !theme.ap.inicio
+        && resumenPendienteHoy(authService.currentUser?.email || '')) {
+      return router.createUrlTree(['/resumen'], { queryParams: { volver: state.url } });
     }
     console.log('GUARD: Acceso concedido -> Dashboard');
     return true;
