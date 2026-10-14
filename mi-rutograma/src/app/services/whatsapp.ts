@@ -1,3 +1,4 @@
+import { nombreDePila } from './nombre-de-pila';
 // ============================================================
 // AVISAR POR WHATSAPP — arma el enlace wa.me que abre el chat del
 // conductor con el mensaje ya escrito (sus próximos viajes). No usa
@@ -51,7 +52,7 @@ export function proximosViajes(conductor: any, viajes: any[], hoy: Date, dias = 
 /** El mensaje: saludo + una línea por viaje. */
 export function mensajeViajes(conductor: any, viajes: any[], rutas: any[], hoy: Date, dias = 7): string {
   const nombre = String(conductor?.nom ?? conductor?.nombre ?? '').trim();
-  const primerNombre = nombre.split(/\s+/)[0] || '';
+  const primerNombre = nombreDePila(nombre);
   const lista = proximosViajes(conductor, viajes, hoy, dias);
   if (!lista.length) return `Hola ${primerNombre}, por ahora no tienes viajes programados en los próximos ${dias} días.`;
   const lineas = lista.map(v => {

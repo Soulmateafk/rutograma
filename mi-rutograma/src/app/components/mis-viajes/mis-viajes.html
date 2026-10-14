@@ -2,7 +2,7 @@
   <header class="mv-cabecera" data-guia="mv-cabecera">
     <div>
       <div class="mv-logo">MAKA<span>ND</span></div>
-      <h1>Hola{{ conductor?.nombre && paso === 'viajes' ? ', ' + conductor.nombre.split(' ')[0] : '' }}</h1>
+      <h1>Hola{{ conductor?.nombre && paso === 'viajes' ? ', ' + pila(conductor.nombre) : '' }}</h1>
       <p *ngIf="conductor && paso === 'viajes'">
         <span *ngIf="conductor.placa"><i class="bi bi-truck"></i> {{ conductor.placa }}</span>
         <span *ngIf="!conductor.placa">Sin vehículo asignado</span>

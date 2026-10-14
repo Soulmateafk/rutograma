@@ -1042,6 +1042,12 @@ html.sin-animaciones nav::after { animation: none !important; }
 .tp-brillo { z-index: 9984; opacity: 0.7; }
 .tp-bokeh { opacity: calc(var(--op, 0.5) * 0.75); }
 .tp-luna { z-index: 9984; }
+/* Celular: la luna (y su nube) bajan, se achican y van detrás del contenido,
+   para no tapar los botones de arriba (Mis viajes, login, Resumen). */
+@media (max-width: 600px) {
+  .tp-luna { z-index: 0; width: 48px !important; height: 48px !important; top: 150px !important; right: 10px !important; opacity: 0.55; box-shadow: 0 0 24px 6px rgba(253, 224, 71, 0.3); }
+  .tp-nube { z-index: 0; top: 150px; right: 0; width: 100px; height: 30px; }
+}
 
 
 /* ============================================================
