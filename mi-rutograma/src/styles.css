@@ -1403,7 +1403,7 @@ html.con-mascota .ad-aviso { left: 174px; }
    Se quita con la decoración de temporada ("Sin decoración").
    ============================================================ */
 html[data-temporada] :is(.login-card, .pending-card, .resumen-card) { box-shadow: 0 24px 70px rgba(0, 0, 0, .55), 0 0 0 1px color-mix(in srgb, var(--tp-c1) 45%, transparent), 0 0 40px color-mix(in srgb, var(--tp-c2) 25%, transparent) !important; }
-html[data-temporada] .login-card-accent { background: linear-gradient(90deg, var(--tp-c1), var(--tp-c2), var(--tp-c1)) !important; height: 4px !important; }
+html[data-temporada] :is(.login-card-accent, .resumen-accent) { background: linear-gradient(90deg, var(--tp-c1), var(--tp-c2), var(--tp-c1)) !important; height: 4px !important; }
 html[data-temporada] :is(.login-glow-blue, .reg-glow-blue) { background: var(--tp-c2) !important; }
 html[data-temporada] :is(.login-glow-amber, .reg-glow-orange) { background: var(--tp-c1) !important; }
 html[data-temporada] :is(.login-route-dot, .reg-route-dot) { background: var(--tp-c1) !important; box-shadow: 0 0 8px var(--tp-c1); }
@@ -1432,6 +1432,10 @@ html[data-temporada="navidad"]:not(.sin-rastro) :is(.login-card, .resumen-card, 
 html[data-temporada="halloween"]:not(.sin-rastro) .login-title h2::after { content: ' 🎃'; }
 html[data-temporada="navidad"]:not(.sin-rastro) .login-title h2::after { content: ' 🎄'; }
 html[data-temporada]:not([data-temporada="halloween"]):not([data-temporada="navidad"]):not(.sin-rastro) .login-title h2::after { content: ' ' var(--temporada-emoji); }
+/* El Resumen del día, igual que el login: el emoji de la festividad junto al saludo. */
+html[data-temporada="halloween"]:not(.sin-rastro) .resumen-card h1::after { content: ' 🎃'; }
+html[data-temporada="navidad"]:not(.sin-rastro) .resumen-card h1::after { content: ' 🎄'; }
+html[data-temporada]:not([data-temporada="halloween"]):not([data-temporada="navidad"]):not(.sin-rastro) .resumen-card h1::after { content: ' ' var(--temporada-emoji); }
 
 
 /* ============================================================

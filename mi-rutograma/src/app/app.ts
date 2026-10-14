@@ -160,7 +160,7 @@ export class App implements OnInit {
         
         // Si la URL actual está en nuestra lista, ocultamos el navbar (false)
         // La cuenta de despachos tiene una sola pantalla: sin menú arriba.
-        this.mostrarNavbar.set(!rutasSinNavbar.includes(event.url) && !this.authService.esDespachos);
+        this.mostrarNavbar.set(!rutasSinNavbar.includes(event.urlAfterRedirects.split(/[?#]/)[0]) && !this.authService.esDespachos);
         this.rutaActual.set(event.urlAfterRedirects);
 
         // "En línea": se avisa desde cualquier pantalla con sesión (también
