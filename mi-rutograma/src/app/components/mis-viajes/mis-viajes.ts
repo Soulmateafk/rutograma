@@ -25,6 +25,7 @@ interface DiaConViajes { fecha: string; titulo: string; esHoy: boolean; descanso
  * los viajes de esa placa (o, si no tiene, los del conductor por nombre).
  */
 import { armarIcs } from '../../services/calendario-ics';
+import { nombreDePila } from '../../services/nombre-de-pila';
 import { API } from '../../api-base';
 import { ThemeService } from '../../services/theme.service';
 import { agregarPendiente, borrarTodoSinSenal, esFaltaDeSenal, guardarCopia, leerCopia, leerPendientes, prepararAppSinSenal, quitarPendiente, Pendiente } from '../../services/sin-senal';
@@ -41,6 +42,9 @@ export class MisViajesComponent implements OnInit, OnDestroy {
   private ui = inject(UiService);
   private cdr = inject(ChangeDetectorRef);
   private esNavegador = isPlatformBrowser(inject(PLATFORM_ID));
+
+  /** "Hola, Orlando" (los nombres se guardan con los apellidos primero). */
+  readonly pila = nombreDePila;
 
   cargando = true;
   error = '';

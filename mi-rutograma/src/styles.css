@@ -1042,6 +1042,12 @@ html.sin-animaciones nav::after { animation: none !important; }
 .tp-brillo { z-index: 9984; opacity: 0.7; }
 .tp-bokeh { opacity: calc(var(--op, 0.5) * 0.75); }
 .tp-luna { z-index: 9984; }
+/* Celular: la luna (y su nube) bajan, se achican y van detrás del contenido,
+   para no tapar los botones de arriba (Mis viajes, login, Resumen). */
+@media (max-width: 600px) {
+  .tp-luna { z-index: 0; width: 48px !important; height: 48px !important; top: 150px !important; right: 10px !important; opacity: 0.55; box-shadow: 0 0 24px 6px rgba(253, 224, 71, 0.3); }
+  .tp-nube { z-index: 0; top: 150px; right: 0; width: 100px; height: 30px; }
+}
 
 
 /* ============================================================
@@ -1495,3 +1501,15 @@ main:has(.pr-visor) { z-index: 10300; }
 .tp-cruza .td + .td { margin-left: -.15em; }
 .tp-suelo .td { width: 1.15em; height: 1.15em; }
 .tp-anuncio-emoji .td { width: 1.1em; height: 1.1em; }
+
+/* ============================================================
+   MODO PRUEBA (de esta cuenta): franja fija arriba en todas las pantallas.
+   La barra de arriba baja lo mismo que mide la franja.
+   ============================================================ */
+.franja-prueba { position: sticky; top: 0; z-index: 10001; height: 30px; display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 0 14px; font-size: 13px; color: #422006; white-space: nowrap; overflow: hidden;
+  background: repeating-linear-gradient(135deg, #fbbf24 0 18px, #f59e0b 18px 36px); box-shadow: 0 2px 8px rgba(0, 0, 0, .25); }
+.franja-prueba span { overflow: hidden; text-overflow: ellipsis; }
+.franja-prueba a { color: #422006; font-weight: 800; text-decoration: underline; flex: none; }
+body:has(.franja-prueba) nav { top: 30px; }
+@media (max-width: 600px) { .franja-prueba { font-size: 11px; justify-content: flex-start; } }

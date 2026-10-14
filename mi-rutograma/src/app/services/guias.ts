@@ -200,7 +200,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'conf-generar', titulo: 'Generar Matriz del Mes', texto: 'Arma todos los viajes del mes a partir de las rutas y la flota. Antes de aplicar te muestra cuántos viajes va a crear, y se puede deshacer.' },
       { el: 'conf-transportadoras', titulo: 'Transportadoras', texto: 'Las empresas con las que se trabaja.' },
       { el: 'conf-motor', titulo: 'Motor de reasignación', texto: 'Cómo se reacomodan los viajes cuando un vehículo queda ocupado.' },
-      { el: 'conf-modo', titulo: 'Modo de trabajo', texto: 'Modo Prueba trabaja sobre una copia: lo que hagas ahí no toca la operación real.' },
+      { el: 'conf-modo', titulo: 'Modo de trabajo', texto: 'Modo Prueba trabaja sobre una copia: lo que hagas ahí no toca la operación real. Es solo para ti: el resto del equipo sigue en lo real. Mientras estés en prueba verás una franja amarilla arriba en todas las pantallas.' },
       { el: 'conf-apariencia', titulo: 'Apariencia', texto: 'Cambia entre modo claro y oscuro.' },
       { el: 'conf-aniversario', titulo: 'Aniversario de MAKAND', texto: 'Escoge el día del aniversario: ese día (y los dos anteriores) la app se decora para todos con globos, fuegos artificiales y un saludo.' },
       { el: 'conf-mi-cuenta', titulo: 'Mi cuenta', texto: 'Cambia tu contraseña cuando quieras (necesitas la actual). Al cambiarla, tu sesión se cierra en los demás equipos.' },

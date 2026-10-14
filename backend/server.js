@@ -8,6 +8,8 @@ const http = require('http');
 const https = require('https');
 const net = require('net');
 const tls = require('tls');
+const { AsyncLocalStorage } = require('async_hooks');
+const { modoDeCuenta: modoDeCuentaGuardado, ponerModo: ponerModoCuenta, limpiarMapa: limpiarMapaModos } = require('./modos');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 
@@ -492,7 +494,7 @@ const cuentasCandidatasParaPase = (email) => {
     const candidatas = [];
     const delModoActual = (leerExcel().usuarios || []).find(coincide);
     if (delModoActual) candidatas.push(delModoActual);
-    if (modoActual !== 'real') {
+    if (modoActual() !== 'real') {
         const delReal = usuariosDeLaBaseReal().find(coincide);
         if (delReal) candidatas.push(delReal);
     }
@@ -577,6 +579,18 @@ const identificarUsuario = (req, res, next) => {
     next();
 };
 app.use(identificarUsuario);
+// Modo de quien pide (real o prueba), ya con la cuenta verificada por su
+// pase. Un cambio aprobado se aplica en el modo en que se pidió, sin
+// importar en cuál esté hoy esa persona.
+app.use((req, res, next) => {
+    // Las rutas de cuentas (/api/auth/...) van siempre a lo real.
+    let modo = req.path.startsWith('/api/auth/') ? 'real' : modoDeCuentaGuardado(modosPorCuenta, req.headers['x-user-email']);
+    if (req.headers['x-replay-aprobacion'] === TOKEN_REPLAY_APROBACION && ['real', 'pruebas'].includes(req.headers['x-modo-replay'])) {
+        modo = req.headers['x-modo-replay'];
+    }
+    contextoModo.run({ modo }, next);
+});
+
 
 // Cuentas de rol "conductor": solo su pantalla Mis viajes y lo básico de la
 // sesión (y la de rol "despachos", solo la pantalla Despachos). El resto de la información (otros viajes, vehículos, cuentas...)
@@ -682,7 +696,7 @@ app.use((req, res, next) => {
                 resumenCompleto.aprobadoPor = normalizarEmail(req.headers['x-aprobado-por']);
                 resumenCompleto.aprobacionId = String(req.headers['x-aprobacion-id'] || '');
             }
-            registrarAuditoria(usuario, req.method, req.path, resumenCompleto, modoActual);
+            registrarAuditoria(usuario, req.method, req.path, resumenCompleto, modoActual());
         });
     }
     next();
@@ -1195,7 +1209,7 @@ const RUTAS_CON_PERMISO_PROPIO = ['/api/auth/preferencias', '/api/semanas/bloque
 app.use((req, res, next) => {
     if (req.method !== 'POST' || (req.path !== '/api/viajes' && req.path !== '/api/viajes/eliminar')) return next();
     try {
-        const bloqueadas = leerConfigCompartidaDB(modoActual).semanasBloqueadas || [];
+        const bloqueadas = leerConfigCompartidaDB(modoActual()).semanasBloqueadas || [];
         if (!bloqueadas.length) return next();
         const cuerpo = req.body || {};
         const accion = req.path.endsWith('eliminar') ? 'eliminar' : 'guardar';
@@ -1213,7 +1227,7 @@ app.use((req, res, next) => {
         }
         const descripcion = describirCambioSemana(previo, accion === 'eliminar' ? null : cuerpo, accion);
         const usuario = normalizarEmail(req.headers['x-user-email']);
-        const modo = modoActual;
+        const modo = modoActual();
         res.on('finish', () => {
             if (res.statusCode !== 200) return; // 202 = espera aprobación: se anota cuando se aplique
             try {
@@ -1239,10 +1253,10 @@ app.post('/api/semanas/bloqueo', (req, res) => {
         const lunes = lunesDe(req.body?.lunes);
         if (!lunes || lunes !== String(req.body?.lunes)) { res.locals.auditoriaOmitir = true; return res.status(400).json({ ok: false, msg: 'Escoge el lunes de la semana.' }); }
         const bloquear = req.body?.bloquear !== false;
-        const lista = (leerConfigCompartidaDB(modoActual).semanasBloqueadas || []).filter(b => b.lunes !== lunes);
+        const lista = (leerConfigCompartidaDB(modoActual()).semanasBloqueadas || []).filter(b => b.lunes !== lunes);
         if (bloquear) lista.push({ lunes, por: email, en: new Date().toISOString() });
         lista.sort((a, b) => a.lunes.localeCompare(b.lunes));
-        guardarConfigCompartidaDB(modoActual, 'semanasBloqueadas', lista, email);
+        guardarConfigCompartidaDB(modoActual(), 'semanasBloqueadas', lista, email);
         res.locals.auditoriaResumen = { lunes, bloquear, descripcion: `${bloquear ? 'Cerró' : 'Abrió'} la semana del ${textoSemana(lunes)}` };
         res.json({ ok: true, semanasBloqueadas: lista, msg: bloquear ? `Semana del ${textoSemana(lunes)} cerrada: los cambios a su plan pedirán motivo.` : `Semana del ${textoSemana(lunes)} abierta.` });
     } catch (error) {
@@ -1283,7 +1297,7 @@ app.use((req, res, next) => {
         }
         // Choques de agenda y reglas de la oficina (cliente/ruta, pico y
         // placa): se avisan juntos y se puede guardar igual.
-        const config = leerConfigCompartidaDB(modoActual);
+        const config = leerConfigCompartidaDB(modoActual());
         const choques = choquesDeAgenda(viaje, data.viajes, data.conductores);
         // Un viaje nuevo no se le pone a un vehículo que va en ruta esos días
         // (ese viaje ya arrancó: no se puede correr ni pasarle otro encima).
@@ -1374,7 +1388,7 @@ app.use((req, res, next) => {
                 ruta: req.path,
                 cuerpo: req.body || {},
                 descripcion: describirCambio(req.method, req.path, req.body || {}),
-                modo: modoActual,
+                modo: modoActual(),
                 creada: new Date().toISOString()
             };
             solicitudesAprobacion.push(solicitud);
@@ -1409,10 +1423,10 @@ app.use((req, res, next) => {
     if (req.method !== 'POST' && req.method !== 'DELETE') return next();
     if (!/\/eliminar$|^\/api\/vehiculos\//.test(req.path)) return next();
     try {
-        const item = queSeElimina(req.method, req.path, req.body, leerExcel(), (id) => leerDespachoDB(modoActual, id));
+        const item = queSeElimina(req.method, req.path, req.body, leerExcel(), (id) => leerDespachoDB(modoActual(), id));
         if (item) {
             const usuario = normalizarEmail(req.headers['x-user-email']);
-            const modo = modoActual;
+            const modo = modoActual();
             res.on('finish', () => {
                 if (res.statusCode !== 200) return;
                 try { guardarEnPapeleraDB(modo, item, usuario); } catch (err) { console.error('⚠️ No se pudo guardar en la papelera:', err.message); }
@@ -1440,7 +1454,7 @@ app.get('/api/papelera', (req, res) => {
         if (!acceso.ver) return res.status(403).json({ ok: false, msg: 'Tu cuenta no puede ver la papelera.' });
         const nombres = new Map((leerExcel().usuarios || []).map(u => [normalizarEmail(u.email), String(u.nombre || '').trim()]));
         const nombreDe = (e) => e ? (nombres.get(normalizarEmail(e)) || e) : '';
-        const items = listarPapeleraDB(modoActual, DIAS_EN_PAPELERA).map(i => ({
+        const items = listarPapeleraDB(modoActual(), DIAS_EN_PAPELERA).map(i => ({
             id: i.id, tipo: i.tipo, tipoNombre: TIPOS_PAPELERA[i.tipo] || i.tipo, etiqueta: i.etiqueta,
             eliminadoPor: nombreDe(i.eliminadoPor), eliminadoEn: i.eliminadoEn, seBorraEl: venceEl(i.eliminadoEn, DIAS_EN_PAPELERA),
             restauradoPor: nombreDe(i.restauradoPor), restauradoEn: i.restauradoEn
@@ -1457,13 +1471,13 @@ app.post('/api/papelera/restaurar', (req, res) => {
     try {
         const acceso = accesoPapelera(req);
         if (!acceso.recuperar) { res.locals.auditoriaOmitir = true; return res.status(403).json({ ok: false, msg: 'Tu cuenta no puede recuperar de la papelera.' }); }
-        const item = leerPapeleraDB(modoActual, Number(req.body?.id));
+        const item = leerPapeleraDB(modoActual(), Number(req.body?.id));
         if (!item) { res.locals.auditoriaOmitir = true; return res.status(404).json({ ok: false, msg: 'Ya no está en la papelera (pasaron más de 30 días).' }); }
         if (item.restauradoEn) { res.locals.auditoriaOmitir = true; return res.status(409).json({ ok: false, msg: 'Eso ya se recuperó.' }); }
         let resultado;
         if (item.tipo === 'despacho') {
             const { id, clienteId, ...resto } = item.datos || {};
-            guardarDespachoDB(modoActual, { ...resto, id: null, clienteId: null }, item.datos?.creadoPor || acceso.email);
+            guardarDespachoDB(modoActual(), { ...resto, id: null, clienteId: null }, item.datos?.creadoPor || acceso.email);
             resultado = { ok: true, msg: `Se recuperó: ${item.etiqueta}.` };
         } else {
             const data = leerExcel();
@@ -1471,7 +1485,7 @@ app.post('/api/papelera/restaurar', (req, res) => {
             if (resultado.ok) guardarEnExcel(data);
         }
         if (!resultado.ok) { res.locals.auditoriaOmitir = true; return res.status(409).json(resultado); }
-        marcarRestauradoDB(modoActual, item.id, acceso.email);
+        marcarRestauradoDB(modoActual(), item.id, acceso.email);
         res.locals.auditoriaResumen = { tipo: item.tipo, clave: item.clave, descripcion: `Recuperó de la papelera: ${TIPOS_PAPELERA[item.tipo] || item.tipo} ${item.etiqueta}` };
         res.json(resultado);
     } catch (error) {
@@ -1592,6 +1606,7 @@ function ejecutarSolicitudAprobada(solicitud, aprobador) {
                 'Content-Type': 'application/json',
                 'Content-Length': Buffer.byteLength(cuerpo),
                 'x-user-email': solicitud.solicitante,
+                'x-modo-replay': solicitud.modo || 'real',
                 'x-replay-aprobacion': TOKEN_REPLAY_APROBACION,
                 'x-aprobado-por': aprobador,
                 'x-aprobacion-id': solicitud.id
@@ -1644,7 +1659,7 @@ app.post('/api/aprobaciones/decidir', async (req, res) => {
             return res.status(403).json({ ok: false, msg: 'No puedes aprobar tu propio cambio: debe aprobarlo otra persona.' });
         }
 
-        if (solicitud.modo !== modoActual) {
+        if (solicitud.modo !== modoActual()) {
             return res.status(409).json({
                 ok: false,
                 msg: `Este cambio se pidió en Modo ${solicitud.modo === 'pruebas' ? 'Prueba' : 'Real'}. Cambia a ese modo para aprobarlo.`
@@ -2143,38 +2158,38 @@ const CARPETA_RESPALDOS = path.join(CARPETA_DATOS, 'Backups');
 const MAX_RESPALDOS = 30; // se guardan los últimos 30 respaldos, los más viejos se borran solos
 
 // --- MODO REAL / PRUEBAS ---
-// El botón de "Modo prueba" (Configuración) cambia esta bandera, guardada
-// en un archivito aparte para que sobreviva a reinicios del servidor —
-// así nadie se queda "en pruebas sin saberlo" después de reiniciar.
-// Mientras está en modo prueba, TODA la app (Rutograma, Vehículos, Rutas,
-// Conductores) lee y escribe en un Excel COMPLETAMENTE APARTE
-// (DatabaseRutograma_Pruebas.XLSX) — el archivo real nunca se toca.
-let modoActual = 'real';
+// El botón de "Modo prueba" (Configuración) cambia el modo de QUIEN lo toca
+// (guardado en modo-por-cuenta.json, sobrevive a reinicios). Mientras una
+// cuenta está en prueba, lo que ella ve y cambia va a una base COMPLETAMENTE
+// APARTE; el resto del equipo sigue trabajando en la real.
+// Ahora el modo es POR CUENTA (ver modos.js): cada petición corre con el
+// modo de quien la hace. Lo que corre solo (correos, cierres) usa el real.
+const contextoModo = new AsyncLocalStorage();
+const modoActual = () => contextoModo.getStore()?.modo || 'real';
+const RUTA_MODOS_POR_CUENTA = path.join(CARPETA_DATOS, 'modo-por-cuenta.json');
+let modosPorCuenta = {};
 try {
-    if (fs.existsSync(RUTA_ARCHIVO_MODO)) {
-        const guardado = JSON.parse(fs.readFileSync(RUTA_ARCHIVO_MODO, 'utf8'));
-        if (guardado && (guardado.modo === 'real' || guardado.modo === 'pruebas')) {
-            modoActual = guardado.modo;
-        }
-    }
+    if (fs.existsSync(RUTA_MODOS_POR_CUENTA)) modosPorCuenta = limpiarMapaModos(JSON.parse(fs.readFileSync(RUTA_MODOS_POR_CUENTA, 'utf8')));
 } catch (err) {
-    console.error('⚠️ No se pudo leer el modo guardado, se usa "real" por defecto:', err.message);
+    console.error('⚠️ No se pudo leer el modo de cada cuenta, todas empiezan en "real":', err.message);
 }
+// El modo viejo (uno para todos) ya no se usa: nadie queda en prueba sin saberlo.
+try { if (fs.existsSync(RUTA_ARCHIVO_MODO)) fs.unlinkSync(RUTA_ARCHIVO_MODO); } catch { /* da igual */ }
 
-const obtenerRutaExcel = () => (modoActual === 'pruebas' ? RUTA_EXCEL_PRUEBAS : RUTA_EXCEL_REAL);
+const obtenerRutaExcel = () => (modoActual() === 'pruebas' ? RUTA_EXCEL_PRUEBAS : RUTA_EXCEL_REAL);
 
-const guardarModoEnDisco = () => {
+const guardarModosEnDisco = () => {
     try {
-        fs.writeFileSync(RUTA_ARCHIVO_MODO, JSON.stringify({ modo: modoActual }));
+        fs.writeFileSync(RUTA_MODOS_POR_CUENTA, JSON.stringify(modosPorCuenta, null, 2));
         return true;
     } catch (err) {
-        console.error('⚠️ No se pudo guardar el modo actual en disco:', err.message);
+        console.error('⚠️ No se pudo guardar el modo de las cuentas en disco:', err.message);
         return false;
     }
 };
 
-console.log("Modo activo al arrancar:", modoActual);
-console.log("Ruta configurada como:", obtenerRutaExcel());
+console.log("Cuentas en modo prueba al arrancar:", Object.keys(modosPorCuenta).length ? Object.keys(modosPorCuenta).join(', ') : 'ninguna');
+console.log("Ruta configurada como:", RUTA_EXCEL_REAL);
 console.log("👉 Si tienes un Excel real con tus datos, cópialo/muévelo a esa ruta ANTES de seguir usando la app (con ese nombre exacto), o la app va a crear uno nuevo vacío.");
 
 // --- RESPALDO AUTOMÁTICO ---
@@ -2201,7 +2216,7 @@ const crearRespaldo = async () => {
         }
 
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const prefijo = modoActual === 'pruebas' ? 'DatabaseRutograma_Pruebas_' : 'DatabaseRutograma_';
+        const prefijo = modoActual() === 'pruebas' ? 'DatabaseRutograma_Pruebas_' : 'DatabaseRutograma_';
         const nombreRespaldo = `${prefijo}${timestamp}.XLSX`;
         const rutaRespaldo = path.join(CARPETA_RESPALDOS, nombreRespaldo);
 
@@ -2293,19 +2308,29 @@ inicializarArchivo();
 // a leer el archivo real cuando: (a) el servidor recién arrancó, o
 // (b) alguien acaba de escribir un cambio (guardarEnExcel actualiza el
 // caché directamente, sin tener que releer del disco).
-let cacheExcel = null;
+let cacheExcel = { real: null, pruebas: null };
+// Las cuentas (contraseñas, roles, permisos, apariencia) son las mismas en
+// los dos modos: en prueba se usan siempre las de la base real. Si no, quien
+// pasa a prueba quedaba con su cuenta vieja de la copia (o sin cuenta) y la
+// app lo sacaba al recargar.
+const conCuentasReales = (modo, data) => {
+    if (modo === 'pruebas' && data) data.usuarios = usuariosDeLaBaseReal();
+    return data;
+};
+const limpiarCacheExcel = () => { cacheExcel = { real: null, pruebas: null }; };
 
 const leerExcel = () => {
-    if (cacheExcel) return cacheExcel;
+    const modo = modoActual();
+    if (cacheExcel[modo]) return conCuentasReales(modo, cacheExcel[modo]);
 
     try {
         // leerDB() ya devuelve todo parseado (dias/descansosPorMes/
         // historialMantenimiento/etc. ya como objetos reales, no texto
         // JSON) — a diferencia del Excel, SQLite no necesita ese
         // segundo paso de "reconstruir" los campos anidados aquí.
-        const data = leerDB(modoActual);
-        cacheExcel = data;
-        return data;
+        const data = leerDB(modo);
+        cacheExcel[modo] = data;
+        return conCuentasReales(modo, data);
     } catch (error) {
         console.error("❌ Error al leer la base de datos (se reintentará en la próxima petición):", error.message);
         // OJO: a propósito NO guardamos esto en cacheExcel. Si lo
@@ -2326,16 +2351,16 @@ const guardarEnExcel = (datosActualizados) => {
     // la API nativa de backup de SQLite), no el Excel viejo.
     // Como mucho una copia automática por minuto: una cascada de guardados
     // (reacomodar, reasignar...) no llena la carpeta con copias casi iguales.
-    if (Date.now() - ultimoRespaldoAutomatico[modoActual] >= 60000) {
-        ultimoRespaldoAutomatico[modoActual] = Date.now();
-        crearRespaldoDB(modoActual, ultimaAccionParaRespaldo).catch(err => console.error('⚠️ Error inesperado en el respaldo:', err.message));
+    if (Date.now() - ultimoRespaldoAutomatico[modoActual()] >= 60000) {
+        ultimoRespaldoAutomatico[modoActual()] = Date.now();
+        crearRespaldoDB(modoActual(), ultimaAccionParaRespaldo).catch(err => console.error('⚠️ Error inesperado en el respaldo:', err.message));
     }
 
     try {
         // Actualizamos el caché INMEDIATAMENTE — mismo motivo que
         // antes: cualquier lectura que llegue justo después ya ve el
         // dato fresco, sin depender de que termine la escritura.
-        cacheExcel = datosActualizados; cacheUsuariosReales.ts = 0;
+        cacheExcel[modoActual()] = datosActualizados; cacheUsuariosReales.ts = 0;
 
         // guardarEnDB() ya hace TODA la normalización que antes hacía
         // este archivo a mano (convertir dias/descansosPorMes/
@@ -2343,7 +2368,7 @@ const guardarEnExcel = (datosActualizados) => {
         // así que no hace falta la danza de escribir a un archivo
         // temporal y renombrar: SQLite (con journal_mode=WAL) ya
         // garantiza que la escritura es atómica por su cuenta.
-        guardarEnDB(datosActualizados, modoActual);
+        guardarEnDB(datosActualizados, modoActual());
         console.log("✅ Datos guardados con éxito en la base de datos.");
     } catch (error) {
         console.error("❌ ERROR AL ESCRIBIR EN LA BASE DE DATOS:", error);
@@ -2356,7 +2381,7 @@ const guardarEnExcel = (datosActualizados) => {
 // Consultar el modo activo (Real / Pruebas) — lo usa el botón de
 // Configuración para saber qué mostrar al cargar la página.
 app.get('/api/modo', (req, res) => {
-    res.json({ ok: true, modo: modoActual });
+    res.json({ ok: true, modo: modoActual() });
 });
 
 // Cambiar de modo — body: { modo: 'real' | 'pruebas' }. Al entrar a
@@ -2366,9 +2391,8 @@ app.get('/api/modo', (req, res) => {
 // punto, cada uno sigue su propio camino de forma completamente aparte.
 app.post('/api/modo', (req, res) => {
     try {
-        // Cambiar de modo afecta a TODOS los que usan la app a la vez — se
-        // restringe al administrador, igual que aprobar cuentas o restaurar
-        // un respaldo, en vez de dejarlo abierto a cualquier editor.
+        // Cambia solo el modo de quien lo pide (los demás siguen en el suyo).
+        // Sigue pidiendo el permiso "cambiar modo" (o ser el administrador).
         const solicitante = normalizarEmail(req.headers['x-user-email']);
         if (solicitante !== normalizarEmail(ADMIN_EMAIL) && !permisosDelSolicitante(req)?.cambiarModo) {
             return res.status(403).json({ ok: false, msg: 'Tu cuenta no tiene permiso para cambiar el modo.' });
@@ -2386,28 +2410,18 @@ app.post('/api/modo', (req, res) => {
             }
         }
 
-        const modoAnterior = modoActual;
-        modoActual = modo;
-
-        // Si esto falla, el cambio de modo NO es real — se revierte aquí
-        // mismo y se avisa con un error de verdad, en vez de responder
-        // "ok" y dejar que el modo viva SOLO en memoria. Antes, si esto
-        // fallaba en silencio, todo seguía funcionando normal hasta el
-        // próximo reinicio del servidor — ahí el modo volvía a leerse
-        // del archivo (todavía con el valor viejo) sin que nadie se
-        // enterara de que nunca quedó guardado de verdad.
-        if (!guardarModoEnDisco()) {
-            modoActual = modoAnterior;
+        // Solo cambia el modo de QUIEN lo pide: los demás siguen en el suyo.
+        const anterior = modosPorCuenta;
+        modosPorCuenta = ponerModoCuenta(modosPorCuenta, solicitante, modo);
+        if (!guardarModosEnDisco()) {
+            modosPorCuenta = anterior;
             return res.status(500).json({
                 ok: false,
                 msg: 'No se pudo guardar el cambio de modo en el servidor. Sigues en el modo anterior — intenta de nuevo o revisa los permisos de la carpeta del backend.'
             });
         }
-
-        cacheExcel = null; cacheUsuariosReales.ts = 0; // se invalida — la próxima lectura toma el archivo del modo nuevo
-
-        console.log(`🔀 Modo cambiado a: ${modoActual}`);
-        res.json({ ok: true, modo: modoActual });
+        console.log(`🔀 ${solicitante} pasó a modo: ${modo}`);
+        res.json({ ok: true, modo });
     } catch (error) {
         console.error('❌ Error cambiando de modo:', error);
         res.status(500).json({ ok: false, msg: 'No se pudo cambiar de modo.' });
@@ -2431,7 +2445,7 @@ app.get('/api/respaldos', async (req, res) => {
         if (solicitante !== normalizarEmail(ADMIN_EMAIL) && !permisosDelSolicitante(req)?.restaurarRespaldos) {
             return res.status(403).json({ ok: false, msg: 'Tu cuenta no tiene permiso para ver los respaldos.' });
         }
-        const respaldos = listarRespaldosDB(modoActual);
+        const respaldos = listarRespaldosDB(modoActual());
         res.json({ ok: true, respaldos });
     } catch (error) {
         console.error('❌ Error listando respaldos:', error);
@@ -2449,7 +2463,7 @@ app.get('/api/respaldos', async (req, res) => {
 // ============================================================
 const respaldosParaDeshacer = new Map(); // nombre -> correo de quien hizo la acción
 async function respaldoAntesDeAccion(etiqueta, solicitante) {
-    const nombre = path.basename(await crearRespaldoDB(modoActual, etiqueta));
+    const nombre = path.basename(await crearRespaldoDB(modoActual(), etiqueta));
     respaldosParaDeshacer.set(nombre, normalizarEmail(solicitante));
     return nombre;
 }
@@ -2463,7 +2477,7 @@ const MESES_NOMBRE = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'ju
 
 app.get('/api/historico', (req, res) => {
     try {
-        res.json({ ok: true, meses: listarHistoricoMesesDB(modoActual) });
+        res.json({ ok: true, meses: listarHistoricoMesesDB(modoActual()) });
     } catch (error) {
         console.error('🚨 Error en /api/historico:', error);
         res.status(500).json({ ok: false, msg: error.message });
@@ -2481,9 +2495,9 @@ app.post('/api/cerrar-mes', (req, res) => {
             return res.status(400).json({ ok: false, msg: 'Mes o año inválido.' });
         }
         const label = `${MESES_NOMBRE[mes]} de ${anio}`;
-        const yaEstaba = listarHistoricoMesesDB(modoActual).some(h => h.mes === mes && h.anio === anio);
+        const yaEstaba = listarHistoricoMesesDB(modoActual()).some(h => h.mes === mes && h.anio === anio);
         const cerradoPor = normalizarEmail(req.headers['x-user-email']);
-        guardarHistoricoMesDB(modoActual, { mes, anio, datos: { ...datos, label }, cerradoPor });
+        guardarHistoricoMesDB(modoActual(), { mes, anio, datos: { ...datos, label }, cerradoPor });
         res.locals.auditoriaResumen = {
             mes: label, totalViajes: datos.totalViajes, costo: datos.costo, reemplazo: yaEstaba
         };
@@ -2501,7 +2515,7 @@ app.post('/api/limpiar-historial', async (req, res) => {
             return res.status(403).json({ ok: false, msg: 'Tu cuenta no tiene permiso para limpiar el histórico.' });
         }
         const respaldoAntes = await respaldoAntesDeAccion('antes-limpiar-historico', req.headers['x-user-email']);
-        const borrados = limpiarHistoricoMesesDB(modoActual);
+        const borrados = limpiarHistoricoMesesDB(modoActual());
         res.locals.auditoriaExtra = { borrados };
         res.json({ ok: true, borrados, respaldoAntes });
     } catch (error) {
@@ -2587,7 +2601,7 @@ app.post('/api/configuracion/compartida', (req, res) => {
         if (!Array.isArray(valor)) {
             return res.status(400).json({ ok: false, msg: `"${clave}" debe ser una lista.` });
         }
-        guardarConfigCompartidaDB(modoActual, clave, valor, normalizarEmail(req.headers['x-user-email']));
+        guardarConfigCompartidaDB(modoActual(), clave, valor, normalizarEmail(req.headers['x-user-email']));
         res.locals.auditoriaResumen = { clave, cantidad: valor.length };
         res.json({ ok: true, clave });
     } catch (error) {
@@ -2685,8 +2699,8 @@ app.post('/api/respaldos/restaurar', async (req, res) => {
         // respaldo nuevo si hace falta volver atrás de la restauración).
         const respaldoAntes = await respaldoAntesDeAccion('antes-restaurar', solicitante);
 
-        restaurarRespaldoDB(path.basename(nombre), modoActual);
-        cacheExcel = null; cacheUsuariosReales.ts = 0; // se invalida — la próxima lectura toma la base recién restaurada
+        restaurarRespaldoDB(path.basename(nombre), modoActual());
+        limpiarCacheExcel(); cacheUsuariosReales.ts = 0; // se invalida — la próxima lectura toma la base recién restaurada
 
         console.log(`♻️ Base de datos restaurada desde el respaldo: ${nombre}`);
         res.json({ ok: true, respaldoAntes });
@@ -2712,7 +2726,7 @@ app.get('/api/dashboard-data', (req, res) => {
         // anterior. Cuesta un poco más leer la base cada vez, pero para
         // el tamaño de esta base es insignificante, y elimina de raíz
         // cualquier duda de "¿el servidor tiene esto actualizado?".
-        cacheExcel = null; cacheUsuariosReales.ts = 0;
+        limpiarCacheExcel(); cacheUsuariosReales.ts = 0;
         const data = leerExcel(); 
 
         // La hoja "Viajes" del Excel no tiene columna "id" (nunca se
@@ -2875,11 +2889,11 @@ app.get('/api/dashboard-data', (req, res) => {
         // Se manda el modo actual junto con todo lo demás — así
         // cualquier pantalla (no solo Configuración, que antes era la
         // única que lo sabía) puede mostrar un aviso si estás en Prueba.
-        dataSegura.modo = modoActual;
+        dataSegura.modo = modoActual();
         // Transportadoras, cupos de Configuración y festivos: los mismos
         // para todos los equipos (solo se mandan los que ya se guardaron
         // alguna vez; si no, cada equipo conserva lo suyo y lo sube).
-        Object.assign(dataSegura, leerConfigCompartidaDB(modoActual));
+        Object.assign(dataSegura, leerConfigCompartidaDB(modoActual()));
         // Huella de los datos: cada pantalla pide esto cada 20 s; si nada
         // cambió desde la última vez (manda la huella que ya tiene), se
         // responde solo "sin cambios" en vez de 1 MB que el navegador tendría
@@ -3206,7 +3220,7 @@ app.post('/api/cache/refrescar', (req, res) => {
         if (solicitante !== normalizarEmail(ADMIN_EMAIL)) {
             return res.status(403).json({ ok: false, msg: 'Solo el administrador puede refrescar el caché' });
         }
-        cacheExcel = null; cacheUsuariosReales.ts = 0; // la próxima leerExcel() va a releer el archivo real
+        limpiarCacheExcel(); cacheUsuariosReales.ts = 0; // la próxima leerExcel() va a releer el archivo real
         leerExcel();
         res.json({ ok: true, msg: 'Caché recargado desde el archivo real' });
     } catch (error) {
@@ -3344,7 +3358,7 @@ let viajesVistos = (() => {
     try { return fs.existsSync(ARCHIVO_VIAJES_VISTOS) ? JSON.parse(fs.readFileSync(ARCHIVO_VIAJES_VISTOS, 'utf8')) : {}; }
     catch (err) { console.error('⚠️ No se pudo leer viajes-vistos.json:', err.message); return {}; }
 })();
-const claveVisto = (ced) => `${modoActual}:${ced}`;
+const claveVisto = (ced) => `${modoActual()}:${ced}`;
 function guardarViajesVistos() {
     try { fs.writeFileSync(ARCHIVO_VIAJES_VISTOS, JSON.stringify(viajesVistos), { mode: 0o600 }); }
     catch (err) { console.error('⚠️ No se pudo guardar viajes-vistos.json:', err.message); }
@@ -3376,7 +3390,7 @@ const MAX_NOVEDADES_CONDUCTOR_DIA = 10;
 // los conductores en Mis viajes (los "solo oficina", no).
 function anunciosParaConductores() {
     const hoy = fechaLocal();
-    return (leerConfigCompartidaDB(modoActual).anuncios || [])
+    return (leerConfigCompartidaDB(modoActual()).anuncios || [])
         .filter(a => a && a.para !== 'oficina' && (!a.vence || String(a.vence) >= hoy))
         .map(a => ({ id: a.id, texto: a.texto, importante: !!a.importante, fecha: a.fecha }));
 }
@@ -3719,7 +3733,7 @@ const cajasProgramadasDe = () => {
 };
 
 /** Minutos de cargue antes de pedir motivo de demora (los pone la oficina). */
-const limiteCargue = () => limiteValido(leerConfigCompartidaDB(modoActual).limiteCargueMin);
+const limiteCargue = () => limiteValido(leerConfigCompartidaDB(modoActual()).limiteCargueMin);
 
 /** Correo -> nombre de la cuenta ("Anotado por" muestra el nombre, no el correo). */
 const nombresDeCuentas = () => {
@@ -3779,14 +3793,14 @@ app.get('/api/despachos', (req, res) => {
         const rango = rangoPedido(req.query);
         const nombreDe = nombresDeCuentas();
         const cajasViaje = cajasProgramadasDe();
-        const registros = listarDespachosDB(modoActual, rango.desde, rango.hasta).map(r => ({
+        const registros = listarDespachosDB(modoActual(), rango.desde, rango.hasta).map(r => ({
             ...r, creadoPorNombre: nombreDe(r.creadoPor), editadoPorNombre: nombreDe(r.editadoPor),
             cajasProgramadas: r.viajeId ? cajasViaje(r.viajeId) : null,
             minutos: minutosDelRegistro(r), totalCajas: totalesCarga(r.cargas).cajas, totalEstibas: totalesCarga(r.cargas).estibas,
             puedeCorregir: acceso.corregir(r.fecha), puedeEliminar: acceso.eliminar(r.fecha)
         }));
         res.setHeader('Cache-Control', 'no-store');
-        res.json({ ok: true, ...rango, registros, resumen: resumenDespachos(registros), meses: mesesDespachosDB(modoActual), hoy: hoyLocalTexto(),
+        res.json({ ok: true, ...rango, registros, resumen: resumenDespachos(registros), meses: mesesDespachosDB(modoActual()), hoy: hoyLocalTexto(),
             limiteMin: limiteCargue(), motivosDemora: MOTIVOS_DEMORA, puedeCambiarLimite: acceso.cambiarLimite });
     } catch (error) {
         console.error('🚨 Error en /api/despachos:', error);
@@ -3801,12 +3815,12 @@ app.post('/api/despachos', (req, res) => {
         const { errores, registro } = validarDespacho(req.body, { limiteMin: limiteCargue() });
         if (errores.length) { res.locals.auditoriaOmitir = true; return res.status(400).json({ ok: false, msg: `Falta ${errores.join(', ')}.` }); }
         // Reenvío de algo anotado sin señal que ya había llegado: no se duplica.
-        const repetido = !registro.id ? despachoPorClienteDB(modoActual, registro.clienteId) : null;
+        const repetido = !registro.id ? despachoPorClienteDB(modoActual(), registro.clienteId) : null;
         if (repetido) {
             res.locals.auditoriaOmitir = true;
             return res.json({ ok: true, repetido: true, registro: { ...repetido, minutos: minutosDelRegistro(repetido) } });
         }
-        const previo = registro.id ? leerDespachoDB(modoActual, registro.id) : null;
+        const previo = registro.id ? leerDespachoDB(modoActual(), registro.id) : null;
         if (registro.id && !previo) { res.locals.auditoriaOmitir = true; return res.status(404).json({ ok: false, msg: 'Ese registro ya no existe (alguien lo borró).' }); }
         if (previo && !(acceso.corregir(previo.fecha) && acceso.corregir(registro.fecha))) {
             res.locals.auditoriaOmitir = true;
@@ -3833,7 +3847,7 @@ app.post('/api/despachos', (req, res) => {
             // Otro lugar: la ruta la escribe quien despacha (si la sabe).
             registro.conductor = titular(registro.placa);
         }
-        const guardado = guardarDespachoDB(modoActual, registro, acceso.email);
+        const guardado = guardarDespachoDB(modoActual(), registro, acceso.email);
         // "Salió" en Despachos = el viaje arrancó: pasa a "En ruta" con la
         // hora real de salida (si el conductor no había marcado "Ya salí").
         let viajeEnRutaAhora = false;
@@ -3867,13 +3881,13 @@ app.post('/api/despachos', (req, res) => {
 app.post('/api/despachos/eliminar', (req, res) => {
     try {
         const acceso = accesoDespachos(req);
-        const previo = leerDespachoDB(modoActual, Number(req.body?.id));
+        const previo = leerDespachoDB(modoActual(), Number(req.body?.id));
         if (!previo) { res.locals.auditoriaOmitir = true; return res.status(404).json({ ok: false, msg: 'Ese registro ya no existe.' }); }
         if (!acceso.eliminar(previo.fecha)) {
             res.locals.auditoriaOmitir = true;
             return res.status(403).json({ ok: false, msg: 'Solo se pueden borrar los registros de hoy y de ayer. Pide a la oficina que lo borre.' });
         }
-        eliminarDespachoDB(modoActual, previo.id);
+        eliminarDespachoDB(modoActual(), previo.id);
         res.locals.auditoriaResumen = {
             id: previo.id, fecha: previo.fecha, placa: previo.placa, destino: previo.destino,
             descripcion: `Borró el despacho de ${previo.placa} hacia ${previo.destino} (${fechaBonita(previo.fecha)}, llegó ${previo.horaLlegada})`
@@ -3893,7 +3907,7 @@ app.get('/api/despachos/carga-sugerida', (req, res) => {
         const [a, m, d] = fecha.split('-').map(Number);
         const x = new Date(a, m - 1, d - 120);
         const desde = `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
-        const sugerida = cargaSugerida(listarDespachosDB(modoActual, desde, fecha), {
+        const sugerida = cargaSugerida(listarDespachosDB(modoActual(), desde, fecha), {
             ruta: String(req.query.ruta || ''), destino: String(req.query.destino || ''), fecha, excluirId: Number(req.query.excluir) || null
         });
         res.setHeader('Cache-Control', 'no-store');
@@ -3910,7 +3924,7 @@ app.get('/api/despachos/demorados', (req, res) => {
     try {
         if (!accesoDespachos(req).ver) return res.status(403).json({ ok: false, msg: 'Sin acceso a Despachos.' });
         const limiteMin = limiteCargue();
-        const lista = demorados(listarDespachosDB(modoActual, hoyLocalTexto(-1), hoyLocalTexto()), new Date(), limiteMin)
+        const lista = demorados(listarDespachosDB(modoActual(), hoyLocalTexto(-1), hoyLocalTexto()), new Date(), limiteMin)
             .map(r => ({ id: r.id, placa: r.placa, destino: r.destino, fecha: r.fecha, horaLlegada: r.horaLlegada, horaInicioCargue: r.horaInicioCargue, minutos: r.minutos }));
         res.setHeader('Cache-Control', 'no-store');
         res.json({ ok: true, limiteMin, demorados: lista });
@@ -3927,7 +3941,7 @@ app.post('/api/despachos/limite', (req, res) => {
         if (!acceso.cambiarLimite) { res.locals.auditoriaOmitir = true; return res.status(403).json({ ok: false, msg: 'Tu cuenta no puede cambiar el límite de cargue.' }); }
         const minutos = Math.round(Number(req.body?.minutos));
         if (!(minutos >= 10 && minutos <= 600)) { res.locals.auditoriaOmitir = true; return res.status(400).json({ ok: false, msg: 'Escribe un límite entre 10 y 600 minutos.' }); }
-        guardarConfigCompartidaDB(modoActual, 'limiteCargueMin', minutos, acceso.email);
+        guardarConfigCompartidaDB(modoActual(), 'limiteCargueMin', minutos, acceso.email);
         res.locals.auditoriaResumen = { minutos, descripcion: `Cambió el límite de cargue a ${textoMinutos(minutos)}` };
         res.json({ ok: true, limiteMin: minutos });
     } catch (error) {
@@ -3944,7 +3958,7 @@ app.get('/api/despachos/excel', (req, res) => {
         const rango = rangoPeriodo(periodo, FECHA_DESPACHO.test(String(req.query.fecha || '')) ? String(req.query.fecha) : hoyLocalTexto());
         const nombreDe = nombresDeCuentas();
         const cajasViaje = cajasProgramadasDe();
-        const registros = listarDespachosDB(modoActual, rango.desde, rango.hasta)
+        const registros = listarDespachosDB(modoActual(), rango.desde, rango.hasta)
             .map(r => ({ ...r, creadoPor: nombreDe(r.creadoPor), editadoPor: nombreDe(r.editadoPor), cajasProgramadas: r.viajeId ? cajasViaje(r.viajeId) : null }));
         const filas = filasExcel(registros);
         const wb = XLSX.utils.book_new();
@@ -4088,7 +4102,7 @@ app.get('/api/viajes/historial', (req, res) => {
     try {
         const id = String(req.query.id || '').trim();
         if (!id) return res.status(400).json({ ok: false, msg: 'Falta el viaje.' });
-        const historial = armarHistorialViaje(listarAuditoriaViajeDB(id, modoActual));
+        const historial = armarHistorialViaje(listarAuditoriaViajeDB(id, modoActual()));
         // Cambios de este viaje que todavía esperan aprobación.
         const pendientes = solicitudesAprobacion
             .filter(s => s.estado === 'PENDIENTE' && String(s.cuerpo?.id) === id)
@@ -5149,7 +5163,7 @@ app.post('/api/configuracion/generar-matriz', async (req, res) => {
         const mesIndexLimpieza = { 'Enero':0,'Febrero':1,'Marzo':2,'Abril':3,'Mayo':4,'Junio':5,'Julio':6,'Agosto':7,'Septiembre':8,'Octubre':9,'Noviembre':10,'Diciembre':11 }[mes];
         const hoyMatriz = fechaLocal();
         // Semanas cerradas que todavía no pasan: la matriz las regeneraría.
-        const cerradasDelMes = (leerConfigCompartidaDB(modoActual).semanasBloqueadas || []).filter(b => {
+        const cerradasDelMes = (leerConfigCompartidaDB(modoActual()).semanasBloqueadas || []).filter(b => {
             const fin = new Date(b.lunes + 'T00:00:00'); fin.setDate(fin.getDate() + 6);
             const ini = new Date(b.lunes + 'T00:00:00');
             const tocaMes = [ini, fin].some(d => d.getFullYear() === Number(anio) && d.getMonth() === mesIndexLimpieza);
