@@ -266,7 +266,7 @@ export class MascotaComponent implements OnDestroy {
     const nombre = this.account.cuentaCompartida ? '' : String(this.account.nombre || '').trim().split(/\s+/)[0];
     // Cada tipo de frase tiene su peso: repetir una opción la hace salir más.
     const opciones: string[] = [
-      al(CONSEJOS), al(CONSEJOS), al(DATOS), al(DATOS), al(TONTERIAS), al(TONTERIAS), this.fraseHora(), this.fraseDia(),
+      al(CONSEJOS), al(CONSEJOS), al(DATOS), al(DATOS), al(TONTERIAS), al(TONTERIAS), al(TONTERIAS), this.fraseHora(), this.fraseDia(),
       nombre ? `¡Hola, ${nombre}! ${al(HOLA)}` : al(HOLA)
     ];
     const pagina = this.consejoDePagina(); if (pagina) opciones.push(pagina, pagina);

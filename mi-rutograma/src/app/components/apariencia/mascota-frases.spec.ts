@@ -32,6 +32,6 @@ describe('datosDelRutograma', () => {
     expect(CONSEJOS.length).toBeGreaterThan(50);
     expect(DATOS.length).toBeGreaterThan(25);
     expect(Object.keys(FIESTAS).length).toBeGreaterThanOrEqual(15);
-    expect(TONTERIAS.length).toBeGreaterThan(20);
+    expect(TONTERIAS.length).toBeGreaterThan(90);
   });
 });
