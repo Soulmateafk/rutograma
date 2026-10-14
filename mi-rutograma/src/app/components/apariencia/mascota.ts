@@ -9,7 +9,7 @@ import { ClimaService } from '../../services/clima.service';
 import { SonidoService } from '../../services/sonido.service';
 import { Router } from '@angular/router';
 import { temporadaVisible, diasParaElDia } from '../../services/temporadas';
-import { al, CONSEJOS, CONSEJOS_POR_PAGINA, DATOS, AL_GUARDAR, AL_ELIMINAR, AL_ERROR, COSQUILLAS, AL_DESPERTAR, HOLA, HORA, DIA_SEMANA, FIESTAS, datosDelRutograma } from './mascota-frases';
+import { al, CONSEJOS, CONSEJOS_POR_PAGINA, DATOS, AL_GUARDAR, AL_ELIMINAR, AL_ERROR, COSQUILLAS, AL_DESPERTAR, TONTERIAS, HOLA, HORA, DIA_SEMANA, FIESTAS, datosDelRutograma } from './mascota-frases';
 
 /**
  * LA MASCOTA DE MAKAND: un furgón refrigerado con carita en la esquina de abajo.
@@ -266,7 +266,7 @@ export class MascotaComponent implements OnDestroy {
     const nombre = this.account.cuentaCompartida ? '' : String(this.account.nombre || '').trim().split(/\s+/)[0];
     // Cada tipo de frase tiene su peso: repetir una opción la hace salir más.
     const opciones: string[] = [
-      al(CONSEJOS), al(CONSEJOS), al(DATOS), al(DATOS), this.fraseHora(), this.fraseDia(),
+      al(CONSEJOS), al(CONSEJOS), al(DATOS), al(DATOS), al(TONTERIAS), al(TONTERIAS), this.fraseHora(), this.fraseDia(),
       nombre ? `¡Hola, ${nombre}! ${al(HOLA)}` : al(HOLA)
     ];
     const pagina = this.consejoDePagina(); if (pagina) opciones.push(pagina, pagina);

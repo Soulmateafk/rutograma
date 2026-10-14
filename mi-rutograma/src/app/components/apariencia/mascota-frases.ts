@@ -163,6 +163,38 @@ export const DATOS = [
   'Dato: cargar bien distribuido el furgón hace el viaje más seguro.'
 ];
 
+// ---------- Tonterías (para sacar una sonrisa) ----------
+export const TONTERIAS = [
+  'Cuentan que hay un viaje que nunca se marca como entregado… y todavía sigue rodando. 👻',
+  'Dicen que si dices "Rutograma" tres veces frente al espejo, aparece un viaje extra. 😱',
+  'Cuentan que una vez un furgón llegó antes de tiempo. Nadie le creyó. 🤫',
+  'Leyenda de la oficina: existe un SOAT que se renovó solo. Nadie lo ha vuelto a ver.',
+  'Dicen que en la madrugada se escucha un pito en el parqueadero… soy yo practicando. 📯',
+  'Mi sueño: una vía sin huecos, sin trancón y con tintico gratis cada 50 km. ☕',
+  'Yo no tengo gasolina: funciono a puro cariño y a los clics que me das. ❤️',
+  'Me dicen "el refri con ruedas" y no me ofende. ❄️🚚',
+  'Una vez intenté hacer reversa y me salió un Ctrl+Z. 🤷',
+  'Si ves que me muevo solo, es el viento… o un fantasma de Halloween. 🌬️',
+  'Mi pariente lejano es el carrito del supermercado. No hablamos mucho. 🛒',
+  'Estoy a dieta: solo como kilómetros. 😋',
+  'No le tengo miedo a nada… bueno, a los reductores de velocidad sí. 😰',
+  'Mi placa es secreta. Si te la digo, me toca pico y placa. 🤐',
+  'Cuentan que en la Papelera hay viajes que todavía esperan a que alguien los rescate. 🗑️',
+  'Dicen que el café de la oficina hace que los viajes salgan más rápido. No está comprobado. ☕',
+  'Si alguna vez no respondo, es que me fui a lavar al lavadero. 🧽',
+  '¿Por qué el camión fue al psicólogo? Porque llevaba mucha carga emocional. 😂',
+  '¿Qué le dijo una llanta a la otra? "¡Qué presión tengo hoy!" 🛞',
+  '¿Qué le dijo el semáforo al furgón? "No me mires que me estoy cambiando." 🚦',
+  '¿Por qué el GPS nunca discute? Porque siempre está recalculando. 🧭',
+  '¿Cuál es el colmo de un conductor? Tener una vida llena de curvas. 😄',
+  '¿Cuál es el colmo de un furgón refrigerado? Que lo dejen frío en una conversación. ❄️',
+  'Si las rutas fueran novelas, la vía al Llano sería la de más capítulos. 📺',
+  'Mi deporte favorito: el parqueo en paralelo. Llevo años practicando. 🅿️',
+  'Dicen que el que más madruga… igual se encuentra un trancón. 🚗🚗🚗',
+  'Cuando nadie me ve, me pongo a contar las cajas. Llevo 3.482. Creo. 📦',
+  'Prometo no pitar en las reuniones. Bueno, casi nunca. 📯'
+];
+
 // ---------- Reacciones ----------
 export const AL_GUARDAR = ['¡Guardado! 👌', '¡Listo, quedó!', '¡Eso! Uno menos. ✅', '¡Bien hecho! 🚚💨', '¡Anotado!', '¡Perfecto!', '¡Así se hace!',
   '¡Quedó de una!', '¡Ya está en el sistema! 💾', '¡Excelente trabajo!', '¡Listo el pollo! 🐔', '¡Cuadrado!', '¡Va pa\' esa! 👍', '¡Eso es todo! 🙌'];
@@ -207,7 +239,12 @@ export const FIESTAS: Record<string, string[]> = {
     'Si ves un murciélago en la app, tranquilo: no muerde. 🦇',
     'Este mes los documentos vencidos dan más miedo que los fantasmas. 👻',
     'Mi disfraz de bruja me queda bien, ¿no? 🧙‍♀️',
-    'Cuidado al manejar el 31: hay muchos niños disfrazados en la calle. 🚸'
+    'Cuidado al manejar el 31: hay muchos niños disfrazados en la calle. 🚸',
+    'Dicen que a medianoche los viajes cancelados vuelven a aparecer en el Rutograma… 👻',
+    'Cuentan que un conductor dejó la ruta sin marcar y desde entonces su furgón pita solo. 📯😱',
+    'No mires debajo del Rutograma después de las 6 p. m. Solo te digo eso. 🕷️',
+    'El fantasma de la oficina solo come una cosa: documentos vencidos. 📄👻',
+    'Este año me disfracé de furgón. Nadie lo notó. 🎃'
   ],
   navidad: [
     'La Novena de Aguinaldos se reza del 16 al 24 de diciembre. 🎄',
@@ -218,7 +255,10 @@ export const FIESTAS: Record<string, string[]> = {
     'Papá Noel también tiene ruta fija: una sola noche, todo el mundo. 🎅',
     'El 24 a medianoche se abren los regalos en casi todo el país. 🎁',
     'Diciembre es mes de mucha carga: ¡qué bien que estemos listos!',
-    'Mi gorro de Papá Noel es de verdad. Bueno… casi. 😄'
+    'Mi gorro de Papá Noel es de verdad. Bueno… casi. 😄',
+    'Los renos de Papá Noel no tienen pico y placa. ¡Qué envidia! 🦌',
+    'Papá Noel me pidió prestado el furgón refrigerado para los helados de los duendes. 🍦',
+    'Dicen que el 24 en la noche un trineo pasa más rápido que cualquier Viaje Extra. 🛷'
   ],
   'ano-nuevo': [
     'Tradición: comer 12 uvas a medianoche, una por cada mes. 🍇',

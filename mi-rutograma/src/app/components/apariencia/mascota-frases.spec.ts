@@ -1,4 +1,4 @@
-import { datosDelRutograma, FIESTAS, CONSEJOS, DATOS } from './mascota-frases';
+import { datosDelRutograma, FIESTAS, CONSEJOS, DATOS, TONTERIAS } from './mascota-frases';
 
 describe('datosDelRutograma', () => {
   const hoy = new Date(2026, 9, 14);
@@ -32,5 +32,6 @@ describe('datosDelRutograma', () => {
     expect(CONSEJOS.length).toBeGreaterThan(50);
     expect(DATOS.length).toBeGreaterThan(25);
     expect(Object.keys(FIESTAS).length).toBeGreaterThanOrEqual(15);
+    expect(TONTERIAS.length).toBeGreaterThan(20);
   });
 });
