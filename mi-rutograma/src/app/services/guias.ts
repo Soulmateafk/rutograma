@@ -189,7 +189,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'cond-agenda', titulo: 'Agenda del conductor', texto: 'Su mes en un calendario: qué día sale a cada viaje (ruta, destino, vehículo y hora), los días en ruta, sus descansos y los días libres. Se puede imprimir.' },
       { el: 'cond-whatsapp', titulo: 'Avisar por WhatsApp', texto: 'Abre el chat de WhatsApp del conductor con sus viajes de los próximos 7 días ya escritos (fecha, vehículo, ruta, hora y nota). Solo revisas y tocas Enviar. Necesita su celular guardado.' },
       { el: 'cond-carga', titulo: 'Carga de trabajo', texto: 'Quién lleva más y menos viajes en el mes, cuántos días en ruta, kilómetros, descansos y cuántos días seguidos ha manejado sin descansar. Rojo: sobrecargado; amarillo: poca carga.' },
-      { el: 'cond-viajes', titulo: 'Viajes por conductor', texto: 'Los viajes de cada conductor en el mes.' }
+      { el: 'cond-viajes', titulo: 'Viajes del mes', texto: 'Escribe un conductor, una placa o una transportadora (Makand, Polar, Arsitrans) y verás todos sus viajes del mes, separados por transportadora. Toca la flechita de un viaje para abrirlo en el Rutograma.' }
     ]
   },
 

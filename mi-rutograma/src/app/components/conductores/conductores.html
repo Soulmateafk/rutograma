@@ -211,33 +211,50 @@
     <p class="carga-nota">Sobrecargado: 25 % o más por encima del promedio. Un viaje sin conductor anotado cuenta para el titular de la placa.</p>
   </div>
 
-  <div data-guia="cond-viajes" class="table-card" style="margin-top: 20px; padding: 16px;">
-    <h2 style="font-size: 16px; margin: 0 0 12px 0; color: var(--color-texto-principal);">Viajes por Conductor (mes activo)</h2>
-
-    <div *ngIf="!conductoresConViajes().length" style="color: var(--color-texto-apagado); font-style: italic; padding: 12px 0;">
-      No hay conductores registrados todavía.
+  <!-- Viajes del mes: búsqueda por conductor, placa o transportadora (services/viajes-del-mes.ts). -->
+  <div data-guia="cond-viajes" class="table-card vm-card">
+    <div class="vm-head">
+      <h2>Viajes del mes</h2>
+      <span class="vm-total">{{ resultadoViajes().total }} {{ hayBusquedaViajes ? 'encontrados' : '' }}</span>
+    </div>
+    <div class="vm-buscar">
+      <i class="bi bi-search"></i>
+      <input type="text" [(ngModel)]="busquedaViajes" placeholder="Busca un conductor, una placa o una transportadora (Makand, Polar, Arsitrans)…" aria-label="Buscar viajes del mes">
+      <button *ngIf="hayBusquedaViajes" class="vm-limpiar" (click)="limpiarBusquedaViajes()" title="Limpiar">×</button>
+    </div>
+    <div class="vm-chips">
+      <button *ngFor="let tr of transportadorasViajes" class="vm-chip" [ngClass]="claseTr(tr)" [class.activo]="trViajes === tr || resultadoViajes().buscaTr === tr" (click)="elegirTr(tr)">
+        <span class="vm-punto"></span>{{ tr }} <b>{{ cuentaTr(tr) }}</b>
+      </button>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
-      <div *ngFor="let c of conductoresConViajes()" style="background: var(--color-fondo-tarjeta); border: 1px solid var(--color-borde); border-radius: 8px; padding: 12px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-weight: 700; font-size: 13px; color: var(--color-texto-principal);">{{ c.nombre }}</span>
-          <span style="font-size: 11px; color: #60a5fa; font-weight: 700;">{{ c.viajes.length }} viajes</span>
-        </div>
+    <p *ngIf="!hayBusquedaViajes" class="vm-ayuda">
+      <i class="bi bi-lightbulb"></i> Escribe el nombre de un conductor (ej. "Orlando") o una placa (ej. "LUN 428") para ver todos sus viajes del mes,
+      separados por Makand, Polar y Arsitrans. O toca una transportadora para ver solo sus viajes.
+    </p>
 
-        <div *ngIf="c.viajes.length" style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;">
-          <div *ngFor="let vj of c.viajes" style="display: flex; justify-content: space-between; gap: 8px; font-size: 11px; padding: 4px 6px; background: var(--color-fondo-tarjeta); border-radius: 4px;">
-            <span style="color: var(--color-texto-secundario); min-width: 34px;">Día {{ vj.dia }}</span>
-            <span style="font-weight: 600; flex: 1;">{{ vj.codigo }}</span>
-            <span style="color: var(--color-texto-secundario);">{{ vj.destino }}</span>
-          </div>
+    <ng-container *ngIf="hayBusquedaViajes">
+      <p *ngIf="!resultadoViajes().total" class="vm-ayuda">No hay viajes este mes con "{{ busquedaViajes || trViajes }}". Revisa cómo lo escribiste.</p>
+      <section *ngFor="let g of resultadoViajes().grupos" class="vm-grupo" [ngClass]="claseTr(g.tr)">
+        <h3><span class="vm-punto"></span>{{ g.tr }} <small>{{ g.viajes.length }} viaje{{ g.viajes.length === 1 ? '' : 's' }}{{ g.conductores ? ' · ' + g.conductores + (g.conductores === 1 ? ' conductor' : ' conductores') : '' }}{{ g.cajas ? ' · ' + (g.cajas | number:'1.0-0':'es') + ' cajas' : '' }}</small></h3>
+        <div class="vm-scroll">
+          <table class="vm-tabla">
+            <tr><th>Día</th><th>Ruta</th><th>Destino</th><th>Cliente</th><th>Placa</th><th>Conductor</th><th>Estado</th><th>Cajas</th><th></th></tr>
+            <tr *ngFor="let v of g.viajes" [class.vm-cancelado]="v.estado === 'Cancelado'">
+              <td><b>{{ v.dia }}</b> <span class="vm-sub">{{ diaSemana(v.fecha) }}</span></td>
+              <td class="vm-ruta">{{ v.ruta }}</td>
+              <td>{{ v.destino }}</td>
+              <td>{{ v.cliente || '—' }}</td>
+              <td>{{ v.placa }}</td>
+              <td>{{ v.conductor || 'Sin conductor' }}</td>
+              <td><span class="vm-estado" [attr.data-estado]="v.estado">{{ v.estado || '—' }}</span></td>
+              <td>{{ v.cajas || '—' }}</td>
+              <td><button class="vm-ver" (click)="verViajeEnRutograma(v.id)" title="Ver en el Rutograma"><i class="bi bi-box-arrow-up-right"></i></button></td>
+            </tr>
+          </table>
         </div>
-
-        <div *ngIf="!c.viajes.length" style="font-size: 11px; color: var(--color-texto-apagado); font-style: italic;">
-          Sin viajes este mes.
-        </div>
-      </div>
-    </div>
+      </section>
+    </ng-container>
   </div>
 </div>
 

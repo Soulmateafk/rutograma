@@ -10,7 +10,8 @@ import { AuthService } from '../../services/auth.service';
 import { UiService } from '../../services/ui.service';
 import { PresenciaService } from '../../services/presencia.service';
 import { OtrosAquiComponent } from '../en-linea/otros-aqui';
-import { RouterLink, ActivatedRoute } from '@angular/router';
+import { RouterLink, ActivatedRoute, Router } from '@angular/router';
+import { viajesDelMes, buscarViajesDelMes, FilaViaje, ResultadoViajes, TRANSPORTADORAS } from '../../services/viajes-del-mes';
 
 // @ts-ignore
 import * as _conductoresUtils from './conductores.utils.js';
@@ -31,6 +32,35 @@ export class ConductoresComponent implements OnInit, OnDestroy {
   private ui = inject(UiService);
   private presencia = inject(PresenciaService);
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
+
+  // ---------- Viajes del mes (búsqueda) ----------
+  /** Lo que se escribe en "Buscar conductor, placa o transportadora". */
+  public busquedaViajes = '';
+  /** Chip de transportadora elegido ('' = todas). */
+  public trViajes = '';
+  public readonly transportadorasViajes = TRANSPORTADORAS;
+  private filasMes: FilaViaje[] = [];
+  private cacheBusqueda: { clave: string; r: ResultadoViajes } = { clave: '', r: { grupos: [], total: 0, buscaTr: null } };
+
+  /** Cuántos viajes tiene cada transportadora este mes (para los chips). */
+  public cuentaTr(tr: string): number { return this.filasMes.filter(f => f.tr === tr).length; }
+
+  public get hayBusquedaViajes(): boolean { return !!this.busquedaViajes.trim() || !!this.trViajes; }
+
+  /** Resultado de la búsqueda (se recalcula solo si cambia lo buscado o los datos). */
+  public resultadoViajes(): ResultadoViajes {
+    const clave = `${this.busquedaViajes}|${this.trViajes}|${this.filasMes.length}|${this.versionFilas}`;
+    if (this.cacheBusqueda.clave !== clave) this.cacheBusqueda = { clave, r: buscarViajesDelMes(this.filasMes, this.busquedaViajes, this.trViajes) };
+    return this.cacheBusqueda.r;
+  }
+  private versionFilas = 0;
+
+  public elegirTr(tr: string): void { this.trViajes = this.trViajes === tr ? '' : tr; }
+  public limpiarBusquedaViajes(): void { this.busquedaViajes = ''; this.trViajes = ''; }
+  public verViajeEnRutograma(id: string): void { this.router.navigate(['/rutograma'], { queryParams: { verViaje: id } }); }
+  public claseTr(tr: string): string { return 'tr-' + tr.toLowerCase(); }
+  public diaSemana(fecha: string): string { return new Date(fecha + 'T00:00:00').toLocaleDateString('es-CO', { weekday: 'short' }); }
 
   // Modal de confirmación propio — reemplaza el confirm() nativo del
   // navegador (feo/genérico) por uno con el mismo estilo del resto de
@@ -313,6 +343,8 @@ export class ConductoresComponent implements OnInit, OnDestroy {
     // del titular de la placa (antes contaba para los dos a la vez).
     this.carga = armarCargaConductores(S.conductores, S.viajes || [], S.rutas || [], Number(S.anio), Number(S.mes),
       (vj: any) => this.diaEnMantenimiento(vj));
+    this.filasMes = viajesDelMes(S, Number(S.anio), Number(S.mes));
+    this.versionFilas++;
     this.conductoresConViajesCache = [...this.carga.conductores]
       .map(c => ({
         nombre: c.nombre,

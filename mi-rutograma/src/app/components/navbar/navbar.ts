@@ -673,6 +673,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
       const res = await this.authService.fetchAutenticado(`${base}/aprobaciones`);
       const data = await res.json();
       const n = data?.ok ? Number(data.pendientes) || 0 : 0;
+      if (data?.ok) this.ui.pendientesAprobacion.set(n);
       if (n !== this.pendientesAprobacion) {
         this.pendientesAprobacion = n;
         this.cdr.markForCheck();
