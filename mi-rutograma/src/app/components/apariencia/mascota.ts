@@ -7,7 +7,9 @@ import { AuthService } from '../../services/auth.service';
 import { DataService } from '../../services/data';
 import { ClimaService } from '../../services/clima.service';
 import { SonidoService } from '../../services/sonido.service';
-import { temporadaVisible, delDia } from '../../services/temporadas';
+import { Router } from '@angular/router';
+import { temporadaVisible, diasParaElDia } from '../../services/temporadas';
+import { al, CONSEJOS, CONSEJOS_POR_PAGINA, DATOS, AL_GUARDAR, AL_ELIMINAR, AL_ERROR, COSQUILLAS, AL_DESPERTAR, TONTERIAS, HOLA, HORA, DIA_SEMANA, FIESTAS, datosDelRutograma } from './mascota-frases';
 
 /**
  * LA MASCOTA DE MAKAND: un furgón refrigerado con carita en la esquina de abajo.
@@ -16,57 +18,13 @@ import { temporadaVisible, delDia } from '../../services/temporadas';
  *  - Se duerme si nadie usa la app un rato ("Zzz") y despierta al volver.
  *  - Se disfraza en cada fiesta (gorro de Papá Noel, sombrero de bruja,
  *    casco el Día del Trabajo, orejas de conejo en Pascua...).
- *  - Habla: al tocarlo, y de vez en cuando solo, dice un consejo, un dato
- *    curioso, algo según la hora, el día, el clima o la operación de hoy.
+ *  - Habla: al tocarlo, y de vez en cuando solo, dice un consejo (también de
+ *    la pantalla abierta), un dato curioso, un dato del propio Rutograma,
+ *    algo de la festividad, según la hora, el día, el clima o la operación
+ *    de hoy. Todas las frases están en mascota-frases.ts.
  * Cada cuenta lo quita en Apariencia → "La mascota".
  */
 type Estado = 'normal' | 'feliz' | 'triste' | 'dormido';
-
-const al = <T>(l: T[]) => l[Math.floor(Math.random() * l.length)];
-
-const CONSEJOS = [
-  'Con Ctrl+K buscas cualquier viaje, placa o conductor.',
-  'Arrastra un viaje a otro día en el Rutograma para moverlo.',
-  'Clic derecho sobre un viaje: editar, duplicar, WhatsApp y más.',
-  'La tecla F deja solo el Rutograma a pantalla completa.',
-  'Con la tecla B abres tus notas.',
-  'Ctrl+Z deshace el último cambio.',
-  'En Apariencia hay 24 temas listos de un clic.',
-  'Deja el mouse quieto sobre un viaje y verás su detalle.',
-  '¿Un descanso? En Apariencia puedes jugar un ratico. 🎮',
-  'El alfiler junto a la placa deja ese vehículo de primero.',
-  'La tecla ? muestra todos los atajos de teclado.',
-  '"G" y luego "R" te lleva al Rutograma. "G" y "D", al Dashboard.',
-  'En el Dashboard, "Personalizar" te deja mover y ocultar los cuadros.',
-  'El botón "?" de abajo a la derecha tiene guías paso a paso.',
-  '¿Lluvia de fondo mientras trabajas? Apariencia → Sonidos → Ambiente. 🌧️',
-  'Con "Hoja de ruta" le das al conductor un PDF con todo su viaje.',
-  'Desde la ficha del conductor le mandas sus viajes por WhatsApp.',
-  'El Calendario de fiestas te dice cuánto falta para cada una. 📅',
-  'La Pizarra es para avisos de todo el equipo.',
-  'Si cambias un viaje de una semana cerrada, la app te pide el motivo.',
-  'En "Hoja de vida" ves todo lo que le ha pasado a un vehículo.',
-  'La Papelera guarda lo eliminado 30 días, por si acaso.'
-];
-
-const DATOS = [
-  'Dato: un furgón refrigerado mantiene la carga entre 2 y 8 °C. ❄️',
-  'Dato: Colombia tiene más de 200.000 km de carreteras.',
-  'Dato: la vía Bogotá–Villavicencio cruza el túnel de Chirajara y muchos más.',
-  'Dato: revisar la presión de las llantas ahorra combustible. 🛞',
-  'Dato: el Alto de La Línea tiene un túnel de más de 8 km.',
-  'Dato: el pico y placa cambia según la ciudad y el día. Revisa las Reglas.',
-  'Dato: un conductor descansado es un conductor seguro. 😴➡️🚚',
-  '¿Sabías? El primer camión se fabricó en 1896.',
-  '¿Sabías? En la Costa se dice "carro" y en el interior "camión" para casi lo mismo. 😄',
-  'Dato: frenar suave y sin afanes cuida la carga y el bolsillo.',
-  'Dato: antes de un viaje largo, revisa luces, aceite y llantas.',
-  '¿Sabías? Bogotá está a 2.600 metros sobre el nivel del mar. ⛰️'
-];
-
-const AL_GUARDAR = ['¡Guardado! 👌', '¡Listo, quedó!', '¡Eso! Uno menos. ✅', '¡Bien hecho! 🚚💨', '¡Anotado!', '¡Perfecto!', '¡Así se hace!'];
-const AL_ERROR = ['¡Uy! Algo no salió. Revisa el aviso. 😟', 'Ups… mira el mensaje rojo.', 'Hmm, eso no se pudo. Intenta otra vez.', '¡Ay! Algo falta o no cuadra.'];
-const COSQUILLAS = ['¡Jaja, me haces cosquillas! 😆', '¡Piii piii! 📯', '¡Ey, que estoy trabajando! 😄', '¡Ya, ya, ya! Me mareo. 😵‍💫'];
 
 @Component({
   selector: 'app-mascota',
@@ -195,6 +153,7 @@ export class MascotaComponent implements OnDestroy {
   private climaSrv = inject(ClimaService);
   private sonido = inject(SonidoService);
   private zone = inject(NgZone);
+  private router = inject(Router);
 
   public estado = signal<Estado>('normal');
   public globo = signal<string | null>(null);
@@ -218,7 +177,7 @@ export class MascotaComponent implements OnDestroy {
   private subAvisos = this.ui.avisos.subscribe(a => {
     if (a.tipo === 'ok') {
       this.ponerEstado('feliz', 1800);
-      if (Math.random() < 0.35) this.decir(/elimin|borr/i.test(a.texto) ? al(['¡Chao! 👋 Quedó en la papelera.', 'Eliminado. Si fue sin querer, Ctrl+Z.']) : al(AL_GUARDAR), 2500);
+      if (Math.random() < 0.35) this.decir(/elimin|borr/i.test(a.texto) ? al(AL_ELIMINAR) : al(AL_GUARDAR), 2500);
     } else if (a.tipo === 'err') { this.ponerEstado('triste', 1600); this.decir(al(AL_ERROR), 3500); }
   });
   private alMover = (e: PointerEvent) => {
@@ -255,26 +214,30 @@ export class MascotaComponent implements OnDestroy {
   // ---------- qué dice ----------
   private fraseHora(): string {
     const h = new Date().getHours();
-    if (h < 6) return al(['¿Tan temprano? Los conductores ya van saliendo. 🌄', 'Madrugada de trabajo… ¡ánimo!']);
-    if (h < 10) return al(['¡Buenos días! ¿Ya tomaste tintico? ☕', 'Arrancamos el día. ¡Con toda! 💪', 'Buen día: revisa qué viajes salen hoy.']);
-    if (h < 12) return al(['Media mañana: buen momento para revisar los viajes por aprobar.', '¿Ya revisaste la Pizarra hoy?']);
-    if (h < 14) return al(['¿Ya almorzaste? 🍲', 'Hora del almuerzo… los conductores también paran a comer.']);
-    if (h < 18) return al(['La tarde va rápido. ¿Cómo vamos con las entregas?', '¿Una aromática? 🍵 Ya casi cerramos el día.']);
-    if (h < 21) return al(['Ya es de noche. Revisa lo de mañana y a descansar. 🌙', 'Buen trabajo hoy. 👏']);
-    return al(['Es tarde… no te quedes mucho. 😴', 'Los furgones también descansan de noche. 🌙']);
+    return al((HORA.find(x => h < x.hasta) || HORA[HORA.length - 1]).frases);
   }
 
   private fraseDia(): string {
-    const d = new Date().getDay();
-    return [
-      '¡Domingo! Ojalá estés descansando. 😄',
-      'Lunes: arrancamos semana. ¡Con toda! 💪',
-      'Martes: la semana ya va andando.',
-      'Miércoles: mitad de semana. ¡Vamos bien!',
-      'Jueves: ya casi es viernes. 😉',
-      '¡Viernes! A cerrar bien la semana. 🎉',
-      'Sábado de trabajo… ¡gracias por estar! 🙌'
-    ][d];
+    return al(DIA_SEMANA[new Date().getDay()]);
+  }
+
+  /** Curiosidad o frase de la festividad que se está viendo, o cuánto falta para su día. */
+  private fraseFiesta(): string {
+    const t = temporadaVisible(this.theme.temporadaPreferida());
+    if (!t) return '';
+    const faltan = diasParaElDia(t);
+    const opciones = [...(FIESTAS[t.clave] || []), ...(t.frases || [])];
+    if (faltan > 1) opciones.push(`Faltan ${faltan} días para ${t.nombreDia || t.nombre}. ${t.emoji}`);
+    else if (faltan === 1) opciones.push(`¡Mañana es ${t.nombreDia || t.nombre}! ${t.emoji}`);
+    else if (faltan === 0) opciones.push(`${t.saludo} ${t.emoji}`);
+    return opciones.length ? al(opciones) : '';
+  }
+
+  /** Consejo de la pantalla que está abierta (Rutograma, Tareas…). */
+  private consejoDePagina(): string {
+    const ruta = this.router.url.split(/[?#]/)[0];
+    const lista = CONSEJOS_POR_PAGINA[ruta];
+    return lista ? al(lista) : '';
   }
 
   private fraseClima(): string {
@@ -300,18 +263,24 @@ export class MascotaComponent implements OnDestroy {
   }
 
   private algoQueDecir(): string {
-    const t = temporadaVisible(this.theme.temporadaPreferida());
     const nombre = this.account.cuentaCompartida ? '' : String(this.account.nombre || '').trim().split(/\s+/)[0];
+    // Cada tipo de frase tiene su peso: repetir una opción la hace salir más.
     const opciones: string[] = [
-      al(CONSEJOS), al(CONSEJOS), al(DATOS), this.fraseHora(), this.fraseDia(),
-      nombre ? `¡Hola, ${nombre}! ¿Cómo vamos hoy? 🚚` : '¡Hola! ¿Cómo vamos hoy? 🚚'
+      al(CONSEJOS), al(CONSEJOS), al(DATOS), al(DATOS), al(TONTERIAS), al(TONTERIAS), this.fraseHora(), this.fraseDia(),
+      nombre ? `¡Hola, ${nombre}! ${al(HOLA)}` : al(HOLA)
     ];
-    const frase = t ? delDia(t.frases) : '';
-    if (frase) opciones.push(frase, frase);
+    const pagina = this.consejoDePagina(); if (pagina) opciones.push(pagina, pagina);
+    const fiesta = this.fraseFiesta(); if (fiesta) opciones.push(fiesta, fiesta, fiesta);
+    const datos = datosDelRutograma(this.ds.S); if (datos.length) opciones.push(al(datos), al(datos));
     const clima = this.fraseClima(); if (clima) opciones.push(clima);
     const op = this.fraseOperacion(); if (op) opciones.push(op, op);
-    return al(opciones);
+    // No repetir lo último que dijo.
+    const sinRepetir = opciones.filter(o => o && o !== this.ultimaFrase);
+    const frase = al(sinRepetir.length ? sinRepetir : opciones);
+    this.ultimaFrase = frase;
+    return frase;
   }
+  private ultimaFrase = '';
 
   /** De vez en cuando dice algo solo (cada 8 a 15 minutos, si la app está a la vista y no está dormido). */
   private programarCharla(): void {
@@ -336,7 +305,7 @@ export class MascotaComponent implements OnDestroy {
 
   /** Se duerme a los 3 minutos sin usar la app; despierta al mover el mouse o teclear. */
   private despertar(): void {
-    if (this.estado() === 'dormido') this.zone.run(() => { this.estado.set('normal'); this.decir(al(['¡Ah! Ya desperté. 😄', '¿Eh? ¡Aquí estoy! 🚚', 'Me quedé dormido en el parqueadero… 😅']), 2500); });
+    if (this.estado() === 'dormido') this.zone.run(() => { this.estado.set('normal'); this.decir(al(AL_DESPERTAR), 2500); });
     clearTimeout(this.relojSueno);
     this.relojSueno = setTimeout(() => this.zone.run(() => { this.estado.set('dormido'); this.globo.set(null); }), 3 * 60000);
   }
