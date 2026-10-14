@@ -29,6 +29,14 @@
   </div>
 </div>
 
+<!-- Modo prueba (de esta cuenta): franja en todas las pantallas para que nadie
+     confunda la copia de pruebas con lo real. Los demás siguen en lo real. -->
+<div class="franja-prueba" *ngIf="dataService.modo() === 'pruebas' && !cargandoInicial() && !sinSesion()" role="status">
+  <i class="bi bi-flask-fill"></i>
+  <span><strong>Estás en MODO PRUEBA:</strong> nada de lo que hagas aquí es real. El resto del equipo sigue trabajando en lo real.</span>
+  <a routerLink="/configuracion">Volver a lo real</a>
+</div>
+
 <app-navbar *ngIf="mostrarNavbar() && !cargandoInicial()"></app-navbar>
 
 <div class="banner-sin-conexion" *ngIf="dataService.sinConexion && !cargandoInicial() && !authService.esConductor">

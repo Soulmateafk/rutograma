@@ -272,8 +272,8 @@ export class Configuracion implements OnInit {
     const nuevoModo = this.modoActual === 'real' ? 'pruebas' : 'real';
 
     const mensaje = nuevoModo === 'pruebas'
-      ? 'Vas a entrar al MODO PRUEBA — la app trabajará sobre una copia aparte del Excel (se crea a partir del real la primera vez). Nada de lo que hagas en pruebas afecta el archivo real.'
-      : 'Vas a volver al MODO REAL — la app volverá a trabajar sobre tu Excel real de siempre. Lo que hiciste en modo prueba se queda guardado aparte, sin perderse.';
+      ? 'Vas a entrar al MODO PRUEBA — solo para ti: trabajarás sobre una copia aparte (se crea a partir de los datos reales la primera vez). Nada de lo que hagas en pruebas afecta los datos reales, y el resto del equipo sigue trabajando en lo real sin enterarse.'
+      : 'Vas a volver al MODO REAL — volverás a trabajar sobre los datos reales de siempre. Lo que hiciste en modo prueba se queda guardado aparte, sin perderse.';
 
     const confirmado = await this.mostrarConfirmPersonalizado(
       mensaje,

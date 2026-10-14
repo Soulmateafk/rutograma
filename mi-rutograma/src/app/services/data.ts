@@ -194,7 +194,10 @@ export class DataService {
   // Modo Prueba — un cambio hecho en Prueba no tiene sentido "deshacerlo"
   // estando en Real (y viceversa: se aplicaría sobre el Excel equivocado).
   // Por eso las claves de localStorage incluyen el modo actual.
-  public modoActual: 'real' | 'pruebas' = 'real';
+  /** Señal del modo (la franja de MODO PRUEBA de app.html se repinta sola al cambiar). */
+  public readonly modo = signal<'real' | 'pruebas'>('real');
+  public get modoActual(): 'real' | 'pruebas' { return this.modo(); }
+  public set modoActual(v: 'real' | 'pruebas') { this.modo.set(v); }
 
   public async actualizarModoActual(): Promise<void> {
     try {
@@ -566,6 +569,8 @@ export class DataService {
     // termine la carga asíncrona (o hasta entrar a otra página que sí
     // hiciera esta misma lectura por su cuenta, como pasaba antes).
     this.cargarEstadoLocal();
+    // Al cerrar sesión, el modo vuelve a "real" (el de la próxima cuenta lo dice el servidor).
+    this.cuenta.alCargarCuenta.subscribe(c => { if (!c && this.modoActual !== 'real') { this.modoActual = 'real'; this.cargarPilaDeshacerLocal(); } });
 
     // afterNextRender() garantiza que esto corra UNA VEZ, solo en el
     // navegador — sin importar si tu app usa "hydration" (reutiliza lo
@@ -727,6 +732,13 @@ export class DataService {
           datosServidor[c] === undefined && Array.isArray(this.S[c]) && this.S[c].length > 0);
 
         Object.assign(this.S, datosServidor);
+        // El modo es de cada cuenta: si quien entró en este equipo está en
+        // otro modo (o lo cambió en otro equipo), se toma el que dice el servidor.
+        const modoServidor = datosServidor.modo === 'pruebas' ? 'pruebas' : 'real';
+        if (modoServidor !== this.modoActual) {
+          this.modoActual = modoServidor;
+          this.cargarPilaDeshacerLocal();
+        }
         await this.autoSave();
         for (const clave of sinSubir) await this.guardarConfigCompartida(clave);
 

@@ -1,5 +1,5 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
-import { Router, NavigationStart, NavigationEnd, RouterOutlet } from '@angular/router'; 
+import { Router, NavigationStart, NavigationEnd, RouterOutlet, RouterLink } from '@angular/router'; 
 import { Title } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common'; 
 import { DataService } from './services/data';
@@ -31,7 +31,7 @@ import { temporadaVisible } from './services/temporadas';
 @Component({
   selector: 'app-root',
   standalone: true, 
-  imports: [RouterOutlet, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent, PizarraComponent, AvisoCargueComponent, AparienciaComponent, AvisoDeshacerComponent, NotasComponent, BusquedaHabladaComponent], 
+  imports: [RouterOutlet, RouterLink, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent, PizarraComponent, AvisoCargueComponent, AparienciaComponent, AvisoDeshacerComponent, NotasComponent, BusquedaHabladaComponent], 
   templateUrl: './app.html'
 })
 export class App implements OnInit {
@@ -61,6 +61,8 @@ export class App implements OnInit {
   // cualquier otra página) — puramente visual, no depende de que termine
   // ninguna petición real, solo dura un tiempo fijo corto.
   cargandoInicial = signal(true);
+  /** Pantallas sin sesión (login, registro, pendiente): ahí no va la franja de MODO PRUEBA. */
+  sinSesion = computed(() => ['/login', '/register', '/pending'].some(r => this.rutaActual().startsWith(r)));
 
   // Carga breve al cambiar de página (Dashboard→Rutograma, etc.) — el
   // estado real ahora vive en LoadingService (para que otras pantallas,
