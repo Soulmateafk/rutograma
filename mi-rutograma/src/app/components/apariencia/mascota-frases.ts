@@ -192,7 +192,79 @@ export const TONTERIAS = [
   'Mi deporte favorito: el parqueo en paralelo. Llevo años practicando. 🅿️',
   'Dicen que el que más madruga… igual se encuentra un trancón. 🚗🚗🚗',
   'Cuando nadie me ve, me pongo a contar las cajas. Llevo 3.482. Creo. 📦',
-  'Prometo no pitar en las reuniones. Bueno, casi nunca. 📯'
+  'Prometo no pitar en las reuniones. Bueno, casi nunca. 📯',
+  'Leyenda de la oficina: hubo una semana en que todos los viajes salieron a la hora. Dicen que fue un sueño colectivo. 😴',
+  'Cuentan que en el fondo del Excel viejo vive una celda que nadie se atreve a borrar. 📊👻',
+  'Dicen que hay un conductor que llegó tan rápido que el cliente todavía no había hecho el pedido. ⚡',
+  'Cuentan que una vez la impresora funcionó al primer intento. No hay pruebas. 🖨️',
+  'Leyenda urbana: existe un viaje con todos los datos completos desde el primer día. Nadie lo ha visto. 🦄',
+  'Dicen que si dejas el Rutograma abierto toda la noche, al otro día los viajes amanecen más organizados. 🌙',
+  'Cuentan que un furgón se perdió en Bogotá y todavía está buscando la calle 26. 🗺️',
+  'Dicen que en la oficina hay un esfero que nunca se pierde. Es mentira. 🖊️',
+  'Leyenda de carretera: hay un peaje que te devuelve las vueltas exactas sin que pidas. 🪙',
+  'Dicen que el control remoto del aire acondicionado de la oficina es un mito. ❄️',
+  'Cuentan que un viaje se programó solito un domingo a las 3 a. m. Nadie confiesa. 🤫',
+  'Dicen que el wifi funciona mejor si le hablas bonito. 📶❤️',
+  'Cuentan que hubo una reunión de 5 minutos que de verdad duró 5 minutos. ⏱️😱',
+  'Leyenda: un conductor encontró parqueadero en el centro a la primera. Lo están canonizando. 😇',
+  'Yo no ronco, es el motor calentando. 😤',
+  'Hoy amanecí con las llantas bien infladas y el ánimo también. 🛞✨',
+  'Me gustaría tener vacaciones… pero me da miedo que me cambien por una moto. 🏍️😰',
+  'Mi canción favorita: "La vida es un carnaval"… de camiones. 🎶',
+  'Soy refrigerado por fuera y cálido por dentro. 🥹',
+  'Mi horóscopo dice que hoy evite los huecos. Muy acertado, la verdad. 🔮',
+  'No me digas "carrito": soy un FURGÓN, con todas sus letras. 😤🚚',
+  'Yo también quiero una foto del mes. Salgo bien de perfil. 📸',
+  'Cuando sea grande quiero ser tractomula. 🚛✨',
+  'Tengo miedo a los lavaderos automáticos. Esos rodillos dan pánico. 🫣',
+  'Mi comida favorita: diésel con una pizca de aceite 15W-40. 😋',
+  'Yo nunca me pierdo: solo hago "rutas alternativas". 🧭',
+  'Ayer soñé que era un avión. Me desperté en el parqueadero. ✈️😅',
+  'Si me ves quieto no es pereza: estoy en modo ahorro de energía. 🔋',
+  'Mi pito suena "pii pii", pero en mi corazón suena "te quiero". 📯❤️',
+  'Hice ejercicio hoy: subí La Línea en tercera. 💪',
+  'No soy chismoso, pero sé quién movió el viaje del martes. 👀',
+  'Ya me aprendí todos los atajos de teclado. Ahora solo me falta tener manos. 🙌',
+  'Mi espejo retrovisor me dice que hoy me veo muy bien. 😎',
+  'Si me dejas mucho tiempo solo, me pongo a contar cuántos píxeles tiene la pantalla. 🖥️',
+  'Me encanta el olor a llanta nueva por la mañana. 🛞☀️',
+  'Mi mayor logro: nunca he tenido un comparendo. Bueno, en la app no. 😇',
+  'Yo también tengo pico y placa: los lunes no hablo antes del tinto. ☕',
+  '¿Qué le dijo el furgón a la tractomula? "Estás muy grande para tu edad." 🚛',
+  '¿Por qué el camión no juega cartas? Porque siempre le toca cargar. 🃏',
+  '¿Qué hace un camión en el gimnasio? Levanta carga. 🏋️',
+  '¿Cómo se despide un conductor? "¡Nos vemos en la próxima curva!" 👋',
+  '¿Por qué el furgón refrigerado es tan calmado? Porque siempre mantiene la cabeza fría. 🧊',
+  '¿Qué le dijo un peaje a otro? "Nos vemos en el próximo cobro." 🪙',
+  '¿Cuál es el café favorito de los conductores? El que les dan en la bomba. ⛽☕',
+  '¿Por qué la carretera estaba cansada? Porque la tenían muy recorrida. 🛣️',
+  '¿Qué le dice un camión a su mamá? "¡Ma, ya llegué… con retraso, pero llegué!" 🚚',
+  '¿Qué le dijo el volante al conductor? "Contigo voy a donde sea." 💞',
+  '¿Por qué el trancón no tiene amigos? Porque a nadie le gusta esperarlo. 🚗🚗🚗',
+  '¿Qué le dijo el reductor de velocidad al carro? "¡Bájale, que no es pa\' tanto!" 😂',
+  '¿Cuál es el animal favorito de los conductores? El burro… de arranque. 🐴🔋',
+  '¿Cómo se llama el primo vegetariano del furgón refrigerado? El "frutón". 🍎😄',
+  '¿Qué le dijo la gasolina al motor? "Sin mí no eres nada." ⛽',
+  '¿Por qué el GPS fue al médico? Porque tenía problemas de orientación. 🩺',
+  '¿Qué le dijo la caja al furgón? "Llévame contigo." 📦❤️',
+  '¿Cuál es el colmo de una ruta? Que la dejen plantada en el destino. 🌱',
+  '¿Por qué el aceite es tan buen amigo? Porque siempre está ahí cuando las cosas se ponen duras. 🛢️',
+  '¿Qué le dijo un cono naranja a otro? "¡Qué tráfico el de hoy!" 🚧',
+  '¿Cuál es el colmo de un mecánico? Que su esposa le diga que tiene un tornillo suelto. 🔩',
+  '¿Qué le dijo el parabrisas al limpiaparabrisas? "Deja de mirarme así, que me pones nervioso." 🌧️',
+  'Programar viajes un lunes a las 8 a. m. sin tinto debería estar prohibido por la ley. ☕⚖️',
+  'Si el Excel tuviera sentimientos, ya habría renunciado hace rato. 😅',
+  'Dato no comprobado: el 90 % de los problemas se arreglan reiniciando. El otro 10 %, con tinto. ☕',
+  'Reunión que pudo ser un mensaje de WhatsApp: detectada. 📱',
+  'Nivel de estrés de hoy: "viaje extra a las 5:45 p. m. de un viernes". 😵',
+  'Hay dos tipos de personas: las que cierran la semana el viernes… y las que la cierran el lunes. 🙈',
+  'El mejor sonido del mundo: "¡Entregado!" 🎶',
+  'Si te sientes solo, recuerda que el Rutograma siempre tiene viajes para ti. 🫂',
+  'La oficina sin tinto es como un furgón sin llantas: no arranca. ☕🚚',
+  'Si ves a alguien hablándole a la pantalla, no te preocupes: me está hablando a mí. 🗣️',
+  '"Ya casi llego" es la mentira más dicha en la carretera. 😂',
+  '"Eso es aquí cerquita" — palabras de alguien que nunca ha manejado esa ruta. 🗺️',
+  '"Cinco minuticos más" — dijo el trancón de la autopista. 🚦'
 ];
 
 // ---------- Reacciones ----------
@@ -266,69 +338,93 @@ export const FIESTAS: Record<string, string[]> = {
     'Tradición: quemar el "año viejo" a medianoche. 🔥',
     'Lentejas en el bolsillo para que no falte la plata. 💰',
     'Ropa interior amarilla para la buena suerte. 💛',
-    'Año nuevo: buen momento para revisar SOAT y tecnomecánicas del año.'
+    'Año nuevo: buen momento para revisar SOAT y tecnomecánicas del año.',
+    'Propósito de año nuevo: cero viajes sin conductor asignado. Ya veremos. 😅',
+    'Di la vuelta a la manzana con la maleta… y terminé haciendo una entrega. 🧳🚚',
+    'Me comí las 12 uvas y ahora tengo 12 deseos: todos son "que no haya trancón". 🍇'
   ],
   velitas: [
     'El 7 de diciembre en la noche se prenden velas y faroles en todo el país. 🕯️',
     'La noche de velitas abre oficialmente la Navidad en Colombia.',
     'En Quimbaya (Quindío) hacen un festival de faroles hermosísimo. 🏮',
     'Las velitas se prenden en honor a la Inmaculada Concepción (8 de diciembre).',
-    'Cuidado con las velas cerca de cortinas y niños. 🔥'
+    'Cuidado con las velas cerca de cortinas y niños. 🔥',
+    'Prendí una velita por cada viaje entregado este año. Casi incendio el parqueadero. 🕯️🔥',
+    'Mi farola es mi velita. La prendo todas las noches. 💡'
   ],
   'amor-amistad': [
     'En Colombia, Amor y Amistad se celebra el tercer sábado de septiembre. 💛',
     'El "amigo secreto" es el plan de oficina más clásico del mes. 🎁',
     'Hoy es buen día para darle las gracias a ese compañero que siempre ayuda.',
-    'El mejor regalo para un conductor: una ruta sin trancón. 😄'
+    'El mejor regalo para un conductor: una ruta sin trancón. 😄',
+    'Mi amigo secreto me regaló un ambientador de pino. Muy útil, la verdad. 🌲',
+    'Mi gran amor: la vía recién pavimentada. 😍🛣️',
+    'Si me sacas en el amigo secreto, quiero llantas nuevas. Gracias. 🛞🎁'
   ],
   'san-valentin': [
     'San Valentín es el 14 de febrero; en Colombia lo grande es en septiembre. 💘',
-    'Un detalle no tiene que ser caro: un "gracias" también vale. 💌'
+    'Un detalle no tiene que ser caro: un "gracias" también vale. 💌',
+    'Le escribí una carta de amor a la tractomula. No me ha respondido. 💌🚛'
   ],
   mujer: [
     'El 8 de marzo es el Día Internacional de la Mujer. 💐',
     'Gracias a todas las mujeres que mueven MAKAND cada día.',
-    'Cada vez hay más mujeres conductoras de carga en Colombia. 🚚'
+    'Cada vez hay más mujeres conductoras de carga en Colombia. 🚚',
+    'Las mujeres de la oficina programan, coordinan y además encuentran el esfero perdido. Superpoderes. 🦸‍♀️'
   ],
   madre: [
     'En Colombia el Día de la Madre es el segundo domingo de mayo. 🌷',
     'Ese fin de semana hay mucho movimiento en las carreteras: ojo con los tiempos.',
-    'Un saludo a todas las mamás del equipo. 💐'
+    'Un saludo a todas las mamás del equipo. 💐',
+    'Mi mamá era una camioneta muy trabajadora. De ahí lo saqué. 🥹',
+    'Las mamás saben dónde está todo… incluso el viaje que no aparece. 🔎'
   ],
   padre: [
     'El Día del Padre en Colombia es el tercer domingo de junio. 👔',
-    'Un saludo a los papás que manejan lejos de casa. 🚚❤️'
+    'Un saludo a los papás que manejan lejos de casa. 🚚❤️',
+    'Mi papá era un camión de estacas. Me enseñó a llevar la carga con orgullo. 🚚👔',
+    'Chiste de papá: ¿por qué el camión no se baña? Porque ya tiene lavado de chasis. 🙄'
   ],
   trabajo: [
     'El 1 de mayo se celebra el Día del Trabajo en casi todo el mundo. 🛠️',
     'El Día del Trabajo recuerda las luchas por la jornada de 8 horas.',
-    'Gracias por todo el trabajo que hacen posible cada entrega.'
+    'Gracias por todo el trabajo que hacen posible cada entrega.',
+    'Hoy es el Día del Trabajo y yo… trabajando. Bueno, alguien tiene que hacerlo. 😅',
+    'Mi sindicato de furgones pide tres cosas: aceite, aire en las llantas y cariño. ✊'
   ],
   'semana-santa': [
     'En Semana Santa hay plan retorno: las vías se llenan el domingo. 🚗🚗🚗',
     'Las procesiones de Popayán son Patrimonio de la Humanidad.',
     'Los huevos de Pascua representan la vida nueva. 🐣',
-    'Ojo: en puentes y Semana Santa puede haber restricción para vehículos de carga.'
+    'Ojo: en puentes y Semana Santa puede haber restricción para vehículos de carga.',
+    'Esta Semana Santa voy a hacer penitencia: nada de pitar. Bueno, poquito. 📯',
+    'Busqué huevos de Pascua por toda la app. Solo encontré viajes por revisar. 🥚🔍'
   ],
   conductor: [
     'En Colombia el Día del Conductor es el 16 de julio, día de la Virgen del Carmen. 🚚',
     'La Virgen del Carmen es la patrona de los conductores.',
     'Sin conductores no hay entregas: ¡gracias a todos! 🙌',
-    'Hoy es buen día para llamar a un conductor y darle las gracias.'
+    'Hoy es buen día para llamar a un conductor y darle las gracias.',
+    'Feliz día a los conductores, los únicos que saben cuál es el mejor restaurante de cada ruta. 🍲',
+    'Ser conductor es saber exactamente cuántos huecos tiene cada carretera. 🛣️'
   ],
   independencia: [
     'El 20 de julio de 1810 empezó el camino hacia la independencia de Colombia. ⭐',
     'La historia del "florero de Llorente" fue la chispa del 20 de julio.',
-    'Amarillo, azul y rojo: ¡qué bonita la bandera! 🇨🇴'
+    'Amarillo, azul y rojo: ¡qué bonita la bandera! 🇨🇴',
+    'Me puse la bandera en el techo. Creo que me veo muy patriota. 🇨🇴',
+    'Si el florero de Llorente hubiera viajado en furgón refrigerado, todavía estaría entero. 🏺'
   ],
   boyaca: [
     'El 7 de agosto de 1819 se ganó la Batalla de Boyacá. ⚔️',
     'La batalla fue en el Puente de Boyacá, cerca de Tunja.',
-    'El 6 de agosto también es el cumpleaños de Bogotá (fundada en 1538). 🎂'
+    'El 6 de agosto también es el cumpleaños de Bogotá (fundada en 1538). 🎂',
+    'En la Batalla de Boyacá no había furgones, si no habríamos llegado antes. ⚔️🚚'
   ],
   aniversario: [
     '¡Feliz aniversario, MAKAND! Cada viaje cuenta esta historia. 🎂',
-    'Un año más moviendo lo que importa, con la mejor gente.'
+    'Un año más moviendo lo que importa, con la mejor gente.',
+    '¡Feliz aniversario! Pido torta… pero sin llantas, por favor. 🎂'
   ]
 };
 
