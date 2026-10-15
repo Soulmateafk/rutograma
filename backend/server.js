@@ -3548,6 +3548,17 @@ app.get('/api/vivo', (req, res) => {
     vivo.conectar(pestana, { email, nombre: primerNombre(cuenta?.nombre, email), modo: modoActual(), color: String(req.query.color || ''), ...avatarDe(cuenta) }, res);
     req.on('close', () => vivo.desconectar(pestana, res));
 });
+// La dirección segura (https) de la app, si se activó con "activar-https.bat"
+// (Tailscale). El micrófono y otras funciones del navegador solo sirven ahí
+// (o en localhost): la app la usa para mandar a la persona allá.
+app.get('/api/direccion-segura', (req, res) => {
+    let dominio = '';
+    try { dominio = fs.readFileSync(path.join(__dirname, 'certs', 'dominio-tailscale.txt'), 'utf8').trim(); } catch { /* no se ha activado */ }
+    const hayCertificado = fs.existsSync(path.join(__dirname, 'certs', 'key.pem')) && fs.existsSync(path.join(__dirname, 'certs', 'cert.pem'));
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ ok: true, url: dominio && hayCertificado ? `https://${dominio}:5000` : '' });
+});
+
 app.get('/api/vivo/cursor', (req, res) => {
     const pestana = String(req.query.pestana || '').slice(0, 64);
     res.setHeader('Cache-Control', 'no-store');

@@ -1535,12 +1535,12 @@ html.sin-animaciones :is(.buscado-hueco, .buscado-letrero) { animation: none !im
    mouse cada persona en el Rutograma, de su color.
    ============================================================ */
 .cab-capa { position: fixed; inset: 0; pointer-events: none; z-index: 9980; overflow: hidden; }
-.cab { position: absolute; left: 0; top: 0; transition: transform .16s linear, opacity .3s; will-change: transform; }
+.cab { position: absolute; left: 0; top: 0; transition: opacity .3s; will-change: transform; }
 .cab-cabeza { position: absolute; left: -13px; top: -13px; width: 26px; height: 26px; border-radius: 50%; background: var(--cab); color: #fff; font: 800 13px/26px system-ui, sans-serif; text-align: center;
   box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--cab), 0 4px 12px rgba(0, 0, 0, .5); animation: cab-late 1.8s ease-in-out infinite; }
 @keyframes cab-late { 50% { box-shadow: 0 0 0 3px #fff, 0 0 0 10px color-mix(in srgb, var(--cab) 35%, transparent), 0 4px 12px rgba(0, 0, 0, .5); } }
 .cab-cabeza.emoji { background: #fff; font-size: 15px; }
-.cab-flecha { position: absolute; left: -24px; top: -24px; width: 48px; height: 48px; transition: transform .25s ease-out; }
+.cab-flecha { position: absolute; left: -24px; top: -24px; width: 48px; height: 48px; transition: transform .2s ease-out; }
 .cab-flecha::after { content: ''; position: absolute; right: -6px; top: 16px; border-left: 13px solid var(--cab); border-top: 8px solid transparent; border-bottom: 8px solid transparent; filter: drop-shadow(0 0 1.5px #fff); }
 .cab-nombre { position: absolute; left: 17px; top: 10px; padding: 2px 9px; border-radius: 10px; background: var(--cab); color: #fff; font: 800 12px/18px system-ui, sans-serif; white-space: nowrap; box-shadow: 0 0 0 2px #fff, 0 3px 8px rgba(0, 0, 0, .4); }
 /* La celda donde tiene el mouse se tiñe de su color. */

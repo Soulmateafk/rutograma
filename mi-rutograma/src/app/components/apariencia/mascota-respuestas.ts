@@ -18,7 +18,7 @@ import { responderDatos, Extra, EJEMPLOS_DATOS } from './mascota-datos';
 import { responderConsulta } from './mascota-consulta';
 import { placasDichas, conContexto } from './mascota-contexto';
 
-export type TipoAccion = 'ruta' | 'viaje' | 'buscar' | 'tarea' | 'apariencia' | 'viaje-extra' | 'novedad';
+export type TipoAccion = 'ruta' | 'viaje' | 'buscar' | 'tarea' | 'apariencia' | 'viaje-extra' | 'novedad' | 'enlace';
 export interface Accion { texto: string; tipo: TipoAccion; valor?: string; }
 export interface Tema { clave: string; texto: string; palabras: string[]; accion: Accion; }
 /** Datos que no están en la app abierta y hay que pedir al servidor (los despachos). */

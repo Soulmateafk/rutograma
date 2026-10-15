@@ -18,7 +18,9 @@ export class CabecitasComponent implements OnInit, OnDestroy {
   private presencia = inject(PresenciaService);
   private zone = inject(NgZone);
   private capa: HTMLDivElement | null = null;
-  private elementos = new Map<string, { el: HTMLDivElement; x: number; y: number; angulo: number; celda?: HTMLElement | null }>();
+  private elementos = new Map<string, { el: HTMLDivElement; x: number; y: number; tx: number; ty: number; angulo: number; celda?: HTMLElement | null }>();
+  private cuadro = 0;
+  private ultimoCuadro = 0;
   private quitar: Array<() => void> = [];
   private salida: any = null;
   private reloj: any = null;
@@ -34,20 +36,21 @@ export class CabecitasComponent implements OnInit, OnDestroy {
     this.capa.className = 'cab-capa';
     document.body.appendChild(this.capa);
     this.zone.runOutsideAngular(() => {
-      const mover = (e: PointerEvent) => this.alMover(e);
-      const redibujar = () => this.dibujar();
+      let ultimo = 0;
+      const mover = (e: PointerEvent) => { const t = performance.now(); if (t - ultimo > 30) { ultimo = t; this.alMover(e); } };
+      const redibujar = () => this.dibujar(true);
       document.addEventListener('pointermove', mover, { passive: true });
       window.addEventListener('scroll', redibujar, { passive: true, capture: true });
       window.addEventListener('resize', redibujar);
       // La tabla se vuelve a pintar cuando llegan datos: se reubica cada segundo.
-      this.reloj = setInterval(redibujar, 1000);
+      this.reloj = setInterval(() => this.dibujar(), 1000);
       this.quitar.push(() => document.removeEventListener('pointermove', mover), () => window.removeEventListener('scroll', redibujar, true), () => window.removeEventListener('resize', redibujar));
     });
   }
 
   ngOnDestroy(): void {
     this.quitar.forEach(f => f());
-    clearInterval(this.reloj); clearTimeout(this.salida);
+    clearInterval(this.reloj); clearTimeout(this.salida); cancelAnimationFrame(this.cuadro);
     this.vivo.enviarCursor(null);
     this.elementos.forEach(x => this.soltarCelda(x.celda));
     this.capa?.remove();
@@ -71,7 +74,8 @@ export class CabecitasComponent implements OnInit, OnDestroy {
       fx: b.width ? (e.clientX - b.left) / b.width : 0.5, fy: b.height ? (e.clientY - b.top) / b.height : 0.5, viaje });
   }
 
-  private dibujar(): void {
+  /** saltar: al hacer scroll o cambiar el tamaño, se ubica de una (no se desliza). */
+  private dibujar(saltar = false): void {
     if (!this.capa) return;
     const cursores = [...this.vivo.cursores().values()].filter(c => c.pagina === 'Rutograma');
     const vivos = new Set(cursores.map(c => c.pestana));
@@ -80,7 +84,7 @@ export class CabecitasComponent implements OnInit, OnDestroy {
     for (const c of cursores) {
       const celda = document.querySelector(`tr[data-placa="${CSS.escape(c.placa)}"] td[data-dia="${c.dia}"]`) as HTMLElement | null;
       let item = this.elementos.get(c.pestana);
-      if (!item) { item = { el: this.crear(c), x: NaN, y: NaN, angulo: 90 }; this.elementos.set(c.pestana, item); this.capa.appendChild(item.el); }
+      if (!item) { item = { el: this.crear(c), x: NaN, y: NaN, tx: NaN, ty: NaN, angulo: 90 }; this.elementos.set(c.pestana, item); this.capa.appendChild(item.el); }
       this.pintar(item.el, c);
       // La celda donde tiene el mouse, teñida de su color.
       if (item.celda !== celda) { this.soltarCelda(item.celda); item.celda = celda; }
@@ -90,14 +94,40 @@ export class CabecitasComponent implements OnInit, OnDestroy {
       const x = (b.left + c.fx * b.width) / z, y = (b.top + c.fy * b.height) / z;
       // Fuera de lo que se ve (arriba de la barra, o la tabla corrida): no se muestra.
       const visible = b.bottom > 60 && b.top < window.innerHeight && b.right > 0 && b.left < window.innerWidth;
-      if (Number.isFinite(item.x) && (Math.abs(x - item.x) > 2 || Math.abs(y - item.y) > 2)) item.angulo = Math.atan2(y - item.y, x - item.x) * 180 / Math.PI;
-      if (!Number.isFinite(item.x)) item.el.style.transition = 'none';
-      item.x = x; item.y = y;
-      item.el.style.transform = `translate(${x}px, ${y}px)`;
-      (item.el.querySelector('.cab-flecha') as HTMLElement).style.transform = `rotate(${item.angulo}deg)`;
+      // La primera vez aparece ahí mismo; después se desliza (ver animar).
+      if (!Number.isFinite(item.x) || saltar) { item.x = x; item.y = y; }
+      item.tx = x; item.ty = y;
       item.el.style.opacity = visible ? '' : '0';
-      if (item.el.style.transition === 'none') requestAnimationFrame(() => item!.el.style.transition = '');
     }
+    this.animar();
+  }
+
+  /**
+   * Movimiento suave: en cada cuadro de pantalla la cabecita recorre una
+   * parte del camino hacia donde está el mouse de esa persona (no salta
+   * entre los avisos). Corre solo mientras alguna se está moviendo.
+   */
+  private animar(): void {
+    if (this.cuadro) return;
+    this.ultimoCuadro = performance.now();
+    const paso = (t: number) => {
+      const dt = Math.min(64, t - this.ultimoCuadro); this.ultimoCuadro = t;
+      const f = 1 - Math.pow(0.8, dt / 16.7);
+      let moviendo = false;
+      for (const it of this.elementos.values()) {
+        if (!Number.isFinite(it.tx)) continue;
+        const dx = it.tx - it.x, dy = it.ty - it.y;
+        if (Math.abs(dx) > 0.3 || Math.abs(dy) > 0.3) {
+          moviendo = true;
+          if (Math.hypot(dx, dy) > 3) it.angulo = Math.atan2(dy, dx) * 180 / Math.PI;
+          it.x += dx * f; it.y += dy * f;
+        } else { it.x = it.tx; it.y = it.ty; }
+        it.el.style.transform = `translate3d(${it.x.toFixed(1)}px, ${it.y.toFixed(1)}px, 0)`;
+        (it.el.querySelector('.cab-flecha') as HTMLElement).style.transform = `rotate(${it.angulo.toFixed(0)}deg)`;
+      }
+      this.cuadro = moviendo ? requestAnimationFrame(paso) : 0;
+    };
+    this.cuadro = requestAnimationFrame(paso);
   }
 
   private soltarCelda(celda?: HTMLElement | null): void {

@@ -7,6 +7,7 @@ import { AuthService } from './services/auth.service';
 import { PresenciaService } from './services/presencia.service';
 import { VivoService } from './services/vivo.service';
 import { MarcadorVivoComponent } from './components/en-vivo/marcador';
+import { EditandoAhoraComponent } from './components/en-vivo/editando-ahora';
 import { ModalService } from './services/modal';
 import { LoadingService } from './services/loading.service';
 import { ThemeService } from './services/theme.service';
@@ -33,7 +34,7 @@ import { temporadaVisible } from './services/temporadas';
 @Component({
   selector: 'app-root',
   standalone: true, 
-  imports: [RouterOutlet, RouterLink, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent, PizarraComponent, AvisoCargueComponent, AparienciaComponent, AvisoDeshacerComponent, NotasComponent, BusquedaHabladaComponent, MarcadorVivoComponent], 
+  imports: [RouterOutlet, RouterLink, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent, PizarraComponent, AvisoCargueComponent, AparienciaComponent, AvisoDeshacerComponent, NotasComponent, BusquedaHabladaComponent, MarcadorVivoComponent, EditandoAhoraComponent], 
   templateUrl: './app.html'
 })
 export class App implements OnInit {

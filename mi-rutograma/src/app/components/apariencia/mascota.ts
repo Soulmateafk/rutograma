@@ -63,7 +63,7 @@ type Estado = 'normal' | 'feliz' | 'triste' | 'dormido';
         <form class="ms-pregunta" (ngSubmit)="preguntar()">
           <input #cajaPregunta name="pregunta" [(ngModel)]="pregunta" [placeholder]="oyendo() ? 'Te escucho… 👂' : (puedeHablar ? 'Pregúntame algo o toca 🎤' : 'Pregúntame algo…')" autocomplete="off" maxlength="200" (keydown.escape)="cerrarPanel()">
           <button type="button" *ngIf="puedeHablar" class="ms-mic" [class.oyendo]="oyendo()" (click)="hablar()"
-                  [attr.aria-label]="oyendo() ? 'Dejar de escuchar' : 'Preguntar hablando'" [title]="oyendo() ? 'Te escucho… toca para parar' : 'Pregúntame hablando'">🎤</button>
+                  [attr.aria-label]="oyendo() ? 'Dejar de escuchar' : 'Preguntar hablando'" [title]="oyendo() ? 'Te escucho… toca para parar' : (seguro ? 'Pregúntame hablando' : 'Para hablarme hace falta la dirección segura (https): tócame y te digo cómo')">🎤</button>
           <button type="submit" [disabled]="!pregunta.trim()" aria-label="Preguntar">➤</button>
         </form>
         <div class="ms-sugerencias">
@@ -379,10 +379,13 @@ export class MascotaComponent implements OnDestroy {
   /** Preguntar hablando: el micrófono del navegador (Chrome y Edge lo tienen) escribe la pregunta. */
   public readonly puedeHablar = typeof window !== 'undefined' && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
   public oyendo = signal(false);
+  public readonly seguro = typeof window !== 'undefined' && window.isSecureContext;
   private reconocedor: any = null;
 
   public hablar(): void {
     if (this.oyendo()) { this.reconocedor?.stop(); return; }
+    // Por http:// (la IP del servidor) el navegador bloquea el micrófono siempre: se explica y se ofrece la dirección segura.
+    if (!window.isSecureContext) { this.explicarMicrofono(); return; }
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
     let dicho = '';
@@ -396,7 +399,7 @@ export class MascotaComponent implements OnDestroy {
       };
       r.onerror = (e: any) => {
         const err = String(e?.error || '');
-        this.respuesta.set(err === 'not-allowed' || err === 'service-not-allowed' ? 'No me dejaron usar el micrófono. 🎤 Revisa el permiso del navegador (en algunas conexiones no se puede); mientras tanto escríbeme.'
+        this.respuesta.set(err === 'not-allowed' || err === 'service-not-allowed' ? 'El navegador no me dejó usar el micrófono. 🎤 Toca el candado 🔒 a la izquierda de la dirección (arriba) → Micrófono → Permitir, y vuelve a tocar 🎤.'
           : err === 'no-speech' ? 'No te escuché. 🎤 Toca el micrófono y habla cerca.'
             : err === 'network' ? 'Para entenderte hablando necesito internet. Escríbeme mientras tanto.'
               : err === 'aborted' ? this.respuesta() : 'No pude escucharte. Escríbeme la pregunta.');
@@ -433,6 +436,21 @@ export class MascotaComponent implements OnDestroy {
       this.acciones.set(r.acciones);
     } catch {
       this.respuesta.set('No pude conectarme para ver los despachos. Intenta de nuevo en un momento.');
+    }
+    this.cdr.detectChanges();
+  }
+
+  /** Por qué no deja el micrófono y cómo arreglarlo (la dirección segura https). */
+  private async explicarMicrofono(): Promise<void> {
+    this.opciones.set([]);
+    let url = '';
+    try { const res = await this.auth.fetchAutenticado(`${API}/direccion-segura`); url = (await res.json())?.url || ''; } catch { /* sin conexión */ }
+    if (url) {
+      this.respuesta.set('🎤 El navegador solo deja usar el micrófono en la dirección segura (https). Ábrela con este botón y entra con tu cuenta; desde ahí ya me puedes hablar. (Guárdala en favoritos para usarla siempre.)');
+      this.acciones.set([{ texto: 'Abrir la dirección segura', tipo: 'enlace', valor: url + location.pathname }]);
+    } else {
+      this.respuesta.set('🎤 El micrófono está bloqueado porque la app se abrió con http://. Para activarlo (una sola vez): en el computador del servidor ejecuta "activar-https.bat" y sigue los pasos; después abre la dirección https que te muestra. Mientras tanto, en ese computador sí funciona abriendo http://localhost:5000.');
+      this.acciones.set([]);
     }
     this.cdr.detectChanges();
   }
@@ -480,6 +498,7 @@ export class MascotaComponent implements OnDestroy {
     this.cerrarPanel();
     switch (a.tipo) {
       case 'ruta': this.router.navigateByUrl(a.valor || '/'); break;
+      case 'enlace': if (a.valor) window.location.href = a.valor; break;
       case 'viaje': this.router.navigate(['/rutograma'], { queryParams: { verViaje: a.valor } }); break;
       case 'buscar': this.ui.busquedaHablada.set(a.valor || ''); break;
       case 'tarea': { const t = TAREAS.find(x => x.clave === a.valor); if (t) this.guia.iniciarTarea(t); break; }

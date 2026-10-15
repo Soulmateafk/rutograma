@@ -106,25 +106,37 @@ export class VivoService {
     }
   }
 
+  private enVuelo = false;
+  private siguiente: { pagina: string; placa: string; dia: number; fx: number; fy: number; viaje?: string } | null | undefined = undefined;
+
   /**
-   * Dónde tengo el mouse (o null si salí del Rutograma). Se manda máximo
-   * unas 7 veces por segundo y solo si cambió algo.
+   * Dónde tengo el mouse (o null si salí del Rutograma). Hasta ~20 veces por
+   * segundo, un pedido a la vez (si uno no ha vuelto, se manda solo el más
+   * reciente al terminar): así nunca se amontonan ni llegan desordenados.
    */
   enviarCursor(donde: { pagina: string; placa: string; dia: number; fx: number; fy: number; viaje?: string } | null): void {
     if (!this.activo) return;
-    const mandar = () => {
-      this.pendiente = null;
-      this.ultimoEnvio = Date.now();
-      const q: Record<string, string> = donde
-        ? { pestana: this.presencia.pestana, pagina: donde.pagina, placa: donde.placa, dia: String(donde.dia), fx: donde.fx.toFixed(3), fy: donde.fy.toFixed(3), viaje: donde.viaje || '', color: this.theme.colorMio }
-        : { pestana: this.presencia.pestana, salir: '1' };
-      const firma = JSON.stringify(q);
-      if (firma === this.ultimoMandado) return;
-      this.ultimoMandado = firma;
-      this.auth.fetchAutenticado(`${API}/vivo/cursor?${new URLSearchParams(q)}`, { cache: 'no-store' }).catch(() => {});
-    };
+    this.siguiente = donde;
+    if (this.enVuelo) return;
     clearTimeout(this.pendiente);
-    const espera = 140 - (Date.now() - this.ultimoEnvio);
-    if (espera <= 0 || !donde) mandar(); else this.pendiente = setTimeout(mandar, espera);
+    const espera = 45 - (Date.now() - this.ultimoEnvio);
+    if (espera > 0 && donde) { this.pendiente = setTimeout(() => this.mandarSiguiente(), espera); return; }
+    this.mandarSiguiente();
+  }
+
+  private mandarSiguiente(): void {
+    const donde = this.siguiente;
+    if (donde === undefined) return;
+    this.siguiente = undefined;
+    const q: Record<string, string> = donde
+      ? { pestana: this.presencia.pestana, pagina: donde.pagina, placa: donde.placa, dia: String(donde.dia), fx: donde.fx.toFixed(3), fy: donde.fy.toFixed(3), viaje: donde.viaje || '', color: this.theme.colorMio }
+      : { pestana: this.presencia.pestana, salir: '1' };
+    const firma = JSON.stringify(q);
+    if (firma === this.ultimoMandado) return;
+    this.ultimoMandado = firma;
+    this.ultimoEnvio = Date.now();
+    this.enVuelo = true;
+    this.auth.fetchAutenticado(`${API}/vivo/cursor?${new URLSearchParams(q)}`, { cache: 'no-store' }).catch(() => {})
+      .finally(() => { this.enVuelo = false; if (this.siguiente !== undefined) this.enviarCursor(this.siguiente); });
   }
 }
