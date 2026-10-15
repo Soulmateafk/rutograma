@@ -16,7 +16,7 @@ import { CaraComponent } from './cara';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <span class="qa" *ngIf="personas().length" [title]="titulo()">
-      <span *ngFor="let p of personas().slice(0, max)" class="qa-cara" [ngClass]="nivel(p.ausenteSeg) || 'activo'" [class.edita]="p.editando">
+      <span *ngFor="let p of personas().slice(0, max)" class="qa-cara" [ngClass]="nivel(p.ausenteSeg, p.oculta) || 'activo'" [class.edita]="p.editando">
         <app-cara [nombre]="p.nombre" [avatar]="p.avatar || ''" [aid]="p.aid || ''" [fotoV]="p.fotoV || ''" [tam]="tam"></app-cara>
       </span>
       <span class="qa-mas" *ngIf="personas().length > max">+{{ personas().length - max }}</span>
@@ -54,7 +54,7 @@ export class QuienAquiComponent {
   });
 
   readonly titulo = computed(() => this.personas().map(p => {
-    const estado = nivelAusencia(p.ausenteSeg) ? textoAusencia(p.ausenteSeg) : 'activo';
+    const estado = nivelAusencia(p.ausenteSeg, p.oculta) ? textoAusencia(p.ausenteSeg, p.oculta) : 'activo';
     return `${p.nombre} · ${p.pagina}${p.accion ? ` · ${p.accion}` : ''} (${estado})`;
   }).join('\n'));
 }

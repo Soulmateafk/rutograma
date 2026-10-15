@@ -113,7 +113,7 @@ export class CabecitasComponent implements OnInit, OnDestroy {
     const nombre = el.querySelector('.cab-nombre') as HTMLElement;
     if (nombre.textContent !== c.nombre) nombre.textContent = c.nombre;
     const persona = this.presencia.enLinea().find(p => !p.esYo && p.nombre === c.nombre);
-    el.classList.toggle('ausente', !!nivelAusencia(persona?.ausenteSeg));
+    el.classList.toggle('ausente', !!nivelAusencia(persona?.ausenteSeg, persona?.oculta));
     el.classList.toggle('quieto', Date.now() - c.en > 60000);
   }
 }
