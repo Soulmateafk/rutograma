@@ -76,7 +76,9 @@ function rutaPermitidaParaVehiculo(placa, ruta) {
 app.use(cors());
 // Todo viaja comprimido (la app pesa ~2 MB y los datos ~1 MB; comprimidos,
 // unas 5 veces menos): se nota sobre todo en los celulares por Tailscale.
-app.use(compression());
+// El canal en vivo (/api/vivo) no se comprime: si no, el navegador recibe
+// las cabecitas y los cambios a pedazos, con retraso.
+app.use(compression({ filter: (req, res) => !req.path.startsWith('/api/vivo') && compression.filter(req, res) }));
 // Cabeceras de seguridad básicas (y sin anunciar que es Express).
 app.disable('x-powered-by');
 app.use((req, res, next) => {
@@ -589,6 +591,25 @@ app.use((req, res, next) => {
         modo = req.headers['x-modo-replay'];
     }
     contextoModo.run({ modo }, next);
+});
+
+// EN VIVO (ver vivo.js): cuando alguien guarda algo, los demás se enteran
+// al instante (recargan sin esperar los 20 s) y ven quién fue.
+const { crearVivo } = require('./vivo');
+const vivo = crearVivo();
+setInterval(() => vivo.latir(), 25000).unref();
+app.use((req, res, next) => {
+    if (req.method !== 'GET' && req.path.startsWith('/api/') && !/^\/api\/(auth|presencia|vivo|guias|sesiones|mis-viajes\/visto)/.test(req.path)) {
+        const email = normalizarEmail(req.headers['x-user-email']);
+        const modo = modoActual();
+        res.on('finish', () => {
+            if (email && res.statusCode >= 200 && res.statusCode < 300 && res.statusCode !== 202) {
+                const cuenta = (leerExcel().usuarios || []).find(u => normalizarEmail(u.email) === email);
+                vivo.cambio(email, modo, primerNombre(cuenta?.nombre, email));
+            }
+        });
+    }
+    next();
 });
 
 
@@ -3508,10 +3529,29 @@ app.get('/api/presencia', (req, res) => {
         editando: req.query.editando === '1',
         oculta: req.query.oculta === '1',
         inactivo: Number(req.query.inactivo) || 0,
+        color: String(req.query.color || ''),
         salir: req.query.salir === '1'
     });
     res.setHeader('Cache-Control', 'no-store');
     res.json({ ok: true, otros: presencia.otros(clave, email, pestana), enLinea: presencia.enLinea(email, pestana) });
+});
+
+// EN VIVO: el canal de cada pestaña (cabecitas y cambios al instante) y
+// dónde tiene el mouse. Es GET a propósito (no cambia datos, no pasa por
+// auditoría ni aprobaciones). Ver vivo.js.
+app.get('/api/vivo', (req, res) => {
+    const email = correoDeQuienPide(req);
+    const pestana = String(req.query.pestana || '').slice(0, 64);
+    if (!email || !pestana) return res.status(400).json({ ok: false, msg: 'Faltan datos.' });
+    const cuenta = (leerExcel().usuarios || []).find(u => normalizarEmail(u.email) === email);
+    res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+    vivo.conectar(pestana, { email, nombre: primerNombre(cuenta?.nombre, email), modo: modoActual(), color: String(req.query.color || ''), ...avatarDe(cuenta) }, res);
+    req.on('close', () => vivo.desconectar(pestana, res));
+});
+app.get('/api/vivo/cursor', (req, res) => {
+    const pestana = String(req.query.pestana || '').slice(0, 64);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ ok: vivo.cursor(pestana, { ...req.query, salir: req.query.salir === '1' }) });
 });
 
 // FOTO / AVATAR DE CADA CUENTA (Apariencia → Mi foto). La presencia solo

@@ -2,6 +2,7 @@ import { Injectable, NgZone, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from './auth.service';
+import { ThemeService } from './theme.service';
 import { API } from '../api-base';
 
 const API_URL = API;
@@ -13,7 +14,7 @@ export const NOMBRES_PAGINA: Record<string, string> = {
   sesiones: 'Sesiones', aprobaciones: 'Aprobaciones', admin: 'Administración', reglas: 'Reglas', comparendos: 'Comparendos', quejas: 'Quejas', mapa: 'Mapa', despachos: 'Despachos', papelera: 'Papelera'
 };
 
-export interface PersonaEnLinea { nombre: string; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; dispositivo: string; pagina: string; accion: string; editando: boolean; oculta: boolean; haceSeg: number; ausenteSeg?: number; clave?: string; }
+export interface PersonaEnLinea { nombre: string; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; dispositivo: string; pagina: string; accion: string; editando: boolean; oculta: boolean; haceSeg: number; ausenteSeg?: number; clave?: string; color?: string; }
 export interface OtroAqui { nombre: string; editando: boolean; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; ausenteSeg?: number; }
 
 /** Ausente: más de 5 min sin mover el mouse ni teclear (amarillo); más de 10 min (rojo). */
@@ -38,10 +39,12 @@ export class PresenciaService {
   private auth = inject(AuthService);
   private router = inject(Router);
   private zone = inject(NgZone);
+  private theme = inject(ThemeService);
 
   // Una por pestaña, y la misma al recargar (F5): así recargar no deja una
   // "ventana fantasma" en la lista.
-  private readonly pestana = PresenciaService.idDePestana();
+  /** Id de esta pestaña (también lo usa el canal en vivo, services/vivo.service.ts). */
+  public readonly pestana = PresenciaService.idDePestana();
 
   private static idDePestana(): string {
     const nuevo = Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -162,7 +165,7 @@ export class PresenciaService {
     const oculta = document.visibilityState !== 'visible' ? '1' : '0';
     try {
       const inactivo = String(Math.max(0, Math.round((Date.now() - this.ultimaActividad) / 1000)));
-      const res = await this.auth.fetchAutenticado(this.url({ accion, clave, editando: editando ? '1' : '0', oculta, inactivo }));
+      const res = await this.auth.fetchAutenticado(this.url({ accion, clave, editando: editando ? '1' : '0', oculta, inactivo, color: this.theme.colorMio }));
       const data = await res.json();
       if (!data?.ok) return;
       this.zone.run(() => {

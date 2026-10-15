@@ -17,6 +17,7 @@ import { TareasService } from '../../services/tareas.service';
 import { responder, normalizarPregunta, EJEMPLOS, Accion, Tema, Pedido } from './mascota-respuestas';
 import { textoDespachos } from './mascota-despachos';
 import { API } from '../../api-base';
+import { zoomPagina } from '../../zoom';
 import { temporadaVisible, diasParaElDia } from '../../services/temporadas';
 import { al, CONSEJOS, CONSEJOS_POR_PAGINA, DATOS, AL_GUARDAR, AL_ELIMINAR, AL_ERROR, COSQUILLAS, AL_DESPERTAR, TONTERIAS, HOLA, HORA, DIA_SEMANA, FIESTAS, datosDelRutograma } from './mascota-frases';
 
@@ -44,7 +45,10 @@ type Estado = 'normal' | 'feliz' | 'triste' | 'dormido';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="ms" *ngIf="visible()" [ngClass]="'ms-' + estado()" (click)="tocar()" title="¡Hola! Tócame">
+    <div class="ms-volver" *ngIf="arrastrando() && pos()">Suéltalo aquí para volver a su lugar</div>
+    <div class="ms" *ngIf="visible()" [ngClass]="'ms-' + estado()" (click)="tocar()" (pointerdown)="empezarArrastre($event)"
+         [class.ms-movido]="!!pos()" [class.ms-der]="pos()?.der" [class.ms-arriba]="pos()?.arriba" [class.ms-arrastrando]="arrastrando()"
+         [style.left.px]="pos()?.x" [style.top.px]="pos()?.y" title="¡Hola! Tócame · arrástrame para moverme">
       <div class="ms-globo" *ngIf="!panel() && globo() as g" animate.leave="ms-globo-sale">{{ g }}</div>
       <!-- Pregúntale al furgoncito -->
       <div class="ms-panel" *ngIf="panel()" animate.leave="ms-globo-sale" (click)="$event.stopPropagation()">
@@ -192,6 +196,12 @@ type Estado = 'normal' | 'feliz' | 'triste' | 'dormido';
     .ms-sugerencias button { background: none; border: 1px dashed var(--color-borde, #475569); color: var(--color-texto-secundario, #cbd5e1); border-radius: 12px; padding: 3px 9px; font-size: 11px; cursor: pointer; }
     :host-context(html.modo-enfoque) .ms { display: none; }
     :host-context(html.sin-animaciones) .ms * { animation: none !important; }
+    /* Movido por la persona (se guarda por cuenta): el globo y el panel se abren hacia donde haya espacio. */
+    .ms.ms-movido { bottom: auto; }
+    .ms.ms-arrastrando { cursor: grabbing; transition: none; filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .45)); }
+    .ms.ms-der .ms-globo, .ms.ms-der .ms-panel { left: auto; right: 112px; border-radius: 14px 14px 4px 14px; }
+    .ms.ms-arriba .ms-globo, .ms.ms-arriba .ms-panel { bottom: auto; top: 70px; }
+    .ms-volver { position: fixed; left: 12px; bottom: 10px; width: 150px; height: 94px; border: 2px dashed rgba(148, 163, 184, .6); border-radius: 18px; z-index: 9989; pointer-events: none; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #cbd5e1; text-align: center; }
     @media (max-width: 600px) { .ms { width: 96px; height: 60px; left: 6px; bottom: 6px; } .ms-globo { left: 70px; bottom: 54px; max-width: 200px; } .ms-panel { left: 4px; bottom: 64px; width: calc(100vw - 20px); max-width: none; } }
   `]
 })
@@ -258,6 +268,9 @@ export class MascotaComponent implements OnDestroy {
       document.addEventListener('pointermove', e => { const t = performance.now(); if (t - ultimo > 80) { ultimo = t; this.alMover(e); } }, { passive: true });
       document.addEventListener('keydown', this.alTeclear, { passive: true });
     });
+    // Donde la dejó esta cuenta (al entrar o cambiar de cuenta), y que no quede fuera al achicar la ventana.
+    effect(() => { if (this.visible()) this.posGuardada(); });
+    window.addEventListener('resize', () => { const p = this.pos(); if (p) { this.pos.set(this.posDesde(p.x, p.y)); this.cdr.detectChanges(); } });
     this.despertar();
     this.programarCharla();
     this.subDatos = this.ds.dataChanged.subscribe(() => this.revisarOperacion());
@@ -291,6 +304,52 @@ export class MascotaComponent implements OnDestroy {
   public opciones = signal<Tema[]>([]);
   public pregunta = '';
   private ultimaPregunta = '';
+  // ---------- Moverlo de lugar (arrastrando) ----------
+  /** Dónde lo dejó la persona (null = su lugar de siempre, abajo a la izquierda). */
+  public pos = signal<{ x: number; y: number; der: boolean; arriba: boolean } | null>(null);
+  public arrastrando = signal(false);
+  private recienMovido = 0;
+
+  private posGuardada(): void {
+    const g = this.leer<{ fx: number; fy: number } | null>('mascota-pos', null);
+    this.pos.set(g ? this.posDesde(g.fx * window.innerWidth / zoomPagina(), g.fy * window.innerHeight / zoomPagina()) : null);
+  }
+  /** Dentro de la pantalla siempre, y hacia dónde abrir el globo. */
+  private posDesde(x: number, y: number): { x: number; y: number; der: boolean; arriba: boolean } {
+    const z = zoomPagina(), ancho = window.innerWidth / z, alto = window.innerHeight / z;
+    const cx = Math.min(Math.max(4, x), ancho - 154), cy = Math.min(Math.max(56, y), alto - 98);
+    return { x: cx, y: cy, der: cx > ancho / 2, arriba: cy < alto / 2 };
+  }
+
+  public empezarArrastre(e: PointerEvent): void {
+    if (e.button !== 0 || (e.target as Element).closest('.ms-panel, .ms-globo')) return;
+    const z = zoomPagina();
+    const caja = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const dx = e.clientX - caja.left, dy = e.clientY - caja.top;
+    const x0 = e.clientX, y0 = e.clientY;
+    let moviendo = false;
+    const mover = (ev: PointerEvent) => {
+      if (!moviendo && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return;
+      if (!moviendo) { moviendo = true; this.arrastrando.set(true); this.panel.set(false); }
+      this.pos.set(this.posDesde((ev.clientX - dx) / z, (ev.clientY - dy) / z));
+      this.cdr.detectChanges();
+    };
+    const soltar = () => {
+      document.removeEventListener('pointermove', mover); document.removeEventListener('pointerup', soltar);
+      if (!moviendo) return;
+      this.arrastrando.set(false);
+      this.recienMovido = Date.now();
+      const p = this.pos();
+      // Si lo deja cerca de su lugar de siempre, vuelve ahí.
+      const alto = window.innerHeight / zoomPagina();
+      if (p && p.x < 70 && p.y > alto - 160) { this.pos.set(null); this.guardar('mascota-pos', null); }
+      else if (p) this.guardar('mascota-pos', { fx: p.x * zoomPagina() / window.innerWidth, fy: p.y * zoomPagina() / window.innerHeight });
+      this.cdr.detectChanges();
+    };
+    document.addEventListener('pointermove', mover);
+    document.addEventListener('pointerup', soltar);
+  }
+
   private get correo(): string { return String(this.auth.currentUser?.email || '').toLowerCase(); }
 
   private leer<T>(clave: string, porDefecto: T): T { try { return JSON.parse(localStorage.getItem(`${clave}:${this.correo}`) || 'null') ?? porDefecto; } catch { return porDefecto; } }
@@ -572,6 +631,8 @@ export class MascotaComponent implements OnDestroy {
   }
 
   public tocar(): void {
+    // Soltarlo después de arrastrar no cuenta como toque.
+    if (Date.now() - this.recienMovido < 300) return;
     this.despertar();
     // Varios toques seguidos: cosquillas y un pito.
     const ahora = Date.now();
