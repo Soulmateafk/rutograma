@@ -52,7 +52,12 @@ export function rangoViaje(v: any): { desde: string; hasta: string } | null {
   return { desde: v.fecha, hasta: sumarDiasFecha(v.fecha, Math.max(1, diasOcupadoViaje(v))) };
 }
 
-const seCruzan = (a: { desde: string; hasta: string }, b: { desde: string; hasta: string }): boolean => a.desde < b.hasta && b.desde < a.hasta;
+// "Llega y se va": un viaje puede salir el mismo día en que el otro regresa
+// (copia de backend/revision-viajes.js). No es choque.
+type Rango = { desde: string; hasta: string };
+const ultimoDiaRango = (r: Rango) => sumarDiasFecha(r.hasta, -1);
+const esRelevo = (a: Rango, b: Rango) => (b.desde > a.desde && b.desde === ultimoDiaRango(a)) || (a.desde > b.desde && a.desde === ultimoDiaRango(b));
+const seCruzan = (a: Rango, b: Rango): boolean => a.desde < b.hasta && b.desde < a.hasta && !esRelevo(a, b);
 
 /** ¿Este viaje cuenta? (no cancelado, con fecha, no es mantenimiento) */
 const cuenta = (v: any): boolean => v && !ESTADOS_SIN_VIAJE.includes(v.estado) && !!rangoViaje(v);

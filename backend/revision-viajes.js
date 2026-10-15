@@ -35,7 +35,11 @@ function rangoViaje(v) {
     return { desde: v.fecha, hasta: sumarDiasFecha(v.fecha, Math.max(1, diasOcupadoViaje(v))) };
 }
 
-const seCruzan = (a, b) => a.desde < b.hasta && b.desde < a.hasta;
+// "Llega y se va": un viaje puede salir el mismo día en que el otro regresa
+// (el último día del otro, el "Retorno" que se ve en pantalla). No es choque.
+const ultimoDiaRango = (r) => sumarDiasFecha(r.hasta, -1);
+const esRelevo = (a, b) => (b.desde > a.desde && b.desde === ultimoDiaRango(a)) || (a.desde > b.desde && a.desde === ultimoDiaRango(b));
+const seCruzan = (a, b) => a.desde < b.hasta && b.desde < a.hasta && !esRelevo(a, b);
 
 /** ¿Este viaje cuenta? (no cancelado, con fecha, no es mantenimiento) */
 const cuenta = (v) => v && !ESTADOS_SIN_VIAJE.includes(v.estado) && !!rangoViaje(v);

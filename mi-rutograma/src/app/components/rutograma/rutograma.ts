@@ -942,7 +942,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     const titularNuevo = this.conductoresMap[placa];
     if (cambiaTr) movido.cond = titularNuevo && !/^sin /i.test(String(titularNuevo)) ? titularNuevo : null;
     else if (placa !== placaVieja && (!original.cond || original.cond === this.conductoresMap[placaVieja]) && this.conductoresMap[placa]) movido.cond = this.conductoresMap[placa];
-    const motivo = motivoFechaAnterior(original, movido);
+    const motivo = this.auth.puede('editarDiasPasados') ? '' : motivoFechaAnterior(original, movido);
     if (motivo) { this.ui.mostrarToast(`<i class="bi bi-calendar-x"></i> ${motivo}`, 'err'); return; }
     if (Number(movido.retorno) - 1 > this.diasMes.length) { this.ui.mostrarToast('Ese viaje se saldría del mes. Muévelo a un día más temprano o edítalo.', 'err'); return; }
     const choques = obtenerViajesEnConflicto(placa, movido.salida, movido.retorno, this.ds.S, id);
@@ -3555,7 +3555,8 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     if (Number.isFinite(retornoVisto) && retornoVisto < salida && Number(this.selectedViaje.retorno) !== Number(original.retorno)) {
       return `El retorno (día ${retornoVisto}) no puede ser antes de la salida (día ${salida}).`;
     }
-    return motivoFechaAnterior(original, this.viajeConFechasEditadas());
+    // Con el permiso de días cerrados se pueden poner fechas que ya pasaron.
+    return this.auth.puede('editarDiasPasados') ? '' : motivoFechaAnterior(original, this.viajeConFechasEditadas());
   }
 
   /** El viaje con la fecha de acuerdo a la Salida escrita (la Salida es un número de día del mes del viaje). */

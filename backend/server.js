@@ -1285,7 +1285,9 @@ app.use((req, res, next) => {
         // (el jefe y el administrador lo tienen; ver dias-cerrados.js).
         const solicitanteDC = normalizarEmail(req.headers['x-user-email']);
         const puedeDiasCerrados = solicitanteDC === normalizarEmail(ADMIN_EMAIL) || !!permisosDelSolicitante(req)?.editarDiasPasados;
-        const anterior = motivoFechaAnterior(previo, viaje, fechaLocal()) || (puedeDiasCerrados ? '' : motivoExtraEnElPasado(previo, viaje, fechaLocal()));
+        // Con el permiso de días cerrados tampoco aplica "no sería un dato real": se
+        // pueden corregir y cargar fechas que ya pasaron (ej. un retorno de ayer).
+        const anterior = puedeDiasCerrados ? '' : (motivoFechaAnterior(previo, viaje, fechaLocal()) || motivoExtraEnElPasado(previo, viaje, fechaLocal()));
         if (anterior) {
             res.locals.auditoriaOmitir = true;
             return res.status(400).json({ ok: false, codigo: 'dia_anterior', msg: anterior });
