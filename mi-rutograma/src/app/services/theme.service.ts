@@ -48,6 +48,8 @@ export interface Apariencia {
   sonidoTemporada: boolean;                         // instrumentos de la festividad (si no, el sonido de siempre)
   contadorNavidad: boolean;                         // en diciembre, "Faltan N días para Navidad" en la barra
   mascota: boolean;                                 // el camioncito de MAKAND en la esquina
+  verPersonas: boolean;                             // ver a los demás en vivo (todo lo de abajo)
+  verEnVivo: { cabecitas: boolean; marcas: boolean; aviso: boolean };  // qué se ve de los demás
   ambiente: string;                                 // sonido ambiente ('' = ninguno, 'temporada', 'lluvia'...)
   ambienteVol: number;                              // 0-100
   enfoque: boolean;                                 // modo enfoque (solo el Rutograma, pantalla completa) — no se guarda
@@ -60,7 +62,7 @@ const POR_DEFECTO: Apariencia = {
   colorPropio: '', fondoTinte: false, coloresTr: { makand: '', arsitrans: '', polar: '' }, daltonismo: false, esquinas: 'normal', saludo: true,
   efectos: { onda: true, progreso: true, cascada: true, mes: true, vivo: true, temblor: true, destello: true, brillo: true, previa: true, confeti: true, rastro: true, transicion: true, clima: true }, temporada: 'auto',
   fondo: 'ninguno', fondoBrillo: 55, fondoVidrio: 35, fuente: 'sistema', densidad: 'normal', barra: 'arriba', inicio: '', avatar: '', foto: '', fijados: [],
-  tablero: { orden: [], ocultos: [] }, sonidos: true, volumen: 50, sonidoTemporada: true, contadorNavidad: true, mascota: true, ambiente: '', ambienteVol: 35, enfoque: false, notas: []
+  tablero: { orden: [], ocultos: [] }, sonidos: true, volumen: 50, sonidoTemporada: true, contadorNavidad: true, mascota: true, verPersonas: true, verEnVivo: { cabecitas: true, marcas: true, aviso: true }, ambiente: '', ambienteVol: 35, enfoque: false, notas: []
 };
 export const FONDOS: Array<{ valor: Fondo; nombre: string }> = [
   { valor: 'ninguno', nombre: 'Ninguno' }, { valor: 'cielo', nombre: 'Cielo de verdad' }, { valor: 'aurora', nombre: 'Aurora' }, { valor: 'atardecer', nombre: 'Atardecer' },
@@ -309,6 +311,8 @@ export class ThemeService {
       sonidoTemporada: p.sonidoTemporada !== false,
       contadorNavidad: p.contadorNavidad !== false,
       mascota: p.mascota !== false,
+      verPersonas: p.verPersonas !== false,
+      verEnVivo: { cabecitas: p.verEnVivo?.cabecitas !== false, marcas: p.verEnVivo?.marcas !== false, aviso: p.verEnVivo?.aviso !== false },
       ambiente: AMBIENTES.some(a => a.valor === p.ambiente) ? p.ambiente : '',
       ambienteVol: Number.isFinite(p.ambienteVol) ? Math.max(0, Math.min(100, Math.round(p.ambienteVol))) : 35,
       enfoque: false,
@@ -527,6 +531,15 @@ export class ThemeService {
     this.temporadaPreferida.set(clave || this.ap.temporada);
   }
   public alternarMascota(): void { this.cambiar({ mascota: !this.ap.mascota }); }
+  /** Ver a los demás en vivo (solo para esta cuenta). */
+  public alternarVerPersonas(): void { this.cambiar({ verPersonas: !this.ap.verPersonas }); }
+  public alternarVerEnVivo(que: 'cabecitas' | 'marcas' | 'aviso'): void { this.cambiar({ verEnVivo: { ...this.ap.verEnVivo, [que]: !this.ap.verEnVivo[que] } }); }
+  /** ¿Esta cuenta quiere ver eso de los demás? (lee "cambio" para que las pantallas se actualicen solas). */
+  public veoEnVivo(que: 'cabecitas' | 'marcas' | 'aviso' | 'puntos'): boolean {
+    this.cambio();
+    if (!this.ap.verPersonas) return false;
+    return que === 'puntos' ? true : this.ap.verEnVivo[que];
+  }
   public alternarContadorNavidad(): void { this.cambiar({ contadorNavidad: !this.ap.contadorNavidad }); }
   public ponerAmbiente(ambiente: string): void { this.cambiar({ ambiente }); }
   public ponerAmbienteVol(ambienteVol: number, guardar = true): void {

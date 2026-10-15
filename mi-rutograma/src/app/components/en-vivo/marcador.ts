@@ -1,5 +1,6 @@
 import { Component, NgZone, OnDestroy, OnInit, effect, inject } from '@angular/core';
 import { NOMBRES_PAGINA, PersonaEnLinea, PresenciaService, nivelAusencia } from '../../services/presencia.service';
+import { ThemeService } from '../../services/theme.service';
 
 /**
  * EL COLOR DE CADA PERSONA, BIEN NOTORIO, donde está (en toda la app):
@@ -27,11 +28,12 @@ export function elementosDeClave(clave: string): HTMLElement[] {
 @Component({ selector: 'app-marcador-vivo', standalone: true, template: '' })
 export class MarcadorVivoComponent implements OnInit, OnDestroy {
   private presencia = inject(PresenciaService);
+  private theme = inject(ThemeService);
   private zone = inject(NgZone);
   private marcados = new Set<HTMLElement>();
   private reloj: any = null;
 
-  constructor() { effect(() => { this.presencia.enLinea(); this.marcar(); }); }
+  constructor() { effect(() => { this.presencia.enLinea(); this.theme.cambio(); this.marcar(); }); }
 
   ngOnInit(): void {
     if (typeof document === 'undefined') return;
@@ -42,6 +44,8 @@ export class MarcadorVivoComponent implements OnInit, OnDestroy {
 
   private marcar(): void {
     if (typeof document === 'undefined') return;
+    // Esta cuenta puede no querer ver los colores de los demás (Apariencia).
+    if (!this.theme.veoEnVivo('marcas')) { this.limpiar(new Set()); return; }
     const personas = this.presencia.enLinea().filter(p => !p.esYo);
     const ahora = new Set<HTMLElement>();
     const pintar = (el: HTMLElement, p: PersonaEnLinea, clase: string, texto: string) => {

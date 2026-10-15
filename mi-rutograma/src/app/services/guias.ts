@@ -32,7 +32,7 @@ export const GUIAS: Record<string, Guia> = {
     pasos: [
       { el: '.tabs', titulo: 'Pestañas', texto: 'Cada pestaña es una pantalla de la app. Si alguna no cabe, queda dentro de "Más".' },
       { el: '.nav-search', titulo: 'Buscador (Ctrl + K)', texto: 'Escribe un viaje ("PRZ 065 12", "cali d1"), una placa, un conductor, una ruta, una pantalla o una acción ("viaje extra", "novedad", "diario") y salta directo. Con las flechas te mueves y con Enter abres. También entiende frases como se habla: "viajes de D1 la semana pasada con LUN 428", "cuántos a Cali entregados en septiembre", "extras sin conductor del 5 al 10, sin Polar"; el primer resultado abre la lista completa con lo que entendió, un resumen y para descargar a Excel.' },
-      { el: 'nav-en-linea', titulo: 'En línea', texto: 'Quién más está usando la app ahora mismo, en qué página y qué está haciendo. También salen tus otras ventanas o equipos abiertos con tu cuenta, como "Tú". No queda en ningún historial.' },
+      { el: 'nav-en-linea', titulo: 'En línea', texto: 'Quién más está usando la app ahora mismo, en qué página y qué está haciendo, con un puntito: verde activo, amarillo ausente (más de 5 min sin usar la app o con la app en segundo plano) y rojo más de 10 min. También salen tus otras ventanas o equipos abiertos con tu cuenta, como "Tú". No queda en ningún historial.' },
       { el: 'nav-deshacer', titulo: 'Deshacer y Rehacer', texto: 'Revierte tus últimos cambios (hasta 30). Pasa el mouse por encima para ver qué cambio se va a deshacer.' },
       { el: 'button[title="Descargar Diario"]', titulo: 'Descargar Diario', texto: 'Descarga un archivo con los viajes de hoy, listo para abrir en Excel.' },
       { el: 'button[title="Viaje Extra"]', titulo: 'Viaje Extra', texto: 'Agrega un viaje que no estaba en la matriz. Si el vehículo está ocupado, la app te ofrece cómo resolverlo.' },
@@ -43,7 +43,22 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'nav-notas', titulo: 'Mis notas', texto: 'Papelitos de colores para apuntar cosas rápidas ("llamar a Polar a las 3"). Solo los ves tú y se guardan solos. También con la tecla B.' },
       { el: '.nav-yo', titulo: 'Tu foto', texto: 'Tu foto o tu dibujito. Tócala para cambiarla (se cambia en Apariencia → Mi foto).' },
       { el: 'nav-apariencia', titulo: 'Apariencia y atajos', texto: 'Tu foto, modo claro u oscuro, colores, fondo de pantalla, tipo y tamaño de letra, sonidos, barra a un lado y más, solo para tu cuenta (las demás no cambian). Desde aquí también instalas la app y ves los atajos de teclado (tecla ?).' },
-      { el: '.ms', titulo: 'La mascota', texto: 'El camioncito de MAKAND: saluda, celebra cuando guardas, se duerme si no usas la app y se disfraza en cada fiesta. Tócalo y te dice algo. Se quita en Apariencia → Más ajustes.' },
+      { el: '.ms', titulo: 'La mascota', texto: 'El camioncito de MAKAND: saluda, celebra cuando guardas, se duerme si no usas la app y se disfraza en cada fiesta. Tócalo y pregúntale lo que quieras ("¿qué carros salen hoy?", "¿cómo saco el PDF de la semana?"), escribiendo o con el micrófono. Si te tapa algo, arrástralo a otro lado. Se quita en Apariencia → Más ajustes.' },
+      PASO_AYUDA
+    ]
+  },
+
+  // Lo nuevo de trabajar en equipo: sale una vez a cada cuenta de oficina (también a quien ya vio las demás).
+  'en-vivo': {
+    titulo: 'Novedad: ver al equipo en vivo',
+    pasos: [
+      { el: 'nav-en-linea', titulo: 'Quién está y quién no', texto: 'Aquí ves quién está en la app, en qué página y qué hace. El puntito dice cómo está: 🟢 activo, 🟡 ausente (más de 5 min sin usar la app, o con la app minimizada o en otra pestaña) y 🔴 ausente más de 10 min. El número amarillo o rojo sobre el botón cuenta los ausentes.' },
+      { el: '.tabs', titulo: 'Dónde está cada uno', texto: 'La carita de cada persona sale en la pestaña de la página donde está, y esa pestaña se pinta de su color (el que escogió en Apariencia).' },
+      { el: '.ruto-table-responsive', titulo: 'Cabecitas en el Rutograma', texto: 'Cada persona aparece como una cabecita de su color que se mueve a donde tiene el mouse, con una flechita hacia donde va; la casilla donde está se tiñe de su color. Si está ausente se ve más transparente.' },
+      { el: '.tabs', titulo: 'Quién edita qué', texto: 'Lo que alguien tiene abierto (un viaje, un vehículo, un conductor o una ruta) se marca de su color con un letrero: "Carlos editando" o "Carlos mirando". Si está editando, además sale un aviso arriba a la derecha con "Ver dónde", aunque esa fila no esté a la vista.' },
+      { el: '.tabs', titulo: 'Cambios al instante', texto: 'Cuando alguien guarda algo, lo ves de una vez (sin recargar): el viaje cambiado brilla del color de quien lo cambió, con "Carla lo cambió".' },
+      { el: 'nav-apariencia', titulo: 'Si no quieres verlos', texto: 'En Apariencia → "Ver a las demás personas en vivo" lo apagas todo, o escoges qué ver (cabecitas, colores, aviso). Es solo para tu cuenta: los demás te siguen viendo.' },
+      { el: '.ms', titulo: 'El camioncito te responde', texto: 'Tócalo y pregúntale como le hablarías a un compañero: "¿qué carros salen mañana?", "¿la LUN 428 está libre el viernes?", "¿cómo vamos este mes?", "¿y mañana?". Con 🎤 le hablas (necesita la dirección segura https). Si te tapa algo, arrástralo a donde quieras; para devolverlo, suéltalo en su esquina.' },
       PASO_AYUDA
     ]
   },
@@ -380,6 +395,42 @@ const AVISO_APROBACION = ' Si tu cuenta necesita aprobación, lo que guardes que
 
 export const TAREAS: Tarea[] = [
   {
+    clave: 'en-linea',
+    titulo: 'Ver quién está conectado y quién está ausente',
+    requiere: 'todos',
+    pasos: [
+      { el: 'nav-en-linea', tocar: true, titulo: 'Abre "En línea"', texto: 'Toca el botón iluminado (las personitas). El número dice cuántos más están en la app.' },
+      { el: '.el-panel', titulo: 'Quién está y qué hace', texto: 'Cada persona con su página y lo que está haciendo ("editando el vehículo LUN 428"). El puntito sobre su cara: 🟢 activo, 🟡 ausente (más de 5 min sin usar la app, o con la app minimizada o en otra pestaña), 🔴 ausente más de 10 min. Abajo está la leyenda.' },
+      { el: '.tabs', titulo: 'En las pestañas', texto: 'La carita de cada uno sale también en la pestaña de la página donde está, y la pestaña se pinta de su color.' },
+      { el: '', titulo: 'Quién edita qué', texto: 'Lo que alguien tiene abierto se marca de su color con "Carlos editando" o "Carlos mirando", y si edita sale un aviso arriba a la derecha con "Ver dónde". En el Rutograma, además, ves su cabecita moverse con su mouse.' },
+      { el: '', titulo: '¡Listo!', texto: 'Todo esto es solo lo que pasa ahora: no queda en ningún historial. Si no lo quieres ver, apágalo en Apariencia → "Ver a las demás personas en vivo".' }
+    ]
+  },
+  {
+    clave: 'ver-personas',
+    titulo: 'Ver u ocultar a las demás personas en vivo',
+    requiere: 'todos',
+    cerrar: ['.ap-cerrar'],
+    pasos: [
+      { el: 'nav-apariencia', tocar: true, titulo: 'Abre Apariencia', texto: 'Toca el botón iluminado (la paleta). También con la tecla A.' },
+      { el: 'ap-personas', titulo: 'Ver a las demás personas en vivo', texto: 'Apagado: no ves cabecitas, colores ni avisos de los demás. Encendido: escoges abajo qué ver (cabecitas en el Rutograma, color en lo que tienen abierto, aviso de quién edita). Se guarda solo y es solo para tu cuenta: los demás te siguen viendo.' },
+      { el: 'ap-acento', titulo: 'Tu color', texto: 'Con este color te ven los demás: tu cabecita, lo que editas y tu pestaña. Escoge uno que te distinga.' },
+      { el: '', titulo: '¡Listo!', texto: 'Al terminar la guía se cierra el panel.' }
+    ]
+  },
+  {
+    clave: 'preguntar-mascota',
+    titulo: 'Preguntarle al camioncito, hablarle y moverlo',
+    requiere: 'todos',
+    pasos: [
+      { el: '.ms', tocar: true, titulo: 'Tócalo', texto: 'Toca el camioncito iluminado: te dice algo y abre la cajita para preguntarle.' },
+      { el: '.ms-pregunta', titulo: 'Pregúntale lo que sea', texto: 'Escribe como le hablarías a un compañero: "¿qué carros salen hoy?", "¿quién regresa mañana?", "¿la LUN 428 está libre el viernes?", "¿cuánto llevamos facturado?", "¿cómo cancelo un viaje?". Después puedes seguir con "¿y mañana?" o "¿y la PRZ 065?" sin repetir todo. Si no entiende, te da opciones y aprende la que escojas.' },
+      { el: '.ms-mic', titulo: 'Háblale', texto: 'Con 🎤 le dices la pregunta en voz alta. El navegador solo deja usar el micrófono en la dirección segura (https://…:5000): si no estás en ella, el camioncito te dice cómo abrirla.' },
+      { el: '.ms-sugerencias', titulo: 'Ideas para preguntar', texto: 'Ejemplos que puedes tocar para probar.' },
+      { el: '', titulo: 'Muévelo si te tapa algo', texto: 'Arrástralo con el mouse a donde no estorbe: se queda ahí (también al volver a entrar). Para devolverlo a su lugar, suéltalo en la esquina de abajo a la izquierda.' }
+    ]
+  },
+  {
     clave: 'viaje-extra',
     titulo: 'Agregar un viaje extra',
     requiere: 'editar',
@@ -495,6 +546,7 @@ export const TAREAS: Tarea[] = [
       { el: 'ap-temporada', titulo: 'Decoración de temporada', texto: 'En Año Nuevo, San Valentín, Día de la Mujer, Semana Santa, Día del Trabajo, Día de la Madre y del Padre, Día del Conductor, 20 de Julio, 7 de agosto, Amor y Amistad, Halloween, Velitas, Navidad y el aniversario de MAKAND la app se decora sola (cada día con una frase y detalles distintos). El "Calendario de fiestas" muestra cuánto falta para cada una y deja ver cómo se verá (cosas que caen despacio, un detalle junto al logo, el saludo). Puedes dejarla automática, quitarla o ver una en particular.' },
       { el: 'ap-efectos', titulo: 'Efectos', texto: 'Cada efecto se prende o apaga por separado: onda al tocar, barra de progreso arriba, filas en cascada, deslizar al cambiar de mes, resaltar cambios en vivo, avisar si falta algo, destello al buscar, detalles que brillan (como el ND del logo), vista previa de los viajes, confeti cuando el mes queda completo detalles de la temporada (chispitas que siguen al mouse, chispas al guardar, nieve o telarañas en las tarjetas) y clima que se ve (si llueve en la ciudad de la oficina caen gotitas, si hace sol hay un brillo, y la temperatura sale en la barra).' },
       { el: 'ap-mascota', titulo: 'La mascota', texto: 'El camioncito de la esquina saluda, mira hacia el mouse, celebra al guardar, se pone triste con un error, se duerme si no usas la app y se disfraza en cada fiesta. Tócalo y te dice algo. Si no lo quieres, apágalo aquí.' },
+      { el: 'ap-personas', titulo: 'Ver a los demás en vivo', texto: 'Las cabecitas de los demás en el Rutograma, el color en lo que tienen abierto y el aviso de quién está editando. Apágalo todo o escoge qué ver; es solo para tu cuenta.' },
       { el: 'ap-transportadoras', titulo: 'Colores del Rutograma', texto: 'El color de las tarjetas de Makand, Arsitrans y Polar, solo para ti. "Como siempre" lo devuelve.' },
       { el: 'ap-ajustes', titulo: 'Más ajustes', texto: 'Modo daltonismo cambia los colores de los estados del Rutograma por unos que se distinguen sin ver rojo ni verde. Alto contraste marca más las letras y los bordes. Quitar animaciones elimina los efectos al abrir y cerrar pantallas, ventanas y menús y al tocar botones (también va mejor en equipos lentos). Saludo al entrar muestra "Buenos días" con tu nombre. Si algo no te gusta, "Restablecer" lo deja como venía.' },
       { el: '', titulo: '¡Listo!', texto: 'Se guarda solo apenas lo escoges. Al terminar la guía se cierra el panel.' }

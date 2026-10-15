@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, Input, computed, inject, signal } f
 import { CommonModule } from '@angular/common';
 import { NOMBRES_PAGINA, PersonaEnLinea, PresenciaService, nivelAusencia, textoAusencia } from '../../services/presencia.service';
 import { CaraComponent } from './cara';
+import { ThemeService } from '../../services/theme.service';
 
 /**
  * Puntitos en vivo de quién está en una página (en las pestañas de arriba)
@@ -37,6 +38,7 @@ import { CaraComponent } from './cara';
 })
 export class QuienAquiComponent {
   private presencia = inject(PresenciaService);
+  private theme = inject(ThemeService);
   private rutas = signal<string[]>([]);
   private viaje = signal('');
   /** Rutas de la app ("/rutograma", o varias separadas por coma) cuyas personas se muestran. */
@@ -48,6 +50,7 @@ export class QuienAquiComponent {
   readonly nivel = nivelAusencia;
 
   readonly personas = computed<PersonaEnLinea[]>(() => {
+    if (!this.theme.veoEnVivo('puntos')) return [];
     if (this.viaje()) return this.presencia.porViaje().get(this.viaje()) || [];
     const mapa = this.presencia.porPagina();
     return this.rutas().flatMap(r => mapa.get(NOMBRES_PAGINA[r.replace(/^\//, '').split('/')[0]] || '') || []);

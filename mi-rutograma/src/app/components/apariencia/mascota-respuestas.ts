@@ -100,7 +100,10 @@ const PALABRAS_TAREA: Record<string, string[]> = {
   'instalar': ['instalar', 'aplicacion', 'celular'],
   'mis-notas': ['notas', 'apuntar'],
   'aprobar': ['aprobar', 'apruebo', 'aprueba', 'aprobar cambios', 'rechazar cambios', 'rechazo'],
-  'mis-solicitudes': ['me aprobaron', 'mis cambios']
+  'mis-solicitudes': ['me aprobaron', 'mis cambios'],
+  'en-linea': ['en linea', 'quien esta conectado', 'quien esta en la app', 'ausente', 'ausentes', 'punto amarillo', 'punto rojo', 'quien esta editando', 'cabecitas', 'cabecita', 'monitorear', 'ver al equipo'],
+  'ver-personas': ['ocultar a los demas', 'no ver a los demas', 'quitar las cabecitas', 'ver a las demas personas', 'apagar las cabecitas', 'quitar los colores'],
+  'preguntar-mascota': ['mover el camioncito', 'mover la mascota', 'muevo el camioncito', 'hablarle', 'microfono', 'preguntarle', 'camioncito']
 };
 
 /** Todos los temas: los de arriba más una guía paso a paso por cada "¿Cómo hago…?". */
