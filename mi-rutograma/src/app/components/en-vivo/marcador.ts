@@ -12,6 +12,18 @@ import { NOMBRES_PAGINA, PersonaEnLinea, PresenciaService, nivelAusencia } from 
  * (clases y atributos), sin pasar por cada pantalla. Se reubica cada segundo
  * porque las tablas se vuelven a pintar cuando llegan datos.
  */
+/** Dónde está en la pantalla lo que alguien tiene abierto ("viaje:123", "vehiculo:LUN 428", "conductor:…", "ruta:…"). */
+export function elementosDeClave(clave: string): HTMLElement[] {
+  const [tipo, ...resto] = String(clave || '').split(':');
+  const valor = CSS.escape(resto.join(':').trim());
+  if (!valor) return [];
+  const sel = tipo === 'viaje' ? `[data-viaje="${valor}"]`
+    : tipo === 'vehiculo' ? `tr[data-placa="${valor.toUpperCase()}"]`
+      : tipo === 'conductor' ? `tr[data-cedula="${valor}"]`
+        : tipo === 'ruta' ? `tr[data-cod="${valor.toUpperCase()}"]` : '';
+  return sel ? Array.from(document.querySelectorAll<HTMLElement>(sel)) : [];
+}
+
 @Component({ selector: 'app-marcador-vivo', standalone: true, template: '' })
 export class MarcadorVivoComponent implements OnInit, OnDestroy {
   private presencia = inject(PresenciaService);
@@ -27,18 +39,6 @@ export class MarcadorVivoComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void { clearInterval(this.reloj); this.limpiar(new Set()); }
-
-  /** Dónde está lo que esa persona tiene abierto ("viaje:123", "vehiculo:LUN 428"…). */
-  private elementosDe(clave: string): HTMLElement[] {
-    const [tipo, ...resto] = clave.split(':');
-    const valor = CSS.escape(resto.join(':').trim());
-    if (!valor) return [];
-    const sel = tipo === 'viaje' ? `[data-viaje="${valor}"]`
-      : tipo === 'vehiculo' ? `tr[data-placa="${valor.toUpperCase()}"]`
-        : tipo === 'conductor' ? `tr[data-cedula="${valor}"]`
-          : tipo === 'ruta' ? `tr[data-cod="${valor.toUpperCase()}"]` : '';
-    return sel ? Array.from(document.querySelectorAll<HTMLElement>(sel)) : [];
-  }
 
   private marcar(): void {
     if (typeof document === 'undefined') return;
@@ -64,7 +64,7 @@ export class MarcadorVivoComponent implements OnInit, OnDestroy {
     for (const p of personas) {
       if (!p.clave) continue;
       const texto = `${p.nombre} ${p.editando ? 'editando' : 'mirando'}`;
-      for (const el of this.elementosDe(p.clave)) pintar(el, p, el.tagName === 'TR' ? 'vivo-fila' : 'vivo-objeto', texto);
+      for (const el of elementosDeClave(p.clave)) pintar(el, p, el.tagName === 'TR' ? 'vivo-fila' : 'vivo-objeto', texto);
     }
     // Las pestañas de arriba: del color de quien está ahí (la primera persona).
     const rutaDe = (pagina: string) => '/' + (Object.entries(NOMBRES_PAGINA).find(([, n]) => n === pagina)?.[0] || '');
