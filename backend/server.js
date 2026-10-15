@@ -3507,6 +3507,7 @@ app.get('/api/presencia', (req, res) => {
         clave,
         editando: req.query.editando === '1',
         oculta: req.query.oculta === '1',
+        inactivo: Number(req.query.inactivo) || 0,
         salir: req.query.salir === '1'
     });
     res.setHeader('Cache-Control', 'no-store');

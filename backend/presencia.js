@@ -14,6 +14,13 @@
 // pestaña normal, se avisa al instante (salir).
 const VIGENCIA_MS = 90 * 1000;
 
+// AUSENTE: sin mover el mouse, teclear ni tocar la pantalla en la app (o con
+// la ventana minimizada) por más de 5 min → punto amarillo; más de 10 → rojo.
+// Cada pestaña dice cuántos segundos lleva sin actividad; de una persona
+// cuenta la pestaña más activa (si usa otra ventana, no está ausente).
+const AUSENTE_SEG = 5 * 60;
+const MUY_AUSENTE_SEG = 10 * 60;
+
 /** Foto/emoji de la cuenta (Apariencia → Mi foto): solo si tiene. */
 function cara(p) {
     const c = {};
@@ -50,10 +57,17 @@ function crearPresencia(vigenciaMs = VIGENCIA_MS) {
         return [...porPersona.values()];
     };
 
+    /** Segundos sin actividad de una persona: la menor entre sus pestañas. */
+    const ausenciaDe = (lista, email, ahora) => {
+        const mias = lista.filter(p => p.email === email);
+        return mias.length ? Math.max(0, Math.round(Math.min(...mias.map(p => ahora - p.inactivoDesde)) / 1000)) : 0;
+    };
+
     return {
         /**
          * La pestaña sigue ahí. datos: { email, nombre, dispositivo, pagina,
-         * accion, clave, editando, oculta (minimizada), salir }. clave = lo que tiene abierto ("viaje:123"), si algo.
+         * accion, clave, editando, oculta (minimizada), inactivo (segundos
+         * sin mover el mouse ni teclear), salir }. clave = lo que tiene abierto ("viaje:123"), si algo.
          */
         latido(pestana, datos, ahora = Date.now()) {
             if (datos.salir) { pestanas.delete(pestana); return; }
@@ -72,6 +86,7 @@ function crearPresencia(vigenciaMs = VIGENCIA_MS) {
                 clave: corto(datos.clave, 120),
                 editando: !!datos.editando,
                 oculta: !!datos.oculta,
+                inactivoDesde: ahora - Math.min(Math.max(Number(datos.inactivo) || 0, 0), 24 * 3600) * 1000,
                 visto: ahora,
                 // Desde cuándo está en eso (se reinicia si cambia de página o de acción).
                 desde: previo && previo.pagina === pagina && previo.accion === accion ? previo.desde : ahora
@@ -84,10 +99,11 @@ function crearPresencia(vigenciaMs = VIGENCIA_MS) {
          */
         otros(clave, email, pestana, ahora = Date.now()) {
             if (!clave) return [];
-            const lista = vigentes(ahora).filter(p => p.clave === clave && p.pestana !== pestana);
+            const todas = vigentes(ahora);
+            const lista = todas.filter(p => p.clave === clave && p.pestana !== pestana);
             const yo = lista.filter(p => p.email === email);
             const demas = unaPorPersona(lista.filter(p => p.email !== email))
-                .map(p => ({ nombre: p.nombre, editando: p.editando, esYo: false, ...cara(p) }))
+                .map(p => { const aus = ausenciaDe(todas, p.email, ahora); return { nombre: p.nombre, editando: p.editando, esYo: false, ...(aus ? { ausenteSeg: aus } : {}), ...cara(p) }; })
                 .sort((a, b) => Number(b.editando) - Number(a.editando) || a.nombre.localeCompare(b.nombre));
             if (yo.length) demas.push({ nombre: 'Tú', editando: yo.some(p => p.editando), esYo: true });
             return demas;
@@ -99,8 +115,10 @@ function crearPresencia(vigenciaMs = VIGENCIA_MS) {
          * de la misma cuenta ("Tú"). Solo se omite la ventana que pregunta.
          */
         enLinea(email, pestana, ahora = Date.now()) {
-            const vivas = vigentes(ahora).filter(p => p.pestana !== pestana);
-            const fila = (p, esYo) => ({ nombre: esYo ? 'Tú' : p.nombre, esYo, ...cara(p), dispositivo: p.dispositivo, pagina: p.pagina, accion: p.accion, editando: p.editando, oculta: p.oculta, haceSeg: Math.round((ahora - p.desde) / 1000) });
+            const todas = vigentes(ahora);
+            const vivas = todas.filter(p => p.pestana !== pestana);
+            const fila = (p, esYo) => ({ nombre: esYo ? 'Tú' : p.nombre, esYo, ...cara(p), dispositivo: p.dispositivo, pagina: p.pagina, accion: p.accion, editando: p.editando, oculta: p.oculta, haceSeg: Math.round((ahora - p.desde) / 1000),
+                ausenteSeg: esYo ? Math.max(0, Math.round((ahora - p.inactivoDesde) / 1000)) : ausenciaDe(todas, p.email, ahora) });
             const demas = unaPorPersona(vivas.filter(p => p.email !== email)).map(p => fila(p, false)).sort((a, b) => a.nombre.localeCompare(b.nombre));
             const yo = vivas.filter(p => p.email === email).sort((a, b) => b.desde - a.desde).map(p => fila(p, true));
             return [...demas, ...yo];
@@ -108,4 +126,4 @@ function crearPresencia(vigenciaMs = VIGENCIA_MS) {
     };
 }
 
-module.exports = { crearPresencia, primerNombre, VIGENCIA_MS };
+module.exports = { crearPresencia, primerNombre, VIGENCIA_MS, AUSENTE_SEG, MUY_AUSENTE_SEG };

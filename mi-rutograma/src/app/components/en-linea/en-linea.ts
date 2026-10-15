@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, HostListener, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { PresenciaService } from '../../services/presencia.service';
+import { PresenciaService, nivelAusencia, textoAusencia } from '../../services/presencia.service';
 import { CaraComponent } from './cara';
 
 /**
@@ -20,22 +20,26 @@ import { CaraComponent } from './cara';
         <i class="bi bi-people-fill"></i>
         <span class="el-punto" [class.hay]="personas().length"></span>
         <span class="el-num">{{ personas().length }}</span>
+        <span class="el-aus" *ngIf="ausentes() as a" [class.rojo]="hayRojo()" [title]="a + (a === 1 ? ' persona ausente' : ' personas ausentes')">{{ a }}</span>
       </button>
       <div class="el-panel" *ngIf="abierto" (click)="$event.stopPropagation()">
         <div class="el-titulo">En línea ahora</div>
         <div *ngIf="!personas().length" class="el-vacio">Nadie más: solo esta ventana.</div>
         <div *ngFor="let p of personas()" class="el-fila" [class.yo]="p.esYo">
-          <span class="el-cara" [class.edita]="p.editando"><app-cara [nombre]="p.nombre" [texto]="p.esYo ? 'Tú' : ''" [avatar]="p.avatar || ''" [aid]="p.aid || ''" [fotoV]="p.fotoV || ''" [tam]="30"></app-cara></span>
+          <span class="el-cara" [class.edita]="p.editando"><app-cara [nombre]="p.nombre" [texto]="p.esYo ? 'Tú' : ''" [avatar]="p.avatar || ''" [aid]="p.aid || ''" [fotoV]="p.fotoV || ''" [tam]="30"></app-cara>
+            <span class="el-estado" [ngClass]="nivel(p.ausenteSeg) || 'activo'" [title]="nivel(p.ausenteSeg) ? textoAus(p.ausenteSeg) : 'Activo'"></span></span>
           <div class="el-texto">
             <div><b>{{ p.esYo ? 'Tú' : p.nombre }}</b> · {{ p.pagina || 'en la app' }}</div>
             <div class="el-equipo" *ngIf="p.esYo">en otra ventana o equipo<ng-container *ngIf="p.dispositivo"> ({{ p.dispositivo }})</ng-container></div>
-            <div class="el-equipo" *ngIf="!p.esYo && p.oculta">ventana minimizada o en segundo plano</div>
+            <div class="el-ausente" *ngIf="nivel(p.ausenteSeg) as n" [ngClass]="n">● {{ textoAus(p.ausenteSeg) }}<ng-container *ngIf="p.oculta"> (ventana minimizada)</ng-container></div>
+            <div class="el-equipo" *ngIf="!p.esYo && p.oculta && !nivel(p.ausenteSeg)">ventana minimizada o en segundo plano</div>
             <div class="el-accion" [class.edita]="p.editando">
               <i *ngIf="p.editando" class="bi bi-pencil-fill"></i>
               {{ p.accion || 'mirando' }} · {{ hace(p.haceSeg) }}
             </div>
           </div>
         </div>
+        <div class="el-leyenda"><span class="el-estado activo"></span> activo <span class="el-estado amarillo"></span> ausente +5 min <span class="el-estado rojo"></span> ausente +10 min</div>
         <div class="el-pie">Se actualiza solo. No queda en ningún historial.</div>
       </div>
     </div>
@@ -50,7 +54,21 @@ import { CaraComponent } from './cara';
     .el-titulo { font-weight: 700; font-size: 13px; margin-bottom: 8px; }
     .el-vacio { font-size: 13px; opacity: .75; padding: 4px 0 8px; }
     .el-fila { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; border-top: 1px solid var(--color-borde, #334155); font-size: 13px; }
-    .el-cara { flex-shrink: 0; border-radius: 50%; padding: 2px; display: inline-flex; box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.35); }
+    .el-cara { position: relative; flex-shrink: 0; border-radius: 50%; padding: 2px; display: inline-flex; box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.35); }
+    .el-estado { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--color-fondo-tarjeta, #0f172a); vertical-align: middle; }
+    .el-cara .el-estado { position: absolute; right: -2px; bottom: -2px; }
+    .el-estado.activo { background: #22c55e; }
+    .el-estado.amarillo { background: #facc15; }
+    .el-estado.rojo { background: #ef4444; animation: el-late 1.6s ease-in-out infinite; }
+    @keyframes el-late { 50% { box-shadow: 0 0 0 3px rgba(239, 68, 68, .35); } }
+    @media (prefers-reduced-motion: reduce) { .el-estado.rojo { animation: none; } }
+    .el-ausente { font-size: 11.5px; font-weight: 600; }
+    .el-ausente.amarillo { color: #facc15; }
+    .el-ausente.rojo { color: #f87171; }
+    .el-leyenda { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--color-borde, #334155); font-size: 11px; opacity: .75; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+    .el-leyenda .el-estado { width: 8px; height: 8px; border: 0; margin-left: 4px; }
+    .el-aus.rojo { background: #ef4444; color: #fff; }
+    .el-aus { position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #facc15; color: #1f2937; font-size: 10px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
     .el-cara.edita { box-shadow: 0 0 0 2px #f59e0b; }
     .el-avatar { flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; background: rgba(96, 165, 250, 0.2); color: #93c5fd; }
     .el-avatar.edita { background: rgba(245, 158, 11, 0.22); color: #fbbf24; }
@@ -65,6 +83,11 @@ import { CaraComponent } from './cara';
 export class EnLineaComponent {
   private presencia = inject(PresenciaService);
   readonly personas = this.presencia.enLinea;
+  /** Cuántas personas (no mis otras ventanas) están ausentes. */
+  readonly ausentes = computed(() => this.personas().filter(p => !p.esYo && nivelAusencia(p.ausenteSeg)).length);
+  readonly hayRojo = computed(() => this.personas().some(p => !p.esYo && nivelAusencia(p.ausenteSeg) === 'rojo'));
+  readonly nivel = nivelAusencia;
+  readonly textoAus = textoAusencia;
   abierto = false;
 
   // El aviso lo arranca app.ts en cualquier pantalla con sesión; esto solo lo muestra.

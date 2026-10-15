@@ -13,8 +13,18 @@ const NOMBRES_PAGINA: Record<string, string> = {
   sesiones: 'Sesiones', aprobaciones: 'Aprobaciones', admin: 'Administración', reglas: 'Reglas', comparendos: 'Comparendos', quejas: 'Quejas', mapa: 'Mapa', despachos: 'Despachos', papelera: 'Papelera'
 };
 
-export interface PersonaEnLinea { nombre: string; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; dispositivo: string; pagina: string; accion: string; editando: boolean; oculta: boolean; haceSeg: number; }
-export interface OtroAqui { nombre: string; editando: boolean; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; }
+export interface PersonaEnLinea { nombre: string; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; dispositivo: string; pagina: string; accion: string; editando: boolean; oculta: boolean; haceSeg: number; ausenteSeg?: number; }
+export interface OtroAqui { nombre: string; editando: boolean; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; ausenteSeg?: number; }
+
+/** Ausente: más de 5 min sin mover el mouse ni teclear (amarillo); más de 10 min (rojo). */
+export function nivelAusencia(seg: number | undefined): '' | 'amarillo' | 'rojo' {
+  const s = Number(seg) || 0;
+  return s >= 600 ? 'rojo' : s >= 300 ? 'amarillo' : '';
+}
+export function textoAusencia(seg: number | undefined): string {
+  const min = Math.floor((Number(seg) || 0) / 60);
+  return min >= 60 ? `ausente hace ${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ''}` : `ausente hace ${min} min`;
+}
 
 /**
  * EN LÍNEA AHORA (backend/presencia.js): cada pestaña de la oficina avisa
@@ -46,6 +56,8 @@ export class PresenciaService {
   private reloj: ReturnType<typeof setInterval> | null = null;
   private activo = false;
   private ultimoLatido = 0;
+  /** Última vez que la persona movió el mouse, tecleó o tocó la pantalla en esta pestaña. */
+  private ultimaActividad = Date.now();
 
   /** Los demás en la app ahora. */
   readonly enLinea = signal<PersonaEnLinea[]>([]);
@@ -61,6 +73,16 @@ export class PresenciaService {
       if (this.activo) this.latir();
     });
     window.addEventListener('pagehide', () => this.salir());
+    // Actividad (para "ausente"): fuera de Angular y sin costo, solo se anota la hora.
+    this.zone.runOutsideAngular(() => {
+      const actividad = () => {
+        const estabaAusente = Date.now() - this.ultimaActividad > 60000;
+        this.ultimaActividad = Date.now();
+        // Volvió después de un rato: avisar ya, para que los demás lo vean activo.
+        if (estabaAusente && this.activo) this.latir();
+      };
+      for (const ev of ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll']) window.addEventListener(ev, actividad, { passive: true, capture: true });
+    });
     // Al volver a la ventana, avisar de una vez (sin esperar al reloj).
     document.addEventListener('visibilitychange', () => { if (this.activo) this.latir(); });
   }
@@ -126,7 +148,8 @@ export class PresenciaService {
     this.ultimoLatido = Date.now();
     const oculta = document.visibilityState !== 'visible' ? '1' : '0';
     try {
-      const res = await this.auth.fetchAutenticado(this.url({ accion, clave, editando: editando ? '1' : '0', oculta }));
+      const inactivo = String(Math.max(0, Math.round((Date.now() - this.ultimaActividad) / 1000)));
+      const res = await this.auth.fetchAutenticado(this.url({ accion, clave, editando: editando ? '1' : '0', oculta, inactivo }));
       const data = await res.json();
       if (!data?.ok) return;
       this.zone.run(() => {
