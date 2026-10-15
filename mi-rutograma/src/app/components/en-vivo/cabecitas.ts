@@ -18,7 +18,7 @@ export class CabecitasComponent implements OnInit, OnDestroy {
   private presencia = inject(PresenciaService);
   private zone = inject(NgZone);
   private capa: HTMLDivElement | null = null;
-  private elementos = new Map<string, { el: HTMLDivElement; x: number; y: number; angulo: number }>();
+  private elementos = new Map<string, { el: HTMLDivElement; x: number; y: number; angulo: number; celda?: HTMLElement | null }>();
   private quitar: Array<() => void> = [];
   private salida: any = null;
   private reloj: any = null;
@@ -49,6 +49,7 @@ export class CabecitasComponent implements OnInit, OnDestroy {
     this.quitar.forEach(f => f());
     clearInterval(this.reloj); clearTimeout(this.salida);
     this.vivo.enviarCursor(null);
+    this.elementos.forEach(x => this.soltarCelda(x.celda));
     this.capa?.remove();
     this.elementos.clear();
   }
@@ -74,13 +75,16 @@ export class CabecitasComponent implements OnInit, OnDestroy {
     if (!this.capa) return;
     const cursores = [...this.vivo.cursores().values()].filter(c => c.pagina === 'Rutograma');
     const vivos = new Set(cursores.map(c => c.pestana));
-    for (const [id, x] of this.elementos) if (!vivos.has(id)) { x.el.remove(); this.elementos.delete(id); }
+    for (const [id, x] of this.elementos) if (!vivos.has(id)) { x.el.remove(); this.soltarCelda(x.celda); this.elementos.delete(id); }
     const z = zoomPagina();
     for (const c of cursores) {
       const celda = document.querySelector(`tr[data-placa="${CSS.escape(c.placa)}"] td[data-dia="${c.dia}"]`) as HTMLElement | null;
       let item = this.elementos.get(c.pestana);
       if (!item) { item = { el: this.crear(c), x: NaN, y: NaN, angulo: 90 }; this.elementos.set(c.pestana, item); this.capa.appendChild(item.el); }
       this.pintar(item.el, c);
+      // La celda donde tiene el mouse, teñida de su color.
+      if (item.celda !== celda) { this.soltarCelda(item.celda); item.celda = celda; }
+      if (celda) { celda.classList.add('cab-celda'); celda.style.setProperty('--cab', c.color || '#2563eb'); }
       if (!celda) { item.el.style.opacity = '0'; continue; }
       const b = celda.getBoundingClientRect();
       const x = (b.left + c.fx * b.width) / z, y = (b.top + c.fy * b.height) / z;
@@ -94,6 +98,11 @@ export class CabecitasComponent implements OnInit, OnDestroy {
       item.el.style.opacity = visible ? '' : '0';
       if (item.el.style.transition === 'none') requestAnimationFrame(() => item!.el.style.transition = '');
     }
+  }
+
+  private soltarCelda(celda?: HTMLElement | null): void {
+    if (!celda) return;
+    celda.classList.remove('cab-celda'); celda.style.removeProperty('--cab');
   }
 
   private crear(c: CursorVivo): HTMLDivElement {
