@@ -102,6 +102,8 @@ export class GuiaService {
 
     // La cuenta de despachos no tiene la barra de arriba: no se le explica.
     if (!PAGINAS_SIN_NAVBAR.includes(pagina) && !this.auth.esDespachos && !this.vistas!.has('navegacion')) this.cola.push('navegacion');
+    // Lo nuevo de trabajar en equipo en vivo: una vez, en cualquier página con la barra (cuentas de oficina).
+    if (!PAGINAS_SIN_NAVBAR.includes(pagina) && !this.auth.esDespachos && this.auth.rolActual !== 'conductor' && !this.vistas!.has('en-vivo')) this.cola.push('en-vivo');
     if (GUIAS[pagina] && !this.vistas!.has(pagina)) this.cola.push(pagina);
     this.mostrarSiguienteDeCola(intento);
   }
