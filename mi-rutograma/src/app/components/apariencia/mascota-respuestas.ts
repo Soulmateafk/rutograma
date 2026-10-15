@@ -14,6 +14,7 @@
  */
 import { interpretar, filtrarViajes, conductorDelViaje, titularesPorPlaca, sinTildes } from '../../services/buscar-hablado';
 import { TAREAS } from '../../services/guias';
+import { responderDatos, Extra, EJEMPLOS_DATOS } from './mascota-datos';
 
 export type TipoAccion = 'ruta' | 'viaje' | 'buscar' | 'tarea' | 'apariencia' | 'viaje-extra' | 'novedad';
 export interface Accion { texto: string; tipo: TipoAccion; valor?: string; }
@@ -136,7 +137,7 @@ export function contarViaje(v: any, S: any, hoy = new Date()): string {
  * Responde una pregunta. `aprendido` son las preguntas que la persona ya le
  * enseñó (pregunta normalizada → clave del tema).
  */
-export function responder(pregunta: string, S: any, aprendido: Record<string, string> = {}, hoy = new Date()): Respuesta {
+export function responder(pregunta: string, S: any, aprendido: Record<string, string> = {}, hoy = new Date(), extra: Extra = {}): Respuesta {
   const q = normalizarPregunta(pregunta);
   if (!q) return { texto: 'Escríbeme una pregunta y te ayudo. 🙂', acciones: [], entendio: false, opciones: [] };
 
@@ -144,6 +145,10 @@ export function responder(pregunta: string, S: any, aprendido: Record<string, st
   const ya = aprendido[q] || Object.entries(aprendido).find(([k]) => parecido(k, q) >= 0.8)?.[1];
   const temaAprendido = ya ? TEMAS.find(t => t.clave === ya) : null;
   if (temaAprendido) return { texto: `${temaAprendido.texto} (Esto me lo enseñaste tú. 😉)`, acciones: [temaAprendido.accion], entendio: true, opciones: [] };
+
+  // 1b. Datos directos de la app: vehículos, conductores, pico y placa, tareas… (mascota-datos.ts)
+  const directa = responderDatos(pregunta, S, extra, hoy);
+  if (directa) return directa;
 
   // Qué tan bien encaja con cada tema (pantallas, acciones, guías).
   const puntuados = TEMAS.map(t => ({ t, p: puntaje(pregunta, t) })).filter(x => x.p > 0);
@@ -220,5 +225,6 @@ export const EJEMPLOS = [
   '¿Cuántos viajes salen mañana?',
   '¿Cómo agrego un viaje extra?',
   '¿Dónde veo los comparendos?',
-  '¿Qué viajes tiene Polar esta semana?'
+  '¿Qué viajes tiene Polar esta semana?',
+  ...EJEMPLOS_DATOS
 ];

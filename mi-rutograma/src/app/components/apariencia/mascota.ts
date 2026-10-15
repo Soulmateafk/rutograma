@@ -13,6 +13,7 @@ import { GuiaService } from '../../services/guia.service';
 import { AtajosService } from '../../services/atajos.service';
 import { CelebracionService } from '../../services/celebracion.service';
 import { TAREAS } from '../../services/guias';
+import { TareasService } from '../../services/tareas.service';
 import { responder, normalizarPregunta, EJEMPLOS, Accion, Tema } from './mascota-respuestas';
 import { temporadaVisible, diasParaElDia } from '../../services/temporadas';
 import { al, CONSEJOS, CONSEJOS_POR_PAGINA, DATOS, AL_GUARDAR, AL_ELIMINAR, AL_ERROR, COSQUILLAS, AL_DESPERTAR, TONTERIAS, HOLA, HORA, DIA_SEMANA, FIESTAS, datosDelRutograma } from './mascota-frases';
@@ -199,6 +200,7 @@ export class MascotaComponent implements OnDestroy {
   private guia = inject(GuiaService);
   private atajos = inject(AtajosService);
   private celebracion = inject(CelebracionService);
+  private tareasSrv = inject(TareasService);
 
   public estado = signal<Estado>('normal');
   public globo = signal<string | null>(null);
@@ -290,7 +292,9 @@ export class MascotaComponent implements OnDestroy {
     this.respuesta();
     const veces = this.leer<Record<string, number>>('mascota-preguntas', {});
     const mias = Object.entries(veces).sort((a, b) => b[1] - a[1]).map(([p]) => p).slice(0, 3);
-    return mias.length >= 3 ? mias : [...mias, ...EJEMPLOS.filter(e => !mias.includes(e))].slice(0, 3);
+    // Ejemplos al azar (se cambian con cada respuesta) para descubrir qué se le puede preguntar.
+    const ejemplos = [...EJEMPLOS].sort(() => Math.random() - 0.5).filter(e => !mias.includes(e));
+    return mias.length >= 3 ? mias : [...mias, ...ejemplos].slice(0, 3);
   });
 
   public abrirPanel(texto: string): void {
@@ -313,7 +317,11 @@ export class MascotaComponent implements OnDestroy {
     veces[p] = (veces[p] || 0) + 1;
     // Solo se recuerdan las 30 más usadas.
     this.guardar('mascota-preguntas', Object.fromEntries(Object.entries(veces).sort((a, b) => b[1] - a[1]).slice(0, 30)));
-    const r = responder(p, this.ds.S, this.leer<Record<string, string>>('mascota-aprendido', {}));
+    const r = responder(p, this.ds.S, this.leer<Record<string, string>>('mascota-aprendido', {}), new Date(), {
+      tareas: this.tareasSrv.tareas(), yo: this.tareasSrv.yo() || this.correo,
+      pendientesAprobacion: this.ui.pendientesAprobacion(), puedeAprobar: this.auth.puedeAprobar,
+      chistes: TONTERIAS.filter(t => t.startsWith('¿'))
+    });
     this.respuesta.set(r.texto);
     this.acciones.set(r.acciones);
     this.opciones.set(r.opciones);
@@ -338,7 +346,7 @@ export class MascotaComponent implements OnDestroy {
   public hacer(a: Accion): void {
     this.cerrarPanel();
     switch (a.tipo) {
-      case 'ruta': this.router.navigate([a.valor]); break;
+      case 'ruta': this.router.navigateByUrl(a.valor || '/'); break;
       case 'viaje': this.router.navigate(['/rutograma'], { queryParams: { verViaje: a.valor } }); break;
       case 'buscar': this.ui.busquedaHablada.set(a.valor || ''); break;
       case 'tarea': { const t = TAREAS.find(x => x.clave === a.valor); if (t) this.guia.iniciarTarea(t); break; }
