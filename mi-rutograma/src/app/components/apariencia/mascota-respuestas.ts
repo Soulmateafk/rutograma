@@ -16,11 +16,19 @@ import { interpretar, filtrarViajes, conductorDelViaje, titularesPorPlaca, sinTi
 import { TAREAS } from '../../services/guias';
 import { responderDatos, Extra, EJEMPLOS_DATOS } from './mascota-datos';
 import { responderConsulta } from './mascota-consulta';
+import { placasDichas, conContexto } from './mascota-contexto';
 
 export type TipoAccion = 'ruta' | 'viaje' | 'buscar' | 'tarea' | 'apariencia' | 'viaje-extra' | 'novedad';
 export interface Accion { texto: string; tipo: TipoAccion; valor?: string; }
 export interface Tema { clave: string; texto: string; palabras: string[]; accion: Accion; }
-export interface Respuesta { texto: string; acciones: Accion[]; entendio: boolean; opciones: Tema[]; }
+/** Datos que no están en la app abierta y hay que pedir al servidor (los despachos). */
+export interface Pedido { tipo: 'despachos'; desde: string; hasta: string; cuando: string; placa?: string; que: 'resumen' | 'cargando' | 'demoras' | 'placa'; }
+export interface Respuesta {
+  texto: string; acciones: Accion[]; entendio: boolean; opciones: Tema[];
+  /** La pregunta completa que se respondió ("¿y mañana?" → "que carros salen mañana"). */
+  entendida?: string;
+  pedir?: Pedido;
+}
 
 /** Lo que el furgoncito sabe explicar: pantallas, acciones y las guías "¿Cómo hago…?". */
 const TEMAS_BASE: Tema[] = [
@@ -205,7 +213,12 @@ const nombraAlgo = (q: string) => /\b[a-z]{3}\s?-?\d{3}\b|\b[a-z]{3}\s*-\s*[a-z]
  * enseñó (pregunta normalizada → clave del tema).
  */
 export function responder(pregunta: string, S: any, aprendido: Record<string, string> = {}, hoy = new Date(), extra: Extra = {}): Respuesta {
-  pregunta = corregirEscritura(pregunta);
+  pregunta = placasDichas(corregirEscritura(pregunta), S);
+  // "¿Y mañana?", "¿y la PRZ 065?": se arma con la pregunta anterior.
+  if (extra.anterior) {
+    const completa = conContexto(pregunta, placasDichas(corregirEscritura(extra.anterior), S), S);
+    if (completa) return { ...responder(completa, S, aprendido, hoy, { ...extra, anterior: undefined }), entendida: completa };
+  }
   const q = normalizarPregunta(pregunta);
   if (!q) return { texto: 'Escríbeme una pregunta y te ayudo. 🙂', acciones: [], entendio: false, opciones: [] };
 
@@ -238,6 +251,21 @@ export function responder(pregunta: string, S: any, aprendido: Record<string, st
   const comoSinTema = comoHago && !nombraAlgo(q);
   // "¿Dónde está la papelera?" (una pantalla, no un vehículo).
   if (/^donde (esta|estan|queda|quedan)\b/.test(q) && puntuados.length && puntuados[0].p >= 2 && !nombraAlgo(q)) return respuestaTema(puntuados[0]);
+
+  // 1b'. Despachos (el registro de cargue vive en el servidor: se pide aparte).
+  if (!comoHago && !irA && /\b(despach\w*|cargue|cargando|cargaron|termin\w* de cargar|llego a cargar|llegaron a cargar|en bodega|en el muelle|(a que hora|cuando|cuanto) (se )?(cargo|cargaron|demoro (en )?cargar|tardo (en )?cargar))\b/.test(q) && !/\bcajas\b/.test(q)) {
+    const h = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+    const isoD = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const mas = (k: number) => isoD(new Date(h.getFullYear(), h.getMonth(), h.getDate() + k));
+    let desde = isoD(h), hasta = isoD(h), cuando = 'hoy';
+    if (/\bayer\b/.test(q)) { desde = hasta = mas(-1); cuando = 'ayer'; }
+    else if (/semana pasada/.test(q)) { const l = -((h.getDay() + 6) % 7) - 7; desde = mas(l); hasta = mas(l + 6); cuando = 'la semana pasada'; }
+    else if (/semana/.test(q)) { const l = -((h.getDay() + 6) % 7); desde = mas(l); hasta = isoD(h); cuando = 'esta semana'; }
+    else if (/\bmes\b/.test(q)) { desde = isoD(new Date(h.getFullYear(), h.getMonth(), 1)); hasta = isoD(h); cuando = 'este mes'; }
+    const placa = (pregunta.match(/\b([A-Z]{3} \d{3}|(?:POLAR|ARSITRANS) \d+)\b/i) || [])[1]?.toUpperCase();
+    const que: Pedido['que'] = placa ? 'placa' : /cargando|en cargue|siguen|todavia|aun\b|esperando/.test(q) ? 'cargando' : /demor|tard|lent|motivo/.test(q) ? 'demoras' : 'resumen';
+    return { texto: 'Déjame mirar los despachos… ⏳', acciones: [{ texto: 'Ir a Despachos', tipo: 'ruta', valor: '/despachos' }], entendio: true, opciones: [], pedir: { tipo: 'despachos', desde, hasta, cuando, placa, que } };
+  }
 
   // 1c. Datos directos de la app: vehículos, conductores, pico y placa, tareas… (mascota-datos.ts)
   const directa = responderDatos(pregunta, S, extra, hoy);

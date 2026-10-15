@@ -19,6 +19,8 @@ export interface Extra {
   puedeAprobar?: boolean;
   /** Para "cuéntame un chiste". */
   chistes?: string[];
+  /** La pregunta anterior (para "¿y mañana?"). */
+  anterior?: string;
 }
 
 export const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -324,7 +326,7 @@ export function responderDatos(pregunta: string, S: any, extra: Extra = {}, ahor
   }
 
   // --- En ruta ahora ---
-  if (/en ruta|en camino|en carretera|quien(es)? (esta|estan|va|van) (de )?(viaje|ruta)|quien(es)? (ya )?salio|quien(es)? (ya )?salieron/.test(q) && !rutaNombrada(q, S)) {
+  if (/\ben ruta\b|\ben camino\b|\ben carretera\b|quien(es)? (esta|estan|va|van) (de )?(viaje|ruta)|quien(es)? (ya )?salio|quien(es)? (ya )?salieron/.test(q) && !rutaNombrada(q, S)) {
     // Los que marcaron "Ya salí" y no han llegado, o los "En ruta" que siguen en camino hoy; uno por vehículo.
     const vistos = new Set<string>();
     const enRuta = (S?.viajes || [])

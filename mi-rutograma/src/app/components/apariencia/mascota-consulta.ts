@@ -187,7 +187,7 @@ export function responderConsulta(pregunta: string, S: any, ahora = new Date()):
 
   // ===== 3. Resumen del día, la semana o el mes: "¿cómo vamos?", "¿qué pasó ayer?" =====
   const pideResumen = /^(que (hay|tenemos|paso|pasa|hubo|esta pasando)( hoy| manana| ayer| para| de nuevo| en| este| esta| la| el|$)|como (va|vamos|esta|estamos|anda|andamos|fue|nos fue|estuvo|viene)\b|algo nuevo|que hay de nuevo|que novedad|resumen\b|dame un resumen|como va todo|novedades del dia)/.test(q)
-    && !VEH.test(q) && !/\b(quien|conductor|chofer)\w*/.test(q) && !placa && !conductor && !f.clientes.length && !f.destinos.length && !f.rutas.length && !CAJAS.test(q) && !PLATA.test(q);
+    && !VEH.test(q) && !/\b(quien|conductor|chofer)\w*/.test(q) && !placa && !conductor && !f.clientes.length && !f.destinos.length && !f.rutas.length && !CAJAS.test(q) && !PLATA.test(q) && !/cumplimiento|a tiempo|puntual|tarde|retras|demora/.test(q);
   if (pideResumen) {
     if (/\bmes\b|mensual/.test(q) || MESES.some(m => q.includes(m))) return resumenMes(S, activos, q, ahora, condDe);
     if (/semana/.test(q)) {
@@ -201,12 +201,69 @@ export function responderConsulta(pregunta: string, S: any, ahora = new Date()):
     return resumenDia(S, activos, dia, hoy, condDe);
   }
 
+  // ===== 3b. Cumplimiento: quién sale a tiempo y quién tarde (con "Ya salí", tolerancia 30 min) =====
+  const pideCumpl = /cumplimiento|a tiempo|puntual|impuntual|(sal|lleg)\w* tarde|tarde (a|al) salir|retras\w* (en|al) salir|se (atrasa|retrasa|demora)n? (en|al) salir|quien(es)? (se )?(atrasa|retrasa|demora)n?\b|quien(es)? (sale|salen|llega|llegan) tarde|(cuanto|cuantos) (se )?(atrasa|retrasa|demora)n?/.test(q)
+    && !/despach|cargue|novedad/.test(q);
+  if (pideCumpl) {
+    const r = tieneFecha ? { desde: f.desde || '0000', hasta: f.hasta || '9999', texto: cuandoTexto(f.desde, f.hasta, hoy, entFecha) } : delMes();
+    const DIAS_K = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'];
+    const horaProg = (v: any): Date | null => {
+      let h = /^\d{1,2}:\d{2}$/.test(String(v.hora || '').trim()) ? String(v.hora).trim() : '';
+      if (!h) {
+        const rt = (S.rutas || []).find((x: any) => n(x.cod || x.codigo) === n(v.ruta || v.codigo));
+        const d = new Date(String(v.fecha).slice(0, 10) + 'T00:00:00');
+        const hr = String(rt?.dias?.[DIAS_K[d.getDay()]]?.hora || '').trim();
+        if (/^\d{1,2}:\d{2}$/.test(hr)) h = hr;
+      }
+      if (!h) return null;
+      const [hh, mm] = h.split(':').map(Number);
+      const d = new Date(String(v.fecha).slice(0, 10) + 'T00:00:00'); d.setHours(hh, mm, 0, 0); return d;
+    };
+    const lista = activos.filter(v => v.fecha >= r.desde && v.fecha <= r.hasta && v.fecha <= hoy)
+      .filter(v => !placa || pegada(placaDe(v)) === pegada(placa)).filter(v => !conductor || n(condDe(v)) === n(conductor));
+    const marcados = lista.filter(v => v.salidaReal);
+    const conHora = marcados.map(v => ({ v, ret: horaProg(v) ? Math.round((new Date(v.salidaReal).getTime() - horaProg(v)!.getTime()) / 60000) : null })).filter(x => x.ret !== null) as Array<{ v: any; ret: number }>;
+    const tarde = conHora.filter(x => x.ret > 30);
+    const quien = placa ? `la ${placa}` : conductor ? nombreCorto(conductor) : '';
+    if (!lista.length) return resp(`${capital(r.texto)} no hay viajes${quien ? ` de ${quien}` : ''} para medir.`, [ruta('Ver Cumplimiento', '/cumplimiento')]);
+    const pct = (a: number, b: number) => b ? Math.round(a / b * 100) : 0;
+    const partes = [`${capital(r.texto)}${quien ? `, ${quien}` : ''}: ${marcados.length} de ${plural(lista.length, 'viaje marcó', 'viajes marcaron')} «Ya salí» (${pct(marcados.length, lista.length)}%).`];
+    if (conHora.length) {
+      const prom = Math.round(conHora.reduce((s, x) => s + Math.max(0, x.ret), 0) / conHora.length);
+      const durac = prom < 60 ? `${prom} min` : `${Math.floor(prom / 60)} h${prom % 60 ? ` ${prom % 60} min` : ''}`;
+      partes.push(`Salieron a tiempo ${conHora.length - tarde.length} de ${conHora.length} (${pct(conHora.length - tarde.length, conHora.length)}%; se da media hora de margen), retraso promedio ${durac}.`);
+    }
+    if (tarde.length && !quien) {
+      const porCond = new Map<string, number>();
+      tarde.forEach(x => { const c = condDe(x.v) || placaDe(x.v); porCond.set(c, (porCond.get(c) || 0) + 1); });
+      partes.push(`Los que más salen tarde: ${listar([...porCond.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([c, k]) => `${nombreCorto(c)} (${k})`))}. ⏰`);
+    } else if (!marcados.length) partes.push('Los conductores marcan la salida en «Mis viajes».');
+    return resp(partes.join(' '), [ruta('Ver Cumplimiento', '/cumplimiento')]);
+  }
+
   // ===== 4. Libres / disponibles / "¿qué carro mando a Cali mañana?" =====
   const pideLibres = LIBRE.test(q) || (RECOMIENDA.test(q) && (VEH.test(q) || /\bcarro|vehiculo/.test(q)));
   if (pideLibres && !/descans/.test(q)) {
     const dia = f.desde || hoy;
     const cuando = cuandoTexto(dia, dia, hoy);
     const ocupado = (pred: (v: any) => boolean) => activos.find(v => pred(v) && ocupaElDia(v, dia));
+    // Varios días ("esta semana"): cuántos quedan libres cada día, de hoy en adelante.
+    if (f.desde && f.hasta && f.hasta > f.desde && !placa && !conductor) {
+      const dias: string[] = [];
+      for (let d = new Date((f.desde < hoy && f.hasta >= hoy ? hoy : f.desde) + 'T00:00:00'); iso(d) <= f.hasta && dias.length < 14; d = sumar(d, 1)) dias.push(iso(d));
+      const soloCond = COND.test(q) && !VEH.test(q);
+      const filas = dias.map(dia => {
+        const dd = new Date(dia + 'T00:00:00');
+        if (soloCond) {
+          const ocup = new Set(activos.filter(v => ocupaElDia(v, dia)).map(v => n(condDe(v))));
+          const lib = (S.conductores || []).filter((c: any) => !/inactiv|retirad/.test(n(c.est || c.estado)) && !ocup.has(n(nombreCond(c))) && !descansosDelMes(c, dd.getFullYear(), dd.getMonth()).includes(dd.getDate())).map((c: any) => nombreCorto(nombreCond(c)));
+          return `${fechaMini(dia)}: ${lib.length ? listar(lib, 3) : 'nadie'}`;
+        }
+        const lib = (S.vehiculos || []).filter((v: any) => placaDe(v) && !esCupo(placaDe(v)) && String(v.categoria || 'Viajero') !== 'Urbano' && !enMantenimiento(v, dia) && !activos.some(x => placaDe(x) === placaDe(v) && ocupaElDia(x, dia))).map(placaDe);
+        return `${fechaMini(dia)}: ${lib.length ? listar(lib, 3) : 'ninguno propio'}`;
+      });
+      return resp(`${capital(cuandoTexto(f.desde, f.hasta, hoy, entFecha))}, ${soloCond ? 'conductores' : 'vehículos'} libres por día — ${filas.join(' · ')}. 🗓️`, [ruta('Ver el Rutograma', '/rutograma')]);
+    }
     if (placa) {
       const v = ocupado(x => pegada(placaDe(x)) === pegada(placa));
       const veh = (S.vehiculos || []).find((x: any) => pegada(placaDe(x)) === pegada(placa));

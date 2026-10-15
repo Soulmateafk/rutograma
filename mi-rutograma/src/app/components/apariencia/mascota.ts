@@ -14,7 +14,9 @@ import { AtajosService } from '../../services/atajos.service';
 import { CelebracionService } from '../../services/celebracion.service';
 import { TAREAS } from '../../services/guias';
 import { TareasService } from '../../services/tareas.service';
-import { responder, normalizarPregunta, EJEMPLOS, Accion, Tema } from './mascota-respuestas';
+import { responder, normalizarPregunta, EJEMPLOS, Accion, Tema, Pedido } from './mascota-respuestas';
+import { textoDespachos } from './mascota-despachos';
+import { API } from '../../api-base';
 import { temporadaVisible, diasParaElDia } from '../../services/temporadas';
 import { al, CONSEJOS, CONSEJOS_POR_PAGINA, DATOS, AL_GUARDAR, AL_ELIMINAR, AL_ERROR, COSQUILLAS, AL_DESPERTAR, TONTERIAS, HOLA, HORA, DIA_SEMANA, FIESTAS, datosDelRutograma } from './mascota-frases';
 
@@ -359,6 +361,23 @@ export class MascotaComponent implements OnDestroy {
     }
   }
 
+  private preguntaAnterior = '';
+
+  /** Lo que no está en la app abierta (los despachos) se pide al servidor y se contesta al llegar. */
+  private async pedirAlServidor(p: Pedido): Promise<void> {
+    try {
+      const res = await this.auth.fetchAutenticado(`${API}/despachos?desde=${p.desde}&hasta=${p.hasta}`);
+      if (res.status === 403) { this.respuesta.set('Tu cuenta no tiene acceso a Despachos. 🔒'); this.cdr.detectChanges(); return; }
+      const data = await res.json();
+      const r = data?.ok ? textoDespachos(data, p) : { texto: data?.msg || 'No pude leer los despachos ahora.', acciones: [] as Accion[] };
+      this.respuesta.set(r.texto);
+      this.acciones.set(r.acciones);
+    } catch {
+      this.respuesta.set('No pude conectarme para ver los despachos. Intenta de nuevo en un momento.');
+    }
+    this.cdr.detectChanges();
+  }
+
   public preguntar(): void {
     const p = this.pregunta.trim();
     if (!p) return;
@@ -371,8 +390,12 @@ export class MascotaComponent implements OnDestroy {
     const r = responder(p, this.ds.S, this.leer<Record<string, string>>('mascota-aprendido', {}), new Date(), {
       tareas: this.tareasSrv.tareas(), yo: this.tareasSrv.yo() || this.correo,
       pendientesAprobacion: this.ui.pendientesAprobacion(), puedeAprobar: this.auth.puedeAprobar,
-      chistes: TONTERIAS.filter(t => t.startsWith('¿'))
+      chistes: TONTERIAS.filter(t => t.startsWith('¿')),
+      anterior: this.preguntaAnterior
     });
+    // Para "¿y mañana?": se recuerda la pregunta completa que se entendió.
+    if (r.entendio) this.preguntaAnterior = r.entendida || p;
+    if (r.pedir) this.pedirAlServidor(r.pedir);
     this.respuesta.set(r.texto);
     this.acciones.set(r.acciones);
     this.opciones.set(r.opciones);
