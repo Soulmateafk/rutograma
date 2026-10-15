@@ -19,36 +19,38 @@ export interface Extra {
   puedeAprobar?: boolean;
   /** Para "cuéntame un chiste". */
   chistes?: string[];
+  /** La pregunta anterior (para "¿y mañana?"). */
+  anterior?: string;
 }
 
-const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-const MESES_CAP = MESES.map(m => m[0].toUpperCase() + m.slice(1));
+export const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+export const MESES_CAP = MESES.map(m => m[0].toUpperCase() + m.slice(1));
 const DIAS_CLAVE = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'];
 
-const n = (t: any) => sinTildes(String(t ?? '')).replace(/[¿?¡!.,;:"']/g, ' ').replace(/\s+/g, ' ').trim();
-const pegada = (t: any) => sinTildes(String(t ?? '')).replace(/[^a-z0-9]/g, '');
-const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const sumar = (d: Date, dias: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + dias);
-const fechaLarga = (f: string) => { const d = new Date(f.slice(0, 10) + 'T00:00:00'); return isNaN(d.getTime()) ? f : d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }); };
-const fechaCorta = (f: string) => { const d = new Date(f.slice(0, 10) + 'T00:00:00'); return isNaN(d.getTime()) ? f : d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }); };
-const diasEntre = (desde: string, hasta: string) => Math.round((new Date(hasta + 'T00:00:00').getTime() - new Date(desde + 'T00:00:00').getTime()) / 86400000);
-const plata = (v: number) => '$' + Math.round(v).toLocaleString('es-CO');
-const titulo = (s: string) => String(s || '').toLowerCase().replace(/(^|\s)\p{L}/gu, m => m.toUpperCase());
+export const n = (t: any) => sinTildes(String(t ?? '')).replace(/[¿?¡!.,;:"']/g, ' ').replace(/\s+/g, ' ').trim();
+export const pegada = (t: any) => sinTildes(String(t ?? '')).replace(/[^a-z0-9]/g, '');
+export const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+export const sumar = (d: Date, dias: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + dias);
+export const fechaLarga = (f: string) => { const d = new Date(f.slice(0, 10) + 'T00:00:00'); return isNaN(d.getTime()) ? f : d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }); };
+export const fechaCorta = (f: string) => { const d = new Date(f.slice(0, 10) + 'T00:00:00'); return isNaN(d.getTime()) ? f : d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }); };
+export const diasEntre = (desde: string, hasta: string) => Math.round((new Date(hasta + 'T00:00:00').getTime() - new Date(desde + 'T00:00:00').getTime()) / 86400000);
+export const plata = (v: number) => '$' + Math.round(v).toLocaleString('es-CO');
+const titulo = (s: string) => { const t = String(s || ''); return t ? t[0].toUpperCase() + t.slice(1) : t; };
 const tiene = (q: string, re: RegExp) => re.test(q);
 
 /** "A, B, C y 4 más". */
-function listar(items: string[], max = 6): string {
+export function listar(items: string[], max = 6): string {
   if (!items.length) return '';
   if (items.length <= max) return items.length === 1 ? items[0] : `${items.slice(0, -1).join(', ')} y ${items[items.length - 1]}`;
   return `${items.slice(0, max).join(', ')} y ${items.length - max} más`;
 }
 
-const ruta = (texto: string, valor: string, queryParams?: any): Accion => ({ texto, tipo: 'ruta', valor: queryParams ? `${valor}?${new URLSearchParams(queryParams).toString()}` : valor });
-const resp = (texto: string, acciones: Accion[] = []): Respuesta => ({ texto, acciones, entendio: true, opciones: [] });
+export const ruta = (texto: string, valor: string, queryParams?: any): Accion => ({ texto, tipo: 'ruta', valor: queryParams ? `${valor}?${new URLSearchParams(queryParams).toString()}` : valor });
+export const resp = (texto: string, acciones: Accion[] = []): Respuesta => ({ texto, acciones, entendio: true, opciones: [] });
 
-const esCupo = (p: string) => /^(arsitrans|polar)\s*\d+$/i.test(String(p || '').trim());
-const placaDe = (v: any) => String(v?.p ?? v?.placa ?? '').toUpperCase().trim();
-const nombreCond = (c: any) => String(c?.nom || c?.nombre || '').trim();
+export const esCupo = (p: string) => /^(arsitrans|polar)\s*\d+$/i.test(String(p || '').trim());
+export const placaDe = (v: any) => String(v?.p ?? v?.placa ?? '').toUpperCase().trim();
+export const nombreCond = (c: any) => String(c?.nom || c?.nombre || '').trim();
 
 // ---------- Qué nombra la pregunta ----------
 
@@ -104,7 +106,7 @@ function clienteNombrado(q: string, S: any): string {
 }
 
 /** El día del que se pregunta (hoy si no dice): "mañana", "pasado mañana", "ayer", "el viernes", "el 20". */
-function diaPreguntado(q: string, hoy: Date): { fecha: string; texto: string } {
+export function diaPreguntado(q: string, hoy: Date): { fecha: string; texto: string } {
   const h = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
   if (/pasado manana/.test(q)) return { fecha: iso(sumar(h, 2)), texto: 'pasado mañana' };
   if (/\bmanana\b/.test(q)) return { fecha: iso(sumar(h, 1)), texto: 'mañana' };
@@ -118,7 +120,7 @@ function diaPreguntado(q: string, hoy: Date): { fecha: string; texto: string } {
 }
 
 /** Mes del que se pregunta ("en septiembre", "el mes pasado"; si no, el actual). */
-function mesPreguntado(q: string, hoy: Date): { anio: number; mes: number } {
+export function mesPreguntado(q: string, hoy: Date): { anio: number; mes: number } {
   const i = MESES.findIndex(m => new RegExp(`\\b${m}\\b`).test(q));
   if (i >= 0) return { anio: i > hoy.getMonth() + 1 ? hoy.getFullYear() - 1 : hoy.getFullYear(), mes: i };
   if (/mes pasado/.test(q)) { const d = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1); return { anio: d.getFullYear(), mes: d.getMonth() }; }
@@ -128,14 +130,14 @@ function mesPreguntado(q: string, hoy: Date): { anio: number; mes: number } {
 // ---------- Datos que se calculan ----------
 
 /** ¿El vehículo está en mantenimiento ese día? */
-function enMantenimiento(v: any, fecha: string): boolean {
+export function enMantenimiento(v: any, fecha: string): boolean {
   const est = n(v.est || v.estado);
   if (v.mantInicio && v.mantFin) return fecha >= String(v.mantInicio).slice(0, 10) && fecha <= String(v.mantFin).slice(0, 10);
   return est.includes('mant') || est.includes('taller');
 }
 
 /** ¿El viaje ocupa al vehículo ese día? (del día de salida al último día; el de retorno queda libre para salir) */
-function ocupaElDia(v: any, fecha: string): boolean {
+export function ocupaElDia(v: any, fecha: string): boolean {
   if (!v?.fecha || ['Cancelado', 'Mantenimiento'].includes(v.estado)) return false;
   const salida = Number(v.salida || v.dia || 0), retorno = Number(v.retorno || 0);
   const dias = retorno > salida ? retorno - salida : 1;
@@ -150,12 +152,12 @@ function estadoDoc(f: string | null | undefined, hoy: string): string {
   return d < 0 ? `VENCIDO desde el ${fechaCorta(f)} ⚠️` : d === 0 ? 'vence HOY ⚠️' : `vence el ${fechaCorta(f)} (en ${d} día${d === 1 ? '' : 's'})${d <= 30 ? ' ⚠️' : ''}`;
 }
 
-function descansosDelMes(c: any, anio: number, mes: number): number[] {
+export function descansosDelMes(c: any, anio: number, mes: number): number[] {
   const lista = String(c?.descansosPorMes?.[`${MESES_CAP[mes]}-${anio}`] || '');
   return lista.split(',').map(x => Number(x.trim())).filter(x => x > 0).sort((a, b) => a - b);
 }
 
-function picoDelDia(S: any, fecha: string): Array<{ placa: string; desde: string; hasta: string }> {
+export function picoDelDia(S: any, fecha: string): Array<{ placa: string; desde: string; hasta: string }> {
   const dia = DIAS_CLAVE[new Date(fecha + 'T00:00:00').getDay()];
   const out: Array<{ placa: string; desde: string; hasta: string }> = [];
   for (const r of S?.picoPlaca || []) {
@@ -169,12 +171,12 @@ function picoDelDia(S: any, fecha: string): Array<{ placa: string; desde: string
   return out;
 }
 
-function viajesDelMes(S: any, anio: number, mes: number): any[] {
+export function viajesDelMes(S: any, anio: number, mes: number): any[] {
   const pref = `${anio}-${String(mes + 1).padStart(2, '0')}`;
   return (S?.viajes || []).filter((v: any) => String(v.fecha || '').startsWith(pref) && v.estado !== 'Cancelado');
 }
 
-function elQueMas(lista: string[]): [string, number] | null {
+export function elQueMas(lista: string[]): [string, number] | null {
   const c = new Map<string, number>();
   lista.forEach(x => { if (x) c.set(x, (c.get(x) || 0) + 1); });
   let mejor: [string, number] | null = null;
@@ -198,8 +200,30 @@ export function responderDatos(pregunta: string, S: any, extra: Extra = {}, ahor
   if (/^(hola|buenas|buenos dias|buenas tardes|buenas noches|hey|que mas|quiubo)\b/.test(q) && q.split(' ').length <= 4) return resp('¡Hola! 😄 Pregúntame lo que quieras de la operación: viajes, vehículos, conductores, pico y placa, tareas…');
   if (/^(gracias|muchas gracias|mil gracias|ok gracias|listo gracias)/.test(q)) return resp('¡Con gusto! Para eso estoy. 🚚💨');
   if (/chiste|algo gracioso|hazme reir|cuentame algo/.test(q) && extra.chistes?.length) return resp(extra.chistes[Math.floor(Math.random() * extra.chistes.length)]);
+  if (/^(como estas|como te va|que tal|como vas|todo bien)\b/.test(q)) return resp(['¡Rodando y con el tanque lleno! 🚚💨 ¿En qué te ayudo?', '¡Muy bien! Fresquito como la carga refrigerada. ❄️ ¿Qué necesitas?', '¡Aquí, listo para la próxima ruta! ¿Qué buscamos?'][ahora.getMinutes() % 3]);
+  if (/^(ayuda|help|que (puedes|sabes) hacer|en que (me )?(puedes )?ayudar|que te puedo preguntar|que preguntas|para que sirves|que haces)\b/.test(q)) return resp('Pregúntame como le hablarías a un compañero, por ejemplo: "¿qué carros salen hoy?", "¿quién regresa mañana?", "¿la LUN 428 está libre el viernes?", "¿cuántas cajas llevamos?", "¿quién tiene pico y placa?", "¿teléfono de Orlando?", "¿cómo saco el PDF de la semana?" o "llévame a Vehículos". Si no entiendo algo, me enseñas. 🧠');
+  if (/^(chao|adios|nos vemos|hasta luego|hasta manana|hasta pronto|bye|me voy|me fui)\b/.test(q)) return resp('¡Chao! Aquí me quedo cuidando la flota. 👋🚚');
+  const faltan = q.match(/(?:cuanto|cuantos dias) falta\w* (?:para )?(?:(?:la|el|que) )?(navidad|ano nuevo|fin de mes|quincena|fin de ano|viernes|fin de semana|halloween|amor y amistad)/);
+  if (faltan) {
+    const h = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    const meta: Record<string, Date> = {
+      'navidad': new Date(h.getFullYear(), 11, 24), 'ano nuevo': new Date(h.getFullYear(), 11, 31), 'fin de ano': new Date(h.getFullYear(), 11, 31),
+      'fin de mes': new Date(h.getFullYear(), h.getMonth() + 1, 0), 'quincena': h.getDate() < 15 ? new Date(h.getFullYear(), h.getMonth(), 15) : new Date(h.getFullYear(), h.getMonth() + 1, 0),
+      'viernes': sumar(h, (5 - h.getDay() + 7) % 7), 'fin de semana': sumar(h, (6 - h.getDay() + 7) % 7),
+      'halloween': new Date(h.getFullYear(), 9, 31), 'amor y amistad': new Date(h.getFullYear(), 8, 19)
+    };
+    let m = meta[faltan[1]]; if (m < h) m = new Date(m.getFullYear() + 1, m.getMonth(), m.getDate());
+    const k = diasEntre(iso(h), iso(m));
+    return resp(k === 0 ? `¡Es hoy! 🎉` : `Falta${k === 1 ? '' : 'n'} ${k} día${k === 1 ? '' : 's'} (${fechaLarga(iso(m))}). 📅`);
+  }
   if (/quien eres|como te llamas|que eres/.test(q)) return resp('Soy el furgoncito de MAKAND: un furgón refrigerado con carita. Te ayudo con la operación y de vez en cuando digo tonterías. 🚚');
-  if (/que (dia|fecha) es hoy|a cuantos estamos|que hora es/.test(q)) return resp(`Hoy es ${fechaLarga(hoy)} y son las ${ahora.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' })} 🕒`);
+  if (/que (dia|fecha) es hoy|a cuantos estamos|que hora es|^que (dia|fecha) es$/.test(q)) return resp(`Hoy es ${fechaLarga(hoy)} y son las ${ahora.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' })} 🕒`);
+  const otroDia = q.match(/^que (dia|fecha) (es|sera|fue|cae) (manana|pasado manana|ayer)$/);
+  if (otroDia) { const d = otroDia[3] === 'ayer' ? -1 : otroDia[3] === 'manana' ? 1 : 2; return resp(`${titulo(otroDia[3].replace('manana', 'mañana'))} ${d < 0 ? 'fue' : 'es'} ${fechaLarga(iso(sumar(new Date(hoy + 'T00:00:00'), d)))}. 📅`); }
+  if (/^(te quiero|te amo|eres (lindo|bonito|genial|el mejor|lo maximo)|que lindo|me caes bien)\b/.test(q)) return resp('¡Y yo a ti! 💙🚚 Eres de lo mejor de la flota.');
+  if (/^eres\b/.test(q)) return resp('Soy un furgón refrigerado con carita: mitad camión, mitad asistente, 100% MAKAND. 🚚❄️');
+  if (/^(ja|je|ji|jsj|lol|xd)[ajes]*$|^(jaja|jeje)/.test(q)) return resp('😄 ¡Me alegra que te rías! ¿Te ayudo con algo más?');
+  if (/^(ok|okay|okey|vale|listo|dale|bueno|perfecto|entendido|de una|super|bien|genial|excelente)$/.test(q)) return resp('👍 Aquí estoy si necesitas algo más.');
 
   if (esComo && !veh && !cond) return null; // "¿cómo hago…?" lo responden las guías
 
@@ -265,9 +289,14 @@ export function responderDatos(pregunta: string, S: any, extra: Extra = {}, ahor
   }
 
   // --- Teléfono ---
-  if (/telefono|celular|numero de|whatsapp|llamar|contacto/.test(q) && cond) {
+  if (/telefono|celular|numero|whatsapp|llamar|llamo|contacto|marcarle|cel\b/.test(q) && cond && !/viaje/.test(q)) {
     const tel = String(cond.tel || cond.telefono || '').trim();
     return resp(tel ? `El teléfono de ${nombre} es ${tel}. 📞` : `${nombre} no tiene teléfono registrado.`, [ruta('Ver su perfil', `/conductor/${encodeURIComponent(nombre)}`)]);
+  }
+
+  if (/telefonos|celulares|numeros de (los|todos)/.test(q) && !cond) {
+    const lista = (S?.conductores || []).filter((c: any) => c.tel || c.telefono).map((c: any) => `${nombreCond(c).split(/\s+/).slice(2, 3).concat(nombreCond(c).split(/\s+/)[0]).join(' ')}: ${c.tel || c.telefono}`);
+    return resp(lista.length ? `Teléfonos: ${listar(lista, 20)}. 📞` : 'Ningún conductor tiene teléfono registrado.', [ruta('Ir a Conductores', '/conductores')]);
   }
 
   // --- Descansos ---
@@ -296,16 +325,8 @@ export function responderDatos(pregunta: string, S: any, extra: Extra = {}, ahor
     return resp(lista.length ? `${titulo(d.texto)} están en mantenimiento: ${listar(lista, 10)}. 🔧` : `${titulo(d.texto)} ningún vehículo está en mantenimiento. ✅`, [ruta('Ir a Vehículos', '/vehiculos')]);
   }
 
-  // --- Vehículos libres ---
-  if (/\b(libres?|disponibles?|desocupad\w*|sin viajes?)\b/.test(q) && /vehicul|carro|camion|furgon|placa|flota|\blibres?\b|disponibles?/.test(q) && !/conductor/.test(q)) {
-    const d = diaPreguntado(q, ahora);
-    const propios = (S?.vehiculos || []).filter((v: any) => { const p = placaDe(v); return p && !esCupo(p) && String(v.categoria || 'Viajero') !== 'Urbano'; });
-    const libres = propios.filter((v: any) => !enMantenimiento(v, d.fecha) && !(S?.viajes || []).some((x: any) => placaDe(x) === placaDe(v) && ocupaElDia(x, d.fecha))).map(placaDe);
-    return resp(libres.length ? `${titulo(d.texto)} hay ${libres.length} vehículo${libres.length === 1 ? '' : 's'} libre${libres.length === 1 ? '' : 's'}: ${listar(libres, 10)}. 🚚` : `${titulo(d.texto)} no hay vehículos propios libres.`, [ruta('Ver el Rutograma', '/rutograma')]);
-  }
-
   // --- En ruta ahora ---
-  if (/en ruta|en camino|en carretera|quien(es)? (esta|estan|va|van) (de )?(viaje|ruta)|quien(es)? (ya )?salio|quien(es)? (ya )?salieron/.test(q) && !rutaNombrada(q, S)) {
+  if (/\ben ruta\b|\ben camino\b|\ben carretera\b|quien(es)? (esta|estan|va|van) (de )?(viaje|ruta)|quien(es)? (ya )?salio|quien(es)? (ya )?salieron/.test(q) && !rutaNombrada(q, S)) {
     // Los que marcaron "Ya salí" y no han llegado, o los "En ruta" que siguen en camino hoy; uno por vehículo.
     const vistos = new Set<string>();
     const enRuta = (S?.viajes || [])
@@ -365,27 +386,12 @@ export function responderDatos(pregunta: string, S: any, extra: Extra = {}, ahor
     return resp(p ? `${nombre} maneja ${p}. 🚚` : `${nombre} no tiene vehículo asignado.`, p ? [ruta('Ver la hoja de vida', `/hoja-de-vida/${encodeURIComponent(p)}`)] : [ruta('Ver su perfil', `/conductor/${encodeURIComponent(nombre)}`)]);
   }
 
-  // --- Números del mes ---
-  if (/cajas/.test(q) && /(cuantas|total|movimos|mes|llevamos|van)/.test(q) && !veh && !cond) {
-    const { anio, mes } = mesPreguntado(q, ahora);
-    const lista = viajesDelMes(S, anio, mes);
-    const cajas = lista.reduce((s: number, v: any) => s + (Number(v.cajas) || 0), 0);
-    return resp(`En ${MESES[mes]} ${anio} van ${cajas.toLocaleString('es-CO')} cajas en ${lista.length} viajes. 📦`, [ruta('Ver el Comparativo', '/comparativo')]);
-  }
-  const top = q.match(/(cliente|destino|vehiculo|placa|conductor|ruta)\w* (?:\w+ )?(con mas|que mas|mas)\b/) || q.match(/(quien) (viaja|tiene|hace) mas/);
-  if (top) {
-    const { anio, mes } = mesPreguntado(q, ahora);
-    const lista = viajesDelMes(S, anio, mes);
-    const tit = titularesPorPlaca(S);
-    const tipo = top[1] === 'quien' || top[1] === 'que' ? 'conductor' : top[1].startsWith('placa') ? 'vehiculo' : top[1];
-    const valor = (v: any) => tipo === 'cliente' ? String(v.cliente || '') : tipo === 'destino' ? titulo(v.destino || '') : tipo === 'ruta' ? String(v.codigo || v.ruta || '') : tipo === 'conductor' ? conductorDelViaje(v, tit) : placaDe(v);
-    const m = elQueMas(lista.map(valor).filter(Boolean));
-    const nombreTipo: Record<string, string> = { cliente: 'El cliente con más viajes', destino: 'El destino con más viajes', ruta: 'La ruta más usada', conductor: 'Quien más viaja', vehiculo: 'El vehículo con más viajes' };
-    return resp(m ? `${nombreTipo[tipo]} en ${MESES[mes]}: ${m[0]}, con ${m[1]} viajes. 🏆` : `No hay viajes en ${MESES[mes]} para contar.`, [ruta('Ver el Comparativo', '/comparativo')]);
-  }
+  // --- Cuántos hay registrados (los números de viajes, cajas y el que más los da mascota-consulta.ts) ---
   const cuantos = q.match(/cuant[oa]s (vehiculos|carros|camiones|conductores|rutas|clientes)\b/);
-  if (cuantos && !/viaje/.test(q)) {
+  if (cuantos && !/viaj|sal[ei]|trabaj|libre|disponible|hoy|manana|ayer|semana|\bmes\b|lleg|regres|vuelv|ruta\b|fuera|ocupad|anda|lunes|martes|miercoles|jueves|viernes|sabado|domingo/.test(q)) {
     const t = cuantos[1];
+    const tr = q.match(/\b(polar|arsitrans|makand)\b/);
+    if (tr && /vehiculos|carros|camiones/.test(t)) { const v = (S?.vehiculos || []).filter((x: any) => n(x.tr || 'Makand') === tr[1]); return resp(`${titulo(tr[1])} tiene ${v.length} vehículo${v.length === 1 ? '' : 's'}: ${listar(v.map(placaDe), 12)}. 🚛`, [ruta('Ir a Vehículos', '/vehiculos')]); }
     if (/vehiculos|carros|camiones/.test(t)) { const v = (S?.vehiculos || []).filter((x: any) => !esCupo(placaDe(x))); const porTr = elQueMas(v.map((x: any) => String(x.tr || 'Makand'))); return resp(`Hay ${v.length} vehículos registrados${porTr ? ` (la mayoría de ${porTr[0]})` : ''}. 🚛`, [ruta('Ir a Vehículos', '/vehiculos')]); }
     if (t === 'conductores') return resp(`Hay ${(S?.conductores || []).length} conductores registrados. 👷`, [ruta('Ir a Conductores', '/conductores')]);
     if (t === 'rutas') return resp(`Hay ${(S?.rutas || []).length} rutas registradas. 🛣️`, [ruta('Ir a Rutas', '/rutas')]);
@@ -410,12 +416,20 @@ export function responderDatos(pregunta: string, S: any, extra: Extra = {}, ahor
 
 /** Ejemplos para las sugerencias (se rotan). */
 export const EJEMPLOS_DATOS = [
+  '¿Qué carros salen hoy?',
+  '¿Quiénes regresan mañana?',
+  '¿A dónde van los carros el viernes?',
   '¿Qué vehículos están libres mañana?',
+  '¿La LUN 428 está libre el sábado?',
+  '¿Dónde está Orlando?',
+  '¿Cómo vamos este mes?',
+  '¿Cuánto llevamos facturado?',
   '¿Quién tiene pico y placa hoy?',
   '¿Qué documentos están por vencer?',
   '¿Quién descansa hoy?',
-  '¿Quién va en ruta?',
   '¿Qué tareas tengo?',
   '¿Cuántas cajas llevamos este mes?',
-  '¿Qué cliente tiene más viajes?'
+  '¿Qué conductor tiene más viajes?',
+  '¿Cuánto dura el viaje a Cali?',
+  '¿Cómo saco el PDF de la semana?'
 ];

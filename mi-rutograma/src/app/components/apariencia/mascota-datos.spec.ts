@@ -29,8 +29,8 @@ describe('responderDatos', () => {
   it('dice el teléfono de un conductor', () => {
     expect(r('cual es el telefono de javier torres')?.texto).toContain('3001234567');
   });
-  it('cuenta el cliente con más viajes, aunque diga "tiene"', () => {
-    expect(r('que cliente tiene mas viajes')?.texto).toContain('D1');
+  it('las preguntas de viajes las deja para mascota-consulta', () => {
+    expect(r('que cliente tiene mas viajes')).toBeNull();
   });
   it('avisa si la placa del pico y placa no existe', () => {
     expect(r('la XYZ 999 tiene pico y placa')?.texto).toContain('No encontré la placa XYZ 999');

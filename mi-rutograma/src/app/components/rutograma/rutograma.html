@@ -1,3 +1,4 @@
+<app-cabecitas *ngIf="vivoActivo"></app-cabecitas>
 <div *ngIf="debugError !== 'Ninguno'" class="ruto-debug-banner">
   <div class="ruto-debug-title"><i class="bi bi-exclamation-triangle-fill" style="color:#ef4444;"></i> {{ debugError }}</div>
 </div>
@@ -165,7 +166,7 @@
         </tr>
 
         <ng-container *ngFor="let v of vehiculosPropiosOrdenados(); trackBy: trackByVehiculo">
-          <tr class="ruto-tr-vehicle" *ngIf="filaVisiblePorTransportadora(v)" [class.ruto-fila-resaltada]="esVehiculoResaltado(v)" [attr.data-estado]="v.estado" [attr.data-transportadora]="v.tr || v.transportadora || 'Makand'">
+          <tr class="ruto-tr-vehicle" *ngIf="filaVisiblePorTransportadora(v)" [attr.data-placa]="v.p" [class.ruto-fila-resaltada]="esVehiculoResaltado(v)" [attr.data-estado]="v.estado" [attr.data-transportadora]="v.tr || v.transportadora || 'Makand'">
           <td class="ruto-td-vehicle-info">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
               <div>
@@ -227,7 +228,7 @@
                      (dragstart)="alEmpezarArrastre($event, vj, v)" (dragend)="alTerminarArrastre()"
                      (contextmenu)="abrirMenuViaje($event, vj, v)"
                      [class.ruto-arrastrado]="arrastrando?.id === vj.id"
-                     class="ruto-card-viaje" [attr.data-viaje]="vj.id" [class.ap-cambio-vivo]="cambiadosVivo.has(vj.id)"
+                     class="ruto-card-viaje" [attr.data-viaje]="vj.id" [class.ap-cambio-vivo]="cambiadosVivo.has(vj.id)" [attr.data-autor]="cambiadosVivo.has(vj.id) ? autorDe(vj.id) : null" [style.--color-vivo]="cambiadosVivo.has(vj.id) ? colorAutorDe(vj.id) : null" [style.box-shadow]="colorEnViaje(vj.id)"
                      [ngClass]="vj.cssClass"
                      [style.border-left]="vj.prioridad === 'urgente' ? '4px solid #ef4444' : (vj.prioridad === 'alta' ? '4px solid #f59e0b' : '')">
 
@@ -244,6 +245,7 @@
                     <i class="bi" [ngClass]="vj.llegadaReal ? 'bi-flag-fill' : 'bi-play-fill'"></i>
                     {{ vj.llegadaReal ? 'Llegó ' + (vj.llegadaReal | date:'h:mm a') : 'Salió ' + (vj.salidaReal | date:'h:mm a') }}
                   </div>
+                  <app-quien-aqui class="ruto-quien" [viajeId]="vj.id" [tam]="16"></app-quien-aqui>
                   <div class="ruto-card-route">
                     {{ vj.destino || vj.ruta || 'Sin Ruta' }}<span *ngIf="vj.dest2"> + {{ vj.dest2 }}</span>
                   </div>
@@ -324,7 +326,7 @@
           </tr>
 
           <ng-container *ngFor="let v of vehiculosCupoDeTransportadora(te.nombre); trackBy: trackByVehiculo">
-            <tr class="ruto-tr-vehicle" *ngIf="filaVisiblePorTransportadora(v)" [class.ruto-fila-resaltada]="esVehiculoResaltado(v)" [attr.data-estado]="v.estado" [attr.data-transportadora]="v.tr || v.transportadora || te.nombre">
+            <tr class="ruto-tr-vehicle" *ngIf="filaVisiblePorTransportadora(v)" [attr.data-placa]="v.p" [class.ruto-fila-resaltada]="esVehiculoResaltado(v)" [attr.data-estado]="v.estado" [attr.data-transportadora]="v.tr || v.transportadora || te.nombre">
             <td class="ruto-td-vehicle-info ruto-td-vehicle-info-cupo" [style.background]="te.col" [style.borderColor]="te.col">
               <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
                 <div>
@@ -386,7 +388,7 @@
                        (dragstart)="alEmpezarArrastre($event, vj, v)" (dragend)="alTerminarArrastre()"
                        (contextmenu)="abrirMenuViaje($event, vj, v)"
                        [class.ruto-arrastrado]="arrastrando?.id === vj.id"
-                       class="ruto-card-viaje" [attr.data-viaje]="vj.id" [class.ap-cambio-vivo]="cambiadosVivo.has(vj.id)"
+                       class="ruto-card-viaje" [attr.data-viaje]="vj.id" [class.ap-cambio-vivo]="cambiadosVivo.has(vj.id)" [attr.data-autor]="cambiadosVivo.has(vj.id) ? autorDe(vj.id) : null" [style.--color-vivo]="cambiadosVivo.has(vj.id) ? colorAutorDe(vj.id) : null" [style.box-shadow]="colorEnViaje(vj.id)"
                        [ngClass]="vj.cssClass">
 
                     <div *ngIf="viajesConCambioPendiente.has(vj.id)" class="ruto-badge-pendiente" title="Este viaje tiene un cambio esperando aprobación"><i class="bi bi-hourglass-split"></i> Cambio por aprobar</div>
@@ -396,6 +398,7 @@
                     <i class="bi" [ngClass]="vj.llegadaReal ? 'bi-flag-fill' : 'bi-play-fill'"></i>
                     {{ vj.llegadaReal ? 'Llegó ' + (vj.llegadaReal | date:'h:mm a') : 'Salió ' + (vj.salidaReal | date:'h:mm a') }}
                   </div>
+                    <app-quien-aqui class="ruto-quien" [viajeId]="vj.id" [tam]="16"></app-quien-aqui>
                     <div class="ruto-card-route">{{ vj.destino || vj.ruta || 'Sin Ruta' }}</div>
                     <div class="ruto-card-transport">{{ vj.tr || 'Makand' }}</div>
                     <div class="ruto-card-driver">{{ vj.cond || conductoresMap[v.p] || 'Sin Conductor' }}</div>

@@ -17,6 +17,9 @@ import autoTable from 'jspdf-autotable';
 import { viajeCerrado, motivoFechaAnterior, fechaDelDia } from '../../services/dias-cerrados';
 import { FotoNovedadComponent } from '../foto-novedad/foto-novedad';
 import { PresenciaService } from '../../services/presencia.service';
+import { QuienAquiComponent } from '../en-linea/quien-pagina';
+import { CabecitasComponent } from '../en-vivo/cabecitas';
+import { VivoService } from '../../services/vivo.service';
 import { OtrosAquiComponent } from '../en-linea/otros-aqui';
 import { revisarMes, rangoViaje, ProblemaViaje } from '../../services/revision-viajes';
 
@@ -56,7 +59,7 @@ interface Viaje {
   selector: 'app-rutograma',
   templateUrl: './rutograma.html',
   standalone: true,
-  imports: [EsqueletoComponent, CommonModule, FormsModule, RouterLink, FotoNovedadComponent, OtrosAquiComponent, PlanBComponent], 
+  imports: [EsqueletoComponent, CommonModule, FormsModule, RouterLink, FotoNovedadComponent, OtrosAquiComponent, PlanBComponent, QuienAquiComponent, CabecitasComponent], 
   styleUrls: ['./rutograma.css']
 })
 export class RutogramaComponent implements OnInit, OnDestroy {
@@ -2910,6 +2913,17 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   // mismo no brilla.
   // ============================================================
   public cambiadosVivo = new Set<any>();
+  // Quién hizo cada cambio que brilla (lo avisa el canal en vivo, services/vivo.service.ts).
+  private vivo = inject(VivoService);
+  public readonly vivoActivo = typeof window !== 'undefined';
+  private autoresVivo = new Map<any, { nombre: string; color: string }>();
+  public autorDe(id: any): string | null { const a = this.autoresVivo.get(id); return a ? `${a.nombre} lo cambió` : null; }
+  public colorAutorDe(id: any): string | null { return this.autoresVivo.get(id)?.color || null; }
+  /** Borde del color de quien tiene abierto este viaje ahora mismo. */
+  public colorEnViaje(id: any): string | null {
+    const p = this.presencia.porViaje().get(String(id))?.[0];
+    return p ? `0 0 0 2px ${p.color || '#f59e0b'}` : null;
+  }
   private firmasViajes: Map<any, string> | null = null;
   private detectarCambiosEnVivo(): void {
     const yo = String(this.auth.currentUser?.email || '').toLowerCase();
@@ -2928,8 +2942,10 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     }
     if (!cambiados.length || cambiados.length > 30) return;   // muchos a la vez = otro mes o una recarga: no
     cambiados.forEach(id => this.cambiadosVivo.add(id));
+    const autor = this.vivo.ultimoAutor();
+    if (autor && Date.now() - autor.en < 30000) cambiados.forEach(id => this.autoresVivo.set(id, autor));
     this.sonido.tocar('vivo');
-    setTimeout(() => { cambiados.forEach(id => this.cambiadosVivo.delete(id)); this.cdr.detectChanges(); }, 4200);
+    setTimeout(() => { cambiados.forEach(id => { this.cambiadosVivo.delete(id); this.autoresVivo.delete(id); }); this.cdr.detectChanges(); }, 4200);
   }
 
   // MES COMPLETO: cuando todos los viajes del mes (ya terminado o de hoy

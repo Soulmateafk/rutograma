@@ -12,7 +12,7 @@ test('en línea: cada uno ve a los demás con su página y lo que hace', () => {
     const p = crearPresencia(30000);
     p.latido('a', { email: 'carlos@x.com', nombre: 'Carlos Bocanegra', dispositivo: 'Chrome en Windows', pagina: 'Rutograma', accion: 'viendo el viaje BOG-CAL de PRZ 065' }, 1000);
     p.latido('b', { email: 'carla@x.com', nombre: 'Carla Díaz', dispositivo: 'Edge en Windows', pagina: 'Vehículos', accion: 'editando LUN 428', editando: true }, 4000);
-    assert.deepStrictEqual(p.enLinea('carlos@x.com', 'a', 5000), [{ nombre: 'Carla', esYo: false, dispositivo: 'Edge en Windows', pagina: 'Vehículos', accion: 'editando LUN 428', editando: true, oculta: false, haceSeg: 1 }]);
+    assert.deepStrictEqual(p.enLinea('carlos@x.com', 'a', 5000), [{ nombre: 'Carla', esYo: false, dispositivo: 'Edge en Windows', pagina: 'Vehículos', accion: 'editando LUN 428', editando: true, oculta: false, haceSeg: 1, ausenteSeg: 1 }]);
     assert.deepStrictEqual(p.enLinea('nadie@x.com', 'z', 5000).map(x => x.nombre), ['Carla', 'Carlos']);
 });
 
@@ -79,4 +79,17 @@ test('foto o emoji de la cuenta: solo viaja el id y la versión, nunca la foto',
     const lista = p.enLinea('nadie@x.com', 'z', 1);
     assert.deepStrictEqual(lista.map(x => [x.nombre, x.avatar, x.aid, x.fotoV]), [['Ana', '🦊', 'abc123', 'v1'], ['Luis', undefined, undefined, undefined]]);
     assert.deepStrictEqual(p.otros('viaje:1', 'luis@x.com', 'b', 1), [{ nombre: 'Ana', editando: false, esYo: false, avatar: '🦊', aid: 'abc123', fotoV: 'v1' }]);
+});
+
+test('ausente: segundos sin actividad; cuenta la pestaña más activa de la persona', () => {
+    const p = crearPresencia(30 * 60 * 1000);
+    p.latido('a1', { email: 'ana@x.com', nombre: 'Ana', pagina: 'Rutograma', inactivo: 400 }, 1000000);
+    p.latido('b', { email: 'beto@x.com', nombre: 'Beto', pagina: 'Dashboard', inactivo: 700, clave: 'viaje:1' }, 1000000);
+    const lista = p.enLinea('yo@x.com', 'z', 1000000);
+    assert.deepStrictEqual(lista.map(x => [x.nombre, x.ausenteSeg]), [['Ana', 400], ['Beto', 700]]);
+    // Ana vuelve a usar otra ventana: deja de estar ausente.
+    p.latido('a2', { email: 'ana@x.com', nombre: 'Ana', pagina: 'Vehículos', inactivo: 0 }, 1005000);
+    assert.strictEqual(p.enLinea('yo@x.com', 'z', 1005000).find(x => x.nombre === 'Ana').ausenteSeg, 0);
+    // También en "quién más tiene abierto esto".
+    assert.strictEqual(p.otros('viaje:1', 'yo@x.com', 'z', 1005000)[0].ausenteSeg, 705);
 });

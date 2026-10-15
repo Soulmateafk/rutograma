@@ -5,6 +5,7 @@ import { CommonModule } from '@angular/common';
 import { DataService } from './services/data';
 import { AuthService } from './services/auth.service';
 import { PresenciaService } from './services/presencia.service';
+import { VivoService } from './services/vivo.service';
 import { ModalService } from './services/modal';
 import { LoadingService } from './services/loading.service';
 import { ThemeService } from './services/theme.service';
@@ -128,6 +129,7 @@ export class App implements OnInit {
     private efectos: EfectosService,
     private titleService: Title,
     private presencia: PresenciaService,
+    private vivo: VivoService,
     private router: Router,
     // Igual: se crea desde el arranque para no perderse la primera página
     // (las guías de primera vez se deciden al navegar).
@@ -169,8 +171,8 @@ export class App implements OnInit {
         // Resumen, que no tiene barra arriba) — antes lo arrancaba la barra
         // y quien estaba en Resumen no le aparecía a nadie.
         const sinSesion = ['/login', '/register', '/pending'].some(r => event.urlAfterRedirects.startsWith(r));
-        if (sinSesion) this.presencia.detener();
-        else this.presencia.iniciar();
+        if (sinSesion) { this.presencia.detener(); this.vivo.detener(); }
+        else { this.presencia.iniciar(); this.vivo.iniciar(); }
 
         this.actualizarTitulo(event.url);
         if (!this.cargandoInicial()) this.sonido.tocar('pagina');

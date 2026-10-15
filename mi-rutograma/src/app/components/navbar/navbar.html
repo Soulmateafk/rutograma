@@ -5,23 +5,23 @@
        caben en la fila (ver ajustarPestanas en navbar.ts); en celular
        se ven todas. -->
   <div class="tabs" #contenedorPestanas>
-    <button class="tab" routerLink="/dashboard" routerLinkActive="on">Dashboard</button>
-    <button class="tab" routerLink="/rutograma" routerLinkActive="on">Rutograma</button>
-    <button class="tab" routerLink="/vehiculos" routerLinkActive="on">Vehículos</button>
-    <button class="tab" routerLink="/rutas" routerLinkActive="on">Rutas</button>
+    <button class="tab" routerLink="/dashboard" routerLinkActive="on">Dashboard<app-quien-aqui en="/dashboard"></app-quien-aqui></button>
+    <button class="tab" routerLink="/rutograma" routerLinkActive="on">Rutograma<app-quien-aqui en="/rutograma"></app-quien-aqui></button>
+    <button class="tab" routerLink="/vehiculos" routerLinkActive="on">Vehículos<app-quien-aqui en="/vehiculos"></app-quien-aqui></button>
+    <button class="tab" routerLink="/rutas" routerLinkActive="on">Rutas<app-quien-aqui en="/rutas"></app-quien-aqui></button>
     <button *ngFor="let p of paginasMenuMas" class="tab" [class.oculta]="rutasEnMenuMas.has(p.ruta)"
-            [routerLink]="p.ruta" routerLinkActive="on">{{ p.nombre }}<span class="tab-pend" *ngIf="p.ruta === '/aprobaciones' && pendientesAprobacion">{{ pendientesAprobacion }}</span></button>
+            [routerLink]="p.ruta" routerLinkActive="on">{{ p.nombre }}<span class="tab-pend" *ngIf="p.ruta === '/aprobaciones' && pendientesAprobacion">{{ pendientesAprobacion }}</span><app-quien-aqui [en]="p.ruta"></app-quien-aqui></button>
   </div>
 
   <div class="tab-mas" *ngIf="rutasEnMenuMas.size > 0">
     <button class="tab" [class.on]="masActivo()" (click)="alternarMenuMas()"
             [attr.aria-expanded]="menuMasAbierto">
-      Más <i class="bi" [ngClass]="menuMasAbierto ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+      Más <i class="bi" [ngClass]="menuMasAbierto ? 'bi-chevron-up' : 'bi-chevron-down'"></i><app-quien-aqui [en]="rutasMas()" [max]="2"></app-quien-aqui>
     </button>
     <div animate.leave="ap-ocultar" class="menu-mas" *ngIf="menuMasAbierto">
       <ng-container *ngFor="let p of paginasMenuMas">
         <button *ngIf="rutasEnMenuMas.has(p.ruta)" class="menu-mas-item"
-                [routerLink]="p.ruta" routerLinkActive="on" (click)="menuMasAbierto = false">{{ p.nombre }}<span class="tab-pend" *ngIf="p.ruta === '/aprobaciones' && pendientesAprobacion">{{ pendientesAprobacion }}</span></button>
+                [routerLink]="p.ruta" routerLinkActive="on" (click)="menuMasAbierto = false">{{ p.nombre }}<span class="tab-pend" *ngIf="p.ruta === '/aprobaciones' && pendientesAprobacion">{{ pendientesAprobacion }}</span><app-quien-aqui [en]="p.ruta"></app-quien-aqui></button>
       </ng-container>
     </div>
   </div>

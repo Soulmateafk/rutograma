@@ -246,6 +246,12 @@ export class ThemeService {
   }
 
   /** Modo que se ve ahora (con "Automático" depende del equipo). */
+  /** El color que escogió la persona (su color propio, o el del acento): para su cabecita en vivo. */
+  public get colorMio(): string {
+    if (this.ap.acento === 'propio' && /^#[0-9a-f]{6}$/i.test(this.ap.colorPropio || '')) return this.ap.colorPropio;
+    return this.acentos.find(a => a.valor === this.ap.acento)?.color || '#2563eb';
+  }
+
   public get temaActual(): Tema {
     if (this.ap.tema === 'auto') return this.sistemaOscuro && !this.sistemaOscuro.matches ? 'claro' : 'oscuro';
     if (this.ap.tema === 'horario') { const h = new Date().getHours(); return h >= 6 && h < 18 ? 'claro' : 'oscuro'; }

@@ -1,24 +1,35 @@
-import { Injectable, NgZone, inject, signal } from '@angular/core';
+import { Injectable, NgZone, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from './auth.service';
+import { ThemeService } from './theme.service';
 import { API } from '../api-base';
 
 const API_URL = API;
 
-const NOMBRES_PAGINA: Record<string, string> = {
+export const NOMBRES_PAGINA: Record<string, string> = {
   dashboard: 'Dashboard', rutograma: 'Rutograma', vehiculos: 'Vehículos', 'hoja-de-vida': 'Hoja de vida',
   rutas: 'Rutas', conductores: 'Conductores', agenda: 'Agenda de conductor', configuracion: 'Configuración',
   historico: 'Histórico', comparativo: 'Comparativo', cumplimiento: 'Cumplimiento', resumen: 'Resumen',
   sesiones: 'Sesiones', aprobaciones: 'Aprobaciones', admin: 'Administración', reglas: 'Reglas', comparendos: 'Comparendos', quejas: 'Quejas', mapa: 'Mapa', despachos: 'Despachos', papelera: 'Papelera'
 };
 
-export interface PersonaEnLinea { nombre: string; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; dispositivo: string; pagina: string; accion: string; editando: boolean; oculta: boolean; haceSeg: number; }
-export interface OtroAqui { nombre: string; editando: boolean; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; }
+export interface PersonaEnLinea { nombre: string; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; dispositivo: string; pagina: string; accion: string; editando: boolean; oculta: boolean; haceSeg: number; ausenteSeg?: number; clave?: string; color?: string; }
+export interface OtroAqui { nombre: string; editando: boolean; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; ausenteSeg?: number; }
+
+/** Ausente: más de 5 min sin mover el mouse ni teclear (amarillo); más de 10 min (rojo). */
+export function nivelAusencia(seg: number | undefined): '' | 'amarillo' | 'rojo' {
+  const s = Number(seg) || 0;
+  return s >= 600 ? 'rojo' : s >= 300 ? 'amarillo' : '';
+}
+export function textoAusencia(seg: number | undefined): string {
+  const min = Math.floor((Number(seg) || 0) / 60);
+  return min >= 60 ? `ausente hace ${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ''}` : `ausente hace ${min} min`;
+}
 
 /**
  * EN LÍNEA AHORA (backend/presencia.js): cada pestaña de la oficina avisa
- * cada 8 s en qué página está y qué hace ("editando el viaje BOG-CAL de
+ * cada 5 s en qué página está y qué hace ("editando el viaje BOG-CAL de
  * PRZ 065"), y recibe a los demás. Las pantallas llaman a establecer()
  * cuando abren o editan algo, y a limpiar() al cerrarlo. No queda en
  * ningún historial: es solo lo que pasa en este momento.
@@ -28,10 +39,12 @@ export class PresenciaService {
   private auth = inject(AuthService);
   private router = inject(Router);
   private zone = inject(NgZone);
+  private theme = inject(ThemeService);
 
   // Una por pestaña, y la misma al recargar (F5): así recargar no deja una
   // "ventana fantasma" en la lista.
-  private readonly pestana = PresenciaService.idDePestana();
+  /** Id de esta pestaña (también lo usa el canal en vivo, services/vivo.service.ts). */
+  public readonly pestana = PresenciaService.idDePestana();
 
   private static idDePestana(): string {
     const nuevo = Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -46,9 +59,23 @@ export class PresenciaService {
   private reloj: ReturnType<typeof setInterval> | null = null;
   private activo = false;
   private ultimoLatido = 0;
+  /** Última vez que la persona movió el mouse, tecleó o tocó la pantalla en esta pestaña. */
+  private ultimaActividad = Date.now();
 
   /** Los demás en la app ahora. */
   readonly enLinea = signal<PersonaEnLinea[]>([]);
+  /** Dónde está cada persona (no mis otras ventanas): página → personas. */
+  readonly porPagina = computed(() => {
+    const m = new Map<string, PersonaEnLinea[]>();
+    for (const p of this.enLinea()) if (!p.esYo && p.pagina) m.set(p.pagina, [...(m.get(p.pagina) || []), p]);
+    return m;
+  });
+  /** Qué viaje tiene abierto cada persona: id del viaje → personas (para el puntito en el Rutograma). */
+  readonly porViaje = computed(() => {
+    const m = new Map<string, PersonaEnLinea[]>();
+    for (const p of this.enLinea()) if (!p.esYo && p.clave?.startsWith('viaje:')) { const id = p.clave.slice(6); m.set(id, [...(m.get(id) || []), p]); }
+    return m;
+  });
   /** Los demás con el mismo objeto abierto que esta pestaña. */
   readonly otros = signal<OtroAqui[]>([]);
 
@@ -61,6 +88,16 @@ export class PresenciaService {
       if (this.activo) this.latir();
     });
     window.addEventListener('pagehide', () => this.salir());
+    // Actividad (para "ausente"): fuera de Angular y sin costo, solo se anota la hora.
+    this.zone.runOutsideAngular(() => {
+      const actividad = () => {
+        const estabaAusente = Date.now() - this.ultimaActividad > 60000;
+        this.ultimaActividad = Date.now();
+        // Volvió después de un rato: avisar ya, para que los demás lo vean activo.
+        if (estabaAusente && this.activo) this.latir();
+      };
+      for (const ev of ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll']) window.addEventListener(ev, actividad, { passive: true, capture: true });
+    });
     // Al volver a la ventana, avisar de una vez (sin esperar al reloj).
     document.addEventListener('visibilitychange', () => { if (this.activo) this.latir(); });
   }
@@ -71,13 +108,14 @@ export class PresenciaService {
     this.activo = true;
     this.latir();
     this.zone.runOutsideAngular(() => {
-      // Visible: cada 8 s. Minimizada o detrás de otra ventana: cada ~25 s
-      // (antes no avisaba y a los 30 s esa persona desaparecía de la lista
-      // aunque siguiera con la app abierta).
+      // Visible: cada 5 s (los puntitos de dónde está cada uno se ven casi
+      // en vivo). Minimizada o detrás de otra ventana: cada ~25 s (antes no
+      // avisaba y a los 30 s esa persona desaparecía de la lista aunque
+      // siguiera con la app abierta).
       this.reloj = setInterval(() => {
         const visible = document.visibilityState === 'visible';
         if (visible || Date.now() - this.ultimoLatido >= 25000) this.latir();
-      }, 8000);
+      }, 5000);
     });
   }
 
@@ -126,7 +164,8 @@ export class PresenciaService {
     this.ultimoLatido = Date.now();
     const oculta = document.visibilityState !== 'visible' ? '1' : '0';
     try {
-      const res = await this.auth.fetchAutenticado(this.url({ accion, clave, editando: editando ? '1' : '0', oculta }));
+      const inactivo = String(Math.max(0, Math.round((Date.now() - this.ultimaActividad) / 1000)));
+      const res = await this.auth.fetchAutenticado(this.url({ accion, clave, editando: editando ? '1' : '0', oculta, inactivo, color: this.theme.colorMio }));
       const data = await res.json();
       if (!data?.ok) return;
       this.zone.run(() => {
