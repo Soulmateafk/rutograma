@@ -14,8 +14,9 @@
 // pestaña normal, se avisa al instante (salir).
 const VIGENCIA_MS = 90 * 1000;
 
-// AUSENTE: sin mover el mouse, teclear ni tocar la pantalla en la app (o con
-// la ventana minimizada) por más de 5 min → punto amarillo; más de 10 → rojo.
+// AUSENTE: con todas sus ventanas minimizadas o en otra pestaña, de una vez
+// (amarillo); o sin mover el mouse, teclear ni tocar la pantalla en la app
+// por más de 5 min → amarillo; más de 10 → rojo.
 // Cada pestaña dice cuántos segundos lleva sin actividad; de una persona
 // cuenta la pestaña más activa (si usa otra ventana, no está ausente).
 const AUSENTE_SEG = 5 * 60;
@@ -56,6 +57,9 @@ function crearPresencia(vigenciaMs = VIGENCIA_MS) {
         }
         return [...porPersona.values()];
     };
+
+    /** ¿Tiene la app en segundo plano? Solo si TODAS sus ventanas están ocultas. */
+    const todoOculto = (lista, email) => { const mias = lista.filter(p => p.email === email); return mias.length > 0 && mias.every(p => p.oculta); };
 
     /** Segundos sin actividad de una persona: la menor entre sus pestañas. */
     const ausenciaDe = (lista, email, ahora) => {
@@ -104,7 +108,7 @@ function crearPresencia(vigenciaMs = VIGENCIA_MS) {
             const lista = todas.filter(p => p.clave === clave && p.pestana !== pestana);
             const yo = lista.filter(p => p.email === email);
             const demas = unaPorPersona(lista.filter(p => p.email !== email))
-                .map(p => { const aus = ausenciaDe(todas, p.email, ahora); return { nombre: p.nombre, editando: p.editando, esYo: false, ...(aus ? { ausenteSeg: aus } : {}), ...cara(p) }; })
+                .map(p => { const aus = ausenciaDe(todas, p.email, ahora); const oculta = todoOculto(todas, p.email); return { nombre: p.nombre, editando: p.editando, esYo: false, ...(aus ? { ausenteSeg: aus } : {}), ...(oculta ? { oculta } : {}), ...cara(p) }; })
                 .sort((a, b) => Number(b.editando) - Number(a.editando) || a.nombre.localeCompare(b.nombre));
             if (yo.length) demas.push({ nombre: 'Tú', editando: yo.some(p => p.editando), esYo: true });
             return demas;
@@ -118,7 +122,7 @@ function crearPresencia(vigenciaMs = VIGENCIA_MS) {
         enLinea(email, pestana, ahora = Date.now()) {
             const todas = vigentes(ahora);
             const vivas = todas.filter(p => p.pestana !== pestana);
-            const fila = (p, esYo) => ({ nombre: esYo ? 'Tú' : p.nombre, esYo, ...cara(p), dispositivo: p.dispositivo, pagina: p.pagina, accion: p.accion, editando: p.editando, oculta: p.oculta, haceSeg: Math.round((ahora - p.desde) / 1000), ...(p.clave ? { clave: p.clave } : {}), ...(p.color ? { color: p.color } : {}),
+            const fila = (p, esYo) => ({ nombre: esYo ? 'Tú' : p.nombre, esYo, ...cara(p), dispositivo: p.dispositivo, pagina: p.pagina, accion: p.accion, editando: p.editando, oculta: esYo ? p.oculta : todoOculto(todas, p.email), haceSeg: Math.round((ahora - p.desde) / 1000), ...(p.clave ? { clave: p.clave } : {}), ...(p.color ? { color: p.color } : {}),
                 ausenteSeg: esYo ? Math.max(0, Math.round((ahora - p.inactivoDesde) / 1000)) : ausenciaDe(todas, p.email, ahora) });
             const demas = unaPorPersona(vivas.filter(p => p.email !== email)).map(p => fila(p, false)).sort((a, b) => a.nombre.localeCompare(b.nombre));
             const yo = vivas.filter(p => p.email === email).sort((a, b) => b.desde - a.desde).map(p => fila(p, true));

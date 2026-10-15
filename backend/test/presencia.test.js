@@ -93,3 +93,11 @@ test('ausente: segundos sin actividad; cuenta la pestaña más activa de la pers
     // También en "quién más tiene abierto esto".
     assert.strictEqual(p.otros('viaje:1', 'yo@x.com', 'z', 1005000)[0].ausenteSeg, 705);
 });
+
+test('en segundo plano: oculta solo si todas sus ventanas lo están', () => {
+    const p = crearPresencia(30 * 60 * 1000);
+    p.latido('a1', { email: 'ana@x.com', nombre: 'Ana', pagina: 'Rutograma', oculta: true }, 1000);
+    assert.strictEqual(p.enLinea('yo@x.com', 'z', 1000)[0].oculta, true);
+    p.latido('a2', { email: 'ana@x.com', nombre: 'Ana', pagina: 'Vehículos', oculta: false }, 1000);
+    assert.strictEqual(p.enLinea('yo@x.com', 'z', 1000)[0].oculta, false);
+});

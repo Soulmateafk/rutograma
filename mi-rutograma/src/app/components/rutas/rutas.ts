@@ -7,6 +7,7 @@ import { CommonModule, CurrencyPipe } from '@angular/common';
 import { ModalService } from '../../services/modal';
 import { UiService } from '../../services/ui.service';
 import { AuthService } from '../../services/auth.service';
+import { PresenciaService } from '../../services/presencia.service';
 import { FormsModule } from '@angular/forms';
 
 // @ts-ignore
@@ -29,6 +30,7 @@ export class RutasComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   private zone = inject(NgZone);
   private ui = inject(UiService);
+  private presencia = inject(PresenciaService);
 
   // Modal de confirmación propio — reemplaza el confirm() nativo del
   // navegador, mismo patrón ya usado en el resto de la app.
@@ -328,6 +330,8 @@ export class RutasComponent implements OnInit, OnDestroy {
   public abrirModalRuta(indexFiltrado: number = -1): void {
     if (indexFiltrado > -1) {
       const rutaAEditar = this.getRutas()[indexFiltrado];
+      const cod = String(rutaAEditar?.cod || rutaAEditar?.codigo || '').toUpperCase().trim();
+      if (cod) this.presencia.establecer(`editando la ruta ${cod}`, `ruta:${cod}`, true);
       
       if (this.ds.S?.rutas && rutaAEditar) {
         this.idxRuta = this.ds.S.rutas.findIndex((r: any) => 
@@ -573,6 +577,7 @@ export class RutasComponent implements OnInit, OnDestroy {
 
   public cerrarModal(id: string): void {
     this.modal.cerrar(id);
+    if (id === 'm-ruta') this.presencia.limpiar();
     this.datosRuta = {};
     this.idxRuta = -1;
     this.rutaSeleccionadaInfo = null; 

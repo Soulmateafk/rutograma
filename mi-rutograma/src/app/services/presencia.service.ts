@@ -15,16 +15,22 @@ export const NOMBRES_PAGINA: Record<string, string> = {
 };
 
 export interface PersonaEnLinea { nombre: string; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; dispositivo: string; pagina: string; accion: string; editando: boolean; oculta: boolean; haceSeg: number; ausenteSeg?: number; clave?: string; color?: string; }
-export interface OtroAqui { nombre: string; editando: boolean; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; ausenteSeg?: number; }
+export interface OtroAqui { nombre: string; editando: boolean; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; ausenteSeg?: number; oculta?: boolean; }
 
-/** Ausente: más de 5 min sin mover el mouse ni teclear (amarillo); más de 10 min (rojo). */
-export function nivelAusencia(seg: number | undefined): '' | 'amarillo' | 'rojo' {
+/**
+ * Ausente: con la ventana minimizada o en otra pestaña, de una vez
+ * (amarillo; rojo pasados 10 min). Con la app a la vista: más de 5 min sin
+ * mover el mouse ni teclear (amarillo); más de 10 min (rojo).
+ */
+export function nivelAusencia(seg: number | undefined, oculta = false): '' | 'amarillo' | 'rojo' {
   const s = Number(seg) || 0;
-  return s >= 600 ? 'rojo' : s >= 300 ? 'amarillo' : '';
+  return s >= 600 ? 'rojo' : s >= 300 || oculta ? 'amarillo' : '';
 }
-export function textoAusencia(seg: number | undefined): string {
+export function textoAusencia(seg: number | undefined, oculta = false): string {
   const min = Math.floor((Number(seg) || 0) / 60);
-  return min >= 60 ? `ausente hace ${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ''}` : `ausente hace ${min} min`;
+  if (oculta && min < 5) return 'ausente: tiene la app en segundo plano';
+  const hace = min >= 60 ? `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ''}` : `${min} min`;
+  return `ausente hace ${hace}${oculta ? ' (app en segundo plano)' : ''}`;
 }
 
 /**

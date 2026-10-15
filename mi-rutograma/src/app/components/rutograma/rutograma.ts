@@ -2919,11 +2919,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   private autoresVivo = new Map<any, { nombre: string; color: string }>();
   public autorDe(id: any): string | null { const a = this.autoresVivo.get(id); return a ? `${a.nombre} lo cambió` : null; }
   public colorAutorDe(id: any): string | null { return this.autoresVivo.get(id)?.color || null; }
-  /** Borde del color de quien tiene abierto este viaje ahora mismo. */
-  public colorEnViaje(id: any): string | null {
-    const p = this.presencia.porViaje().get(String(id))?.[0];
-    return p ? `0 0 0 2px ${p.color || '#f59e0b'}` : null;
-  }
+  // El borde y el letrero del color de quien tiene abierto el viaje los pone components/en-vivo/marcador.ts.
   private firmasViajes: Map<any, string> | null = null;
   private detectarCambiosEnVivo(): void {
     const yo = String(this.auth.currentUser?.email || '').toLowerCase();

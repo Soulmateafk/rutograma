@@ -15,7 +15,7 @@ import { CaraComponent } from './cara';
   template: `
     <div class="oa" *ngIf="otros().length" [class.edita]="alguienEdita()">
       <i class="bi" [ngClass]="alguienEdita() ? 'bi-pencil-fill' : 'bi-eye-fill'"></i>
-      <span class="oa-caras"><span class="oa-cara" *ngFor="let o of caras()"><app-cara [nombre]="o.nombre" [avatar]="o.avatar || ''" [aid]="o.aid || ''" [fotoV]="o.fotoV || ''" [tam]="22"></app-cara><span *ngIf="nivel(o.ausenteSeg) as n" class="oa-estado" [ngClass]="n" [title]="textoAus(o.ausenteSeg)"></span></span></span>
+      <span class="oa-caras"><span class="oa-cara" *ngFor="let o of caras()"><app-cara [nombre]="o.nombre" [avatar]="o.avatar || ''" [aid]="o.aid || ''" [fotoV]="o.fotoV || ''" [tam]="22"></app-cara><span *ngIf="nivel(o.ausenteSeg, o.oculta) as n" class="oa-estado" [ngClass]="n" [title]="textoAus(o.ausenteSeg, o.oculta)"></span></span></span>
       <span><strong>{{ texto() }}.</strong>
         <ng-container *ngIf="otroEdita()"> Espera a que termine o coordina con esa persona antes de guardar.</ng-container>
         <ng-container *ngIf="!otroEdita() && alguienEdita()"> Guarda en una sola ventana para no pisar tus propios cambios.</ng-container></span>
@@ -49,7 +49,7 @@ export class OtrosAquiComponent {
     const lista = this.otros().filter(x => !x.esYo);
     const yo = this.otros().find(x => x.esYo);
     // "Carla (ausente hace 12 min)": así se sabe si de verdad lo está editando o lo dejó abierto.
-    const nombres = (xs: { nombre: string; ausenteSeg?: number }[]) => xs.map(x => nivelAusencia(x.ausenteSeg) ? `${x.nombre} (${textoAusencia(x.ausenteSeg)})` : x.nombre).join(xs.length === 2 ? ' y ' : ', ');
+    const nombres = (xs: { nombre: string; ausenteSeg?: number; oculta?: boolean }[]) => xs.map(x => nivelAusencia(x.ausenteSeg, x.oculta) ? `${x.nombre} (${textoAusencia(x.ausenteSeg, x.oculta)})` : x.nombre).join(xs.length === 2 ? ' y ' : ', ');
     const editan = lista.filter(x => x.editando), ven = lista.filter(x => !x.editando);
     const partes: string[] = [];
     if (editan.length) partes.push(`${nombres(editan)} ${editan.length === 1 ? 'está editando' : 'están editando'} ${this.que}`);

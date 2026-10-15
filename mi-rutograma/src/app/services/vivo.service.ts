@@ -48,6 +48,8 @@ export class VivoService {
     if (!this.auth.currentUser?.email || ['conductor', 'despachos'].includes(this.auth.rolActual)) return;
     this.activo = true;
     this.conectar();
+    // App en segundo plano (otra pestaña o minimizada): mi cabecita se quita de los demás.
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') this.enviarCursor(null); });
     // Cabecitas viejas (alguien que se fue sin avisar): fuera a los 10 min sin moverse.
     this.limpieza = setInterval(() => {
       const ahora = Date.now();

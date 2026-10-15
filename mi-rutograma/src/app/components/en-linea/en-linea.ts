@@ -27,19 +27,18 @@ import { CaraComponent } from './cara';
         <div *ngIf="!personas().length" class="el-vacio">Nadie más: solo esta ventana.</div>
         <div *ngFor="let p of personas()" class="el-fila" [class.yo]="p.esYo">
           <span class="el-cara" [class.edita]="p.editando"><app-cara [nombre]="p.nombre" [texto]="p.esYo ? 'Tú' : ''" [avatar]="p.avatar || ''" [aid]="p.aid || ''" [fotoV]="p.fotoV || ''" [tam]="30"></app-cara>
-            <span class="el-estado" [ngClass]="nivel(p.ausenteSeg) || 'activo'" [title]="nivel(p.ausenteSeg) ? textoAus(p.ausenteSeg) : 'Activo'"></span></span>
+            <span class="el-estado" [ngClass]="nivel(p.ausenteSeg, p.oculta) || 'activo'" [title]="nivel(p.ausenteSeg, p.oculta) ? textoAus(p.ausenteSeg, p.oculta) : 'Activo'"></span></span>
           <div class="el-texto">
             <div><b>{{ p.esYo ? 'Tú' : p.nombre }}</b> · {{ p.pagina || 'en la app' }}</div>
             <div class="el-equipo" *ngIf="p.esYo">en otra ventana o equipo<ng-container *ngIf="p.dispositivo"> ({{ p.dispositivo }})</ng-container></div>
-            <div class="el-ausente" *ngIf="nivel(p.ausenteSeg) as n" [ngClass]="n">● {{ textoAus(p.ausenteSeg) }}<ng-container *ngIf="p.oculta"> (ventana minimizada)</ng-container></div>
-            <div class="el-equipo" *ngIf="!p.esYo && p.oculta && !nivel(p.ausenteSeg)">ventana minimizada o en segundo plano</div>
+            <div class="el-ausente" *ngIf="nivel(p.ausenteSeg, p.oculta) as n" [ngClass]="n">● {{ textoAus(p.ausenteSeg, p.oculta) }}</div>
             <div class="el-accion" [class.edita]="p.editando">
               <i *ngIf="p.editando" class="bi bi-pencil-fill"></i>
               {{ p.accion || 'mirando' }} · {{ hace(p.haceSeg) }}
             </div>
           </div>
         </div>
-        <div class="el-leyenda"><span class="el-estado activo"></span> activo <span class="el-estado amarillo"></span> ausente +5 min <span class="el-estado rojo"></span> ausente +10 min</div>
+        <div class="el-leyenda"><span class="el-estado activo"></span> activo <span class="el-estado amarillo"></span> ausente (+5 min o app en segundo plano) <span class="el-estado rojo"></span> ausente +10 min</div>
         <div class="el-pie">Se actualiza solo. No queda en ningún historial.</div>
       </div>
     </div>
@@ -84,8 +83,8 @@ export class EnLineaComponent {
   private presencia = inject(PresenciaService);
   readonly personas = this.presencia.enLinea;
   /** Cuántas personas (no mis otras ventanas) están ausentes. */
-  readonly ausentes = computed(() => this.personas().filter(p => !p.esYo && nivelAusencia(p.ausenteSeg)).length);
-  readonly hayRojo = computed(() => this.personas().some(p => !p.esYo && nivelAusencia(p.ausenteSeg) === 'rojo'));
+  readonly ausentes = computed(() => this.personas().filter(p => !p.esYo && nivelAusencia(p.ausenteSeg, p.oculta)).length);
+  readonly hayRojo = computed(() => this.personas().some(p => !p.esYo && nivelAusencia(p.ausenteSeg, p.oculta) === 'rojo'));
   readonly nivel = nivelAusencia;
   readonly textoAus = textoAusencia;
   abierto = false;
