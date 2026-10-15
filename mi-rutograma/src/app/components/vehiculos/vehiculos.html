@@ -134,7 +134,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let v of vehiculosFiltrados">
+        <tr *ngFor="let v of vehiculosFiltrados" [attr.data-placa]="(v.placa || '').toUpperCase().trim()">
           <td><strong>{{ v.placa }}</strong></td>
           <td>{{ v.tipo }}</td>
           <td>

@@ -121,7 +121,7 @@
 
       <tbody>
 
-        <tr *ngFor="let r of getRutasFiltradas()"
+        <tr *ngFor="let r of getRutasFiltradas()" [attr.data-cod]="((r.cod || r.codigo || '') + '').toUpperCase().trim()"
             style="border-bottom: 1px solid var(--color-borde-suave); transition: background 0.2s; vertical-align: middle;"
             onmouseover="this.style.background='rgba(255,255,255,0.01)'"
             onmouseout="this.style.background='transparent'">

@@ -1,3 +1,4 @@
+import { marcarBuscado } from '../../services/marcar-buscado';
 import { Component, inject, OnInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
 import { armarCargaConductores, RACHA_ALERTA, ResumenCarga } from '../../services/carga-conductores';
 import { errorConductor, normalizarPlaca } from '../../services/validaciones';
@@ -212,7 +213,10 @@ export class ConductoresComponent implements OnInit, OnDestroy {
     );
     if (conductor) {
       this.filtro = ''; // por si un filtro activo lo tapaba
-      this.verDetalles(conductor);
+      this.cdr.detectChanges();
+      const ced = String(conductor.ced || conductor.cedula || conductor.cc || '').trim();
+      marcarBuscado(() => document.querySelector(`tr[data-cedula="${CSS.escape(ced)}"]`), String(conductor.nom || conductor.nombre || ced),
+        () => { this.verDetalles(conductor); this.cdr.detectChanges(); });
     } else if (intento < 4) {
       setTimeout(() => this.abrirConductorPorCedula(cedula, intento + 1), 400);
     }

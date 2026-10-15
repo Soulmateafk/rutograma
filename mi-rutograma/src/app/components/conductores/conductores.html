@@ -129,7 +129,7 @@
           </thead>
           <tbody>
             @for (c of conductoresFiltrados; track $index) {
-              <tr>
+              <tr [attr.data-cedula]="(c.ced || c.cedula || c.cc || '') + ''">
                 <td class="font-bold"><a class="cond-perfil" [routerLink]="['/conductor', c.nom || c.nombre]" title="Ver su perfil">{{ c.nom || c.nombre }}</a></td>
                 <td>{{ c.ced || c.cedula || '—' }}</td>
                 <td>{{ c.tel || '—' }}</td>
