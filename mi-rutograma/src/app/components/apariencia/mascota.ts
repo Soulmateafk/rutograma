@@ -1,4 +1,4 @@
-import { Component, NgZone, OnDestroy, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ThemeService } from '../../services/theme.service';
@@ -55,7 +55,9 @@ type Estado = 'normal' | 'feliz' | 'triste' | 'dormido';
           <button *ngFor="let o of opciones()" class="ms-opcion" (click)="aprender(o)">{{ nombreTema(o) }}</button>
         </div>
         <form class="ms-pregunta" (ngSubmit)="preguntar()">
-          <input #cajaPregunta name="pregunta" [(ngModel)]="pregunta" placeholder="Pregúntame algo…" autocomplete="off" maxlength="200" (keydown.escape)="cerrarPanel()">
+          <input #cajaPregunta name="pregunta" [(ngModel)]="pregunta" [placeholder]="oyendo() ? 'Te escucho… 👂' : (puedeHablar ? 'Pregúntame algo o toca 🎤' : 'Pregúntame algo…')" autocomplete="off" maxlength="200" (keydown.escape)="cerrarPanel()">
+          <button type="button" *ngIf="puedeHablar" class="ms-mic" [class.oyendo]="oyendo()" (click)="hablar()"
+                  [attr.aria-label]="oyendo() ? 'Dejar de escuchar' : 'Preguntar hablando'" [title]="oyendo() ? 'Te escucho… toca para parar' : 'Pregúntame hablando'">🎤</button>
           <button type="submit" [disabled]="!pregunta.trim()" aria-label="Preguntar">➤</button>
         </form>
         <div class="ms-sugerencias">
@@ -181,6 +183,10 @@ type Estado = 'normal' | 'feliz' | 'triste' | 'dormido';
     .ms-pregunta input { flex: 1; min-width: 0; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--color-borde, #334155); background: var(--color-fondo-input, #1e293b); color: inherit; font-size: 13px; }
     .ms-pregunta button { border: 0; border-radius: 8px; padding: 0 12px; background: var(--acento, #2563eb); color: #fff; font-size: 14px; cursor: pointer; }
     .ms-pregunta button:disabled { opacity: .45; cursor: default; }
+    .ms-pregunta .ms-mic { background: var(--color-fondo-input, #1e293b); border: 1px solid var(--color-borde, #334155); padding: 0 9px; font-size: 15px; }
+    .ms-pregunta .ms-mic.oyendo { background: #dc2626; border-color: #dc2626; animation: ms-oyendo 1.1s ease-in-out infinite; }
+    @keyframes ms-oyendo { 0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, .55); } 50% { box-shadow: 0 0 0 7px rgba(220, 38, 38, 0); } }
+    @media (prefers-reduced-motion: reduce) { .ms-pregunta .ms-mic.oyendo { animation: none; } }
     .ms-sugerencias button { background: none; border: 1px dashed var(--color-borde, #475569); color: var(--color-texto-secundario, #cbd5e1); border-radius: 12px; padding: 3px 9px; font-size: 11px; cursor: pointer; }
     :host-context(html.modo-enfoque) .ms { display: none; }
     :host-context(html.sin-animaciones) .ms * { animation: none !important; }
@@ -197,6 +203,7 @@ export class MascotaComponent implements OnDestroy {
   private sonido = inject(SonidoService);
   private zone = inject(NgZone);
   private router = inject(Router);
+  private cdr = inject(ChangeDetectorRef);
   private guia = inject(GuiaService);
   private atajos = inject(AtajosService);
   private celebracion = inject(CelebracionService);
@@ -306,7 +313,51 @@ export class MascotaComponent implements OnDestroy {
     setTimeout(() => (document.querySelector('.ms-pregunta input') as HTMLInputElement | null)?.focus(), 60);
   }
 
-  public cerrarPanel(): void { this.panel.set(false); }
+  public cerrarPanel(): void { this.panel.set(false); try { this.reconocedor?.abort(); } catch { /* nada */ } }
+
+  /** Preguntar hablando: el micrófono del navegador (Chrome y Edge lo tienen) escribe la pregunta. */
+  public readonly puedeHablar = typeof window !== 'undefined' && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+  public oyendo = signal(false);
+  private reconocedor: any = null;
+
+  public hablar(): void {
+    if (this.oyendo()) { this.reconocedor?.stop(); return; }
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    let dicho = '';
+    try {
+      const r = new SR();
+      r.lang = 'es-CO'; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
+      r.onresult = (e: any) => {
+        dicho = Array.from(e.results as ArrayLike<any>).map((x: any) => x[0]?.transcript || '').join(' ').trim();
+        this.pregunta = dicho;
+        this.cdr.detectChanges();
+      };
+      r.onerror = (e: any) => {
+        const err = String(e?.error || '');
+        this.respuesta.set(err === 'not-allowed' || err === 'service-not-allowed' ? 'No me dejaron usar el micrófono. 🎤 Revisa el permiso del navegador (en algunas conexiones no se puede); mientras tanto escríbeme.'
+          : err === 'no-speech' ? 'No te escuché. 🎤 Toca el micrófono y habla cerca.'
+            : err === 'network' ? 'Para entenderte hablando necesito internet. Escríbeme mientras tanto.'
+              : err === 'aborted' ? this.respuesta() : 'No pude escucharte. Escríbeme la pregunta.');
+        this.acciones.set([]); this.opciones.set([]);
+        dicho = '';
+        this.cdr.detectChanges();
+      };
+      r.onend = () => {
+        this.oyendo.set(false);
+        this.reconocedor = null;
+        if (dicho) { this.pregunta = dicho; this.preguntar(); }
+        this.cdr.detectChanges();
+      };
+      this.reconocedor = r;
+      r.start();
+      this.oyendo.set(true);
+      this.ponerEstado('feliz', 1200);
+    } catch {
+      this.oyendo.set(false);
+      this.respuesta.set('No pude usar el micrófono aquí. Escríbeme la pregunta. 🙂');
+    }
+  }
 
   public preguntar(): void {
     const p = this.pregunta.trim();
@@ -515,6 +566,7 @@ export class MascotaComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    try { this.reconocedor?.abort(); } catch { /* nada */ }
     this.subAvisos.unsubscribe();
     this.subDatos?.unsubscribe();
     clearInterval(this.relojViernes);
