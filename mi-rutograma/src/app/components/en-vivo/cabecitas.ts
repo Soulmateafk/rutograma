@@ -2,6 +2,7 @@ import { Component, NgZone, OnDestroy, OnInit, effect, inject } from '@angular/c
 import { VivoService, CursorVivo } from '../../services/vivo.service';
 import { PresenciaService, nivelAusencia } from '../../services/presencia.service';
 import { zoomPagina } from '../../zoom';
+import { ThemeService } from '../../services/theme.service';
 
 /**
  * CABECITAS EN VIVO del Rutograma: la de cada persona de la oficina, de su
@@ -16,6 +17,7 @@ import { zoomPagina } from '../../zoom';
 export class CabecitasComponent implements OnInit, OnDestroy {
   private vivo = inject(VivoService);
   private presencia = inject(PresenciaService);
+  private theme = inject(ThemeService);
   private zone = inject(NgZone);
   private capa: HTMLDivElement | null = null;
   private elementos = new Map<string, { el: HTMLDivElement; x: number; y: number; tx: number; ty: number; angulo: number; celda?: HTMLElement | null }>();
@@ -27,7 +29,7 @@ export class CabecitasComponent implements OnInit, OnDestroy {
 
   constructor() {
     // Cada vez que llega una posición nueva, se redibuja.
-    effect(() => { this.vivo.cursores(); this.presencia.enLinea(); this.dibujar(); });
+    effect(() => { this.vivo.cursores(); this.presencia.enLinea(); this.theme.cambio(); this.dibujar(); });
   }
 
   ngOnInit(): void {
@@ -77,7 +79,8 @@ export class CabecitasComponent implements OnInit, OnDestroy {
   /** saltar: al hacer scroll o cambiar el tamaño, se ubica de una (no se desliza). */
   private dibujar(saltar = false): void {
     if (!this.capa) return;
-    const cursores = [...this.vivo.cursores().values()].filter(c => c.pagina === 'Rutograma');
+    // Esta cuenta puede no querer ver a los demás (Apariencia): igual manda dónde tiene su mouse.
+    const cursores = this.theme.veoEnVivo('cabecitas') ? [...this.vivo.cursores().values()].filter(c => c.pagina === 'Rutograma') : [];
     const vivos = new Set(cursores.map(c => c.pestana));
     for (const [id, x] of this.elementos) if (!vivos.has(id)) { x.el.remove(); this.soltarCelda(x.celda); this.elementos.delete(id); }
     const z = zoomPagina();

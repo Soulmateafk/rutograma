@@ -4912,6 +4912,8 @@ function preferenciasDe(usuario) {
         sonidoTemporada: p.sonidoTemporada !== false,
         contadorNavidad: p.contadorNavidad !== false,
         mascota: p.mascota !== false,
+        verPersonas: p.verPersonas !== false,
+        verEnVivo: { cabecitas: p.verEnVivo?.cabecitas !== false, marcas: p.verEnVivo?.marcas !== false, aviso: p.verEnVivo?.aviso !== false },
         ambiente: ['', 'temporada', 'lluvia', 'cafe', 'mar', 'campo', 'grillos', 'fogata', 'villancicos', 'misterio', 'cajita'].includes(p.ambiente) ? p.ambiente : '',
         ambienteVol: Number.isFinite(p.ambienteVol) ? Math.max(0, Math.min(100, Math.round(p.ambienteVol))) : 35,
         notas: Array.isArray(p.notas) ? p.notas.filter(n => n && typeof n.texto === 'string').slice(0, 30).map(n => ({

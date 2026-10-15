@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { NOMBRES_PAGINA, PersonaEnLinea, PresenciaService, nivelAusencia } from '../../services/presencia.service';
 import { elementosDeClave } from './marcador';
+import { ThemeService } from '../../services/theme.service';
 
 /**
  * "EDITANDO AHORA": avisos arriba a la derecha, siempre a la vista, de quién
@@ -43,9 +44,10 @@ import { elementosDeClave } from './marcador';
 export class EditandoAhoraComponent {
   private presencia = inject(PresenciaService);
   private router = inject(Router);
+  private theme = inject(ThemeService);
 
   /** Los demás que están editando algo ahora (no mis otras ventanas). */
-  readonly editando = computed(() => this.presencia.enLinea().filter(p => !p.esYo && p.editando).slice(0, 4));
+  readonly editando = computed(() => this.theme.veoEnVivo('aviso') ? this.presencia.enLinea().filter(p => !p.esYo && p.editando).slice(0, 4) : []);
 
   ausente(p: PersonaEnLinea): boolean { return !!nivelAusencia(p.ausenteSeg, p.oculta); }
 

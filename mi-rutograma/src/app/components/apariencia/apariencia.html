@@ -281,6 +281,28 @@
         <span class="ap-int-caja"></span>
         <span><strong>La mascota de MAKAND 🚚</strong><small>El camioncito de la esquina: saluda, mira el mouse, celebra al guardar, se duerme si no usas la app y se disfraza en cada fiesta. Tócalo y te dice algo.</small></span>
       </label>
+      <label class="ap-interruptor" data-guia="ap-personas">
+        <input type="checkbox" [checked]="theme.ap.verPersonas" (change)="theme.alternarVerPersonas()">
+        <span class="ap-int-caja"></span>
+        <span><strong>Ver a las demás personas en vivo 👥</strong><small>Sus cabecitas en el Rutograma, el color en lo que tienen abierto y quién está editando qué. Solo cambia lo que ves tú; los demás te siguen viendo.</small></span>
+      </label>
+      <div class="ap-sub" *ngIf="theme.ap.verPersonas">
+        <label class="ap-interruptor">
+          <input type="checkbox" [checked]="theme.ap.verEnVivo.cabecitas" (change)="theme.alternarVerEnVivo('cabecitas')">
+          <span class="ap-int-caja"></span>
+          <span><strong>Cabecitas en el Rutograma</strong><small>Dónde tiene el mouse cada persona, de su color.</small></span>
+        </label>
+        <label class="ap-interruptor">
+          <input type="checkbox" [checked]="theme.ap.verEnVivo.marcas" (change)="theme.alternarVerEnVivo('marcas')">
+          <span class="ap-int-caja"></span>
+          <span><strong>Color en lo que tienen abierto</strong><small>El viaje, vehículo, conductor o ruta que miran o editan, y la pestaña donde están.</small></span>
+        </label>
+        <label class="ap-interruptor">
+          <input type="checkbox" [checked]="theme.ap.verEnVivo.aviso" (change)="theme.alternarVerEnVivo('aviso')">
+          <span class="ap-int-caja"></span>
+          <span><strong>Aviso de quién está editando</strong><small>"Carlos está editando el vehículo LUN 428", arriba a la derecha.</small></span>
+        </label>
+      </div>
       <label class="ap-interruptor">
         <input type="checkbox" [checked]="theme.ap.saludo" (change)="theme.alternarSaludo()">
         <span class="ap-int-caja"></span>
