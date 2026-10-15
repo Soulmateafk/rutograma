@@ -1,3 +1,4 @@
+import { QuienAquiComponent } from '../en-linea/quien-pagina';
 import { Component, inject, NgZone, ChangeDetectorRef, HostListener, ViewChild, ElementRef, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -29,7 +30,7 @@ interface ResultadoBusqueda { tipo: string; etiqueta: string; subtitulo: string;
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive, EnLineaComponent],
+  imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive, EnLineaComponent, QuienAquiComponent],
   templateUrl: './navbar.html',
   styleUrls: ['./navbar.css']
 })
@@ -649,6 +650,9 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
   }
 
   /** Pestañas de la derecha según el rol (misma lista mientras el rol no cambie). */
+  /** Rutas que están dentro de "Más" (para los puntitos de quién está ahí). */
+  public rutasMas(): string { return this.paginasMenuMas.filter(p => this.rutasEnMenuMas.has(p.ruta)).map(p => p.ruta).join(','); }
+
   public get paginasMenuMas(): Array<{ nombre: string; ruta: string }> {
     const clave = `${this.authService.puedeVerAdministracion}-${this.authService.puedeAprobar}-${this.authService.necesitaAprobacion}-${this.authService.puede('eliminar')}`;
     if (this.cachePaginas.clave !== clave) {

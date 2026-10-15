@@ -244,6 +244,7 @@
                     <i class="bi" [ngClass]="vj.llegadaReal ? 'bi-flag-fill' : 'bi-play-fill'"></i>
                     {{ vj.llegadaReal ? 'Llegó ' + (vj.llegadaReal | date:'h:mm a') : 'Salió ' + (vj.salidaReal | date:'h:mm a') }}
                   </div>
+                  <app-quien-aqui class="ruto-quien" [viajeId]="vj.id" [tam]="16"></app-quien-aqui>
                   <div class="ruto-card-route">
                     {{ vj.destino || vj.ruta || 'Sin Ruta' }}<span *ngIf="vj.dest2"> + {{ vj.dest2 }}</span>
                   </div>
@@ -396,6 +397,7 @@
                     <i class="bi" [ngClass]="vj.llegadaReal ? 'bi-flag-fill' : 'bi-play-fill'"></i>
                     {{ vj.llegadaReal ? 'Llegó ' + (vj.llegadaReal | date:'h:mm a') : 'Salió ' + (vj.salidaReal | date:'h:mm a') }}
                   </div>
+                    <app-quien-aqui class="ruto-quien" [viajeId]="vj.id" [tam]="16"></app-quien-aqui>
                     <div class="ruto-card-route">{{ vj.destino || vj.ruta || 'Sin Ruta' }}</div>
                     <div class="ruto-card-transport">{{ vj.tr || 'Makand' }}</div>
                     <div class="ruto-card-driver">{{ vj.cond || conductoresMap[v.p] || 'Sin Conductor' }}</div>

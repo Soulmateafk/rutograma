@@ -117,7 +117,7 @@ function crearPresencia(vigenciaMs = VIGENCIA_MS) {
         enLinea(email, pestana, ahora = Date.now()) {
             const todas = vigentes(ahora);
             const vivas = todas.filter(p => p.pestana !== pestana);
-            const fila = (p, esYo) => ({ nombre: esYo ? 'Tú' : p.nombre, esYo, ...cara(p), dispositivo: p.dispositivo, pagina: p.pagina, accion: p.accion, editando: p.editando, oculta: p.oculta, haceSeg: Math.round((ahora - p.desde) / 1000),
+            const fila = (p, esYo) => ({ nombre: esYo ? 'Tú' : p.nombre, esYo, ...cara(p), dispositivo: p.dispositivo, pagina: p.pagina, accion: p.accion, editando: p.editando, oculta: p.oculta, haceSeg: Math.round((ahora - p.desde) / 1000), ...(p.clave ? { clave: p.clave } : {}),
                 ausenteSeg: esYo ? Math.max(0, Math.round((ahora - p.inactivoDesde) / 1000)) : ausenciaDe(todas, p.email, ahora) });
             const demas = unaPorPersona(vivas.filter(p => p.email !== email)).map(p => fila(p, false)).sort((a, b) => a.nombre.localeCompare(b.nombre));
             const yo = vivas.filter(p => p.email === email).sort((a, b) => b.desde - a.desde).map(p => fila(p, true));

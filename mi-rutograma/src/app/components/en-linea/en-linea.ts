@@ -5,7 +5,7 @@ import { CaraComponent } from './cara';
 
 /**
  * "En línea" de la barra de arriba: quién más está usando la app ahora
- * mismo, en qué página y qué está haciendo. Se actualiza solo (cada 8 s)
+ * mismo, en qué página y qué está haciendo. Se actualiza solo (cada 5 s)
  * y no guarda nada: es lo que pasa en este momento.
  */
 @Component({

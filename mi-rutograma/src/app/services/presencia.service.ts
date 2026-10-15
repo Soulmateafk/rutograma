@@ -1,4 +1,4 @@
-import { Injectable, NgZone, inject, signal } from '@angular/core';
+import { Injectable, NgZone, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from './auth.service';
@@ -6,14 +6,14 @@ import { API } from '../api-base';
 
 const API_URL = API;
 
-const NOMBRES_PAGINA: Record<string, string> = {
+export const NOMBRES_PAGINA: Record<string, string> = {
   dashboard: 'Dashboard', rutograma: 'Rutograma', vehiculos: 'Vehículos', 'hoja-de-vida': 'Hoja de vida',
   rutas: 'Rutas', conductores: 'Conductores', agenda: 'Agenda de conductor', configuracion: 'Configuración',
   historico: 'Histórico', comparativo: 'Comparativo', cumplimiento: 'Cumplimiento', resumen: 'Resumen',
   sesiones: 'Sesiones', aprobaciones: 'Aprobaciones', admin: 'Administración', reglas: 'Reglas', comparendos: 'Comparendos', quejas: 'Quejas', mapa: 'Mapa', despachos: 'Despachos', papelera: 'Papelera'
 };
 
-export interface PersonaEnLinea { nombre: string; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; dispositivo: string; pagina: string; accion: string; editando: boolean; oculta: boolean; haceSeg: number; ausenteSeg?: number; }
+export interface PersonaEnLinea { nombre: string; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; dispositivo: string; pagina: string; accion: string; editando: boolean; oculta: boolean; haceSeg: number; ausenteSeg?: number; clave?: string; }
 export interface OtroAqui { nombre: string; editando: boolean; esYo: boolean; avatar?: string; aid?: string; fotoV?: string; ausenteSeg?: number; }
 
 /** Ausente: más de 5 min sin mover el mouse ni teclear (amarillo); más de 10 min (rojo). */
@@ -28,7 +28,7 @@ export function textoAusencia(seg: number | undefined): string {
 
 /**
  * EN LÍNEA AHORA (backend/presencia.js): cada pestaña de la oficina avisa
- * cada 8 s en qué página está y qué hace ("editando el viaje BOG-CAL de
+ * cada 5 s en qué página está y qué hace ("editando el viaje BOG-CAL de
  * PRZ 065"), y recibe a los demás. Las pantallas llaman a establecer()
  * cuando abren o editan algo, y a limpiar() al cerrarlo. No queda en
  * ningún historial: es solo lo que pasa en este momento.
@@ -61,6 +61,18 @@ export class PresenciaService {
 
   /** Los demás en la app ahora. */
   readonly enLinea = signal<PersonaEnLinea[]>([]);
+  /** Dónde está cada persona (no mis otras ventanas): página → personas. */
+  readonly porPagina = computed(() => {
+    const m = new Map<string, PersonaEnLinea[]>();
+    for (const p of this.enLinea()) if (!p.esYo && p.pagina) m.set(p.pagina, [...(m.get(p.pagina) || []), p]);
+    return m;
+  });
+  /** Qué viaje tiene abierto cada persona: id del viaje → personas (para el puntito en el Rutograma). */
+  readonly porViaje = computed(() => {
+    const m = new Map<string, PersonaEnLinea[]>();
+    for (const p of this.enLinea()) if (!p.esYo && p.clave?.startsWith('viaje:')) { const id = p.clave.slice(6); m.set(id, [...(m.get(id) || []), p]); }
+    return m;
+  });
   /** Los demás con el mismo objeto abierto que esta pestaña. */
   readonly otros = signal<OtroAqui[]>([]);
 
@@ -93,13 +105,14 @@ export class PresenciaService {
     this.activo = true;
     this.latir();
     this.zone.runOutsideAngular(() => {
-      // Visible: cada 8 s. Minimizada o detrás de otra ventana: cada ~25 s
-      // (antes no avisaba y a los 30 s esa persona desaparecía de la lista
-      // aunque siguiera con la app abierta).
+      // Visible: cada 5 s (los puntitos de dónde está cada uno se ven casi
+      // en vivo). Minimizada o detrás de otra ventana: cada ~25 s (antes no
+      // avisaba y a los 30 s esa persona desaparecía de la lista aunque
+      // siguiera con la app abierta).
       this.reloj = setInterval(() => {
         const visible = document.visibilityState === 'visible';
         if (visible || Date.now() - this.ultimoLatido >= 25000) this.latir();
-      }, 8000);
+      }, 5000);
     });
   }
 

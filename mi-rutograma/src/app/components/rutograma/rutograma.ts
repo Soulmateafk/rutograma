@@ -17,6 +17,7 @@ import autoTable from 'jspdf-autotable';
 import { viajeCerrado, motivoFechaAnterior, fechaDelDia } from '../../services/dias-cerrados';
 import { FotoNovedadComponent } from '../foto-novedad/foto-novedad';
 import { PresenciaService } from '../../services/presencia.service';
+import { QuienAquiComponent } from '../en-linea/quien-pagina';
 import { OtrosAquiComponent } from '../en-linea/otros-aqui';
 import { revisarMes, rangoViaje, ProblemaViaje } from '../../services/revision-viajes';
 
@@ -56,7 +57,7 @@ interface Viaje {
   selector: 'app-rutograma',
   templateUrl: './rutograma.html',
   standalone: true,
-  imports: [EsqueletoComponent, CommonModule, FormsModule, RouterLink, FotoNovedadComponent, OtrosAquiComponent, PlanBComponent], 
+  imports: [EsqueletoComponent, CommonModule, FormsModule, RouterLink, FotoNovedadComponent, OtrosAquiComponent, PlanBComponent, QuienAquiComponent], 
   styleUrls: ['./rutograma.css']
 })
 export class RutogramaComponent implements OnInit, OnDestroy {
