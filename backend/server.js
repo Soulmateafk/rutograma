@@ -30,7 +30,7 @@ const { DIAS_EN_PAPELERA, TIPOS: TIPOS_PAPELERA, queSeElimina, restaurarEn, venc
 const { cargaSugerida, salidaDelDespacho, MOTIVOS_DEMORA, limiteValido, demorados, TIPOS_CARGA, totalesCarga, minutosDelRegistro, textoMinutos, rangoPeriodo, validarDespacho, resumenDespachos, filasExcel, nombreArchivo, fechaBonita } = require('./despachos');
 const { armarHistorialViaje } = require('./historial');
 const { nombresParecidos, escritoIgual } = require('./buscar-nombre');
-const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar, motivoFechaAnterior, motivoExtraEnElPasado, viajeEnRuta, textoEnRuta } = require('./dias-cerrados');
+const { fechaLocal, motivoBloqueoGuardar, motivoBloqueoEliminar, motivoFechaAnterior, motivoExtraEnElPasado, viajeEnRuta, textoEnRuta, viajeCerrado } = require('./dias-cerrados');
 const { documentosVencidos, choquesDeAgenda, cambioLoQueSeRevisa, esPlacaCupo } = require('./revision-viajes');
 const { reglasIncumplidas } = require('./reglas-asignacion');
 const { crearPresencia, primerNombre } = require('./presencia');
@@ -1281,7 +1281,11 @@ app.use((req, res, next) => {
         const data = leerExcel();
         const previo = viaje.id !== undefined && viaje.id !== null ? (data.viajes || []).find(v => v.id === viaje.id) : null;
         // Un viaje que todavía no pasa no se manda a antes de hoy (salida o retorno).
-        const anterior = motivoFechaAnterior(previo, viaje, fechaLocal()) || motivoExtraEnElPasado(previo, viaje, fechaLocal());
+        // Un Viaje Extra en un día que ya pasó solo con el permiso de días cerrados
+        // (el jefe y el administrador lo tienen; ver dias-cerrados.js).
+        const solicitanteDC = normalizarEmail(req.headers['x-user-email']);
+        const puedeDiasCerrados = solicitanteDC === normalizarEmail(ADMIN_EMAIL) || !!permisosDelSolicitante(req)?.editarDiasPasados;
+        const anterior = motivoFechaAnterior(previo, viaje, fechaLocal()) || (puedeDiasCerrados ? '' : motivoExtraEnElPasado(previo, viaje, fechaLocal()));
         if (anterior) {
             res.locals.auditoriaOmitir = true;
             return res.status(400).json({ ok: false, codigo: 'dia_anterior', msg: anterior });
@@ -1474,6 +1478,11 @@ app.post('/api/papelera/restaurar', (req, res) => {
         const item = leerPapeleraDB(modoActual(), Number(req.body?.id));
         if (!item) { res.locals.auditoriaOmitir = true; return res.status(404).json({ ok: false, msg: 'Ya no está en la papelera (pasaron más de 30 días).' }); }
         if (item.restauradoEn) { res.locals.auditoriaOmitir = true; return res.status(409).json({ ok: false, msg: 'Eso ya se recuperó.' }); }
+        // Recuperar un viaje de un día cerrado es como añadirlo: pide el mismo permiso.
+        if (item.tipo === 'viaje' && viajeCerrado(item.datos || {}, fechaLocal())) {
+            const puede = acceso.email === normalizarEmail(ADMIN_EMAIL) || !!permisosDelSolicitante(req)?.editarDiasPasados;
+            if (!puede) { res.locals.auditoriaOmitir = true; return res.status(403).json({ ok: false, codigo: 'dia_cerrado', msg: 'Ese viaje es de un día cerrado: recuperarlo necesita el permiso "Añadir, cambiar o borrar viajes de días ya cerrados".' }); }
+        }
         let resultado;
         if (item.tipo === 'despacho') {
             const { id, clienteId, ...resto } = item.datos || {};

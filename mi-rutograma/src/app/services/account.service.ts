@@ -35,7 +35,7 @@ export const PERMISOS_INFO: Array<{ clave: keyof Permisos; nombre: string; ayuda
   { grupo: 'Cambios', clave: 'sinAprobacion', nombre: 'Sus cambios se aplican sin esperar aprobación', ayuda: 'Sin esto, cada cambio espera a que alguien lo apruebe.' },
   { grupo: 'Cambios', clave: 'eliminar', nombre: 'Eliminar viajes, vehículos, rutas, conductores y novedades', ayuda: '' },
   { grupo: 'Cambios', clave: 'generarMatriz', nombre: 'Generar la Matriz del mes', ayuda: '' },
-  { grupo: 'Cambios', clave: 'editarDiasPasados', nombre: 'Cambiar o borrar viajes de días ya cerrados', ayuda: 'Sin esto, en un viaje que ya terminó solo se anota el estado y lo que pasó después.' },
+  { grupo: 'Cambios', clave: 'editarDiasPasados', nombre: 'Añadir, cambiar o borrar viajes de días ya cerrados', ayuda: 'Sin esto, en un viaje que ya terminó solo se anota el estado y lo que pasó después, y no se pueden añadir viajes en días que ya pasaron.' },
   { grupo: 'Cambios', clave: 'importarExcel', nombre: 'Importar viajes reales desde Excel', ayuda: '' },
   { grupo: 'Cambios', clave: 'reacomodarCupos', nombre: 'Reacomodar cupos de Arsitrans y Polar', ayuda: '' },
   { grupo: 'Cambios', clave: 'editarConfiguracion', nombre: 'Cambiar transportadoras, cupos de Configuración y festivos', ayuda: '' },
