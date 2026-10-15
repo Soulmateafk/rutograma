@@ -189,7 +189,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: 'cond-agenda', titulo: 'Agenda del conductor', texto: 'Su mes en un calendario: qué día sale a cada viaje (ruta, destino, vehículo y hora), los días en ruta, sus descansos y los días libres. Se puede imprimir.' },
       { el: 'cond-whatsapp', titulo: 'Avisar por WhatsApp', texto: 'Abre el chat de WhatsApp del conductor con sus viajes de los próximos 7 días ya escritos (fecha, vehículo, ruta, hora y nota). Solo revisas y tocas Enviar. Necesita su celular guardado.' },
       { el: 'cond-carga', titulo: 'Carga de trabajo', texto: 'Quién lleva más y menos viajes en el mes, cuántos días en ruta, kilómetros, descansos y cuántos días seguidos ha manejado sin descansar. Rojo: sobrecargado; amarillo: poca carga.' },
-      { el: 'cond-viajes', titulo: 'Viajes por conductor', texto: 'Los viajes de cada conductor en el mes.' }
+      { el: 'cond-viajes', titulo: 'Viajes del mes', texto: 'Escribe un conductor, una placa o una transportadora (Makand, Polar, Arsitrans) y verás todos sus viajes del mes, separados por transportadora. Toca la flechita de un viaje para abrirlo en el Rutograma.' }
     ]
   },
 
@@ -533,8 +533,9 @@ export const TAREAS: Tarea[] = [
     pasos: [
       { el: '', titulo: 'Mover un viaje arrastrándolo', texto: 'Esta guía solo te muestra cómo: no mueve nada.' },
       { el: '.ruto-card-viaje[draggable="true"]', titulo: 'Agarra el viaje', texto: 'Pon el mouse sobre el viaje, mantén oprimido el botón y arrástralo. El viaje se pone transparente mientras lo llevas.' },
-      { el: '.ruto-td-day-cell', titulo: 'Suéltalo en otro día', texto: 'La casilla donde lo vas a soltar se ilumina y dice "Soltar aquí". Puede ser otro día del mismo vehículo u otro vehículo de la misma transportadora. Los días que dura el viaje se mueven con él.' },
-      { el: '', titulo: 'Las reglas se cumplen igual', texto: 'Si el vehículo ya tiene un viaje esos días, si el día ya pasó o si la semana está cerrada, la app te avisa (y en semana cerrada pide el motivo), igual que al editarlo a mano.' + AVISO_APROBACION },
+      { el: '.ruto-td-day-cell', titulo: 'Suéltalo en otro día', texto: 'La casilla donde lo vas a soltar se ilumina y dice "Soltar aquí". Puede ser otro día del mismo vehículo u otro vehículo, también de otra transportadora (Makand, Polar o Arsitrans). Los días que dura el viaje se mueven con él.' },
+      { el: '', titulo: 'Confirma el cambio', texto: 'Antes de mover, la app te muestra de dónde a dónde va, si cambia el conductor y si cambia de transportadora. Toca "Sí, mover" o "Cancelar". Si cambia de transportadora, el viaje pasa a contar para la nueva y el conductor de antes no sigue: queda el del vehículo nuevo.' },
+      { el: '', titulo: 'Las reglas se cumplen igual', texto: 'Si el vehículo ya tiene un viaje esos días, si tiene documentos vencidos, si no cumple las reglas de la oficina, si el día ya pasó o si la semana está cerrada, la app te avisa (y en semana cerrada pide el motivo), igual que al editarlo a mano.' + AVISO_APROBACION },
       { el: '', titulo: 'Deshacer', texto: 'Después de moverlo sale abajo "Viaje movido — Deshacer" unos segundos. También sirve Ctrl+Z.' },
       { el: 'ruto-viaje', titulo: 'Clic derecho', texto: 'Con clic derecho sobre un viaje sale un menú: ver, editar, duplicar, historial, hoja de ruta, avisar al conductor por WhatsApp, su agenda o fijar el vehículo arriba.' }
     ]

@@ -254,12 +254,20 @@ function chocaConViajeExistente(
     diasABloquear
   );
 
-  return (
+  const seCruzan =
     fechaNewStart.getTime() <=
       finTransito.getTime() &&
     fechaNewEnd.getTime() >=
-      fechaExistingStart.getTime()
-  );
+      fechaExistingStart.getTime();
+  if (!seCruzan) return false;
+
+  // "Llega y se va": el viaje nuevo sale el mismo día en que el otro
+  // regresa (su último día), o regresa el día en que el otro sale. No es
+  // choque: el vehículo llega y vuelve a salir.
+  const mismoDia = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const saleCuandoElOtroLlega = mismoDia(fechaNewStart, finTransito) && fechaNewStart.getTime() > fechaExistingStart.getTime();
+  const llegaCuandoElOtroSale = mismoDia(fechaNewEnd, fechaExistingStart) && fechaNewStart.getTime() < fechaExistingStart.getTime();
+  return !(saleCuandoElOtroLlega || llegaCuandoElOtroSale);
 }
 
 /**

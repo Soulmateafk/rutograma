@@ -9,6 +9,8 @@ import { Subject } from 'rxjs';
 export class UiService {
   /** Frase de la búsqueda hablada abierta (null = cerrada). La abre el buscador de arriba. */
   public busquedaHablada = signal<string | null>(null);
+  /** Cambios esperando aprobación (lo cuenta la barra de arriba; la mascota reacciona). null = aún no se sabe. */
+  public pendientesAprobacion = signal<number | null>(null);
 
 
   constructor(@Inject(PLATFORM_ID) private platformId: Object, private sanitizer: DomSanitizer, private sonido: SonidoService, private chispas: ChispasService) {}

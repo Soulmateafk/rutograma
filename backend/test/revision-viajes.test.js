@@ -32,16 +32,20 @@ test('documentos: cuenta el conductor anotado, no el titular; los cupos y cancel
 });
 
 test('choques: mismo vehículo cruzado; salir el día del retorno no choca', () => {
+    // a sale el 5 y su último día (el "Retorno" que se ve) es el 7.
     const a = viaje(1, 'LUN 428', '2026-10-05', 5, 8);
-    const viajes = [a, viaje(2, 'LUN 428', '2026-10-08', 8, 9), viaje(3, 'LUN 428', '2026-10-07', 7, 8), viaje(4, 'NOW 033', '2026-10-06', 6, 7)];
+    const viajes = [a, viaje(2, 'LUN 428', '2026-10-08', 8, 9), viaje(3, 'LUN 428', '2026-10-07', 7, 8), viaje(5, 'LUN 428', '2026-10-06', 6, 7), viaje(4, 'NOW 033', '2026-10-06', 6, 7)];
     const c = choquesDeAgenda(a, viajes, data.conductores);
-    assert.deepStrictEqual(c.map(x => [x.viaje.id, x.por]), [[3, 'vehículo']]);
+    // El 6 choca; el 7 (llega y se va) y el 8 no.
+    assert.deepStrictEqual(c.map(x => [x.viaje.id, x.por]), [[5, 'vehículo']]);
+    // Visto desde el que sale el día del retorno: tampoco choca.
+    assert.deepStrictEqual(choquesDeAgenda(viajes[2], viajes, data.conductores).map(x => x.viaje.id), []);
     // Mismo día, viaje de un solo día: choca.
     assert.strictEqual(choquesDeAgenda(viaje(9, 'NOW 033', '2026-10-06', 6, 0), viajes, data.conductores).length, 1);
 });
 
 test('choques: el mismo conductor en dos vehículos a la vez', () => {
-    const viajes = [viaje(1, 'LUN 428', '2026-10-05', 5, 7), viaje(2, 'NOW 033', '2026-10-06', 6, 7, { cond: 'Javier Torres' })];
+    const viajes = [viaje(1, 'LUN 428', '2026-10-05', 5, 8), viaje(2, 'NOW 033', '2026-10-06', 6, 7, { cond: 'Javier Torres' })];
     const c = choquesDeAgenda(viajes[1], viajes, data.conductores);
     assert.deepStrictEqual(c.map(x => x.por), ['conductor']);
     assert.match(c[0].texto, /Javier Torres es el titular de LUN 428, que tiene el viaje BOG-CAL del 05\/10\/2026 sin conductor anotado/);
@@ -55,7 +59,7 @@ test('choques: el mismo conductor en dos vehículos a la vez', () => {
 });
 
 test('revisarMes junta los problemas del mes', () => {
-    const r = revisarMes({ ...data, viajes: [viaje(1, 'LUN 428', '2026-10-05', 5, 7), viaje(2, 'LUN 428', '2026-10-06', 6, 7), viaje(3, 'LUN 428', '2026-11-20', 20, 21)] }, '2026-10');
+    const r = revisarMes({ ...data, viajes: [viaje(1, 'LUN 428', '2026-10-05', 5, 8), viaje(2, 'LUN 428', '2026-10-06', 6, 7), viaje(3, 'LUN 428', '2026-11-20', 20, 21)] }, '2026-10');
     assert.deepStrictEqual(r.map(x => x.viaje.id), [1, 2]);
 });
 

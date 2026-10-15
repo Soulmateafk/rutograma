@@ -97,7 +97,7 @@ function camposProtegidosCambiados(antes, despues) {
 function motivoBloqueoGuardar(previo, nuevo, hoy = fechaLocal()) {
     if (!previo) {
         return viajeCerrado(nuevo, hoy)
-            ? 'No se permite añadir viajes en días ya cerrados (ese día ya pasó). Escoge hoy o un día siguiente; para cargar un viaje de un día pasado hace falta el permiso "Cambiar o borrar viajes de días ya cerrados".'
+            ? 'No se permite añadir viajes en días ya cerrados (ese día ya pasó). Escoge hoy o un día siguiente; para cargar un viaje de un día pasado hace falta el permiso "Añadir, cambiar o borrar viajes de días ya cerrados".'
             : '';
     }
     if (viajeCerrado(previo, hoy)) {
@@ -162,9 +162,9 @@ function viajeEnRuta(viaje, hoy = fechaLocal()) {
 }
 
 /**
- * Un Viaje Extra nuevo: nunca en un día que ya pasó (para ninguna cuenta:
- * no sería un dato real; los viajes reales de días pasados se cargan con
- * "Importar viajes reales").
+ * Un Viaje Extra nuevo en un día que ya pasó. Solo lo pueden cargar las
+ * cuentas con el permiso de días cerrados (server.js no llama esto para
+ * ellas); para las demás no sería un dato real.
  */
 function motivoExtraEnElPasado(previo, nuevo, hoy = fechaLocal()) {
     if (previo || !nuevo || nuevo.tipo !== 'extra') return '';

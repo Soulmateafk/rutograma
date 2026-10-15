@@ -870,9 +870,11 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   }
 
   // ============================================================
-  // ARRASTRAR Y SOLTAR un viaje a otro día u otro vehículo (de la misma
-  // transportadora). Pasa por las mismas reglas que editarlo a mano:
-  // días cerrados, choques, semana cerrada, aprobación del jefe.
+  // ARRASTRAR Y SOLTAR un viaje a otro día u otro vehículo, también de otra
+  // transportadora (Makand ↔ Polar ↔ Arsitrans). Antes de mover se pide
+  // confirmación con el resumen del cambio. Pasa por las mismas reglas que
+  // editarlo a mano: días cerrados, choques, documentos vencidos, reglas
+  // de la oficina, semana cerrada y aprobación del jefe.
   // ============================================================
   public arrastrando: any = null;
   public celdaDestino = '';
@@ -884,7 +886,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   public alEmpezarArrastre(e: DragEvent, vj: any, v: any): void {
     if (!this.puedeArrastrar(vj)) { e.preventDefault(); return; }
     this.ocultarTooltipViaje();
-    this.arrastrando = { id: vj.id, placa: String(v.p || '').toUpperCase().trim(), tr: String(v.tr || v.transportadora || 'Makand').toLowerCase() };
+    this.arrastrando = { id: vj.id, placa: String(v.p || '').toUpperCase().trim(), urbano: String(v.categoria || '').trim() === 'Urbano' };
     e.dataTransfer?.setData('text/plain', String(vj.id));
     if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
     document.body.classList.add('ruto-arrastrando');
@@ -896,7 +898,8 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   }
   public alPasarSobreCelda(e: DragEvent, v: any, d: number): void {
     if (!this.arrastrando) return;
-    if (String(v.tr || v.transportadora || 'Makand').toLowerCase() !== this.arrastrando.tr) return;   // otra transportadora: no se puede soltar
+    // Entre transportadoras sí se puede; solo no se mezclan los vehículos urbanos (entregas locales) con los viajeros.
+    if ((String(v.categoria || '').trim() === 'Urbano') !== this.arrastrando.urbano) return;
     e.preventDefault();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
     this.celdaDestino = String(v.p || '').toUpperCase().trim() + '-' + d;
@@ -906,10 +909,21 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     const datos = this.arrastrando;
     this.alTerminarArrastre();
     if (!datos) return;
-    await this.moverViaje(datos.id, String(v.p || '').toUpperCase().trim(), d);
+    await this.moverViaje(datos.id, String(v.p || '').toUpperCase().trim(), d, v);
   }
 
-  private async moverViaje(id: any, placa: string, dia: number): Promise<void> {
+  /** "Makand", "Polar" o "Arsitrans" de un vehículo o viaje. */
+  private nombreTr(x: any): string {
+    const t = String(x?.tr || x?.transportadora || 'Makand').toLowerCase();
+    return t.startsWith('polar') ? 'Polar' : t.startsWith('arsi') ? 'Arsitrans' : t.startsWith('makand') || !t ? 'Makand' : String(x.tr || x.transportadora);
+  }
+
+  private textoDiaMovido(fecha: string, dia: number): string {
+    const d = fecha ? new Date(fecha.slice(0, 10) + 'T00:00:00') : null;
+    return d && !isNaN(d.getTime()) ? d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }) : `día ${dia}`;
+  }
+
+  private async moverViaje(id: any, placa: string, dia: number, vehDestino?: any): Promise<void> {
     const original = (this.ds.S.viajes || []).find((x: any) => x.id === id);
     if (!original) return;
     const salidaVieja = Number(original.salida ?? original.dia);
@@ -918,9 +932,17 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     const delta = dia - salidaVieja;
     const movido: any = { ...original, p: placa, veh: placa, placa, salida: dia, dia, retorno: Number(original.retorno ?? salidaVieja + 1) + delta,
       fecha: original.fecha ? fechaDelDia(original.fecha, dia) : original.fecha };
+    // Transportadora: la del vehículo donde se suelta (así cuenta para Makand, Polar o Arsitrans).
+    const veh = vehDestino || (this.ds.S.vehiculos || []).find((x: any) => String(x.p || x.placa || '').toUpperCase().trim() === placa);
+    const trVieja = this.nombreTr(original), trNueva = veh ? this.nombreTr(veh) : trVieja;
+    const cambiaTr = trNueva !== trVieja;
+    if (cambiaTr) { movido.tr = trNueva; movido.transportadora = trNueva; }
     // El conductor del vehículo se va con el vehículo (si el viaje tenía el del vehículo viejo).
-    if (placa !== placaVieja && (!original.cond || original.cond === this.conductoresMap[placaVieja]) && this.conductoresMap[placa]) movido.cond = this.conductoresMap[placa];
-    const motivo = motivoFechaAnterior(original, movido);
+    // Al cambiar de transportadora el conductor de antes no sigue: queda el del vehículo nuevo (o ninguno).
+    const titularNuevo = this.conductoresMap[placa];
+    if (cambiaTr) movido.cond = titularNuevo && !/^sin /i.test(String(titularNuevo)) ? titularNuevo : null;
+    else if (placa !== placaVieja && (!original.cond || original.cond === this.conductoresMap[placaVieja]) && this.conductoresMap[placa]) movido.cond = this.conductoresMap[placa];
+    const motivo = this.auth.puede('editarDiasPasados') ? '' : motivoFechaAnterior(original, movido);
     if (motivo) { this.ui.mostrarToast(`<i class="bi bi-calendar-x"></i> ${motivo}`, 'err'); return; }
     if (Number(movido.retorno) - 1 > this.diasMes.length) { this.ui.mostrarToast('Ese viaje se saldría del mes. Muévelo a un día más temprano o edítalo.', 'err'); return; }
     const choques = obtenerViajesEnConflicto(placa, movido.salida, movido.retorno, this.ds.S, id);
@@ -928,12 +950,29 @@ export class RutogramaComponent implements OnInit, OnDestroy {
       this.ui.mostrarToast(`<i class="bi bi-exclamation-triangle-fill"></i> ${placa} ya tiene el viaje ${choques[0].ruta || ''} esos días. Suéltalo en un día libre, o ábrelo y edítalo para reemplazarlo.`, 'info');
       return;
     }
+    // ¿Seguro? Resumen de lo que cambia antes de mover.
+    const nombreCond = (c: any) => c && !/^sin /i.test(String(c)) ? String(c) : 'Sin conductor';
+    const condAntes = nombreCond(original.cond || this.conductoresMap[placaVieja]);
+    const condDespues = nombreCond(movido.cond || (cambiaTr ? null : this.conductoresMap[placa]));
+    const lineas = [
+      `¿Seguro que quieres mover este viaje?`,
+      ``,
+      `🚚 ${original.ruta || original.codigo || 'Viaje'}${original.cliente ? ` · ${original.cliente}` : ''}${original.destino ? ` · ${original.destino}` : ''}`,
+      `De:  ${placaVieja} (${trVieja}) · ${this.textoDiaMovido(original.fecha, salidaVieja)}`,
+      `A:    ${placa} (${trNueva}) · ${this.textoDiaMovido(movido.fecha, dia)}`
+    ];
+    if (condAntes !== condDespues) lineas.push(`👤 Conductor: ${condAntes} → ${condDespues}`);
+    if (cambiaTr) lineas.push(``, `🔁 Cambia de transportadora: ${trVieja} → ${trNueva}. Se contará como viaje de ${trNueva}.`);
+    if (this.auth.necesitaAprobacion) lineas.push(``, `El cambio queda pendiente hasta que el jefe lo apruebe.`);
+    const seguro = await this.mostrarConfirmPersonalizado(lineas.join('\n'), 'Sí, mover', 'Cancelar');
+    if (!seguro) return;
+
     this.moviendoViaje = true;
     try {
       const ok = await this.ds.guardarViaje(movido, false, { protegerDeChoques: true, revisarChoquesAgenda: true, baseOriginal: original, baseVista: original });
       if (ok) {
         this.sonido.tocar('soltar');
-        this.ds.avisarDeshacer(`Viaje ${movido.ruta || ''} movido a ${placa}, día ${dia}`);
+        this.ds.avisarDeshacer(`Viaje ${movido.ruta || ''} movido a ${placa}${cambiaTr ? ` (${trNueva})` : ''}, día ${dia}`);
       }
     } finally {
       this.moviendoViaje = false;
@@ -3516,7 +3555,8 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     if (Number.isFinite(retornoVisto) && retornoVisto < salida && Number(this.selectedViaje.retorno) !== Number(original.retorno)) {
       return `El retorno (día ${retornoVisto}) no puede ser antes de la salida (día ${salida}).`;
     }
-    return motivoFechaAnterior(original, this.viajeConFechasEditadas());
+    // Con el permiso de días cerrados se pueden poner fechas que ya pasaron.
+    return this.auth.puede('editarDiasPasados') ? '' : motivoFechaAnterior(original, this.viajeConFechasEditadas());
   }
 
   /** El viaje con la fecha de acuerdo a la Salida escrita (la Salida es un número de día del mes del viaje). */

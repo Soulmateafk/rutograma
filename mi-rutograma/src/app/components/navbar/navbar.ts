@@ -43,10 +43,9 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
   // El Rutograma (y por lo tanto "+ Viaje Extra") solo usa placas Viajero
   // y Tercero — las Urbano (entregas locales) no deben poder elegirse
   // aquí.
-  /** Sin permiso para días cerrados, el viaje extra no puede ser de un día que ya pasó. */
-  /** Un Viaje Extra nunca va en un día que ya pasó, para ninguna cuenta (no sería un dato real). */
+  /** Sin el permiso de días cerrados, el viaje extra no puede ser de un día que ya pasó ('' = sin límite). */
   public get fechaMinimaViajeExtra(): string {
-    return fechaLocal();
+    return this.authService.puede('editarDiasPasados') ? '' : fechaLocal();
   }
 
   /** La fecha escogida ya pasó y la cuenta no puede cargar viajes en días cerrados. */
@@ -673,6 +672,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
       const res = await this.authService.fetchAutenticado(`${base}/aprobaciones`);
       const data = await res.json();
       const n = data?.ok ? Number(data.pendientes) || 0 : 0;
+      if (data?.ok) this.ui.pendientesAprobacion.set(n);
       if (n !== this.pendientesAprobacion) {
         this.pendientesAprobacion = n;
         this.cdr.markForCheck();

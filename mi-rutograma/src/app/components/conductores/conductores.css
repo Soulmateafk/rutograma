@@ -358,3 +358,45 @@ a.action-btn { display: inline-flex; align-items: center; justify-content: cente
 
 .cond-perfil { color: inherit; text-decoration: none; border-bottom: 1px dashed transparent; }
 .cond-perfil:hover { color: var(--acento-texto, #60a5fa); border-bottom-color: currentColor; }
+
+/* ---------- Viajes del mes (búsqueda) ---------- */
+.vm-card { margin-top: 20px; padding: 16px; }
+.vm-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.vm-head h2 { font-size: 16px; margin: 0; color: var(--color-texto-principal); }
+.vm-total { font-size: 12px; color: var(--color-texto-apagado); }
+.vm-buscar { position: relative; display: flex; align-items: center; }
+.vm-buscar i { position: absolute; left: 12px; color: var(--color-texto-apagado); pointer-events: none; }
+.vm-buscar input { width: 100%; padding: 11px 36px 11px 36px; border-radius: 10px; border: 1px solid var(--color-borde); background: var(--color-fondo-input); color: var(--color-texto-principal); font-size: 14px; }
+.vm-buscar input:focus { outline: none; border-color: var(--acento, #3b82f6); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento, #3b82f6) 25%, transparent); }
+.vm-limpiar { position: absolute; right: 8px; background: none; border: 0; font-size: 20px; line-height: 1; color: var(--color-texto-apagado); cursor: pointer; }
+.vm-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+.vm-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--color-borde); background: var(--color-fondo-tarjeta); color: var(--color-texto-secundario); font-size: 12px; cursor: pointer; transition: transform .12s ease; }
+.vm-chip b { color: var(--color-texto-principal); }
+.vm-chip:hover { transform: translateY(-1px); }
+.vm-chip.activo { border-color: var(--vm-color); background: color-mix(in srgb, var(--vm-color) 22%, transparent); color: var(--color-texto-principal); }
+.vm-punto { width: 10px; height: 10px; border-radius: 50%; background: var(--vm-color); display: inline-block; flex: none; }
+.tr-makand { --vm-color: var(--tr-makand, #3b82f6); }
+.tr-polar { --vm-color: var(--tr-polar, #0ea5e9); }
+.tr-arsitrans { --vm-color: var(--tr-arsitrans, #10b981); }
+.vm-ayuda { color: var(--color-texto-apagado); font-size: 13px; margin: 12px 0 2px; line-height: 1.5; }
+.vm-grupo { margin-top: 16px; border-left: 4px solid var(--vm-color, #64748b); padding-left: 12px; animation: vm-entra .3s ease-out; }
+@keyframes vm-entra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.vm-grupo h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 15px; color: var(--color-texto-principal); }
+.vm-grupo h3 small { font-size: 12px; font-weight: 500; color: var(--color-texto-apagado); }
+.vm-scroll { overflow-x: auto; max-height: 460px; overflow-y: auto; border: 1px solid var(--color-borde); border-radius: 8px; }
+.vm-tabla { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.vm-tabla th { position: sticky; top: 0; z-index: 1; background: var(--color-fondo-tarjeta, #111827); text-align: left; padding: 8px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--color-texto-apagado); border-bottom: 1px solid var(--color-borde); }
+.vm-tabla td { padding: 7px 10px; border-bottom: 1px solid color-mix(in srgb, var(--color-borde) 60%, transparent); color: var(--color-texto-secundario); white-space: nowrap; }
+.vm-tabla tr:hover td { background: color-mix(in srgb, var(--vm-color, #3b82f6) 8%, transparent); }
+.vm-ruta { font-weight: 700; color: var(--color-texto-principal) !important; }
+.vm-sub { color: var(--color-texto-apagado); text-transform: capitalize; font-size: 11px; margin-left: 4px; }
+.vm-cancelado td { opacity: .5; text-decoration: line-through; }
+.vm-estado { padding: 2px 8px; border-radius: 999px; font-size: 11px; background: rgba(148, 163, 184, .15); }
+.vm-estado[data-estado="Entregado"] { background: rgba(34, 197, 94, .18); color: #86efac; }
+.vm-estado[data-estado="En ruta"] { background: rgba(245, 158, 11, .18); color: #fcd34d; }
+.vm-estado[data-estado="Cancelado"] { background: rgba(239, 68, 68, .18); color: #fca5a5; }
+.vm-ver { background: none; border: 1px solid var(--color-borde); border-radius: 6px; padding: 2px 7px; color: var(--color-texto-secundario); cursor: pointer; }
+.vm-ver:hover { border-color: var(--vm-color); color: var(--color-texto-principal); }
+:host-context(body.tema-claro) .vm-estado[data-estado="Entregado"] { color: #15803d; }
+:host-context(body.tema-claro) .vm-estado[data-estado="En ruta"] { color: #b45309; }
+:host-context(body.tema-claro) .vm-estado[data-estado="Cancelado"] { color: #b91c1c; }

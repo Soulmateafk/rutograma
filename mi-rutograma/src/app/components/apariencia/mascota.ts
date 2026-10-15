@@ -1,5 +1,6 @@
 import { Component, NgZone, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ThemeService } from '../../services/theme.service';
 import { UiService } from '../../services/ui.service';
 import { AccountService } from '../../services/account.service';
@@ -8,6 +9,11 @@ import { DataService } from '../../services/data';
 import { ClimaService } from '../../services/clima.service';
 import { SonidoService } from '../../services/sonido.service';
 import { Router } from '@angular/router';
+import { GuiaService } from '../../services/guia.service';
+import { AtajosService } from '../../services/atajos.service';
+import { CelebracionService } from '../../services/celebracion.service';
+import { TAREAS } from '../../services/guias';
+import { responder, normalizarPregunta, EJEMPLOS, Accion, Tema } from './mascota-respuestas';
 import { temporadaVisible, diasParaElDia } from '../../services/temporadas';
 import { al, CONSEJOS, CONSEJOS_POR_PAGINA, DATOS, AL_GUARDAR, AL_ELIMINAR, AL_ERROR, COSQUILLAS, AL_DESPERTAR, TONTERIAS, HOLA, HORA, DIA_SEMANA, FIESTAS, datosDelRutograma } from './mascota-frases';
 
@@ -18,6 +24,10 @@ import { al, CONSEJOS, CONSEJOS_POR_PAGINA, DATOS, AL_GUARDAR, AL_ELIMINAR, AL_E
  *  - Se duerme si nadie usa la app un rato ("Zzz") y despierta al volver.
  *  - Se disfraza en cada fiesta (gorro de Papá Noel, sombrero de bruja,
  *    casco el Día del Trabajo, orejas de conejo en Pascua...).
+ *  - Se le pueden hacer preguntas (mascota-respuestas.ts): de un viaje, de
+ *    cuántos viajes hay, de cómo hacer algo… y aprende lo que no entiende.
+ *  - Reacciona a lo que pasa: todos los viajes de hoy entregados, un varado,
+ *    cambios aprobados o por aprobar. Los viernes a las 5 cuenta un chiste.
  *  - Habla: al tocarlo, y de vez en cuando solo, dice un consejo (también de
  *    la pantalla abierta), un dato curioso, un dato del propio Rutograma,
  *    algo de la festividad, según la hora, el día, el clima o la operación
@@ -29,10 +39,28 @@ type Estado = 'normal' | 'feliz' | 'triste' | 'dormido';
 @Component({
   selector: 'app-mascota',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="ms" *ngIf="visible()" [ngClass]="'ms-' + estado()" (click)="tocar()" title="¡Hola! Tócame">
-      <div class="ms-globo" *ngIf="globo() as g" animate.leave="ms-globo-sale">{{ g }}</div>
+      <div class="ms-globo" *ngIf="!panel() && globo() as g" animate.leave="ms-globo-sale">{{ g }}</div>
+      <!-- Pregúntale al furgoncito -->
+      <div class="ms-panel" *ngIf="panel()" animate.leave="ms-globo-sale" (click)="$event.stopPropagation()">
+        <button class="ms-cerrar" (click)="cerrarPanel()" title="Cerrar" aria-label="Cerrar">×</button>
+        <div class="ms-respuesta">{{ respuesta() }}</div>
+        <div class="ms-botones" *ngIf="acciones().length">
+          <button *ngFor="let a of acciones()" class="ms-accion" (click)="hacer(a)">{{ a.texto }} →</button>
+        </div>
+        <div class="ms-opciones" *ngIf="opciones().length">
+          <button *ngFor="let o of opciones()" class="ms-opcion" (click)="aprender(o)">{{ nombreTema(o) }}</button>
+        </div>
+        <form class="ms-pregunta" (ngSubmit)="preguntar()">
+          <input #cajaPregunta name="pregunta" [(ngModel)]="pregunta" placeholder="Pregúntame algo…" autocomplete="off" maxlength="200" (keydown.escape)="cerrarPanel()">
+          <button type="submit" [disabled]="!pregunta.trim()" aria-label="Preguntar">➤</button>
+        </form>
+        <div class="ms-sugerencias">
+          <button *ngFor="let s of sugerencias()" (click)="pregunta = s; preguntar()">{{ s }}</button>
+        </div>
+      </div>
       <span class="ms-zzz" *ngIf="estado() === 'dormido'">z<b>z</b><i>Z</i></span>
       <span class="ms-humo" *ngIf="estado() === 'feliz'"><i></i><i></i><i></i></span>
       <svg class="ms-cuerpo" viewBox="0 0 160 100" aria-hidden="true">
@@ -139,9 +167,23 @@ type Estado = 'normal' | 'feliz' | 'triste' | 'dormido';
     @keyframes ms-globo { from { opacity: 0; transform: translateY(8px) scale(.8); transform-origin: 0 100%; } to { opacity: 1; transform: none; } }
     .ms-globo-sale { animation: ms-globo-sale .25s ease-in forwards !important; }
     @keyframes ms-globo-sale { to { opacity: 0; transform: translateY(6px) scale(.9); } }
+    .ms-panel { position: absolute; left: 112px; bottom: 80px; width: 330px; max-width: calc(100vw - 140px); padding: 12px; border-radius: 16px 16px 16px 4px; font-size: 13px; line-height: 1.4; cursor: default;
+      background: var(--color-fondo-tarjeta, #111827); color: var(--color-texto-principal, #f9fafb); border: 2px solid var(--acento, #2563eb); box-shadow: 0 14px 32px rgba(0,0,0,.4); animation: ms-globo .35s cubic-bezier(.2,.9,.3,1.4); }
+    :host-context(html.con-fondo) .ms-panel { background: #111827; }
+    :host-context(body.tema-claro) .ms-panel { background: #fff; }
+    .ms-cerrar { position: absolute; top: 4px; right: 8px; background: none; border: 0; font-size: 18px; line-height: 1; color: var(--color-texto-apagado, #94a3b8); cursor: pointer; }
+    .ms-respuesta { padding-right: 16px; white-space: pre-line; }
+    .ms-botones, .ms-opciones, .ms-sugerencias { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .ms-accion { background: var(--acento, #2563eb); color: #fff; border: 0; border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .ms-opcion { background: color-mix(in srgb, var(--acento, #2563eb) 15%, transparent); color: inherit; border: 1px solid var(--acento, #2563eb); border-radius: 8px; padding: 4px 9px; font-size: 12px; cursor: pointer; text-align: left; }
+    .ms-pregunta { display: flex; gap: 6px; margin-top: 10px; }
+    .ms-pregunta input { flex: 1; min-width: 0; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--color-borde, #334155); background: var(--color-fondo-input, #1e293b); color: inherit; font-size: 13px; }
+    .ms-pregunta button { border: 0; border-radius: 8px; padding: 0 12px; background: var(--acento, #2563eb); color: #fff; font-size: 14px; cursor: pointer; }
+    .ms-pregunta button:disabled { opacity: .45; cursor: default; }
+    .ms-sugerencias button { background: none; border: 1px dashed var(--color-borde, #475569); color: var(--color-texto-secundario, #cbd5e1); border-radius: 12px; padding: 3px 9px; font-size: 11px; cursor: pointer; }
     :host-context(html.modo-enfoque) .ms { display: none; }
     :host-context(html.sin-animaciones) .ms * { animation: none !important; }
-    @media (max-width: 600px) { .ms { width: 96px; height: 60px; left: 6px; bottom: 6px; } .ms-globo { left: 70px; bottom: 54px; max-width: 200px; } }
+    @media (max-width: 600px) { .ms { width: 96px; height: 60px; left: 6px; bottom: 6px; } .ms-globo { left: 70px; bottom: 54px; max-width: 200px; } .ms-panel { left: 4px; bottom: 64px; width: calc(100vw - 20px); max-width: none; } }
   `]
 })
 export class MascotaComponent implements OnDestroy {
@@ -154,6 +196,9 @@ export class MascotaComponent implements OnDestroy {
   private sonido = inject(SonidoService);
   private zone = inject(NgZone);
   private router = inject(Router);
+  private guia = inject(GuiaService);
+  private atajos = inject(AtajosService);
+  private celebracion = inject(CelebracionService);
 
   public estado = signal<Estado>('normal');
   public globo = signal<string | null>(null);
@@ -177,6 +222,7 @@ export class MascotaComponent implements OnDestroy {
   private subAvisos = this.ui.avisos.subscribe(a => {
     if (a.tipo === 'ok') {
       this.ponerEstado('feliz', 1800);
+      if (/aprobad/i.test(a.texto)) { this.decir('👏👏 ¡Aprobado! Así da gusto.', 3000); return; }
       if (Math.random() < 0.35) this.decir(/elimin|borr/i.test(a.texto) ? al(AL_ELIMINAR) : al(AL_GUARDAR), 2500);
     } else if (a.tipo === 'err') { this.ponerEstado('triste', 1600); this.decir(al(AL_ERROR), 3500); }
   });
@@ -190,6 +236,9 @@ export class MascotaComponent implements OnDestroy {
     if (m.x !== x || m.y !== y) this.zone.run(() => this.mirada.set({ x, y }));
   };
   private alTeclear = () => this.despertar();
+  private subDatos: any = null;
+  private relojViernes: any = null;
+  private alClicFuera = (e: Event) => { if (this.panel() && !(e.target as HTMLElement)?.closest?.('.ms')) this.zone.run(() => this.cerrarPanel()); };
 
   constructor() {
     if (typeof window === 'undefined') return;
@@ -200,6 +249,19 @@ export class MascotaComponent implements OnDestroy {
     });
     this.despertar();
     this.programarCharla();
+    this.subDatos = this.ds.dataChanged.subscribe(() => this.revisarOperacion());
+    this.relojViernes = setInterval(() => this.revisarViernes(), 60000);
+    // Cambios por aprobar: al jefe le avisa los nuevos; al auxiliar, cuando le revisan los suyos.
+    effect(() => {
+      const n = this.ui.pendientesAprobacion();
+      const antes = this.pendientesAntes;
+      this.pendientesAntes = n;
+      if (n === null || antes === null || !this.visible()) return;
+      if (this.auth.puedeAprobar && n > antes) { this.ponerEstado('feliz', 1500); this.decir(`Llegó ${n - antes === 1 ? 'un cambio' : `${n - antes} cambios`} para aprobar. 📥`, 6000); }
+      else if (this.auth.necesitaAprobacion && !this.auth.puedeAprobar && n < antes) { this.ponerEstado('feliz', 2500); this.decir('¡El jefe revisó tus cambios! 👏 Míralo en Aprobaciones.', 7000); }
+    });
+    // Cerrar el panel de preguntas al tocar fuera de él.
+    document.addEventListener('click', this.alClicFuera, true);
     // Con la mascota, lo de la esquina izquierda de abajo se corre un poco.
     effect(() => document.documentElement.classList.toggle('con-mascota', this.visible()));
     // Saluda al entrar, y a los segundos cuenta cómo va el día.
@@ -209,6 +271,123 @@ export class MascotaComponent implements OnDestroy {
       setTimeout(() => this.decir(`${s.texto}! Soy el furgoncito de MAKAND. ${s.icono}`, 5000), 900);
       setTimeout(() => { const o = this.fraseOperacion(); if (o) this.decir(o, 6000); }, 7500);
     });
+  }
+
+  // ---------- Pregúntale al furgoncito ----------
+  public panel = signal(false);
+  public respuesta = signal('');
+  public acciones = signal<Accion[]>([]);
+  public opciones = signal<Tema[]>([]);
+  public pregunta = '';
+  private ultimaPregunta = '';
+  private get correo(): string { return String(this.auth.currentUser?.email || '').toLowerCase(); }
+
+  private leer<T>(clave: string, porDefecto: T): T { try { return JSON.parse(localStorage.getItem(`${clave}:${this.correo}`) || 'null') ?? porDefecto; } catch { return porDefecto; } }
+  private guardar(clave: string, valor: any): void { try { localStorage.setItem(`${clave}:${this.correo}`, JSON.stringify(valor)); } catch { /* sin espacio */ } }
+
+  /** Lo que más pregunta esta persona; si aún no pregunta nada, ejemplos. */
+  public sugerencias = computed(() => {
+    this.respuesta();
+    const veces = this.leer<Record<string, number>>('mascota-preguntas', {});
+    const mias = Object.entries(veces).sort((a, b) => b[1] - a[1]).map(([p]) => p).slice(0, 3);
+    return mias.length >= 3 ? mias : [...mias, ...EJEMPLOS.filter(e => !mias.includes(e))].slice(0, 3);
+  });
+
+  public abrirPanel(texto: string): void {
+    this.respuesta.set(texto);
+    this.acciones.set([]);
+    this.opciones.set([]);
+    this.panel.set(true);
+    this.globo.set(null);
+    setTimeout(() => (document.querySelector('.ms-pregunta input') as HTMLInputElement | null)?.focus(), 60);
+  }
+
+  public cerrarPanel(): void { this.panel.set(false); }
+
+  public preguntar(): void {
+    const p = this.pregunta.trim();
+    if (!p) return;
+    this.ultimaPregunta = p;
+    this.pregunta = '';
+    const veces = this.leer<Record<string, number>>('mascota-preguntas', {});
+    veces[p] = (veces[p] || 0) + 1;
+    // Solo se recuerdan las 30 más usadas.
+    this.guardar('mascota-preguntas', Object.fromEntries(Object.entries(veces).sort((a, b) => b[1] - a[1]).slice(0, 30)));
+    const r = responder(p, this.ds.S, this.leer<Record<string, string>>('mascota-aprendido', {}));
+    this.respuesta.set(r.texto);
+    this.acciones.set(r.acciones);
+    this.opciones.set(r.opciones);
+    this.ponerEstado(r.entendio ? 'feliz' : 'triste', 1200);
+  }
+
+  /** Escogió lo que quería decir: se aprende para la próxima. */
+  public aprender(t: Tema): void {
+    if (this.ultimaPregunta) {
+      const aprendido = this.leer<Record<string, string>>('mascota-aprendido', {});
+      aprendido[normalizarPregunta(this.ultimaPregunta)] = t.clave;
+      this.guardar('mascota-aprendido', aprendido);
+    }
+    this.respuesta.set(`¡Listo, ya me lo aprendí! 🧠 ${t.texto}`);
+    this.acciones.set([t.accion]);
+    this.opciones.set([]);
+    this.ponerEstado('feliz', 1500);
+  }
+
+  public nombreTema(t: Tema): string { return t.accion.tipo === 'tarea' ? (TAREAS.find(x => x.clave === t.accion.valor)?.titulo || t.accion.texto) : t.accion.texto; }
+
+  public hacer(a: Accion): void {
+    this.cerrarPanel();
+    switch (a.tipo) {
+      case 'ruta': this.router.navigate([a.valor]); break;
+      case 'viaje': this.router.navigate(['/rutograma'], { queryParams: { verViaje: a.valor } }); break;
+      case 'buscar': this.ui.busquedaHablada.set(a.valor || ''); break;
+      case 'tarea': { const t = TAREAS.find(x => x.clave === a.valor); if (t) this.guia.iniciarTarea(t); break; }
+      case 'apariencia': this.theme.panelAbierto.set(true); break;
+      case 'viaje-extra': this.atajos.acciones.next('viaje-extra'); break;
+      case 'novedad': this.atajos.acciones.next('novedad'); break;
+    }
+  }
+
+  // ---------- Reacciona a lo que pasa ----------
+  private novedadesVistas: Set<string> | null = null;
+  private celebradoHoy = '';
+  private pendientesAntes: number | null = null;
+
+  private revisarOperacion(): void {
+    if (!this.visible()) return;
+    const S = this.ds.S || {};
+    // Novedades graves nuevas (varado, accidente…). La primera vez solo se anotan.
+    const novedades = (S.novedades || []) as any[];
+    const ids = new Set(novedades.map(n => String(n.id)));
+    if (this.novedadesVistas) {
+      const grave = novedades.find(n => !this.novedadesVistas!.has(String(n.id)) && !n.resuelta && /varad|accident|choque|robo|da[ñn]o|averi/i.test(`${n.tipo} ${n.titulo}`));
+      if (grave) this.zone.run(() => { this.ponerEstado('triste', 2500); this.decir(`¡Ay no! 😟 ${grave.titulo || grave.tipo}. Revisa la novedad.`, 8000); });
+    }
+    this.novedadesVistas = ids;
+    // Todos los viajes de hoy entregados: confeti (una vez al día).
+    const h = new Date(), hoy = `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`;
+    if (this.celebradoHoy === hoy || this.leer<string>('mascota-celebrado', '') === hoy) return;
+    const deHoy = ((S.viajes || []) as any[]).filter(v => String(v.fecha || '').slice(0, 10) === hoy && v.estado !== 'Cancelado');
+    if (deHoy.length && deHoy.every(v => v.estado === 'Entregado')) {
+      this.celebradoHoy = hoy;
+      this.guardar('mascota-celebrado', hoy);
+      this.zone.run(() => {
+        this.ponerEstado('feliz', 4000);
+        this.decir(`¡Todos los ${deHoy.length} viajes de hoy entregados! 🎉 ¡Qué equipo!`, 8000);
+        this.celebracion.confeti('¡Todos los viajes de hoy entregados!', `${deHoy.length} de ${deHoy.length} 🚚`);
+      });
+    }
+  }
+
+  /** Los viernes de 5 a 6 de la tarde cuenta un chiste (una vez). */
+  private revisarViernes(): void {
+    const h = new Date();
+    if (h.getDay() !== 5 || h.getHours() !== 17 || !this.visible() || document.hidden || this.panel()) return;
+    const dia = h.toDateString();
+    if (this.leer<string>('mascota-chiste', '') === dia) return;
+    this.guardar('mascota-chiste', dia);
+    const chistes = TONTERIAS.filter(t => t.startsWith('¿'));
+    this.zone.run(() => { this.ponerEstado('feliz', 2500); this.decir(`¡Viernes a las 5! Chiste para cerrar la semana: ${al(chistes)}`, 12000); });
   }
 
   // ---------- qué dice ----------
@@ -322,12 +501,16 @@ export class MascotaComponent implements OnDestroy {
       this.ponerEstado('feliz', 1500);
       return;
     }
-    this.decir(this.algoQueDecir(), 6000);
+    // Un toque: dice algo y deja preguntarle.
+    this.abrirPanel(this.panel() ? this.algoQueDecir() : `${this.algoQueDecir()}\n\n¿Necesitas algo? Pregúntame. 👇`);
     this.ponerEstado('feliz', 1500);
   }
 
   ngOnDestroy(): void {
     this.subAvisos.unsubscribe();
+    this.subDatos?.unsubscribe();
+    clearInterval(this.relojViernes);
+    document.removeEventListener('click', this.alClicFuera, true);
     clearTimeout(this.relojEstado); clearTimeout(this.relojGlobo); clearTimeout(this.relojSueno); clearTimeout(this.relojCharla);
     document.removeEventListener('keydown', this.alTeclear);
   }

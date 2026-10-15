@@ -27,7 +27,7 @@ const PERMISOS = [
     { clave: 'sinAprobacion', nombre: 'Sus cambios se aplican sin esperar aprobación' },
     { clave: 'eliminar', nombre: 'Eliminar viajes, vehículos, rutas, conductores y novedades' },
     { clave: 'generarMatriz', nombre: 'Generar la Matriz del mes' },
-    { clave: 'editarDiasPasados', nombre: 'Cambiar o borrar viajes de días ya cerrados' },
+    { clave: 'editarDiasPasados', nombre: 'Añadir, cambiar o borrar viajes de días ya cerrados' },
     { clave: 'importarExcel', nombre: 'Importar viajes reales desde Excel' },
     { clave: 'reacomodarCupos', nombre: 'Reacomodar cupos de Arsitrans y Polar' },
     { clave: 'editarConfiguracion', nombre: 'Cambiar transportadoras, cupos de Configuración y festivos' },
