@@ -1,3 +1,4 @@
+import { marcarBuscado } from '../../services/marcar-buscado';
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, HostListener, ViewChild, ElementRef, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -2895,15 +2896,11 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     const vj = (this.ds.S?.viajes || []).find((v: any) => String(v.id) === this.viajePedido);
     if (!vj) return;
     this.viajePedido = null;
-    // Destello al buscar (efecto de Apariencia): baja suave hasta el viaje,
-    // la tarjeta destella y luego se abre su detalle.
-    setTimeout(() => {
-      const tarjeta = document.querySelector(`[data-viaje="${CSS.escape(String(vj.id))}"]`) as HTMLElement | null;
-      if (!tarjeta || !this.theme.efectoActivo('destello')) { this.verDetalle(vj.id); return; }
-      tarjeta.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-      tarjeta.classList.remove('ap-destello'); void tarjeta.offsetWidth; tarjeta.classList.add('ap-destello');
-      setTimeout(() => { tarjeta.classList.remove('ap-destello'); this.verDetalle(vj.id); this.cdr.detectChanges(); }, 1300);
-    }, 50);
+    // Lo buscado se marca con el borde de las guías (services/marcar-buscado.ts):
+    // baja hasta el viaje, lo marca un momento y luego abre su detalle.
+    const nombre = `${vj.ruta || vj.codigo || 'viaje'} · ${vj.p || vj.placa || ''} · día ${vj.salida ?? vj.dia ?? ''}`;
+    marcarBuscado(() => document.querySelector(`[data-viaje="${CSS.escape(String(vj.id))}"]`), nombre,
+      () => { this.verDetalle(vj.id); this.cdr.detectChanges(); });
   }
 
   // ============================================================

@@ -1,3 +1,4 @@
+import { marcarBuscado } from '../../services/marcar-buscado';
 import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef, NgZone } from '@angular/core';
 import { errorVehiculo, normalizarPlaca } from '../../services/validaciones';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -253,7 +254,10 @@ export class VehiculosComponent implements OnInit, OnDestroy {
     );
     if (idx !== -1) {
       this.busquedaVehiculos = ''; // por si un filtro activo lo tapaba
-      this.editarVehiculo(idx);
+      this.cdr.detectChanges();
+      // Se marca la fila con el borde de las guías y luego se abre, como antes.
+      const p = String(placa).toUpperCase().trim();
+      marcarBuscado(() => document.querySelector(`tr[data-placa="${CSS.escape(p)}"]`), p, () => { this.editarVehiculo(idx); this.cdr.detectChanges(); });
     } else if (intento < 4) {
       // Los datos reales pueden no haber llegado todavía si se entra
       // aquí justo después de iniciar sesión — reintenta un par de

@@ -1,3 +1,4 @@
+import { marcarBuscado } from '../../services/marcar-buscado';
 import { Component, inject, OnInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -187,7 +188,9 @@ export class RutasComponent implements OnInit, OnDestroy {
     );
     if (idx !== -1) {
       this.busquedaRutas = ''; // por si un filtro activo lo tapaba
-      this.abrirModalRuta(idx);
+      this.cdr.detectChanges();
+      const c = String(cod).toUpperCase().trim();
+      marcarBuscado(() => document.querySelector(`tr[data-cod="${CSS.escape(c)}"]`), c, () => { this.abrirModalRuta(idx); this.cdr.detectChanges(); });
     } else if (intento < 4) {
       setTimeout(() => this.abrirRutaPorCodigo(cod, intento + 1), 400);
     }
