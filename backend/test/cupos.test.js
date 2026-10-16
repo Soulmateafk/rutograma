@@ -44,3 +44,19 @@ test('dos viajes en el mismo cupo el mismo día se separan', () => {
     assert.equal(r.cambios.length, 1);
     assert.equal(r.cambios[0].a, 'ARSITRANS 2');
 });
+
+test('cuenta el día que se ve (salida) aunque la fecha o la transportadora guardadas sean otras', () => {
+    const viajes = [
+        v('a', 'ARSITRANS 1', '2026-10-17'),
+        v('b', 'ARSITRANS 2', '2026-10-17'),
+        // movido a mano al 17: la fecha se quedó en el 12
+        { ...v('c', 'ARSITRANS 5', '2026-10-12'), salida: 17, dia: 17, retorno: 18, mes: 'Octubre', anio: 2026 },
+        // reasignado por mantenimiento: sigue diciendo Makand
+        v('d', 'ARSITRANS 6', '2026-10-17', { tr: 'Makand', transportadora: 'Makand' }),
+        v('e', 'ARSITRANS 3', '2026-10-18')
+    ];
+    const r = planReacomodoCupos(viajes, [], { tr: 'Arsitrans', anio: 2026, mes: 9 });
+    const porId = Object.fromEntries(r.cambios.map(c => [c.id, c.a]));
+    assert.deepEqual(porId, { c: 'ARSITRANS 3', d: 'ARSITRANS 4', e: 'ARSITRANS 1' });
+    assert.equal(r.cuposDespues, 4);
+});
