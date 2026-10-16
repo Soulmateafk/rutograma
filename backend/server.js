@@ -4938,6 +4938,7 @@ function preferenciasDe(usuario) {
         })) : [],
         rutoPlegados: Array.isArray(p.rutoPlegados) ? p.rutoPlegados.filter(x => ['propia', 'ARSITRANS', 'POLAR'].includes(x)) : [],
         rutoSemana: p.rutoSemana === true,
+        rutoPasadosGris: p.rutoPasadosGris !== false,
         rutoFiltros: Array.isArray(p.rutoFiltros) ? p.rutoFiltros.filter(f => f && typeof f.nombre === 'string').slice(0, 12).map(f => ({
             id: String(f.id || '').slice(0, 20), nombre: String(f.nombre).slice(0, 40), placa: String(f.placa || '').slice(0, 30),
             tr: ['makand', 'arsitrans', 'polar'].includes(f.tr) ? f.tr : '', texto: String(f.texto || '').slice(0, 60)
