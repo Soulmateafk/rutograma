@@ -427,7 +427,7 @@ export function responderConsulta(pregunta: string, S: any, ahora = new Date()):
   if (!lista.length) {
     const sig = proyeccion !== 'plata' && proyeccion !== 'cajas' && evento === 'sale' && hasta && hasta >= hoy ? base.find((v: any) => v.fecha > hasta!) : null;
     const nada = frase ? `no ${yaPaso ? 'hubo' : 'hay'} viajes${con}` : evento === 'llega' ? 'no regresa ningún viaje' : evento === 'fuera' ? 'no hay vehículos de viaje' : yaPaso ? 'no salió ningún viaje' : 'no sale ningún viaje';
-    if (!frase && desde && desde > hoy && !activos.some(v => v.fecha >= desde!)) return resp(`${Cuando} todavía no hay viajes programados.`, [ruta('Ver el Rutograma', '/rutograma')]);
+    if (!frase && desde && desde > hoy && !activos.some(v => v.fecha >= desde!)) return resp(`${Cuando} todavía no hay viajes programados. En el Pronóstico ves cuántos se esperan, con los meses anteriores. 🔮`, [ruta('Ver el pronóstico', '/pronostico'), ruta('Ver el Rutograma', '/rutograma')]);
     return resp(`${Cuando} ${nada}${frase ? '' : con}.${sig ? ` El siguiente sale ${cuandoTexto(sig.fecha, sig.fecha, hoy)}: ${placaDe(sig)} a ${destinoDe(sig)}.` : ''}`, sig ? [accionViaje(sig, 'Ver ese viaje')] : [ruta('Ver el Rutograma', '/rutograma')]);
   }
   const cajas = lista.reduce((s: number, v: any) => s + (Number(v.cajas) || 0), 0);

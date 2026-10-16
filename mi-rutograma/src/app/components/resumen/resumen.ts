@@ -9,7 +9,7 @@ import { DataService } from '../../services/data';
 
 const NOMBRES: Record<string, string> = {
   rutograma: 'el Rutograma', vehiculos: 'Vehículos', rutas: 'Rutas', conductores: 'Conductores', configuracion: 'Configuración',
-  historico: 'el Histórico', comparativo: 'el Comparativo', presentacion: 'la Presentación', tareas: 'Tareas', cumplimiento: 'Cumplimiento',
+  historico: 'el Histórico', comparativo: 'el Comparativo', presentacion: 'la Presentación', tareas: 'Tareas', cumplimiento: 'Cumplimiento', pronostico: 'el Pronóstico',
   reglas: 'Reglas', comparendos: 'Comparendos', quejas: 'Quejas', mapa: 'el Mapa', despachos: 'Despachos', papelera: 'la Papelera',
   sesiones: 'Sesiones', aprobaciones: 'Aprobaciones', admin: 'Administrador', conductor: 'el perfil del conductor', agenda: 'la agenda', 'hoja-de-vida': 'la hoja de vida'
 };

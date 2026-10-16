@@ -36,6 +36,7 @@ const { reglasIncumplidas } = require('./reglas-asignacion');
 const { crearPresencia, primerNombre } = require('./presencia');
 const { armarHojaDeVida } = require('./hoja-vida');
 const { armarCumplimiento, horaDelViaje } = require('./cumplimiento');
+const { armarPronostico } = require('./pronostico');
 const { compararConVisto, armarVisto } = require('./avisos-conductor');
 const { faltasDeClave, mensajeClave, errorNombre, errorEmail, errorDepartamento, nombreLimpio, DEPARTAMENTOS,
     normalizarPlaca, errorConductor, errorVehiculo } = require('./validaciones');
@@ -3181,6 +3182,22 @@ app.get('/api/cumplimiento', (req, res) => {
         res.json({ ok: true, ...armarCumplimiento(leerExcel(), { anio, mes }) });
     } catch (error) {
         console.error('🚨 Error en /api/cumplimiento:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// Pronóstico de un mes con los anteriores (ver pronostico.js). Solo lee.
+app.get('/api/pronostico', (req, res) => {
+    try {
+        const anio = Number(req.query.anio), mes = Number(req.query.mes);
+        if (!Number.isInteger(anio) || !Number.isInteger(mes) || mes < 0 || mes > 11) {
+            return res.status(400).json({ ok: false, msg: 'Mes o año inválido.' });
+        }
+        const data = leerExcel();
+        const festivos = leerConfigCompartidaDB(modoActual()).festivos || data.festivos || [];
+        res.json({ ok: true, ...armarPronostico({ viajes: data.viajes, festivos }, { anio, mes }) });
+    } catch (error) {
+        console.error('🚨 Error en /api/pronostico:', error);
         res.status(500).json({ ok: false, msg: error.message });
     }
 });

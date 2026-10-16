@@ -38,6 +38,7 @@ export const routes: Routes = [
   { path: 'conductor/:nombre', loadComponent: () => import('./components/perfil-conductor/perfil-conductor').then(m => m.PerfilConductorComponent), canActivate: [authGuard] },
   { path: 'presentacion', loadComponent: () => import('./components/presentacion/presentacion').then(m => m.PresentacionComponent), canActivate: [authGuard] },
   { path: 'cumplimiento', loadComponent: () => import('./components/cumplimiento/cumplimiento').then(m => m.CumplimientoComponent), canActivate: [authGuard] },
+  { path: 'pronostico', loadComponent: () => import('./components/pronostico/pronostico').then(m => m.PronosticoComponent), canActivate: [authGuard] },
   { path: 'resumen', loadComponent: () => import('./components/resumen/resumen').then(m => m.ResumenComponent), canActivate: [authGuard] },
   { path: 'sesiones', loadComponent: () => import('./components/sesiones/sesiones').then(m => m.SesionesComponent), canActivate: [authGuard] },
   { path: 'aprobaciones', loadComponent: () => import('./components/aprobaciones/aprobaciones').then(m => m.AprobacionesComponent), canActivate: [authGuard] },

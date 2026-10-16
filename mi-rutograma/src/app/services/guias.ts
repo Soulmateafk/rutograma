@@ -244,6 +244,16 @@ export const GUIAS: Record<string, Guia> = {
     ]
   },
 
+  pronostico: {
+    titulo: 'Pronóstico',
+    pasos: [
+      { el: 'pr-mes', titulo: 'Mes', texto: 'Empieza en el mes que viene; con las flechas ves otro. Se calcula con hasta los 3 meses anteriores que tengan viajes (el más reciente pesa más). Solo muestra: no cambia nada del Rutograma.' },
+      { el: 'pr-kpis', titulo: 'Lo que viene', texto: 'Cuántos viajes se esperan, cuántos con flota propia y cuántos cupos de Arsitrans y Polar harán falta el día más cargado. Sirve para avisarles con tiempo.' },
+      { el: 'pr-reparto', titulo: 'Por cliente y destino', texto: 'Cuántos viajes se esperan de cada cliente o a cada destino, y si sube (▲) o baja (▼) frente al último mes.' },
+      { el: 'pr-semana', titulo: 'Días de la semana', texto: 'Cuántos viajes salen en promedio cada día de la semana. Un mes con 5 lunes trae más viajes que uno con 4; los festivos se calculan aparte.' }
+    ]
+  },
+
   comparativo: {
     titulo: 'Comparativo',
     pasos: [

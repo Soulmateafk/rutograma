@@ -1,0 +1,89 @@
+<div class="pr-page">
+  <div class="pr-head" data-guia="pr-mes">
+    <div>
+      <h2><i class="bi bi-graph-up-arrow"></i> Pronóstico</h2>
+      <p>Lo que se espera para el mes, calculado con los meses anteriores. Solo es una guía: no cambia nada del Rutograma.</p>
+    </div>
+    <div class="pr-mes">
+      <button class="pr-btn" (click)="cambiarMes(-1)" title="Mes anterior"><i class="bi bi-chevron-left"></i></button>
+      <span>{{ nombreMes }}</span>
+      <button class="pr-btn" (click)="cambiarMes(1)" title="Mes siguiente"><i class="bi bi-chevron-right"></i></button>
+    </div>
+  </div>
+
+  <p *ngIf="cargando" class="pr-msg">Calculando…</p>
+  <p *ngIf="!cargando && error" class="pr-msg pr-error"><i class="bi bi-exclamation-triangle-fill"></i> {{ error }}</p>
+
+  <ng-container *ngIf="!cargando && !error && datos as d">
+    <div *ngIf="!d.hayDatos" class="pr-vacio">
+      <i class="bi bi-calendar-x"></i>
+      <div>
+        <b>No hay meses anteriores con viajes para calcular {{ nombreMes }}.</b>
+        <p>El pronóstico usa hasta los 3 meses anteriores que tengan viajes.</p>
+      </div>
+    </div>
+
+    <ng-container *ngIf="d.hayDatos">
+      <section class="pr-kpis" data-guia="pr-kpis">
+        <div class="pr-kpi pr-kpi-grande">
+          <b>≈ {{ d.total }}</b>
+          <span>viajes en {{ nombre(d.mes) }}</span>
+          <small>entre {{ d.rango.min }} y {{ d.rango.max }}<ng-container *ngIf="d.tendencia !== null"> · {{ textoTendencia(d.tendencia) }}</ng-container></small>
+        </div>
+        <div class="pr-kpi">
+          <b>{{ d.propios }}</b>
+          <span>con flota propia</span>
+          <small>{{ d.cajas | number:'1.0-0':'es' }} cajas en total</small>
+        </div>
+        <div class="pr-kpi pr-terceros" *ngFor="let t of d.terceros" [class.pr-cero]="!t.viajesMes">
+          <b>{{ t.picoDia }} <em>cupo{{ t.picoDia === 1 ? '' : 's' }}</em></b>
+          <span>de {{ t.nombre }} el día más cargado<ng-container *ngIf="t.diaMasCargado"> ({{ t.diaMasCargado | lowercase }})</ng-container></span>
+          <small>≈ {{ t.viajesMes }} viajes en el mes · lo más alto visto: {{ t.picoVisto }} en un día</small>
+        </div>
+      </section>
+
+      <p class="pr-ya" *ngIf="d.yaProgramados">
+        <i class="bi bi-calendar-check"></i> Ya hay <b>{{ d.yaProgramados }}</b> viaje{{ d.yaProgramados === 1 ? '' : 's' }} programado{{ d.yaProgramados === 1 ? '' : 's' }} en {{ nombre(d.mes) }}
+        <ng-container *ngIf="d.yaProgramados < d.rango.min"> — menos de lo esperado; puede que falte programar.</ng-container>
+        <ng-container *ngIf="d.yaProgramados > d.rango.max"> — más de lo normal para este mes.</ng-container>
+      </p>
+
+      <div class="pr-dos">
+        <section class="pr-card" data-guia="pr-reparto">
+          <div class="pr-tabs">
+            <button [class.activo]="vista === 'cliente'" (click)="vista = 'cliente'">Por cliente</button>
+            <button [class.activo]="vista === 'destino'" (click)="vista = 'destino'">Por destino</button>
+          </div>
+          <div class="pr-fila pr-fila-head"><span></span><span>Esperado</span><span>{{ nombre(d.base[0].mes) }}</span></div>
+          <div class="pr-fila" *ngFor="let f of filas">
+            <span class="pr-nombre" [title]="f.nombre">{{ f.nombre }}</span>
+            <span class="pr-valor">
+              <span class="pr-barra"><i [style.width.%]="ancho(f.pronostico)"></i></span>
+              <b>{{ f.pronostico }}</b>
+              <small class="pr-cambio" *ngIf="cambio(f) !== 0" [class.sube]="cambio(f) > 0" [class.baja]="cambio(f) < 0">{{ cambio(f) > 0 ? '▲' : '▼' }} {{ cambio(f) > 0 ? cambio(f) : -cambio(f) }}</small>
+            </span>
+            <span class="pr-antes">{{ f.ultimoMes }}</span>
+          </div>
+          <p class="pr-sub" *ngIf="!filas.length">Sin datos.</p>
+        </section>
+
+        <section class="pr-card" data-guia="pr-semana">
+          <h3><i class="bi bi-calendar-week"></i> Viajes por día de la semana</h3>
+          <div class="pr-semana">
+            <div class="pr-dia" *ngFor="let s of d.porDiaSemana">
+              <div class="pr-col"><i [style.height.%]="s.porDia / maxDia() * 100"></i></div>
+              <b>{{ s.porDia }}</b>
+              <span>{{ s.nombre.slice(0, 3) }}</span>
+              <small>{{ s.dias }} en el mes</small>
+            </div>
+          </div>
+          <p class="pr-sub" *ngIf="d.festivosMes">{{ d.festivosMes }} festivo{{ d.festivosMes === 1 ? '' : 's' }} en el mes: se calculan aparte.</p>
+          <h3 class="pr-base-t"><i class="bi bi-clock-history"></i> Meses usados</h3>
+          <div class="pr-base">
+            <span *ngFor="let b of d.base; let i = index">{{ nombre(b.mes) }} {{ b.anio }}: <b>{{ b.total }}</b> viajes<em *ngIf="i === 0"> (pesa más)</em></span>
+          </div>
+        </section>
+      </div>
+    </ng-container>
+  </ng-container>
+</div>
