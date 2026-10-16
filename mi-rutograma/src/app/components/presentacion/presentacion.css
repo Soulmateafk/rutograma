@@ -143,3 +143,26 @@
   .pr-hoja .pr-d * { animation: none !important; }
   .pr-hoja .pr-d { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* ===== Pasteles ===== */
+.pr-cuatro { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 1em; flex: 1; min-height: 0; }
+.pr-caja-pastel { display: flex; flex-direction: column; padding: .8em 1.1em; }
+.pr-caja-pastel h3 { margin-bottom: .3em; }
+.pr-pastel-fila { display: flex; align-items: center; gap: 1.1em; flex: 1; min-height: 0; }
+.pr-pastel { width: 11em; height: 11em; flex-shrink: 0; overflow: visible; }
+.pr-pastel path { stroke: var(--pr-tarjeta); stroke-width: 2; transform-origin: 100px 100px; animation: pr-porcion .6s cubic-bezier(.2, .8, .2, 1) backwards; }
+.pr-pastel path:hover { filter: brightness(1.15); }
+.pr-pastel-giro { transform-origin: 100px 100px; animation: pr-giro .8s cubic-bezier(.2, .8, .2, 1) backwards; }
+.pr-pastel-pct { font-size: 15px; font-weight: 800; fill: #fff; paint-order: stroke; stroke: rgba(0, 0, 0, .35); stroke-width: 3px; pointer-events: none; animation: pr-aparece .4s .5s ease backwards; }
+.pr-con-hueco .pr-pastel-pct { font-size: 13px; }
+@keyframes pr-porcion { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes pr-giro { from { transform: rotate(-70deg); } to { transform: rotate(0); } }
+@keyframes pr-aparece { from { opacity: 0; } to { opacity: 1; } }
+.pr-caja-pastel .pr-ley-lista { font-size: 1em; gap: .35em; min-width: 0; }
+.pr-caja-pastel .pr-ley-lista li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pr-comp-pasteles { display: grid; gap: 1.2em; flex: 1; min-height: 0; align-items: start; }
+.pr-comp-col { display: flex; flex-direction: column; align-items: center; gap: .6em; background: var(--pr-tarjeta); border: 1px solid var(--pr-borde); border-radius: 1em; padding: .8em; }
+.pr-comp-col .pr-pastel { width: 9.5em; height: 9.5em; }
+.pr-comp-tit { font-weight: 700; font-size: 1.1em; display: flex; align-items: center; gap: .4em; }
+html.sin-animaciones .pr-pastel path, html.sin-animaciones .pr-pastel-giro, html.sin-animaciones .pr-pastel-pct { animation: none; }
+.pr-ley-t { font-weight: 700; color: var(--pr-suave); margin-right: .3em; }

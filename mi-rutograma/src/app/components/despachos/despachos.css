@@ -150,3 +150,33 @@
 @media (max-width: 480px) {
   .dp-fila { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Cronómetro del cargue */
+.dp-crono { display: flex; align-items: center; gap: 7px; margin-top: 6px; font-size: 12.5px; max-width: 320px; }
+.dp-crono > i { font-size: 15px; }
+.dp-crono-barra { flex: 1; height: 7px; border-radius: 4px; background: rgba(148, 163, 184, .18); overflow: hidden; min-width: 80px; }
+.dp-crono-barra i { display: block; height: 100%; border-radius: 4px; transition: width .6s ease, background .3s ease; }
+.dp-crono small { color: var(--color-texto-secundario, #94a3b8); }
+.dp-crono-verde { color: #4ade80; } .dp-crono-verde .dp-crono-barra i { background: #22c55e; }
+.dp-crono-amarillo { color: #fbbf24; } .dp-crono-amarillo .dp-crono-barra i { background: #f59e0b; }
+.dp-crono-rojo { color: #f87171; } .dp-crono-rojo .dp-crono-barra i { background: #ef4444; animation: dp-late 1.4s ease-in-out infinite; }
+@keyframes dp-late { 50% { opacity: .55; } }
+
+/* Cola de hoy */
+.dp-cola { margin-top: 16px; border-top: 1px solid var(--color-borde, #1e293b); padding-top: 12px; }
+.dp-cola h3 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dp-cola .dp-sub { margin: 0 0 8px; }
+.dp-cola-fila { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; padding: 7px 8px; border-radius: 8px; font-size: 13px; }
+.dp-cola-fila + .dp-cola-fila { margin-top: 3px; }
+.dp-cola-tocable { cursor: pointer; }
+.dp-cola-tocable:hover { background: rgba(59, 130, 246, .1); }
+.dp-cola-hora { font-weight: 700; font-variant-numeric: tabular-nums; }
+.dp-cola-quien { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-cola-estado { font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: rgba(148, 163, 184, .15); white-space: nowrap; }
+.dp-sigue { background: rgba(59, 130, 246, .12); box-shadow: inset 3px 0 0 #3b82f6; }
+.dp-sigue .dp-cola-estado { background: #2563eb; color: #fff; }
+.dp-cola-tarde .dp-cola-estado { background: rgba(239, 68, 68, .2); color: #fca5a5; }
+.dp-cola-tarde.dp-sigue { box-shadow: inset 3px 0 0 #ef4444; background: rgba(239, 68, 68, .08); }
+.dp-cola-cargando .dp-cola-estado { background: rgba(245, 158, 11, .2); color: #fbbf24; }
+.dp-cola-cargado .dp-cola-estado { background: rgba(34, 197, 94, .18); color: #86efac; }
+.dp-cola-salio { opacity: .55; }

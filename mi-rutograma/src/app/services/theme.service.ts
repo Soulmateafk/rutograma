@@ -58,6 +58,7 @@ export interface Apariencia {
   rutoSemana: boolean;                              // Rutograma de una sola semana
   rutoFiltros: FiltroRuto[];                        // filtros guardados del Rutograma
   rutoPasadosGris: boolean;                         // días que ya pasaron, apagados (con candado)
+  livianoAuto: boolean;                             // si el equipo va lento, apagar decoraciones solo
 }
 export interface FiltroRuto { id: string; nombre: string; placa: string; tr: string; texto: string; }
 export interface NotaPersonal { id: string; texto: string; color: string; hecha: boolean; en: string; }
@@ -67,7 +68,7 @@ const POR_DEFECTO: Apariencia = {
   colorPropio: '', fondoTinte: false, coloresTr: { makand: '', arsitrans: '', polar: '' }, daltonismo: false, esquinas: 'normal', saludo: true,
   efectos: { onda: true, progreso: true, cascada: true, mes: true, vivo: true, temblor: true, destello: true, brillo: true, previa: true, confeti: true, rastro: true, transicion: true, clima: true }, temporada: 'auto',
   fondo: 'ninguno', fondoBrillo: 55, fondoVidrio: 35, fuente: 'sistema', densidad: 'normal', barra: 'arriba', inicio: '', avatar: '', foto: '', fijados: [],
-  tablero: { orden: [], ocultos: [] }, sonidos: true, volumen: 50, sonidoTemporada: true, contadorNavidad: true, mascota: true, verPersonas: true, verEnVivo: { cabecitas: true, marcas: true, aviso: true }, ambiente: '', ambienteVol: 35, enfoque: false, notas: [], rutoPlegados: [], rutoSemana: false, rutoFiltros: [], rutoPasadosGris: true
+  tablero: { orden: [], ocultos: [] }, sonidos: true, volumen: 50, sonidoTemporada: true, contadorNavidad: true, mascota: true, verPersonas: true, verEnVivo: { cabecitas: true, marcas: true, aviso: true }, ambiente: '', ambienteVol: 35, enfoque: false, notas: [], rutoPlegados: [], rutoSemana: false, rutoFiltros: [], rutoPasadosGris: true, livianoAuto: true
 };
 export const FONDOS: Array<{ valor: Fondo; nombre: string }> = [
   { valor: 'ninguno', nombre: 'Ninguno' }, { valor: 'cielo', nombre: 'Cielo de verdad' }, { valor: 'aurora', nombre: 'Aurora' }, { valor: 'atardecer', nombre: 'Atardecer' },
@@ -328,6 +329,7 @@ export class ThemeService {
       rutoPlegados: Array.isArray(p.rutoPlegados) ? p.rutoPlegados.filter((x: any) => ['propia', 'ARSITRANS', 'POLAR'].includes(x)) : [],
       rutoSemana: p.rutoSemana === true,
       rutoPasadosGris: p.rutoPasadosGris !== false,
+      livianoAuto: p.livianoAuto !== false,
       rutoFiltros: Array.isArray(p.rutoFiltros) ? p.rutoFiltros.filter((f: any) => f && typeof f.nombre === 'string').slice(0, 12).map((f: any) => ({
         id: String(f.id || Math.random().toString(36).slice(2, 10)).slice(0, 20), nombre: String(f.nombre).slice(0, 40),
         placa: String(f.placa || '').slice(0, 30), tr: ['makand', 'arsitrans', 'polar'].includes(f.tr) ? f.tr : '', texto: String(f.texto || '').slice(0, 60)
@@ -383,7 +385,8 @@ export class ThemeService {
     requestAnimationFrame(() => requestAnimationFrame(() => html.classList.remove('cambiando-apariencia')));
     body.classList.toggle('tema-claro', this.temaActual === 'claro');
     body.classList.toggle('alto-contraste', this.ap.contraste);
-    html.classList.toggle('sin-animaciones', this.ap.sinAnimaciones);
+    html.classList.toggle('sin-animaciones', this.ap.sinAnimaciones || this.liviano());
+    html.classList.toggle('modo-liviano', this.liviano());
     for (const t of this.tamanos) html.classList.toggle('letra-' + t.valor, t.valor !== 'normal' && this.ap.letra === t.valor);
     if (this.ap.acento === 'azul') html.removeAttribute('data-acento');
     else html.setAttribute('data-acento', this.ap.acento);
@@ -459,7 +462,23 @@ export class ThemeService {
   /** Señal para la decoración de temporada (components/temporada). */
   public temporadaPreferida = signal('auto');
   /** ¿La cuenta tiene este efecto puesto (y no quitó todas las animaciones)? */
-  public efectoActivo(e: Efecto): boolean { return !!this.ap.efectos[e] && !this.ap.sinAnimaciones; }
+  public efectoActivo(e: Efecto): boolean { return !!this.ap.efectos[e] && !this.ap.sinAnimaciones && !this.liviano(); }
+
+  // MODO LIVIANO: si el equipo va lento (services/rendimiento.service.ts), se
+  // apagan solas las animaciones y decoraciones mientras dure la sesión. No
+  // cambia lo que la cuenta escogió en Apariencia; "Volver a prenderlas" lo
+  // quita y no lo vuelve a hacer solo (livianoAuto = false).
+  public readonly liviano = signal(false);
+  public activarLiviano(): void { if (!this.liviano()) { this.liviano.set(true); this.aplicar(); } }
+  public quitarLiviano(noVolver = true): void {
+    this.liviano.set(false);
+    if (noVolver && this.ap.livianoAuto) this.cambiar({ livianoAuto: false }); else this.aplicar();
+  }
+  public alternarLivianoAuto(): void {
+    const nuevo = !this.ap.livianoAuto;
+    if (!nuevo) this.liviano.set(false);
+    this.cambiar({ livianoAuto: nuevo });
+  }
   public ponerEsquinas(esquinas: Esquinas): void { if (esquinas !== this.ap.esquinas) this.cambiar({ esquinas }); }
 
   /** Color de la rueda. Mientras se arrastra se ve sin guardar; al soltar se guarda. */

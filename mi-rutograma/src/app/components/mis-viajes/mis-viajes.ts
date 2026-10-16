@@ -212,6 +212,45 @@ export class MisViajesComponent implements OnInit, OnDestroy {
     return lista.split(',').map(x => Number(x.trim())).includes(d.getDate());
   }
 
+  // Ver: solo hoy, esta semana (lunes a domingo) o todo lo que viene. Se recuerda en el celular.
+  vista: 'hoy' | 'semana' | 'todo' = (() => { try { const v = localStorage.getItem('mv-vista'); return v === 'hoy' || v === 'semana' ? v : 'todo'; } catch { return 'todo'; } })();
+  cambiarVista(v: 'hoy' | 'semana' | 'todo'): void { this.vista = v; try { localStorage.setItem('mv-vista', v); } catch { /* sin espacio: no pasa nada */ } }
+
+  private rangoSemana(): { desde: string; hasta: string } {
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - ((hoy.getDay() + 6) % 7));
+    const domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
+    return { desde: this.iso(lunes), hasta: this.iso(domingo) };
+  }
+
+  get diasVisibles(): DiaConViajes[] {
+    if (this.vista === 'hoy') return this.dias.filter(d => d.esHoy);
+    if (this.vista === 'semana') { const r = this.rangoSemana(); return this.dias.filter(d => d.fecha >= r.desde && d.fecha <= r.hasta); }
+    return this.dias;
+  }
+
+  /** Tira de lunes a domingo de esta semana: viajes y descansos de cada día. */
+  get tiraSemana(): Array<{ fecha: string; letra: string; num: number; viajes: number; descanso: boolean; esHoy: boolean; pasado: boolean }> {
+    const r = this.rangoSemana();
+    const hoyIso = this.iso(new Date());
+    const out = [];
+    const d = new Date(r.desde + 'T00:00:00');
+    for (let i = 0; i < 7; i++) {
+      const fecha = this.iso(d);
+      const dia = this.dias.find(x => x.fecha === fecha);
+      out.push({ fecha, letra: ['D', 'L', 'M', 'M', 'J', 'V', 'S'][d.getDay()], num: d.getDate(),
+        viajes: (dia?.viajes || []).filter((v: any) => v.estado !== 'Cancelado').length,
+        descanso: dia ? dia.descanso : this.esDescanso(fecha), esHoy: fecha === hoyIso, pasado: fecha < hoyIso });
+      d.setDate(d.getDate() + 1);
+    }
+    return out;
+  }
+
+  irADia(fecha: string): void {
+    if (this.vista === 'hoy' && fecha !== this.iso(new Date())) this.cambiarVista('semana');
+    setTimeout(() => document.querySelector(`[data-fecha="${fecha}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
+  }
+
   private agruparPorDia(viajes: any[]): DiaConViajes[] {
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
     const hoyIso = this.iso(hoy);

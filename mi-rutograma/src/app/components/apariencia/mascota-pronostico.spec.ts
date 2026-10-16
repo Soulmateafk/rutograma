@@ -28,3 +28,10 @@ describe('mascota: lo nuevo del Rutograma', () => {
     expect(r.texto).toContain(esperado);
   });
 });
+
+describe('mascota: modo liviano', () => {
+  it('"la app va muy lenta" explica el modo liviano', () => {
+    const r = responder('la app va muy lenta', { viajes: [], vehiculos: [], conductores: [], rutas: [], mes: 9, anio: 2026 }, {}, new Date(2026, 9, 16));
+    expect(r.texto).toContain('modo liviano');
+  });
+});

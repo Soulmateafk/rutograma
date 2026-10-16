@@ -2622,7 +2622,7 @@ app.post('/api/guias/reiniciar', (req, res) => {
 // reglasAsignacion / picoPlaca: ver reglas-asignacion.js. anuncios: la pizarra.
 // comparendos: multas por vehículo y conductor. quejas: reclamos de clientes.
 // ubicaciones: coordenadas de destinos que el mapa no conocía.
-const CLAVES_CONFIG_COMPARTIDA = { transportadoras: 'array', cuposExt: 'array', festivos: 'array', reglasAsignacion: 'array', picoPlaca: 'array', anuncios: 'array', comparendos: 'array', quejas: 'array', ubicaciones: 'array', celebraciones: 'array', notasDia: 'array' };
+const CLAVES_CONFIG_COMPARTIDA = { transportadoras: 'array', cuposExt: 'array', festivos: 'array', reglasAsignacion: 'array', picoPlaca: 'array', anuncios: 'array', comparendos: 'array', quejas: 'array', ubicaciones: 'array', celebraciones: 'array', notasDia: 'array', ajustesSesion: 'array' };
 
 app.post('/api/configuracion/compartida', (req, res) => {
     try {
@@ -4939,6 +4939,7 @@ function preferenciasDe(usuario) {
         rutoPlegados: Array.isArray(p.rutoPlegados) ? p.rutoPlegados.filter(x => ['propia', 'ARSITRANS', 'POLAR'].includes(x)) : [],
         rutoSemana: p.rutoSemana === true,
         rutoPasadosGris: p.rutoPasadosGris !== false,
+        livianoAuto: p.livianoAuto !== false,
         rutoFiltros: Array.isArray(p.rutoFiltros) ? p.rutoFiltros.filter(f => f && typeof f.nombre === 'string').slice(0, 12).map(f => ({
             id: String(f.id || '').slice(0, 20), nombre: String(f.nombre).slice(0, 40), placa: String(f.placa || '').slice(0, 30),
             tr: ['makand', 'arsitrans', 'polar'].includes(f.tr) ? f.tr : '', texto: String(f.texto || '').slice(0, 60)

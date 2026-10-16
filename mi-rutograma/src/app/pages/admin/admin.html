@@ -14,6 +14,9 @@
     <button *ngIf="auth.isAdmin" class="admin-tab" [class.activa]="pestaniaActiva === 'correo'" (click)="cambiarPestania('correo')">
       Correo
     </button>
+    <button *ngIf="auth.isAdmin || auth.puedeAprobar" class="admin-tab" [class.activa]="pestaniaActiva === 'permisos'" (click)="cambiarPestania('permisos')" data-guia="adm-permisos">
+      Permisos y sesión
+    </button>
     <button *ngIf="auth.isAdmin || auth.puede('gestionarDispositivos')" class="admin-tab" [class.activa]="pestaniaActiva === 'dispositivos'" (click)="cambiarPestania('dispositivos')">
       Dispositivos
     </button>
@@ -157,6 +160,44 @@
         </ul>
         <p class="admin-subtexto">Los datos del correo se cambian en el archivo <code>backend/.env</code> y luego se reinicia el servidor.</p>
       </ng-container>
+    </div>
+  </ng-container>
+
+  <!-- ===================== PERMISOS Y SESIÓN ===================== -->
+  <ng-container *ngIf="pestaniaActiva === 'permisos' && (auth.isAdmin || auth.puedeAprobar)">
+    <div class="pm-sesion">
+      <div>
+        <strong><i class="bi bi-clock-history"></i> Cerrar la sesión si no se usa la app</strong>
+        <span>Si un equipo queda abierto y nadie lo usa, la sesión se cierra sola (5 minutos antes sale un aviso para seguir). Vale para todas las cuentas de oficina; los celulares de conductores y la cuenta de despachos no se cierran.</span>
+      </div>
+      <select class="rol-select" [ngModel]="minutosInactividad" (ngModelChange)="cambiarInactividad($event)" aria-label="Tiempo sin usar la app">
+        <option *ngFor="let m of opcionesInactividad" [ngValue]="m">Tras {{ textoInactividad(m) }}</option>
+      </select>
+    </div>
+
+    <p class="pm-ayuda" *ngIf="!auth.isAdmin"><i class="bi bi-eye"></i> Aquí ves qué puede hacer cada cuenta. Los permisos solo los cambia el administrador.</p>
+    <p class="pm-ayuda" *ngIf="auth.isAdmin"><i class="bi bi-info-circle"></i> Cada casilla se guarda al tocarla. Lo gris depende de "Hacer cambios": actívalo primero. "Personalizado" quiere decir que esa cuenta ya no sigue los permisos de su rol.</p>
+    <div class="pm-scroll">
+      <table class="pm-tabla">
+        <thead>
+          <tr>
+            <th class="pm-cuenta">Cuenta</th>
+            <th *ngFor="let p of permisosInfo" class="pm-col" [title]="p.nombre + (p.ayuda ? ' — ' + p.ayuda : '')"><span>{{ cortos[p.clave] }}</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let u of cuentasDeOficina">
+            <td class="pm-cuenta">
+              <b>{{ u.nombre || u.email }}</b><small>{{ nombreRol(u.rol) }}<ng-container *ngIf="u.permisos"> · personalizado <button *ngIf="auth.isAdmin" class="pm-rol" (click)="volverAlRol(u)" title="Volver a los permisos de su rol">↺</button></ng-container></small>
+            </td>
+            <td *ngFor="let p of permisosInfo" class="pm-celda" [class.on]="tienePermiso(u, p.clave)" [class.gris]="bloqueadoPorEditar(u, p.clave)">
+              <input type="checkbox" [checked]="tienePermiso(u, p.clave)" [disabled]="!auth.isAdmin || guardandoCelda !== ''" (change)="alternarCelda(u, p.clave)"
+                     [attr.aria-label]="cortos[p.clave] + ' para ' + (u.nombre || u.email)" [title]="p.nombre">
+            </td>
+          </tr>
+          <tr *ngIf="!cuentasDeOficina.length"><td [attr.colspan]="permisosInfo.length + 1" class="pm-ayuda">No hay cuentas de oficina aprobadas.</td></tr>
+        </tbody>
+      </table>
     </div>
   </ng-container>
 

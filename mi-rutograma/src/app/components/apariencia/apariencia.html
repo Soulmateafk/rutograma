@@ -276,6 +276,11 @@
         <span class="ap-int-caja"></span>
         <span><strong>Quitar animaciones</strong><small>Sin efectos al abrir o cerrar pantallas, ventanas y menús, ni al tocar botones. Más rápido en equipos lentos.</small></span>
       </label>
+      <label class="ap-interruptor">
+        <input type="checkbox" [checked]="theme.ap.livianoAuto" (change)="theme.alternarLivianoAuto()" [disabled]="theme.ap.sinAnimaciones">
+        <span class="ap-int-caja"></span>
+        <span><strong>Modo liviano automático</strong><small>Si este equipo va lento, apaga solas las animaciones y decoraciones (y te avisa). {{ theme.liviano() ? 'Ahora está activo.' : '' }}</small></span>
+      </label>
       <label class="ap-interruptor" data-guia="ap-mascota">
         <input type="checkbox" [checked]="theme.ap.mascota" (change)="theme.alternarMascota()">
         <span class="ap-int-caja"></span>

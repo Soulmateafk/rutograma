@@ -1,4 +1,6 @@
 import { Component, OnInit, signal, inject, effect } from '@angular/core';
+import { AvisoLivianoComponent } from './components/comunes/aviso-liviano';
+import { RendimientoService } from './services/rendimiento.service';
 import { Router, NavigationStart, NavigationEnd, RouterOutlet, RouterLink } from '@angular/router'; 
 import { Title } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common'; 
@@ -34,7 +36,7 @@ import { temporadaVisible } from './services/temporadas';
 @Component({
   selector: 'app-root',
   standalone: true, 
-  imports: [RouterOutlet, RouterLink, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent, PizarraComponent, AvisoCargueComponent, AparienciaComponent, AvisoDeshacerComponent, NotasComponent, BusquedaHabladaComponent, MarcadorVivoComponent, EditandoAhoraComponent], 
+  imports: [AvisoLivianoComponent, RouterOutlet, RouterLink, NavbarComponent, CommonModule, GuiaComponent, AvisoInactividadComponent, PizarraComponent, AvisoCargueComponent, AparienciaComponent, AvisoDeshacerComponent, NotasComponent, BusquedaHabladaComponent, MarcadorVivoComponent, EditandoAhoraComponent], 
   templateUrl: './app.html'
 })
 export class App implements OnInit {
@@ -141,6 +143,8 @@ export class App implements OnInit {
     // Franja de MODO PRUEBA: la barra de arriba baja 30 px. Antes era una regla
     // "body:has(.franja-prueba)" que hacía al navegador revisar toda la página
     // cada vez que aparecía o se iba algo (por ejemplo la vista previa de un viaje).
+    // Modo liviano automático: mide de vez en cuando si el equipo va lento.
+    inject(RendimientoService).iniciar();
     effect(() => {
       const hay = this.dataService.modo() === 'pruebas' && !this.cargandoInicial() && !this.sinSesion();
       if (typeof document !== 'undefined') document.documentElement.classList.toggle('con-franja-prueba', hay);

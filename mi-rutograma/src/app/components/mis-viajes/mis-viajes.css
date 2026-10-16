@@ -179,3 +179,18 @@
 :host-context(body.tema-claro) .mv-sin-senal { color: #1e293b; }
 :host-context(body.tema-claro) .mv-sin-senal span { color: #475569; }
 :host-context(body.tema-claro) .mv-por-enviar { color: #b45309; }
+
+/* Semana: pestañas Hoy / Esta semana / Todo y tira de lunes a domingo */
+.mv-semana { margin-bottom: 14px; }
+.mv-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.mv-tabs button { flex: 1; background: rgba(148, 163, 184, .12); border: 1px solid rgba(148, 163, 184, .25); color: inherit; border-radius: 10px; padding: 9px 6px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.mv-tabs button.on { background: #2563eb; border-color: #3b82f6; color: #fff; }
+.mv-tira { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.mv-tira-dia { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 2px; border-radius: 10px; border: 1px solid rgba(148, 163, 184, .2); background: rgba(148, 163, 184, .06); color: inherit; font: inherit; cursor: pointer; }
+.mv-tira-dia span { font-size: 11px; opacity: .7; }
+.mv-tira-dia b { font-size: 16px; }
+.mv-tira-dia small { font-size: 10px; opacity: .8; white-space: nowrap; }
+.mv-tira-dia.con { border-color: rgba(59, 130, 246, .55); background: rgba(59, 130, 246, .12); }
+.mv-tira-dia.descanso { border-color: rgba(250, 113, 184, .5); background: rgba(250, 113, 184, .1); }
+.mv-tira-dia.hoy { outline: 2px solid #f59e0b; outline-offset: 1px; }
+.mv-tira-dia.pasado { opacity: .5; }

@@ -138,6 +138,7 @@ export class DespachosComponent implements OnInit, OnDestroy {
   aBorrar: any = null;
 
   private reloj: ReturnType<typeof setInterval> | null = null;
+  private relojCrono: ReturnType<typeof setInterval> | null = null;
 
   // Cargue demorado: límite (minutos) y motivos. Los manda el servidor.
   limiteMin = 90;
@@ -180,6 +181,8 @@ export class DespachosComponent implements OnInit, OnDestroy {
     this.procesarCola();
     // Se refresca solo (otro equipo pudo anotar algo). Si hay un formulario
     // a medio llenar, no se toca: solo cambian las listas.
+    // El cronómetro del cargue avanza solo (sin pedir nada al servidor).
+    this.relojCrono = setInterval(() => { if (document.visibilityState === 'visible' && this.enCargue.length) this.cdr.markForCheck(); }, 20000);
     this.reloj = setInterval(() => {
       if (document.visibilityState !== 'visible') return;
       this.procesarCola();
@@ -190,6 +193,7 @@ export class DespachosComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     if (this.reloj) clearInterval(this.reloj);
+    if (this.relojCrono) clearInterval(this.relojCrono);
     if (typeof window !== 'undefined') {
       window.removeEventListener('online', this.alCambiarConexion);
       window.removeEventListener('offline', this.alCambiarConexion);
@@ -697,6 +701,7 @@ export class DespachosComponent implements OnInit, OnDestroy {
         this.ui.mostrarToast(data?.msg || 'No se pudo cargar el registro.', 'err');
       }
       if (dataHoy?.ok) {
+        this.registrosRecientes = dataHoy.registros || [];
         // Siguen en el cargue: sin terminar de cargar, o cargados y sin salir.
         this.enCargue = (dataHoy.registros || []).filter((r: any) => !r.horaFinCargue || !r.horaSalida)
           .sort((a: any, b: any) => (a.fecha + a.horaLlegada).localeCompare(b.fecha + b.horaLlegada));
@@ -764,6 +769,60 @@ export class DespachosComponent implements OnInit, OnDestroy {
   }
 
   /** Cuánto lleva cargando un vehículo que todavía no termina (desde el inicio de cargue o la llegada). */
+  // ---------- Cronómetro del cargue ----------
+  /** 0-100+: qué parte del límite lleva el cargue (para la barrita de color). */
+  pctCargue(r: any): number {
+    const m = this.minutosEnCargue(r);
+    return m === null || m < 0 ? 0 : Math.round(m / Math.max(1, this.limiteMin) * 100);
+  }
+  /** verde, amarillo (desde el 75 % del límite) o rojo (pasó el límite). */
+  colorCargue(r: any): 'verde' | 'amarillo' | 'rojo' {
+    const p = this.pctCargue(r);
+    return p > 100 ? 'rojo' : p >= 75 ? 'amarillo' : 'verde';
+  }
+
+  // ---------- Cola de hoy: quién debería llegar a cargar y en qué orden ----------
+  registrosRecientes: any[] = [];
+  verColaCompleta = false;
+  get colaHoy(): Array<{ v: any; estado: 'falta' | 'tarde' | 'cargando' | 'cargado' | 'salio'; sigue: boolean; reg: any }> {
+    const hoy = this.hoy;
+    const deHoy = this.registrosRecientes.filter(r => r.fecha === hoy || r.fecha === this.ayer());
+    const ahora = new Date();
+    const minAhora = ahora.getHours() * 60 + ahora.getMinutes();
+    const lista = this.viajes.filter(v => v.fecha === hoy)
+      .map(v => {
+        const reg = deHoy.find(r => String(r.viajeId || '') === String(v.id)) || deHoy.find(r => r.fecha === hoy && pegada(r.placa) === pegada(v.placa));
+        let estado: 'falta' | 'tarde' | 'cargando' | 'cargado' | 'salio' = 'falta';
+        if (reg) estado = reg.horaSalida ? 'salio' : reg.horaFinCargue ? 'cargado' : 'cargando';
+        else if (/^\d{1,2}:\d{2}$/.test(String(v.hora || ''))) {
+          const [h, m] = String(v.hora).split(':').map(Number);
+          if (h * 60 + m < minAhora) estado = 'tarde';
+        }
+        return { v, estado, sigue: false, reg };
+      })
+      .sort((a, b) => String(a.v.hora || '99:99').localeCompare(String(b.v.hora || '99:99')) || String(a.v.placa).localeCompare(String(b.v.placa)));
+    // Los 3 primeros que todavía no llegan son "los que siguen".
+    lista.filter(x => x.estado === 'falta' || x.estado === 'tarde').slice(0, 3).forEach(x => x.sigue = true);
+    return lista;
+  }
+  get colaVisible() {
+    const c = this.colaHoy;
+    return this.verColaCompleta ? c : c.filter(x => x.estado !== 'salio');
+  }
+  trackCola(_: number, x: any): string { return String(x.v.id); }
+  get colaSalieron(): number { return this.colaHoy.filter(x => x.estado === 'salio').length; }
+  textoEstadoCola(x: any): string {
+    return { falta: 'Por llegar', tarde: 'Ya debía salir', cargando: 'Cargando', cargado: 'Cargado, sin salir', salio: 'Salió' }[x.estado as string] || '';
+  }
+  anotarDeCola(x: any): void {
+    if (x.reg) return;
+    this.form.placa = x.v.placa;
+    this.cambioPlaca();
+    this.form.viajeId = String(x.v.id);
+    this.escogioViaje();
+    if (typeof document !== 'undefined') document.querySelector('.dp-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   llevaCargando(r: any): string {
     const min = this.minutosEnCargue(r);
     return min !== null && min >= 0 ? this.textoMinutos(min) : '';
