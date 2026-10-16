@@ -8,7 +8,7 @@
 // ============================================================
 
 const placaDe = (v) => String(v?.p || v?.placa || '').toUpperCase().trim();
-const trDe = (v) => String(v?.tr || v?.transportadora || '').toLowerCase().trim();
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 /** Patrón de la fila de cupo numerada ("ARSITRANS 3"). */
 const patronCupo = (nombreTr) => new RegExp(`^${String(nombreTr).toUpperCase()}\\s+(\\d+)$`);
@@ -22,20 +22,32 @@ const patronCupo = (nombreTr) => new RegExp(`^${String(nombreTr).toUpperCase()}\
 function planReacomodoCupos(viajes, vehiculos, { tr, anio, mes, desde = '' }) {
     const patron = patronCupo(tr);
     const prefijo = `${anio}-${String(mes + 1).padStart(2, '0')}`;
-    const trBuscada = String(tr).toLowerCase();
+
+    // El día que cuenta es el que se pinta en el Rutograma (salida): al
+    // mover un viaje a mano o por mantenimiento la "fecha" guardada puede
+    // quedarse con el día viejo, y la transportadora puede seguir siendo la
+    // del camión original. Por eso basta con que la placa sea un cupo
+    // numerado de esta transportadora (ARSITRANS 5) y que caiga en el mes.
+    const nombreMes = MESES[mes];
+    // Igual que el Rutograma: manda el mes/año del viaje; la fecha solo si no los trae.
+    const enMes = (v) => (v.mes !== undefined && v.mes !== null && v.mes !== '')
+        ? String(v.mes).toLowerCase() === nombreMes && Number(v.anio) === Number(anio)
+        : String(v.fecha || '').startsWith(prefijo);
+    const diaDe = (v) => Number(v.salida ?? v.dia) || Number(String(v.fecha || '').slice(8, 10)) || 0;
+    const fechaDe = (v) => `${prefijo}-${String(diaDe(v)).padStart(2, '0')}`;
 
     const delMes = (viajes || []).filter(v =>
-        trDe(v).includes(trBuscada.slice(0, 6)) &&
         String(v.estado || '') !== 'Cancelado' &&
-        String(v.fecha || '').startsWith(prefijo) &&
-        String(v.fecha || '') >= desde &&
-        patron.test(placaDe(v))
+        patron.test(placaDe(v)) &&
+        enMes(v) && diaDe(v) >= 1 && diaDe(v) <= 31 &&
+        fechaDe(v) >= desde
     );
 
     const porDia = new Map();
     delMes.forEach(v => {
-        if (!porDia.has(v.fecha)) porDia.set(v.fecha, []);
-        porDia.get(v.fecha).push(v);
+        const fecha = fechaDe(v);
+        if (!porDia.has(fecha)) porDia.set(fecha, []);
+        porDia.get(fecha).push(v);
     });
 
     const cambios = [];
