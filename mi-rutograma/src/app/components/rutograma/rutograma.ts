@@ -244,6 +244,58 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     return this.filtroCache.partes.some(p => texto.includes(p));
   }
 
+  // Saltar entre los viajes que coinciden con el filtro (Enter o las flechas):
+  // la tabla baja hasta el viaje y lo marca. Solo los que están a la vista
+  // (no los de grupos plegados o fuera de la semana).
+  public posBusqueda = -1;
+  public totalBusqueda = 0;
+  public alCambiarFiltroViajes(): void { this.posBusqueda = -1; this.totalBusqueda = 0; }
+
+  private coincidenciasEnPantalla(): HTMLElement[] {
+    const tabla = document.getElementById('rtbl');
+    if (!tabla || !this.hayFiltroViajes) return [];
+    const lista = Array.from(tabla.querySelectorAll('.ruto-card-viaje[data-viaje]:not(.ruto-atenuado)')) as HTMLElement[];
+    const visibles = lista.filter(el => el.offsetParent !== null);
+    const dia = (el: HTMLElement) => Number(el.closest('td')?.getAttribute('data-dia') || 0);
+    const fila = new Map(Array.from(tabla.querySelectorAll('tr')).map((tr, i) => [tr, i]));
+    return visibles.sort((a, b) => dia(a) - dia(b) || (fila.get(a.closest('tr')!) || 0) - (fila.get(b.closest('tr')!) || 0));
+  }
+
+  public saltarCoincidencia(salto: number): void {
+    const lista = this.coincidenciasEnPantalla();
+    this.totalBusqueda = lista.length;
+    if (!lista.length) {
+      this.posBusqueda = -1;
+      if (this.hayFiltroViajes) this.ui.mostrarToast('No hay viajes a la vista con ese filtro.', 'info');
+      return;
+    }
+    // La primera vez se empieza por el de hoy en adelante.
+    if (this.posBusqueda < 0 && salto > 0) {
+      const hoy = this.esMesDeHoy() ? new Date().getDate() : 0;
+      const i = lista.findIndex(el => Number(el.closest('td')?.getAttribute('data-dia') || 0) >= hoy);
+      this.posBusqueda = i === -1 ? 0 : i;
+    } else {
+      this.posBusqueda = ((this.posBusqueda < 0 ? 0 : this.posBusqueda + salto) % lista.length + lista.length) % lista.length;
+    }
+    const el = lista[this.posBusqueda];
+    const tabla = document.querySelector('.ruto-table-responsive') as HTMLElement | null;
+    if (tabla) {
+      const fijas = Array.from(tabla.querySelectorAll('thead th:not(.ruto-th-day)')).reduce((s, x) => s + (x as HTMLElement).offsetWidth, 0);
+      const td = el.closest('td') as HTMLElement | null;
+      if (td) tabla.scrollTo({ left: Math.max(0, td.offsetLeft - fijas - (tabla.clientWidth - fijas - td.offsetWidth) / 2), behavior: this.theme.ap.sinAnimaciones ? 'auto' : 'smooth' });
+    }
+    const id = el.getAttribute('data-viaje');
+    const vj = (this.ds.S.viajes || []).find((v: any) => String(v.id) === String(id));
+    const texto = vj ? `${vj.ruta || vj.codigo || 'viaje'} · ${vj.p || vj.placa || ''} · día ${vj.salida ?? vj.dia ?? ''} (${this.posBusqueda + 1} de ${lista.length})` : `${this.posBusqueda + 1} de ${lista.length}`;
+    setTimeout(() => marcarBuscado(() => document.querySelector(`#rtbl [data-viaje="${CSS.escape(String(id))}"]`), texto, undefined, 1800), 120);
+    this.cdr.detectChanges();
+  }
+
+  private esMesDeHoy(): boolean {
+    const hoy = new Date();
+    return Number(this.ds?.S?.anio) === hoy.getFullYear() && Number(this.ds?.S?.mes) === hoy.getMonth();
+  }
+
   // Filtros guardados (de cada cuenta): placa resaltada + transportadora + filtro de viajes.
   public nombreFiltroNuevo = '';
   public guardandoFiltro = false;

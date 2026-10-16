@@ -53,6 +53,8 @@ export const GUIAS: Record<string, Guia> = {
     titulo: 'Novedad en el Rutograma',
     pasos: [
       { el: '.ruto-btn-pasados', titulo: 'Días pasados con candado', texto: 'Los días que ya pasaron se ven apagados y con un candadito: ya no se reprograman, solo se marca el estado y lo que pasó. Pasa el mouse para verlos bien. Con este botón los vuelves a ver con color normal (solo en tu cuenta).' },
+      { el: 'ruto-filtros', titulo: 'Buscar un viaje y saltar a él', texto: 'Escribe la ruta, el cliente, el conductor o el destino y oprime Enter: la tabla te lleva al viaje y lo marca ("3 de 12"). Enter otra vez va al siguiente, Shift + Enter al anterior, o usa las flechitas.' },
+      { el: '.ruto-table-responsive', titulo: 'Resaltar un vehículo', texto: 'Pon el mouse sobre la placa y se marca toda su fila y la casilla de hoy, para no perderte en la tabla.' },
       { el: '.ruto-table-responsive', titulo: 'Resaltar a un conductor', texto: 'Pon el mouse sobre el nombre del conductor en un viaje y se iluminan todos sus viajes del mes, en cualquier vehículo.' },
       PASO_AYUDA
     ]
