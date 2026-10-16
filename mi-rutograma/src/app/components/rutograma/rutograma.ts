@@ -1071,8 +1071,26 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   // recién regenerado el mes y todavía no hizo falta ningún cupo) — las
   // filas de "+ Añadir viaje" (transpExt) se pintan aparte, siempre, sin
   // depender de que exista ya algún cupo numerado.
+  // Una fila de cupo que no tiene ni un viaje en el mes que se ve no se
+  // pinta (los cupos son de todos los meses: POLAR 5 puede tener viajes en
+  // julio y estar vacío en agosto). Los cancelados sí cuentan, para no
+  // esconder su tarjeta roja.
   public vehiculosCupoOrdenados(): any[] {
-    return this.vehiculosOrdenados().filter(v => this.clasificarCupo(v).esCupo);
+    const conViajes = this.placasConViajesDelMes();
+    return this.vehiculosOrdenados().filter(v => this.clasificarCupo(v).esCupo && conViajes.has(String(v.p || v.placa || '').toUpperCase().trim()));
+  }
+
+  // Sale de lo mismo que se pinta (viajesAgrupados, claves "PLACA-día"),
+  // así que se recalcula solo cuando el Rutograma vuelve a agrupar.
+  private cachePlacasMes: { de: any; placas: Set<string> } | null = null;
+  private placasConViajesDelMes(): Set<string> {
+    const agrupados = this.viajesAgrupados;
+    const previo = this.cachePlacasMes;
+    if (previo && previo.de === agrupados) return previo.placas;
+    const placas = new Set<string>();
+    Object.keys(agrupados || {}).forEach(k => { if ((agrupados as any)[k]?.length) placas.add(k.replace(/-\d+$/, '')); });
+    this.cachePlacasMes = { de: agrupados, placas };
+    return placas;
   }
 
   // Los cupos numerados de UNA sola transportadora (ej. solo "ARSITRANS"),
