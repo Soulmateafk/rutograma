@@ -198,10 +198,21 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   // Días que ya pasaron: apagados y con candado (sin el permiso "editar días
   // pasados" solo se anota el estado y lo que pasó; lo hace cumplir el servidor).
   private hoyTexto = '';
+  // Se llama por cada casilla en cada repintado: se calcula una vez por minuto
+  // y por mes el primer día que NO es pasado, y luego es solo comparar números.
+  private limitePasado = { clave: '', dia: 0 };
   public esDiaPasado(d: number): boolean {
     if (!this.ds?.S) return false;
-    if (!this.hoyTexto || Date.now() - this.hoyTextoEn > 60000) { this.hoyTexto = fechaLocal(); this.hoyTextoEn = Date.now(); }
-    return this.fechaDia(d) < this.hoyTexto;
+    const ahora = Date.now();
+    const clave = `${this.ds.S.anio}-${this.ds.S.mes}`;
+    if (this.limitePasado.clave !== clave || ahora - this.hoyTextoEn > 60000) {
+      this.hoyTextoEn = ahora;
+      this.hoyTexto = fechaLocal();
+      const hoy = new Date();
+      const mesVista = Number(this.ds.S.anio) * 12 + Number(this.ds.S.mes), mesHoy = hoy.getFullYear() * 12 + hoy.getMonth();
+      this.limitePasado = { clave, dia: mesVista < mesHoy ? 99 : mesVista > mesHoy ? 0 : hoy.getDate() };
+    }
+    return d < this.limitePasado.dia;
   }
   private hoyTextoEn = 0;
   public get tituloDiaPasado(): string {
@@ -215,20 +226,50 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   public nombreCondClave(vj: any, v: any): string {
     return String(vj.cond || this.conductoresMap[v.p] || '').trim().toLowerCase();
   }
+  // Espera un instante: al solo pasar por encima con el mouse no se hace nada.
+  private relojConductor: any = null;
   public resaltarConductor(nombre: string): void {
+    clearTimeout(this.relojConductor);
+    this.relojConductor = setTimeout(() => this.aplicarResaltadoConductor(nombre), 180);
+  }
+  private aplicarResaltadoConductor(nombre: string): void {
     this.quitarResaltadoConductor();
     if (!nombre || /^sin /.test(nombre)) return;
     const tabla = document.getElementById('rtbl');
     if (!tabla) return;
     const tarjetas = tabla.querySelectorAll(`[data-cond="${CSS.escape(nombre)}"]`);
     if (tarjetas.length < 1) return;
-    tabla.classList.add('ruto-hay-cond');
     tarjetas.forEach(el => el.classList.add('ruto-cond-resaltado'));
   }
+  // Resaltar la fila de un vehículo (mouse sobre su placa) y la columna de hoy.
+  // Se escucha directo en la página (sin repintar con Angular): el mouse
+  // entra o sale de una placa o del nombre de un conductor.
+  private filaResaltada: HTMLElement | null = null;
+  private condBajoMouse = '';
+  private alPasarMouse = (e: MouseEvent) => {
+    const t = e.target as HTMLElement | null;
+    if (!t?.closest) return;
+    const placa = t.closest('#rtbl .ruto-td-vehicle-info');
+    const tr = placa ? placa.closest('tr') as HTMLElement : null;
+    if (tr !== this.filaResaltada) {
+      this.filaResaltada?.classList.remove('ruto-fila-hover');
+      document.querySelectorAll('#rtbl .ruto-hoy-hover').forEach(td => td.classList.remove('ruto-hoy-hover'));
+      this.filaResaltada = tr;
+      if (tr) {
+        tr.classList.add('ruto-fila-hover');
+        document.querySelectorAll('#rtbl td.ruto-td-day-cell.hoy').forEach(td => td.classList.add('ruto-hoy-hover'));
+      }
+    }
+    const conductor = t.closest('#rtbl .ruto-card-driver') ? (t.closest('[data-cond]')?.getAttribute('data-cond') || '') : '';
+    if (conductor !== this.condBajoMouse) {
+      this.condBajoMouse = conductor;
+      if (conductor) this.resaltarConductor(conductor); else this.quitarResaltadoConductor();
+    }
+  };
   public quitarResaltadoConductor(): void {
+    clearTimeout(this.relojConductor);
     const tabla = document.getElementById('rtbl');
     if (!tabla) return;
-    tabla.classList.remove('ruto-hay-cond');
     tabla.querySelectorAll('.ruto-cond-resaltado').forEach(el => el.classList.remove('ruto-cond-resaltado'));
   }
 
@@ -549,6 +590,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
       }, 20000);
 
     }
+    if (typeof document !== 'undefined') { document.addEventListener('mousemove', this.alMoverMouse, { passive: true }); document.addEventListener('mouseover', this.alPasarMouse, { passive: true }); }
     this.ds.cargarEstadoLocal(); 
     
     this.ds.inicializarApp(true);
@@ -746,6 +788,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    if (typeof document !== 'undefined') { document.removeEventListener('mousemove', this.alMoverMouse); document.removeEventListener('mouseover', this.alPasarMouse); }
     this.subDataChanged?.unsubscribe();
     if (this.relojDespachos) clearInterval(this.relojDespachos);
     if (this.relojAprobaciones) clearInterval(this.relojAprobaciones);
@@ -1122,6 +1165,20 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     this.posicionarTooltipViaje(event);
   }
 
+  // La vista previa sigue al mouse moviendo solo su recuadro: antes cada
+  // movimiento sobre un viaje volvía a revisar toda la tabla (en equipos
+  // lentos se sentía pesado). Se escucha directo, sin pasar por Angular.
+  private alMoverMouse = (e: MouseEvent) => {
+    if (!this.tooltipVisible || !this.tooltipDatos) return;
+    this.posicionarTooltipViaje(e);
+    const el = document.querySelector('.ruto-hover-tooltip') as HTMLElement | null;
+    if (el) { el.style.left = this.tooltipX + 'px'; el.style.top = this.tooltipY + 'px'; }
+  };
+
+  // El HTML de "Prox. Entrega" se guarda: si se crea uno nuevo en cada
+  // repintado, el navegador vuelve a armar esas celdas cada vez.
+  private cacheHtml = new Map<string, SafeHtml>();
+
   // Evita que el tooltip se salga de la pantalla cuando el mouse está
   // cerca del borde derecho o inferior — lo "voltea" hacia el otro lado
   // del cursor en vez de recortarse.
@@ -1151,6 +1208,10 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     this.tooltipVisible = false;
     this.tooltipDatos = null;
   }
+
+  public trackPorLunes(_: number, s: any): string { return s.lunes; }
+  public trackPorIndice(i: number): number { return i; }
+  public trackPorDia(_: number, d: any): any { return d.dia; }
 
   public trackByVehiculo(index: number, v: any): string {
     return v.p + v.estado; 
@@ -1471,7 +1532,14 @@ export class RutogramaComponent implements OnInit, OnDestroy {
   }
 
   public safeHtml(htmlContent: string): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(htmlContent || '');
+    const clave = htmlContent || '';
+    let html = this.cacheHtml.get(clave);
+    if (!html) {
+      if (this.cacheHtml.size > 500) this.cacheHtml.clear();
+      html = this.sanitizer.bypassSecurityTrustHtml(clave);
+      this.cacheHtml.set(clave, html);
+    }
+    return html;
   }
 
   // --- BLINDAJE ANTI-NaN: Valida y formatea números para evitar datos corruptos ---
@@ -4536,7 +4604,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     // La Foto sale completa aunque en pantalla haya una semana, grupos plegados o un filtro.
     clone.classList.remove('ruto-modo-semana');
     clone.classList.remove('ruto-hay-cond');
-    clone.querySelectorAll('.ruto-col-oculta, .ruto-fila-plegada, .ruto-atenuado, .ruto-seleccionado, .ruto-dia-pasado, .ruto-cond-resaltado').forEach(el => el.classList.remove('ruto-col-oculta', 'ruto-fila-plegada', 'ruto-atenuado', 'ruto-seleccionado', 'ruto-dia-pasado', 'ruto-cond-resaltado'));
+    clone.querySelectorAll('.ruto-col-oculta, .ruto-fila-plegada, .ruto-atenuado, .ruto-seleccionado, .ruto-dia-pasado, .ruto-cond-resaltado, .ruto-fila-hover, .ruto-hoy-hover').forEach(el => el.classList.remove('ruto-col-oculta', 'ruto-fila-plegada', 'ruto-atenuado', 'ruto-seleccionado', 'ruto-dia-pasado', 'ruto-cond-resaltado', 'ruto-fila-hover', 'ruto-hoy-hover'));
     clone.querySelectorAll('.ruto-dia-pasado-candado').forEach(el => el.remove());
     clone.querySelectorAll('.ruto-tr-grupo, .ruto-plegar i, .ruto-plegado-nota').forEach(el => el.remove());
 
