@@ -49,6 +49,15 @@ export const GUIAS: Record<string, Guia> = {
   },
 
   // Lo nuevo de trabajar en equipo: sale una vez a cada cuenta de oficina (también a quien ya vio las demás).
+  'ruto-nuevo-2': {
+    titulo: 'Novedad en el Rutograma',
+    pasos: [
+      { el: '.ruto-btn-pasados', titulo: 'Días pasados con candado', texto: 'Los días que ya pasaron se ven apagados y con un candadito: ya no se reprograman, solo se marca el estado y lo que pasó. Pasa el mouse para verlos bien. Con este botón los vuelves a ver con color normal (solo en tu cuenta).' },
+      { el: '.ruto-table-responsive', titulo: 'Resaltar a un conductor', texto: 'Pon el mouse sobre el nombre del conductor en un viaje y se iluminan todos sus viajes del mes, en cualquier vehículo.' },
+      PASO_AYUDA
+    ]
+  },
+
   'ruto-nuevo': {
     titulo: 'Novedad en el Rutograma',
     pasos: [
@@ -128,6 +137,7 @@ export const GUIAS: Record<string, Guia> = {
       { el: '.ruto-fijar', titulo: 'Fijar vehículos arriba', texto: 'El alfiler junto a la placa (sale al pasar el mouse) deja ese vehículo de primero, solo para tu cuenta.' },
       { el: 'ruto-vista', titulo: 'Hoy y Semana', texto: '"Hoy" te lleva a la columna de hoy (tecla H). "Semana" muestra solo 7 días con tarjetas más grandes.' },
       { el: 'ruto-filtros', titulo: 'Filtros', texto: 'Filtra viajes por cliente, conductor o destino (los demás se ven tenues) y guarda tus filtros con un nombre.' },
+      { el: '.ruto-btn-pasados', titulo: 'Días pasados', texto: 'Los días que ya pasaron se ven apagados con candado. Con el mouse sobre el nombre de un conductor se iluminan todos sus viajes.' },
       { el: '.ruto-plegar', titulo: 'Plegar grupos', texto: 'Esconde o muestra la flota propia, Arsitrans o Polar. Solo en tu cuenta.' },
       { el: '.ruto-table-responsive', titulo: 'Varios a la vez y notas', texto: 'Ctrl + clic en varios viajes para cambiarles el conductor, correrlos días o cancelarlos juntos. Doble clic en una casilla deja una nota en ese día.' },
       { el: '.ruto-tr-cupo-header', titulo: 'Arsitrans y Polar', texto: 'Los cupos de terceros. "+ Confirmar cupo" agrega uno; "Reacomodar" junta los viajes del mes en los menos cupos posibles, sin tocar nada más.' }

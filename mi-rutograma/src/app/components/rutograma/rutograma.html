@@ -116,6 +116,8 @@
         <button class="btn-zoom ruto-btn-hoy" (click)="irAHoy()" title="Ir al día de hoy (tecla H)"><i class="bi bi-crosshair"></i> Hoy</button>
         <button class="btn-zoom ruto-btn-semana" [class.on]="theme.ap.rutoSemana" (click)="alternarSemanaRuto()"
                 [title]="theme.ap.rutoSemana ? 'Volver a ver el mes completo' : 'Ver solo una semana, con las tarjetas más grandes'"><i class="bi bi-calendar-week"></i> {{ theme.ap.rutoSemana ? 'Mes' : 'Semana' }}</button>
+        <button class="btn-zoom ruto-btn-pasados" [class.on]="theme.ap.rutoPasadosGris" (click)="theme.alternarPasadosGris()"
+                [title]="theme.ap.rutoPasadosGris ? 'Ver los días pasados con color normal' : 'Apagar los días que ya pasaron (con candado)'"><i class="bi bi-lock"></i></button>
         <ng-container *ngIf="theme.ap.rutoSemana">
           <button class="btn-zoom" (click)="moverSemana(-1)" title="Semana anterior"><i class="bi bi-chevron-left"></i></button>
           <span class="ruto-semana-texto">{{ textoSemana }}</span>
@@ -179,9 +181,10 @@
         <tr class="ruto-thead-tr">
           <th class="ruto-th-vehicle">Vehículo</th>
           <th class="ruto-th-delivery">Prox. Entrega</th>
-          <th *ngFor="let d of diasMes" class="ruto-th-day" [class.hoy]="esHoy(d)" [class.ruto-col-oculta]="!diaVisible(d)" [attr.data-dia]="d">
+          <th *ngFor="let d of diasMes" class="ruto-th-day" [class.hoy]="esHoy(d)" [class.ruto-col-oculta]="!diaVisible(d)" [class.ruto-dia-pasado]="theme.ap.rutoPasadosGris && esDiaPasado(d)" [attr.data-dia]="d">
             <span class="ruto-day-name">{{ getDiaSem(d) }}</span><br><b>{{ d }}</b>
             <span *ngIf="esFestivo(d)" class="ruto-festivo-icon"><i class="bi bi-ban" style="color:#ef4444;"></i></span>
+            <span *ngIf="theme.ap.rutoPasadosGris && esDiaPasado(d) && !diaEnSemanaCerrada(d)" class="ruto-dia-pasado-candado" [title]="tituloDiaPasado"><i class="bi" [ngClass]="auth.puede('editarDiasPasados') ? 'bi-unlock' : 'bi-lock'"></i></span>
             <span *ngIf="diaEnSemanaCerrada(d)" class="ruto-dia-cerrado" title="Semana cerrada: cambiar su plan pide motivo"><i class="bi bi-lock-fill"></i></span>
           </th>
         </tr>
@@ -230,7 +233,7 @@
 
           <td class="ruto-td-next-delivery" [innerHTML]="safeHtml(proximaEntrega(v))"></td>
 
-          <td *ngFor="let d of diasMes" class="ruto-td-day-cell" [class.hoy]="esHoy(d)" [class.ruto-col-oculta]="!diaVisible(d)" [attr.data-dia]="d" (dblclick)="abrirNotaDia(v, d, $event)"
+          <td *ngFor="let d of diasMes" class="ruto-td-day-cell" [class.hoy]="esHoy(d)" [class.ruto-col-oculta]="!diaVisible(d)" [class.ruto-dia-pasado]="theme.ap.rutoPasadosGris && esDiaPasado(d)" [attr.data-dia]="d" (dblclick)="abrirNotaDia(v, d, $event)"
               [class.ruto-destino]="arrastrando && celdaDestino === (v.p || '').toUpperCase().trim() + '-' + d"
               (dragover)="alPasarSobreCelda($event, v, d)" (drop)="alSoltarEnCelda($event, v, d)">
             <div *ngIf="notaDe(v, d) as nota" class="ruto-nota-dia" (click)="abrirNotaDia(v, d, $event)" (dblclick)="$event.stopPropagation()" [title]="nota.texto + (nota.por ? ' — ' + autorNota(nota) : '')"><i class="bi bi-sticky-fill"></i> {{ nota.texto }}</div>
@@ -269,7 +272,7 @@
                      (dragstart)="alEmpezarArrastre($event, vj, v)" (dragend)="alTerminarArrastre()"
                      (contextmenu)="abrirMenuViaje($event, vj, v)"
                      [class.ruto-arrastrado]="arrastrando?.id === vj.id"
-                     class="ruto-card-viaje" [class.ruto-atenuado]="hayFiltroViajes && !coincideFiltroViaje(vj, v)" [attr.data-viaje]="vj.id" [class.ap-cambio-vivo]="cambiadosVivo.has(vj.id)" [attr.data-autor]="cambiadosVivo.has(vj.id) ? autorDe(vj.id) : null" [style.--color-vivo]="cambiadosVivo.has(vj.id) ? colorAutorDe(vj.id) : null"
+                     class="ruto-card-viaje" [class.ruto-atenuado]="hayFiltroViajes && !coincideFiltroViaje(vj, v)" [attr.data-viaje]="vj.id" [attr.data-cond]="nombreCondClave(vj, v)" [class.ap-cambio-vivo]="cambiadosVivo.has(vj.id)" [attr.data-autor]="cambiadosVivo.has(vj.id) ? autorDe(vj.id) : null" [style.--color-vivo]="cambiadosVivo.has(vj.id) ? colorAutorDe(vj.id) : null"
                      [ngClass]="vj.cssClass"
                      [style.border-left]="vj.prioridad === 'urgente' ? '4px solid #ef4444' : (vj.prioridad === 'alta' ? '4px solid #f59e0b' : '')">
 
@@ -294,7 +297,7 @@
                     <i class="bi bi-signpost-split-fill"></i> Doble entrega{{ vj.cli2 ? ' — ' + vj.cli2 : '' }}
                   </div>
                   <div class="ruto-card-transport">{{ vj.tr || 'Makand' }}</div>
-                  <div class="ruto-card-driver">{{ vj.cond || conductoresMap[v.p] || 'Sin Conductor' }}</div>
+                  <div class="ruto-card-driver" (mouseenter)="resaltarConductor(nombreCondClave(vj, v))" (mouseleave)="quitarResaltadoConductor()">{{ vj.cond || conductoresMap[v.p] || 'Sin Conductor' }}</div>
                   <div class="ruto-card-meta">{{ vj.estado || 'PROG' }} · {{ vj.hora || vj.horaEntrega || '--:--' }}</div>
                   <div class="ruto-card-cajas">{{ vj.cajas || 660 }} cj</div>
                   <div *ngIf="despachoDe(vj) as dsp" class="ruto-card-despacho" [class.falta]="dsp.totalCajas && vj.cajas && dsp.totalCajas < vj.cajas" [title]="'Despacho: ' + (dsp.totalCajas || 0) + ' cajas cargadas' + (dsp.motivoDemora ? ' · demora: ' + dsp.motivoDemora : '')"><i class="bi bi-box-seam"></i> {{ dsp.totalCajas ? dsp.totalCajas + ' cargadas' : 'en cargue' }} · {{ dsp.horaSalida ? 'salió ' + dsp.horaSalida : (dsp.horaFinCargue ? 'cargado ' + dsp.horaFinCargue : 'llegó ' + dsp.horaLlegada) }}<i *ngIf="dsp.motivoDemora" class="bi bi-alarm"></i></div>
@@ -395,7 +398,7 @@
 
             <td class="ruto-td-next-delivery" [innerHTML]="safeHtml(proximaEntrega(v))"></td>
 
-            <td *ngFor="let d of diasMes" class="ruto-td-day-cell" [class.hoy]="esHoy(d)" [class.ruto-col-oculta]="!diaVisible(d)" [attr.data-dia]="d" (dblclick)="abrirNotaDia(v, d, $event)"
+            <td *ngFor="let d of diasMes" class="ruto-td-day-cell" [class.hoy]="esHoy(d)" [class.ruto-col-oculta]="!diaVisible(d)" [class.ruto-dia-pasado]="theme.ap.rutoPasadosGris && esDiaPasado(d)" [attr.data-dia]="d" (dblclick)="abrirNotaDia(v, d, $event)"
               [class.ruto-destino]="arrastrando && celdaDestino === (v.p || '').toUpperCase().trim() + '-' + d"
               (dragover)="alPasarSobreCelda($event, v, d)" (drop)="alSoltarEnCelda($event, v, d)">
             <div *ngIf="notaDe(v, d) as nota" class="ruto-nota-dia" (click)="abrirNotaDia(v, d, $event)" (dblclick)="$event.stopPropagation()" [title]="nota.texto + (nota.por ? ' — ' + nota.por : '')"><i class="bi bi-sticky-fill"></i> {{ nota.texto }}</div>
@@ -434,7 +437,7 @@
                        (dragstart)="alEmpezarArrastre($event, vj, v)" (dragend)="alTerminarArrastre()"
                        (contextmenu)="abrirMenuViaje($event, vj, v)"
                        [class.ruto-arrastrado]="arrastrando?.id === vj.id"
-                       class="ruto-card-viaje" [class.ruto-atenuado]="hayFiltroViajes && !coincideFiltroViaje(vj, v)" [attr.data-viaje]="vj.id" [class.ap-cambio-vivo]="cambiadosVivo.has(vj.id)" [attr.data-autor]="cambiadosVivo.has(vj.id) ? autorDe(vj.id) : null" [style.--color-vivo]="cambiadosVivo.has(vj.id) ? colorAutorDe(vj.id) : null"
+                       class="ruto-card-viaje" [class.ruto-atenuado]="hayFiltroViajes && !coincideFiltroViaje(vj, v)" [attr.data-viaje]="vj.id" [attr.data-cond]="nombreCondClave(vj, v)" [class.ap-cambio-vivo]="cambiadosVivo.has(vj.id)" [attr.data-autor]="cambiadosVivo.has(vj.id) ? autorDe(vj.id) : null" [style.--color-vivo]="cambiadosVivo.has(vj.id) ? colorAutorDe(vj.id) : null"
                        [ngClass]="vj.cssClass">
 
                     <div *ngIf="viajesConCambioPendiente.has(vj.id)" class="ruto-badge-pendiente" title="Este viaje tiene un cambio esperando aprobación"><i class="bi bi-hourglass-split"></i> Cambio por aprobar</div>
@@ -447,7 +450,7 @@
                     <app-quien-aqui class="ruto-quien" [viajeId]="vj.id" [tam]="16"></app-quien-aqui>
                     <div class="ruto-card-route">{{ vj.destino || vj.ruta || 'Sin Ruta' }}</div>
                     <div class="ruto-card-transport">{{ vj.tr || 'Makand' }}</div>
-                    <div class="ruto-card-driver">{{ vj.cond || conductoresMap[v.p] || 'Sin Conductor' }}</div>
+                    <div class="ruto-card-driver" (mouseenter)="resaltarConductor(nombreCondClave(vj, v))" (mouseleave)="quitarResaltadoConductor()">{{ vj.cond || conductoresMap[v.p] || 'Sin Conductor' }}</div>
                     <div class="ruto-card-meta">{{ vj.estado || 'PROG' }} · {{ vj.hora || vj.horaEntrega || '--:--' }}</div>
                     <div class="ruto-card-cajas">{{ vj.cajas || 660 }} cj</div>
                       <div *ngIf="despachoDe(vj) as dsp" class="ruto-card-despacho" [class.falta]="dsp.totalCajas && vj.cajas && dsp.totalCajas < vj.cajas" [title]="'Despacho: ' + (dsp.totalCajas || 0) + ' cajas cargadas' + (dsp.motivoDemora ? ' · demora: ' + dsp.motivoDemora : '')"><i class="bi bi-box-seam"></i> {{ dsp.totalCajas ? dsp.totalCajas + ' cargadas' : 'en cargue' }} · {{ dsp.horaSalida ? 'salió ' + dsp.horaSalida : (dsp.horaFinCargue ? 'cargado ' + dsp.horaFinCargue : 'llegó ' + dsp.horaLlegada) }}<i *ngIf="dsp.motivoDemora" class="bi bi-alarm"></i></div>

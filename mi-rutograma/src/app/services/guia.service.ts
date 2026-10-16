@@ -106,6 +106,7 @@ export class GuiaService {
     if (!PAGINAS_SIN_NAVBAR.includes(pagina) && !this.auth.esDespachos && this.auth.rolActual !== 'conductor' && !this.vistas!.has('en-vivo')) this.cola.push('en-vivo');
     // Lo nuevo del Rutograma (Hoy, Semana, filtros, varios a la vez, notas): una vez, a quien ya conocía la página.
     if (pagina === 'rutograma' && this.vistas!.has('rutograma') && this.auth.rolActual !== 'conductor' && !this.vistas!.has('ruto-nuevo')) this.cola.push('ruto-nuevo');
+    if (pagina === 'rutograma' && this.vistas!.has('rutograma') && this.auth.rolActual !== 'conductor' && !this.vistas!.has('ruto-nuevo-2')) this.cola.push('ruto-nuevo-2');
     if (GUIAS[pagina] && !this.vistas!.has(pagina)) this.cola.push(pagina);
     this.mostrarSiguienteDeCola(intento);
   }

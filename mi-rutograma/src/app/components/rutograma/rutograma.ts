@@ -14,7 +14,7 @@ import html2canvas from 'html2canvas';
 import { PlanBComponent } from '../plan-b/plan-b';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { viajeCerrado, motivoFechaAnterior, fechaDelDia } from '../../services/dias-cerrados';
+import { viajeCerrado, motivoFechaAnterior, fechaDelDia, fechaLocal } from '../../services/dias-cerrados';
 import { FotoNovedadComponent } from '../foto-novedad/foto-novedad';
 import { PresenciaService } from '../../services/presencia.service';
 import { QuienAquiComponent } from '../en-linea/quien-pagina';
@@ -193,6 +193,43 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     const fijas = Array.from(tabla.querySelectorAll('thead th:not(.ruto-th-day)')).reduce((s, el) => s + (el as HTMLElement).offsetWidth, 0);
     tabla.scrollTo({ left: Math.max(0, th.offsetLeft - fijas - 8), behavior: this.theme.ap.sinAnimaciones ? 'auto' : 'smooth' });
     if (destello) { th.classList.remove('ruto-hoy-destello'); void th.offsetWidth; th.classList.add('ruto-hoy-destello'); setTimeout(() => th.classList.remove('ruto-hoy-destello'), 1600); }
+  }
+
+  // Días que ya pasaron: apagados y con candado (sin el permiso "editar días
+  // pasados" solo se anota el estado y lo que pasó; lo hace cumplir el servidor).
+  private hoyTexto = '';
+  public esDiaPasado(d: number): boolean {
+    if (!this.ds?.S) return false;
+    if (!this.hoyTexto || Date.now() - this.hoyTextoEn > 60000) { this.hoyTexto = fechaLocal(); this.hoyTextoEn = Date.now(); }
+    return this.fechaDia(d) < this.hoyTexto;
+  }
+  private hoyTextoEn = 0;
+  public get tituloDiaPasado(): string {
+    return this.auth.puede('editarDiasPasados')
+      ? 'Día que ya pasó. Tu cuenta sí puede corregirlo.'
+      : 'Día que ya pasó: ya no se reprograma. Solo se marca el estado (entregado, cancelado…) y lo que pasó.';
+  }
+
+  // Resaltar a un conductor: con el mouse sobre su nombre se iluminan todos
+  // sus viajes del mes. Se hace directo en la pantalla (sin recalcular la tabla).
+  public nombreCondClave(vj: any, v: any): string {
+    return String(vj.cond || this.conductoresMap[v.p] || '').trim().toLowerCase();
+  }
+  public resaltarConductor(nombre: string): void {
+    this.quitarResaltadoConductor();
+    if (!nombre || /^sin /.test(nombre)) return;
+    const tabla = document.getElementById('rtbl');
+    if (!tabla) return;
+    const tarjetas = tabla.querySelectorAll(`[data-cond="${CSS.escape(nombre)}"]`);
+    if (tarjetas.length < 1) return;
+    tabla.classList.add('ruto-hay-cond');
+    tarjetas.forEach(el => el.classList.add('ruto-cond-resaltado'));
+  }
+  public quitarResaltadoConductor(): void {
+    const tabla = document.getElementById('rtbl');
+    if (!tabla) return;
+    tabla.classList.remove('ruto-hay-cond');
+    tabla.querySelectorAll('.ruto-cond-resaltado').forEach(el => el.classList.remove('ruto-cond-resaltado'));
   }
 
   // Filtro de viajes: los que no coinciden se ven tenues (no se esconden).
@@ -4446,7 +4483,9 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     const clone = original.cloneNode(true) as HTMLElement;
     // La Foto sale completa aunque en pantalla haya una semana, grupos plegados o un filtro.
     clone.classList.remove('ruto-modo-semana');
-    clone.querySelectorAll('.ruto-col-oculta, .ruto-fila-plegada, .ruto-atenuado, .ruto-seleccionado').forEach(el => el.classList.remove('ruto-col-oculta', 'ruto-fila-plegada', 'ruto-atenuado', 'ruto-seleccionado'));
+    clone.classList.remove('ruto-hay-cond');
+    clone.querySelectorAll('.ruto-col-oculta, .ruto-fila-plegada, .ruto-atenuado, .ruto-seleccionado, .ruto-dia-pasado, .ruto-cond-resaltado').forEach(el => el.classList.remove('ruto-col-oculta', 'ruto-fila-plegada', 'ruto-atenuado', 'ruto-seleccionado', 'ruto-dia-pasado', 'ruto-cond-resaltado'));
+    clone.querySelectorAll('.ruto-dia-pasado-candado').forEach(el => el.remove());
     clone.querySelectorAll('.ruto-tr-grupo, .ruto-plegar i, .ruto-plegado-nota').forEach(el => el.remove());
 
     // Día o semana: se quitan del CLON las columnas de los demás días.
