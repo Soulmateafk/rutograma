@@ -162,7 +162,7 @@
 
   <div class="ruto-semanas" *ngIf="semanasCierre.length" data-guia="ruto-semanas">
     <span class="ruto-semanas-titulo"><i class="bi bi-lock"></i> Semanas:</span>
-    <button *ngFor="let sem of semanasCierre" type="button" class="ruto-semana-chip"
+    <button *ngFor="let sem of semanasCierre; trackBy: trackPorLunes" type="button" class="ruto-semana-chip"
             [class.cerrada]="sem.cerrada" [disabled]="!auth.puedeAprobar || cambiandoSemana === sem.lunes"
             [title]="sem.cerrada ? 'Cerrada por ' + sem.cerrada.por + (auth.puedeAprobar ? ' — clic para abrirla' : '') : (auth.puedeAprobar ? 'Clic para cerrar la programación de esta semana' : 'Abierta')"
             (click)="alternarSemana(sem)">
@@ -174,7 +174,7 @@
     </button>
   </div>
   <div animate.leave="ap-ocultar" class="ruto-cambios-cierre" *ngIf="cambiosCierreAbiertos && cambiosDespuesCierre.length">
-    <div class="ruto-cambio-cierre" *ngFor="let c of cambiosDespuesCierre">
+    <div class="ruto-cambio-cierre" *ngFor="let c of cambiosDespuesCierre; trackBy: trackPorIndice">
       <div><strong>{{ c.descripcion }}</strong> <span class="ruto-cambio-semana">semana {{ textoSemanaDe(c.lunes) }}</span></div>
       <div class="ruto-cambio-motivo"><i class="bi bi-chat-left-text"></i> {{ c.motivo }}</div>
       <div class="ruto-cambio-quien">{{ c.por }} · {{ fechaHoraCorta(c.en) }}</div>
@@ -272,7 +272,6 @@
                 <div *ngIf="vj.isStart && vj.type !== 'cancelado'"
                      (click)="clicViaje($event, vj.id)" data-guia="ruto-viaje" [class.ruto-seleccionado]="seleccion.has(vj.id)"
                      (mouseenter)="mostrarTooltipViaje($event, vj, v)"
-                     (mousemove)="moverTooltipViaje($event)"
                      (mouseleave)="ocultarTooltipViaje()"
                      [attr.draggable]="puedeArrastrar(vj) ? 'true' : null"
                      (dragstart)="alEmpezarArrastre($event, vj, v)" (dragend)="alTerminarArrastre()"
@@ -303,7 +302,7 @@
                     <i class="bi bi-signpost-split-fill"></i> Doble entrega{{ vj.cli2 ? ' — ' + vj.cli2 : '' }}
                   </div>
                   <div class="ruto-card-transport">{{ vj.tr || 'Makand' }}</div>
-                  <div class="ruto-card-driver" (mouseenter)="resaltarConductor(nombreCondClave(vj, v))" (mouseleave)="quitarResaltadoConductor()">{{ vj.cond || conductoresMap[v.p] || 'Sin Conductor' }}</div>
+                  <div class="ruto-card-driver">{{ vj.cond || conductoresMap[v.p] || 'Sin Conductor' }}</div>
                   <div class="ruto-card-meta">{{ vj.estado || 'PROG' }} · {{ vj.hora || vj.horaEntrega || '--:--' }}</div>
                   <div class="ruto-card-cajas">{{ vj.cajas || 660 }} cj</div>
                   <div *ngIf="despachoDe(vj) as dsp" class="ruto-card-despacho" [class.falta]="dsp.totalCajas && vj.cajas && dsp.totalCajas < vj.cajas" [title]="'Despacho: ' + (dsp.totalCajas || 0) + ' cajas cargadas' + (dsp.motivoDemora ? ' · demora: ' + dsp.motivoDemora : '')"><i class="bi bi-box-seam"></i> {{ dsp.totalCajas ? dsp.totalCajas + ' cargadas' : 'en cargue' }} · {{ dsp.horaSalida ? 'salió ' + dsp.horaSalida : (dsp.horaFinCargue ? 'cargado ' + dsp.horaFinCargue : 'llegó ' + dsp.horaLlegada) }}<i *ngIf="dsp.motivoDemora" class="bi bi-alarm"></i></div>
@@ -437,7 +436,6 @@
                   <div *ngIf="vj.isStart && vj.type !== 'cancelado'"
                        (click)="clicViaje($event, vj.id)" data-guia="ruto-viaje" [class.ruto-seleccionado]="seleccion.has(vj.id)"
                        (mouseenter)="mostrarTooltipViaje($event, vj, v)"
-                       (mousemove)="moverTooltipViaje($event)"
                        (mouseleave)="ocultarTooltipViaje()"
                        [attr.draggable]="puedeArrastrar(vj) ? 'true' : null"
                        (dragstart)="alEmpezarArrastre($event, vj, v)" (dragend)="alTerminarArrastre()"
@@ -456,7 +454,7 @@
                     <app-quien-aqui class="ruto-quien" [viajeId]="vj.id" [tam]="16"></app-quien-aqui>
                     <div class="ruto-card-route">{{ vj.destino || vj.ruta || 'Sin Ruta' }}</div>
                     <div class="ruto-card-transport">{{ vj.tr || 'Makand' }}</div>
-                    <div class="ruto-card-driver" (mouseenter)="resaltarConductor(nombreCondClave(vj, v))" (mouseleave)="quitarResaltadoConductor()">{{ vj.cond || conductoresMap[v.p] || 'Sin Conductor' }}</div>
+                    <div class="ruto-card-driver">{{ vj.cond || conductoresMap[v.p] || 'Sin Conductor' }}</div>
                     <div class="ruto-card-meta">{{ vj.estado || 'PROG' }} · {{ vj.hora || vj.horaEntrega || '--:--' }}</div>
                     <div class="ruto-card-cajas">{{ vj.cajas || 660 }} cj</div>
                       <div *ngIf="despachoDe(vj) as dsp" class="ruto-card-despacho" [class.falta]="dsp.totalCajas && vj.cajas && dsp.totalCajas < vj.cajas" [title]="'Despacho: ' + (dsp.totalCajas || 0) + ' cajas cargadas' + (dsp.motivoDemora ? ' · demora: ' + dsp.motivoDemora : '')"><i class="bi bi-box-seam"></i> {{ dsp.totalCajas ? dsp.totalCajas + ' cargadas' : 'en cargue' }} · {{ dsp.horaSalida ? 'salió ' + dsp.horaSalida : (dsp.horaFinCargue ? 'cargado ' + dsp.horaFinCargue : 'llegó ' + dsp.horaLlegada) }}<i *ngIf="dsp.motivoDemora" class="bi bi-alarm"></i></div>
@@ -533,7 +531,7 @@
            [(ngModel)]="buscadorResumen">
 
     <div class="ruto-resumen-semanas-tabs">
-      <button *ngFor="let semana of semanasDelMes(); let i = index"
+      <button *ngFor="let semana of semanasDelMes(); let i = index; trackBy: trackPorIndice"
               class="ruto-resumen-semana-tab"
               [class.activo]="semanaActivaIndex === i"
               (click)="seleccionarSemana(i)">
@@ -550,7 +548,7 @@
     </div>
 
     <div class="ruto-resumen-tabs">
-      <button *ngFor="let d of diasDeSemanaActiva()"
+      <button *ngFor="let d of diasDeSemanaActiva(); trackBy: trackPorDia"
               class="ruto-resumen-tab"
               [class.activo]="diaActivoNum === d.dia"
               (click)="seleccionarDiaResumen(d.dia)">

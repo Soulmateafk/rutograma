@@ -1841,26 +1841,28 @@ body.ruto-arrastrando .ruto-hover-tooltip { display: none; }
 
 /* ===== Días que ya pasaron: apagados con candado ===== */
 .ruto-td-day-cell.ruto-dia-pasado { background-image: repeating-linear-gradient(135deg, rgba(148, 163, 184, .06) 0 6px, transparent 6px 12px); }
-.ruto-td-day-cell.ruto-dia-pasado > * { opacity: .45; filter: grayscale(.75); transition: opacity .2s ease, filter .2s ease; }
-.ruto-td-day-cell.ruto-dia-pasado:hover > * { opacity: .9; filter: none; }
+/* Fijo, sin efecto al pasar el mouse: así el navegador no recalcula la
+   casilla en cada movimiento (al pasar el mouse sale la vista previa del viaje). */
+.ruto-td-day-cell.ruto-dia-pasado > * { opacity: .5; }
 .ruto-th-day.ruto-dia-pasado { opacity: .6; }
 .ruto-dia-pasado-candado { display: block; font-size: 10px; color: var(--text2); line-height: 1; margin-top: 1px; }
 .ruto-btn-pasados.on { background: rgba(148, 163, 184, .25); }
 
 /* ===== Resaltar a un conductor ===== */
 .ruto-card-driver { cursor: help; }
-.ruto-hay-cond .ruto-card-viaje[data-viaje]:not(.ruto-cond-resaltado) { opacity: .35; transition: opacity .15s ease; }
-.ruto-card-viaje.ruto-cond-resaltado { outline: 2px solid #f472b6; outline-offset: -1px; box-shadow: 0 0 0 3px rgba(244, 114, 182, .35), 0 0 14px rgba(244, 114, 182, .45); opacity: 1 !important; filter: none !important; }
-.ruto-td-day-cell.ruto-dia-pasado > .ruto-card-viaje.ruto-cond-resaltado { opacity: 1; }
+.ruto-card-viaje.ruto-cond-resaltado, .ruto-card-viaje.ruto-seleccionado { z-index: 4; }
+.ruto-card-viaje.ruto-cond-resaltado { outline: 2px solid #f472b6; outline-offset: -1px; box-shadow: 0 0 0 3px rgba(244, 114, 182, .55), 0 0 16px rgba(244, 114, 182, .6); opacity: 1 !important; }
 
 /* Buscar viaje y saltar a él */
 .ruto-busq-pos { font-size: 11px; color: var(--text2); white-space: nowrap; }
 .ruto-busq-flecha { background: transparent; border: none; color: var(--text2); cursor: pointer; padding: 0 2px; font-size: 13px; line-height: 1; }
 .ruto-busq-flecha:hover { color: #60a5fa; }
 
-/* ===== Resaltar un vehículo: mouse sobre la placa → su fila completa y la columna de hoy ===== */
-.ruto-tr-vehicle:has(> .ruto-td-vehicle-info:hover) > td { background-color: rgba(96, 165, 250, .10); box-shadow: inset 0 2px 0 rgba(96, 165, 250, .7), inset 0 -2px 0 rgba(96, 165, 250, .7); }
-.ruto-tr-vehicle:has(> .ruto-td-vehicle-info:hover) > td.ruto-td-vehicle-info { box-shadow: inset 4px 0 0 #60a5fa, inset 0 2px 0 rgba(96, 165, 250, .7), inset 0 -2px 0 rgba(96, 165, 250, .7); }
-.ruto-table:has(.ruto-td-vehicle-info:hover) td.ruto-td-day-cell.hoy { background-color: rgba(245, 158, 11, .26); }
-.ruto-tr-vehicle:has(> .ruto-td-vehicle-info:hover) > td.ruto-td-day-cell.hoy { background-color: rgba(245, 158, 11, .42); box-shadow: inset 0 0 0 2px #f59e0b; }
+/* ===== Resaltar un vehículo: mouse sobre la placa → su fila completa y la columna de hoy.
+   Las clases las pone rutograma.ts (resaltarFila) solo en esa fila; con :has() el
+   navegador recalculaba toda la tabla en cada movimiento del mouse. ===== */
+.ruto-tr-vehicle.ruto-fila-hover > td { background-color: rgba(96, 165, 250, .10); box-shadow: inset 0 2px 0 rgba(96, 165, 250, .7), inset 0 -2px 0 rgba(96, 165, 250, .7); }
+.ruto-tr-vehicle.ruto-fila-hover > td.ruto-td-vehicle-info { box-shadow: inset 4px 0 0 #60a5fa, inset 0 2px 0 rgba(96, 165, 250, .7), inset 0 -2px 0 rgba(96, 165, 250, .7); }
+td.ruto-td-day-cell.hoy.ruto-hoy-hover { background-color: rgba(245, 158, 11, .26); }
+.ruto-tr-vehicle.ruto-fila-hover > td.ruto-td-day-cell.hoy { background-color: rgba(245, 158, 11, .42); box-shadow: inset 0 0 0 2px #f59e0b; }
 .ruto-td-vehicle-info { cursor: default; }

@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, effect } from '@angular/core';
 import { Router, NavigationStart, NavigationEnd, RouterOutlet, RouterLink } from '@angular/router'; 
 import { Title } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common'; 
@@ -138,6 +138,13 @@ export class App implements OnInit {
     private guias: GuiaService,
     private sonido: SonidoService
   ) {
+    // Franja de MODO PRUEBA: la barra de arriba baja 30 px. Antes era una regla
+    // "body:has(.franja-prueba)" que hacía al navegador revisar toda la página
+    // cada vez que aparecía o se iba algo (por ejemplo la vista previa de un viaje).
+    effect(() => {
+      const hay = this.dataService.modo() === 'pruebas' && !this.cargandoInicial() && !this.sinSesion();
+      if (typeof document !== 'undefined') document.documentElement.classList.toggle('con-franja-prueba', hay);
+    });
     // Escuchamos los cambios de ruta
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationStart) {
