@@ -104,6 +104,8 @@ export class GuiaService {
     if (!PAGINAS_SIN_NAVBAR.includes(pagina) && !this.auth.esDespachos && !this.vistas!.has('navegacion')) this.cola.push('navegacion');
     // Lo nuevo de trabajar en equipo en vivo: una vez, en cualquier página con la barra (cuentas de oficina).
     if (!PAGINAS_SIN_NAVBAR.includes(pagina) && !this.auth.esDespachos && this.auth.rolActual !== 'conductor' && !this.vistas!.has('en-vivo')) this.cola.push('en-vivo');
+    // Lo nuevo del Rutograma (Hoy, Semana, filtros, varios a la vez, notas): una vez, a quien ya conocía la página.
+    if (pagina === 'rutograma' && this.vistas!.has('rutograma') && this.auth.rolActual !== 'conductor' && !this.vistas!.has('ruto-nuevo')) this.cola.push('ruto-nuevo');
     if (GUIAS[pagina] && !this.vistas!.has(pagina)) this.cola.push(pagina);
     this.mostrarSiguienteDeCola(intento);
   }

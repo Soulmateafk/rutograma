@@ -384,6 +384,34 @@ export class DataService {
     return this.pilaRehacer[this.pilaRehacer.length - 1].descripcion;
   }
 
+  /** Cambios de hoy de esta computadora (los que se pueden deshacer), del más nuevo al más viejo. */
+  public cambiosDeHoy(): Array<{ descripcion: string; timestamp: number; tipo: string; bloqueado: boolean }> {
+    const inicio = new Date(); inicio.setHours(0, 0, 0, 0);
+    const pila = this.pilaDeshacer;
+    return pila.map((e, i) => ({ e, i })).filter(x => x.e.timestamp >= inicio.getTime()).reverse().map(({ e, i }) => ({
+      descripcion: e.descripcion, timestamp: e.timestamp, tipo: e.tipo,
+      // Si después se volvió a cambiar lo mismo, primero hay que deshacer el más nuevo.
+      bloqueado: pila.slice(i + 1).some(x => x.tipo === e.tipo && x.clave === e.clave) || e.tipo === 'respaldo' && i !== pila.length - 1
+    }));
+  }
+
+  /**
+   * Deshace UN cambio de la lista aunque no sea el último: se pasa al final
+   * de la pila y se deshace con el mismo camino de siempre. No se permite si
+   * después hubo otro cambio sobre lo mismo (se pisarían).
+   */
+  public async deshacerCambio(timestamp: number): Promise<{ ok: boolean; mensaje: string }> {
+    const i = this.pilaDeshacer.findIndex(e => e.timestamp === timestamp);
+    if (i === -1) return { ok: false, mensaje: 'Ese cambio ya no está en la lista.' };
+    const entry = this.pilaDeshacer[i];
+    const despues = this.pilaDeshacer.slice(i + 1);
+    if (despues.some(x => x.tipo === entry.tipo && x.clave === entry.clave)) return { ok: false, mensaje: 'Eso se volvió a cambiar después: deshaz primero el cambio más nuevo.' };
+    if (entry.tipo === 'respaldo' && despues.length) return { ok: false, mensaje: 'Las acciones grandes (Generar Matriz, Importar, Restaurar) solo se deshacen si son lo último que se hizo.' };
+    this.pilaDeshacer.splice(i, 1);
+    this.pilaDeshacer.push(entry);
+    return this.deshacerUltimoCambio();
+  }
+
   public async deshacerUltimoCambio(): Promise<{ ok: boolean; mensaje: string }> {
     const entry = this.pilaDeshacer.pop();
     this.guardarPilaDeshacerLocal();
@@ -560,6 +588,7 @@ export class DataService {
       novedades: [],
       cuposExt: [],
       celebraciones: [],
+      notasDia: [],
       viajeDetId: null
     };
 
@@ -1544,7 +1573,7 @@ export class DataService {
   // cambiaba en otro computador nunca llegaba al principal). Ahora se
   // guardan en el servidor y llegan a todos con la sincronización.
   // ============================================================
-  public static readonly CLAVES_CONFIG_COMPARTIDA = ['transportadoras', 'cuposExt', 'festivos', 'reglasAsignacion', 'picoPlaca', 'anuncios', 'comparendos', 'quejas', 'ubicaciones', 'celebraciones'];
+  public static readonly CLAVES_CONFIG_COMPARTIDA = ['transportadoras', 'cuposExt', 'festivos', 'reglasAsignacion', 'picoPlaca', 'anuncios', 'comparendos', 'quejas', 'ubicaciones', 'celebraciones', 'notasDia'];
 
   public async guardarConfigCompartida(clave: string): Promise<void> {
     const url = `${this.API_URL}/configuracion/compartida`;

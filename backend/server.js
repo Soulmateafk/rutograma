@@ -2622,7 +2622,7 @@ app.post('/api/guias/reiniciar', (req, res) => {
 // reglasAsignacion / picoPlaca: ver reglas-asignacion.js. anuncios: la pizarra.
 // comparendos: multas por vehículo y conductor. quejas: reclamos de clientes.
 // ubicaciones: coordenadas de destinos que el mapa no conocía.
-const CLAVES_CONFIG_COMPARTIDA = { transportadoras: 'array', cuposExt: 'array', festivos: 'array', reglasAsignacion: 'array', picoPlaca: 'array', anuncios: 'array', comparendos: 'array', quejas: 'array', ubicaciones: 'array', celebraciones: 'array' };
+const CLAVES_CONFIG_COMPARTIDA = { transportadoras: 'array', cuposExt: 'array', festivos: 'array', reglasAsignacion: 'array', picoPlaca: 'array', anuncios: 'array', comparendos: 'array', quejas: 'array', ubicaciones: 'array', celebraciones: 'array', notasDia: 'array' };
 
 app.post('/api/configuracion/compartida', (req, res) => {
     try {
@@ -4935,6 +4935,12 @@ function preferenciasDe(usuario) {
         ambienteVol: Number.isFinite(p.ambienteVol) ? Math.max(0, Math.min(100, Math.round(p.ambienteVol))) : 35,
         notas: Array.isArray(p.notas) ? p.notas.filter(n => n && typeof n.texto === 'string').slice(0, 30).map(n => ({
             id: String(n.id || '').slice(0, 20), texto: String(n.texto).slice(0, 1000), color: /^[a-z]{1,12}$/.test(n.color || '') ? n.color : 'amarillo', hecha: n.hecha === true, en: String(n.en || '').slice(0, 30)
+        })) : [],
+        rutoPlegados: Array.isArray(p.rutoPlegados) ? p.rutoPlegados.filter(x => ['propia', 'ARSITRANS', 'POLAR'].includes(x)) : [],
+        rutoSemana: p.rutoSemana === true,
+        rutoFiltros: Array.isArray(p.rutoFiltros) ? p.rutoFiltros.filter(f => f && typeof f.nombre === 'string').slice(0, 12).map(f => ({
+            id: String(f.id || '').slice(0, 20), nombre: String(f.nombre).slice(0, 40), placa: String(f.placa || '').slice(0, 30),
+            tr: ['makand', 'arsitrans', 'polar'].includes(f.tr) ? f.tr : '', texto: String(f.texto || '').slice(0, 60)
         })) : []
     };
 }

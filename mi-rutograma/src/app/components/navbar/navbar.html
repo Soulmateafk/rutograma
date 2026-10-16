@@ -82,6 +82,21 @@
             (click)="rehacerUltimoCambio()">
       <i class="bi bi-arrow-clockwise"></i><span class="btn-txt"> Rehacer</span>
     </button>
+    <span class="nav-mis-cambios" *ngIf="authService.puedeEditar && !authService.necesitaAprobacion">
+      <button class="btn sm" data-guia="nav-mis-cambios" (click)="alternarMisCambios()" [class.on]="misCambiosAbierto" title="Mis cambios de hoy (deshacer uno en particular)">
+        <i class="bi bi-list-check"></i>
+      </button>
+      <div class="nav-mis-cambios-panel" *ngIf="misCambiosAbierto" animate.leave="ap-ocultar">
+        <div class="nmc-cab"><b>Mis cambios de hoy</b><small>en esta computadora</small></div>
+        <div class="nmc-vacio" *ngIf="!misCambios.length">Hoy todavía no has hecho cambios que se puedan deshacer.</div>
+        <div class="nmc-fila" *ngFor="let c of misCambios">
+          <span class="nmc-hora">{{ c.timestamp | date:'h:mm a':'':'es' }}</span>
+          <span class="nmc-texto" [title]="c.descripcion">{{ c.descripcion }}</span>
+          <button type="button" [disabled]="c.bloqueado || deshaciendoUno" (click)="deshacerUno(c)"
+                  [title]="c.bloqueado ? 'Eso se volvió a cambiar después: deshaz primero el más nuevo' : 'Deshacer solo este cambio'"><i class="bi bi-arrow-counterclockwise"></i></button>
+        </div>
+      </div>
+    </span>
 
     <app-en-linea></app-en-linea>
  <button class="nav-yo" [class.emoji]="!theme.ap.foto && theme.ap.avatar" *ngIf="!cuentaCompartida" title="Mi foto y apariencia" (click)="theme.panelAbierto.set(true)">

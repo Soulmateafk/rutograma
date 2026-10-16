@@ -49,6 +49,19 @@ export const GUIAS: Record<string, Guia> = {
   },
 
   // Lo nuevo de trabajar en equipo: sale una vez a cada cuenta de oficina (también a quien ya vio las demás).
+  'ruto-nuevo': {
+    titulo: 'Novedad en el Rutograma',
+    pasos: [
+      { el: 'ruto-vista', titulo: 'Hoy y Semana', texto: '"Hoy" te lleva directo a la columna de hoy (también con la tecla H). "Semana" muestra solo 7 días con las tarjetas más grandes; con las flechas pasas de semana. Vuelves con "Mes".' },
+      { el: '.ruto-plegar', titulo: 'Plegar grupos', texto: 'Toca "Flota propia", "ARSITRANS" o "POLAR" para esconder o mostrar ese grupo. Queda así solo en tu cuenta. La Foto y Exportar siempre sacan todo.' },
+      { el: 'ruto-filtros', titulo: 'Filtrar y guardar filtros', texto: 'Escribe un cliente, conductor o destino (varios con coma) y los demás viajes se ven tenues. "Guardar filtro" guarda lo que tengas puesto (placa, transportadora y este filtro) con un nombre, para activarlo con un clic. Son de tu cuenta.' },
+      { el: '.ruto-table-responsive', titulo: 'Cambiar varios viajes a la vez', texto: 'Mantén Ctrl (o Cmd en Mac) y haz clic en varios viajes: abajo sale una barra para ponerles el mismo conductor, correrlos unos días o cancelarlos, todo junto. Esc quita la selección.' },
+      { el: '.ruto-table-responsive', titulo: 'Notas en un día', texto: 'Doble clic en una casilla (o clic derecho en un viaje → "Nota en este día") para dejar una nota como "revisión 8 a. m." sin crear un viaje. La ve todo el equipo.' },
+      { el: 'nav-mis-cambios', titulo: 'Mis cambios de hoy', texto: 'Lista de lo que has cambiado hoy en esta computadora. Puedes deshacer uno en particular, no solo el último.' },
+      PASO_AYUDA
+    ]
+  },
+
   'en-vivo': {
     titulo: 'Novedad: ver al equipo en vivo',
     pasos: [
@@ -113,6 +126,10 @@ export const GUIAS: Record<string, Guia> = {
       { el: '.ruto-card-viaje', titulo: 'Detalle, notas e historial', texto: 'Al abrir un viaje ves sus datos; en "Editar viaje" le puedes poner una nota para el conductor (la ve en su celular). Con "Ver historial de cambios" ves quién lo cambió, qué y cuándo.' },
       { el: '.ruto-card-viaje', titulo: 'Atajos con el mouse', texto: 'Deja el mouse quieto sobre un viaje y sale su vista previa. Clic derecho abre un menú: editar, duplicar, historial, hoja de ruta, avisar al conductor por WhatsApp o fijar el vehículo arriba. Y puedes ARRASTRAR un viaje a otro día u otro vehículo de la misma transportadora: pasa por las mismas reglas que editarlo, y luego sale "Deshacer" unos segundos (o Ctrl+Z).' },
       { el: '.ruto-fijar', titulo: 'Fijar vehículos arriba', texto: 'El alfiler junto a la placa (sale al pasar el mouse) deja ese vehículo de primero, solo para tu cuenta.' },
+      { el: 'ruto-vista', titulo: 'Hoy y Semana', texto: '"Hoy" te lleva a la columna de hoy (tecla H). "Semana" muestra solo 7 días con tarjetas más grandes.' },
+      { el: 'ruto-filtros', titulo: 'Filtros', texto: 'Filtra viajes por cliente, conductor o destino (los demás se ven tenues) y guarda tus filtros con un nombre.' },
+      { el: '.ruto-plegar', titulo: 'Plegar grupos', texto: 'Esconde o muestra la flota propia, Arsitrans o Polar. Solo en tu cuenta.' },
+      { el: '.ruto-table-responsive', titulo: 'Varios a la vez y notas', texto: 'Ctrl + clic en varios viajes para cambiarles el conductor, correrlos días o cancelarlos juntos. Doble clic en una casilla deja una nota en ese día.' },
       { el: '.ruto-tr-cupo-header', titulo: 'Arsitrans y Polar', texto: 'Los cupos de terceros. "+ Confirmar cupo" agrega uno; "Reacomodar" junta los viajes del mes en los menos cupos posibles, sin tocar nada más.' }
     ]
   },

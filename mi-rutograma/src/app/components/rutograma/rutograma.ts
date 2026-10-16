@@ -117,6 +117,265 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     const placa = String(v.p || v.placa || '').toLowerCase();
     return placa.includes(q);
   }
+  // ============================================================
+  // VISTA: botón "Hoy", una sola semana, grupos plegados y filtro de
+  // viajes. Todo es solo de cómo se VE (de cada cuenta); no cambia datos.
+  // Las columnas y filas escondidas se esconden con una clase (no se
+  // quitan), así la Foto y Exportar siguen sacando todo.
+  // ============================================================
+  public semanaInicio = 1;
+  private semanaDeMes = '';
+
+  private asegurarSemana(): void {
+    const clave = `${this.ds?.S?.anio}-${this.ds?.S?.mes}`;
+    if (clave === this.semanaDeMes) return;
+    this.semanaDeMes = clave;
+    const hoy = new Date();
+    const esEsteMes = Number(this.ds?.S?.anio) === hoy.getFullYear() && Number(this.ds?.S?.mes) === hoy.getMonth();
+    this.semanaInicio = this.lunesDe(esEsteMes ? hoy.getDate() : 1);
+  }
+
+  /** Día (del mes) del lunes de la semana de ese día; puede ser < 1 si la semana empieza en el mes anterior. */
+  private lunesDe(dia: number): number {
+    const dow = new Date(Number(this.ds?.S?.anio), Number(this.ds?.S?.mes), dia).getDay();
+    return dia - ((dow + 6) % 7);
+  }
+
+  public diaVisible(d: number): boolean {
+    if (!this.theme.ap.rutoSemana) return true;
+    this.asegurarSemana();
+    return d >= this.semanaInicio && d < this.semanaInicio + 7;
+  }
+
+  public get textoSemana(): string {
+    this.asegurarSemana();
+    const ini = Math.max(1, this.semanaInicio), fin = Math.min(this.diasMes.length, this.semanaInicio + 6);
+    const mes = this.nombresMesCalendario?.[Number(this.ds?.S?.mes)] || '';
+    return `${ini} al ${fin} de ${String(mes).toLowerCase()}`;
+  }
+
+  public moverSemana(salto: number): void {
+    this.asegurarSemana();
+    const nuevo = this.semanaInicio + salto * 7;
+    if (nuevo + 6 < 1) { this.irAMes(-1); this.semanaDeMes = `${this.ds.S.anio}-${this.ds.S.mes}`; this.semanaInicio = this.lunesDe(this.diasMes.length); return; }
+    if (nuevo > this.diasMes.length) { this.irAMes(1); this.semanaDeMes = `${this.ds.S.anio}-${this.ds.S.mes}`; this.semanaInicio = this.lunesDe(1); return; }
+    this.semanaInicio = nuevo;
+    (document.querySelector('.ruto-table-responsive') as HTMLElement | null)?.scrollTo({ left: 0 });
+  }
+
+  public alternarSemanaRuto(): void {
+    this.theme.alternarSemanaRuto();
+    this.semanaDeMes = '';
+    if (this.theme.ap.rutoSemana) setTimeout(() => this.llevarAHoy(false), 50);
+  }
+
+  /** Lleva al mes de hoy y desliza la tabla hasta la columna de hoy. */
+  public irAHoy(): void {
+    const hoy = new Date();
+    const salto = (hoy.getFullYear() - Number(this.ds.S.anio)) * 12 + hoy.getMonth() - Number(this.ds.S.mes);
+    if (salto) this.irAMes(salto);
+    this.semanaDeMes = '';
+    this.cdr.detectChanges();
+    setTimeout(() => this.llevarAHoy(true), salto ? 350 : 0);
+  }
+
+  private llevarAHoy(destello: boolean): void {
+    const tabla = document.querySelector('.ruto-table-responsive') as HTMLElement | null;
+    const th = tabla?.querySelector('th.ruto-th-day.hoy') as HTMLElement | null;
+    if (!tabla) return;
+    // En la vista de semana caben los 7 días: se vuelve al inicio.
+    if (this.theme.ap.rutoSemana) tabla.scrollTo({ left: 0 });
+    if (!th) return;
+    if (this.theme.ap.rutoSemana) {
+      if (destello) { th.classList.remove('ruto-hoy-destello'); void th.offsetWidth; th.classList.add('ruto-hoy-destello'); setTimeout(() => th.classList.remove('ruto-hoy-destello'), 1600); }
+      return;
+    }
+    const fijas = Array.from(tabla.querySelectorAll('thead th:not(.ruto-th-day)')).reduce((s, el) => s + (el as HTMLElement).offsetWidth, 0);
+    tabla.scrollTo({ left: Math.max(0, th.offsetLeft - fijas - 8), behavior: this.theme.ap.sinAnimaciones ? 'auto' : 'smooth' });
+    if (destello) { th.classList.remove('ruto-hoy-destello'); void th.offsetWidth; th.classList.add('ruto-hoy-destello'); setTimeout(() => th.classList.remove('ruto-hoy-destello'), 1600); }
+  }
+
+  // Filtro de viajes: los que no coinciden se ven tenues (no se esconden).
+  public filtroViajes = '';
+  private filtroCache = { q: '', partes: [] as string[] };
+  public get hayFiltroViajes(): boolean { return !!this.filtroViajes.trim(); }
+  public coincideFiltroViaje(vj: any, v: any): boolean {
+    const q = this.filtroViajes.trim().toLowerCase();
+    if (!q) return true;
+    if (this.filtroCache.q !== q) this.filtroCache = { q, partes: q.split(/\s*,\s*/).filter(Boolean) };
+    const texto = [vj.cliente, vj.cli2, vj.destino, vj.dest2, vj.ruta, vj.codigo, vj.cond || this.conductoresMap[v.p], v.p].map(x => String(x || '').toLowerCase()).join(' | ');
+    return this.filtroCache.partes.some(p => texto.includes(p));
+  }
+
+  // Filtros guardados (de cada cuenta): placa resaltada + transportadora + filtro de viajes.
+  public nombreFiltroNuevo = '';
+  public guardandoFiltro = false;
+  public get hayAlgoParaGuardar(): boolean { return !!(this.busquedaVehiculoRuto.trim() || this.filtroTransportadoraRuto || this.filtroViajes.trim()); }
+  public guardarFiltroActual(): void {
+    const nombre = this.nombreFiltroNuevo.trim();
+    if (!nombre) return;
+    this.theme.guardarFiltroRuto({ nombre, placa: this.busquedaVehiculoRuto.trim(), tr: this.filtroTransportadoraRuto || '', texto: this.filtroViajes.trim() });
+    this.nombreFiltroNuevo = '';
+    this.guardandoFiltro = false;
+    this.ui.mostrarToast(`<i class="bi bi-bookmark-check"></i> Filtro "${nombre}" guardado.`, 'ok');
+  }
+  public filtroAplicado(f: any): boolean {
+    return f.placa === this.busquedaVehiculoRuto.trim() && (f.tr || null) === (this.filtroTransportadoraRuto || null) && f.texto === this.filtroViajes.trim();
+  }
+  public aplicarFiltroGuardado(f: any): void {
+    if (this.filtroAplicado(f)) { this.limpiarFiltros(); return; }
+    this.busquedaVehiculoRuto = f.placa;
+    this.filtroTransportadoraRuto = f.tr || null;
+    this.filtroViajes = f.texto;
+  }
+  public tituloFiltro(f: any): string {
+    return 'Aplicar: ' + [f.placa ? 'placa ' + f.placa : '', f.tr ? 'solo ' + f.tr : '', f.texto ? 'viajes de ' + f.texto : ''].filter(Boolean).join(' · ');
+  }
+  public limpiarFiltros(): void { this.busquedaVehiculoRuto = ''; this.filtroTransportadoraRuto = null; this.filtroViajes = ''; }
+
+  // ============================================================
+  // SELECCIONAR VARIOS VIAJES (Ctrl o Cmd + clic) y cambiarlos juntos:
+  // conductor, correr días o cancelar. Cada viaje se guarda con el mismo
+  // guardado de siempre (choques, semanas cerradas, aprobaciones).
+  // ============================================================
+  public seleccion = new Set<any>();
+  public loteAccion: '' | 'conductor' | 'mover' | 'cancelar' = '';
+  public loteConductor = '';
+  public loteDias = 1;
+  public loteMotivo = '';
+  public loteTrabajando = false;
+
+  public clicViaje(e: MouseEvent, id: any): void {
+    if (this.auth.puedeEditar && (e.ctrlKey || e.metaKey || this.seleccion.size)) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.alternarSeleccion(id);
+      return;
+    }
+    this.verDetalle(id);
+  }
+
+  public alternarSeleccion(id: any): void {
+    if (this.seleccion.has(id)) this.seleccion.delete(id); else this.seleccion.add(id);
+    this.seleccion = new Set(this.seleccion);
+    if (!this.seleccion.size) this.loteAccion = '';
+    this.sonido.tocar('clic');
+  }
+
+  public limpiarSeleccion(): void { this.seleccion = new Set(); this.loteAccion = ''; this.loteMotivo = ''; }
+
+  public get viajesSeleccionados(): any[] {
+    const ids = this.seleccion;
+    return (this.ds.S.viajes || []).filter((v: any) => ids.has(v.id));
+  }
+
+  public get conductoresParaLote(): string[] {
+    return [...new Set<string>((this.ds.S.conductores || []).map((c: any) => String(c.nom || c.nombre || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+  }
+
+  public async aplicarLote(): Promise<void> {
+    if (this.loteTrabajando || !this.loteAccion) return;
+    const viajes = this.viajesSeleccionados;
+    if (!viajes.length) return;
+    const accion = this.loteAccion;
+    if (accion === 'conductor' && !this.loteConductor) { this.ui.mostrarToast('Elige el conductor.', 'info'); return; }
+    if (accion === 'cancelar' && !this.loteMotivo.trim()) { this.ui.mostrarToast('Escribe el motivo de la cancelación.', 'info'); return; }
+    const delta = Math.trunc(Number(this.loteDias) || 0);
+    if (accion === 'mover' && !delta) { this.ui.mostrarToast('Escribe cuántos días correrlos (ej. 1 o -1).', 'info'); return; }
+
+    const que = accion === 'conductor' ? `poner a ${this.loteConductor} de conductor`
+      : accion === 'mover' ? `correrlos ${Math.abs(delta)} día${Math.abs(delta) === 1 ? '' : 's'} ${delta > 0 ? 'más adelante' : 'antes'}`
+      : `cancelarlos (motivo: ${this.loteMotivo.trim()})`;
+    const lineas = [`¿Seguro? Vas a ${que} en ${viajes.length} viaje${viajes.length === 1 ? '' : 's'}:`, '',
+      ...viajes.slice(0, 8).map((v: any) => `• ${v.p || v.placa} · día ${v.salida ?? v.dia} · ${v.ruta || v.codigo || ''}`),
+      ...(viajes.length > 8 ? [`… y ${viajes.length - 8} más`] : [])];
+    if (this.auth.necesitaAprobacion) lineas.push('', 'Los cambios quedan pendientes hasta que el jefe los apruebe.');
+    if (!(await this.mostrarConfirmPersonalizado(lineas.join('\n'), 'Sí, aplicar', 'Cancelar'))) return;
+
+    // Al correr hacia adelante se empieza por el último (y al revés), para que
+    // un viaje no choque con el siguiente que también se va a mover.
+    const orden = [...viajes].sort((a: any, b: any) => (Number(a.salida ?? a.dia) - Number(b.salida ?? b.dia)) * (delta > 0 ? -1 : 1));
+    this.loteTrabajando = true;
+    let hechos = 0;
+    const saltados: string[] = [];
+    try {
+      for (const original of orden) {
+        const etiqueta = `${original.p || original.placa} día ${original.salida ?? original.dia}`;
+        let nuevo: any;
+        if (accion === 'conductor') nuevo = { ...original, cond: this.loteConductor };
+        else if (accion === 'cancelar') nuevo = { ...original, estado: 'Cancelado', motivoCancelacion: this.loteMotivo.trim() };
+        else {
+          const salida = Number(original.salida ?? original.dia) + delta;
+          const retorno = Number(original.retorno ?? Number(original.salida ?? original.dia) + 1) + delta;
+          if (salida < 1 || retorno - 1 > this.diasMes.length) { saltados.push(`${etiqueta} (se saldría del mes)`); continue; }
+          nuevo = { ...original, salida, dia: salida, retorno, fecha: original.fecha ? fechaDelDia(original.fecha, salida) : original.fecha };
+          const placa = String(original.p || original.placa || '').toUpperCase().trim();
+          if (obtenerViajesEnConflicto(placa, salida, retorno, this.ds.S, original.id).length) { saltados.push(`${etiqueta} (choca con otro viaje)`); continue; }
+        }
+        const motivo = this.auth.puede('editarDiasPasados') ? '' : motivoFechaAnterior(original, nuevo);
+        if (motivo) { saltados.push(`${etiqueta} (${motivo})`); continue; }
+        const ok = await this.ds.guardarViaje(nuevo, false, { protegerDeChoques: accion === 'mover', revisarChoquesAgenda: accion !== 'cancelar', baseOriginal: original, baseVista: original });
+        if (ok) hechos++; else saltados.push(etiqueta);
+      }
+    } finally {
+      this.loteTrabajando = false;
+      this.limpiarSeleccion();
+      this.zone.run(() => { this.iniciarCarga(); this.cdr.detectChanges(); });
+    }
+    const msg = `<i class="bi bi-check2-all"></i> Listo: ${hechos} viaje${hechos === 1 ? '' : 's'} cambiado${hechos === 1 ? '' : 's'}.`
+      + (saltados.length ? ` No se cambiaron ${saltados.length}: ${saltados.slice(0, 4).join('; ')}${saltados.length > 4 ? '…' : ''}` : '');
+    this.ui.mostrarToast(msg, saltados.length ? 'info' : 'ok');
+    if (hechos) this.sonido.tocar('soltar');
+  }
+
+  // ============================================================
+  // NOTAS EN UN DÍA DE UN VEHÍCULO ("revisión 8 a. m.") sin crear viaje.
+  // Las ve todo el equipo (configuración compartida "notasDia").
+  // Doble clic en la casilla, o clic derecho en un viaje → Nota del día.
+  // ============================================================
+  public notaEditando: { placa: string; fecha: string; dia: number; texto: string; existente: any } | null = null;
+  private cacheNotas: { de: any; mapa: Map<string, any> } | null = null;
+
+  private fechaDia(d: number): string {
+    return `${this.ds.S.anio}-${String(Number(this.ds.S.mes) + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+
+  public notaDe(v: any, d: number): any {
+    const lista = this.ds.S?.notasDia;
+    if (!Array.isArray(lista) || !lista.length) return null;
+    if (this.cacheNotas?.de !== lista) this.cacheNotas = { de: lista, mapa: new Map(lista.map((n: any) => [`${n.placa}|${n.fecha}`, n])) };
+    return this.cacheNotas.mapa.get(`${String(v.p || '').toUpperCase().trim()}|${this.fechaDia(d)}`) || null;
+  }
+
+  public abrirNotaDia(v: any, d: number, e?: Event): void {
+    e?.stopPropagation();
+    // Doble clic sobre un viaje abre el viaje, no la nota.
+    if (e && (e.target as HTMLElement)?.closest?.('[data-viaje]')) return;
+    if (this.seleccion.size) return;
+    const existente = this.notaDe(v, d);
+    if (!existente && !this.auth.puedeEditar) return;
+    this.notaEditando = { placa: String(v.p || '').toUpperCase().trim(), fecha: this.fechaDia(d), dia: d, texto: existente?.texto || '', existente };
+  }
+
+  public autorNota(n: any): string { return n?.por ? (this.ds.nombreDe(n.por) || n.por) : ''; }
+
+  public async guardarNotaDia(borrar = false): Promise<void> {
+    const n = this.notaEditando;
+    if (!n || !this.auth.puedeEditar) return;
+    const texto = n.texto.trim().slice(0, 300);
+    // Se quitan las notas de hace más de 3 meses para que la lista no crezca sin fin.
+    const limite = new Date(); limite.setMonth(limite.getMonth() - 3);
+    const corte = limite.toISOString().slice(0, 10);
+    const resto = (this.ds.S.notasDia || []).filter((x: any) => !(x.placa === n.placa && x.fecha === n.fecha) && String(x.fecha) >= corte);
+    const yo = this.auth.currentUser?.email || '';
+    this.ds.S.notasDia = borrar || !texto ? resto : [...resto, { id: Math.random().toString(36).slice(2, 10), placa: n.placa, fecha: n.fecha, texto, por: yo, en: new Date().toISOString() }];
+    this.notaEditando = null;
+    await this.ds.autoSave();
+    await this.ds.guardarConfigCompartida('notasDia');
+    this.ui.mostrarToast(borrar || !texto ? '<i class="bi bi-sticky"></i> Nota borrada.' : `<i class="bi bi-sticky-fill"></i> Nota guardada en ${n.placa}, día ${n.dia}.`, 'ok');
+    this.cdr.detectChanges();
+  }
+
   public isModalCupoOpen: boolean = false;
   public nuevoCupo: any = { rutaSeleccionada: null, cajas: 660 };
   public cupoError: string = '';
@@ -1002,7 +1261,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     this.sonido.tocar('clic');
   }
   public cerrarMenuViaje(): void { this.menuViaje = null; }
-  @HostListener('document:keydown.escape') alEscape(): void { this.cerrarMenuViaje(); }
+  @HostListener('document:keydown.escape') alEscape(): void { this.cerrarMenuViaje(); if (this.seleccion.size && !this.confirmDialogAbierto) this.limpiarSeleccion(); }
   @HostListener('window:scroll') alDesplazar(): void { if (this.menuViaje) this.cerrarMenuViaje(); }
 
   public accionMenu(accion: string): void {
@@ -1023,6 +1282,8 @@ export class RutogramaComponent implements OnInit, OnDestroy {
         break;
       }
       case 'whatsapp': this.avisarWhatsApp(vj, m.v); break;
+      case 'seleccionar': this.alternarSeleccion(id); break;
+      case 'nota': this.abrirNotaDia(m.v, Number(vj.salida ?? vj.dia)); break;
     }
   }
 
@@ -1714,8 +1975,7 @@ export class RutogramaComponent implements OnInit, OnDestroy {
       this.irAMes(e.key === 'ArrowLeft' ? -1 : 1);
     } else if (!e.shiftKey && (e.key === 'h' || e.key === 'H')) {
       e.preventDefault();
-      const hoy = new Date();
-      this.irAMes((hoy.getFullYear() - Number(this.ds.S.anio)) * 12 + hoy.getMonth() - Number(this.ds.S.mes));
+      this.irAHoy();
     }
   }
 
@@ -4184,6 +4444,10 @@ export class RutogramaComponent implements OnInit, OnDestroy {
     if (!original) return null;
 
     const clone = original.cloneNode(true) as HTMLElement;
+    // La Foto sale completa aunque en pantalla haya una semana, grupos plegados o un filtro.
+    clone.classList.remove('ruto-modo-semana');
+    clone.querySelectorAll('.ruto-col-oculta, .ruto-fila-plegada, .ruto-atenuado, .ruto-seleccionado').forEach(el => el.classList.remove('ruto-col-oculta', 'ruto-fila-plegada', 'ruto-atenuado', 'ruto-seleccionado'));
+    clone.querySelectorAll('.ruto-tr-grupo, .ruto-plegar i, .ruto-plegado-nota').forEach(el => el.remove());
 
     // Día o semana: se quitan del CLON las columnas de los demás días.
     if (this.fotoPeriodo !== 'mes') {

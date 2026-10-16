@@ -112,6 +112,16 @@
       <button class="btn-import" *ngIf="auth.puedeEditar" (click)="fileInput.click()"><i class="bi bi-folder2-open" style="color:#34d399;"></i> Importar Operación</button>
       <button class="btn-export" (click)="descargarRutograma()"><i class="bi bi-download"></i> Exportar</button>
       <button class="btn-export" (click)="abrirFotoMes()"><i class="bi bi-camera-fill" style="color:#c084fc;"></i> Foto</button>
+      <div class="ruto-vista" data-guia="ruto-vista">
+        <button class="btn-zoom ruto-btn-hoy" (click)="irAHoy()" title="Ir al día de hoy (tecla H)"><i class="bi bi-crosshair"></i> Hoy</button>
+        <button class="btn-zoom ruto-btn-semana" [class.on]="theme.ap.rutoSemana" (click)="alternarSemanaRuto()"
+                [title]="theme.ap.rutoSemana ? 'Volver a ver el mes completo' : 'Ver solo una semana, con las tarjetas más grandes'"><i class="bi bi-calendar-week"></i> {{ theme.ap.rutoSemana ? 'Mes' : 'Semana' }}</button>
+        <ng-container *ngIf="theme.ap.rutoSemana">
+          <button class="btn-zoom" (click)="moverSemana(-1)" title="Semana anterior"><i class="bi bi-chevron-left"></i></button>
+          <span class="ruto-semana-texto">{{ textoSemana }}</span>
+          <button class="btn-zoom" (click)="moverSemana(1)" title="Semana siguiente"><i class="bi bi-chevron-right"></i></button>
+        </ng-container>
+      </div>
       <button class="btn-zoom" (click)="cambiarZoom(-10)"><i class="bi bi-zoom-out"></i></button>
       <button class="btn-zoom" (click)="cambiarZoom(10)"><i class="bi bi-zoom-in"></i></button>
       <span class="ruto-zoom-text">{{ zoomPorcentaje }}%</span>
@@ -119,6 +129,27 @@
         <i class="bi" [ngClass]="theme.enfoque() ? 'bi-fullscreen-exit' : 'bi-arrows-fullscreen'"></i>
       </button>
     </div>
+  </div>
+
+  <div class="ruto-filtros" data-guia="ruto-filtros">
+    <div class="ruto-filtro-viajes" [class.activo]="hayFiltroViajes">
+      <i class="bi bi-funnel"></i>
+      <input type="text" [(ngModel)]="filtroViajes" placeholder="Filtrar viajes: cliente, conductor, destino… (varios con coma)" (keydown.escape)="filtroViajes = ''">
+      <i *ngIf="filtroViajes" class="bi bi-x-circle-fill ruto-buscar-limpiar" (click)="filtroViajes = ''"></i>
+    </div>
+    <button *ngFor="let f of theme.ap.rutoFiltros" type="button" class="ruto-filtro-chip" [class.on]="filtroAplicado(f)" (click)="aplicarFiltroGuardado(f)"
+            [title]="tituloFiltro(f)">
+      <i class="bi bi-bookmark-fill"></i> {{ f.nombre }}
+      <span class="ruto-filtro-x" (click)="$event.stopPropagation(); theme.quitarFiltroRuto(f.id)" title="Borrar este filtro">×</span>
+    </button>
+    <ng-container *ngIf="hayAlgoParaGuardar">
+      <button *ngIf="!guardandoFiltro" type="button" class="ruto-filtro-guardar" (click)="guardandoFiltro = true"><i class="bi bi-bookmark-plus"></i> Guardar filtro</button>
+      <span *ngIf="guardandoFiltro" class="ruto-filtro-nombre">
+        <input type="text" [(ngModel)]="nombreFiltroNuevo" placeholder="Nombre (ej. Solo D1)" maxlength="40" (keydown.enter)="guardarFiltroActual()" (keydown.escape)="guardandoFiltro = false">
+        <button type="button" (click)="guardarFiltroActual()" [disabled]="!nombreFiltroNuevo.trim()">Guardar</button>
+      </span>
+      <button type="button" class="ruto-filtro-limpiar" (click)="limpiarFiltros()"><i class="bi bi-x-lg"></i> Quitar filtros</button>
+    </ng-container>
   </div>
 
   <div class="ruto-semanas" *ngIf="semanasCierre.length" data-guia="ruto-semanas">
@@ -143,12 +174,12 @@
   </div>
 
   <div class="ruto-table-responsive">
-    <table id="rtbl" class="ruto-table">
+    <table id="rtbl" class="ruto-table" [class.ruto-modo-semana]="theme.ap.rutoSemana">
       <thead>
         <tr class="ruto-thead-tr">
           <th class="ruto-th-vehicle">Vehículo</th>
           <th class="ruto-th-delivery">Prox. Entrega</th>
-          <th *ngFor="let d of diasMes" class="ruto-th-day" [class.hoy]="esHoy(d)" [attr.data-dia]="d">
+          <th *ngFor="let d of diasMes" class="ruto-th-day" [class.hoy]="esHoy(d)" [class.ruto-col-oculta]="!diaVisible(d)" [attr.data-dia]="d">
             <span class="ruto-day-name">{{ getDiaSem(d) }}</span><br><b>{{ d }}</b>
             <span *ngIf="esFestivo(d)" class="ruto-festivo-icon"><i class="bi bi-ban" style="color:#ef4444;"></i></span>
             <span *ngIf="diaEnSemanaCerrada(d)" class="ruto-dia-cerrado" title="Semana cerrada: cambiar su plan pide motivo"><i class="bi bi-lock-fill"></i></span>
@@ -165,8 +196,17 @@
           </td>
         </tr>
 
+        <tr class="ruto-tr-grupo" *ngIf="vehiculosPropiosOrdenados().length && (!filtroTransportadoraRuto || filtroTransportadoraRuto === 'makand')">
+          <td [attr.colspan]="diasMes.length + 2">
+            <button type="button" class="ruto-plegar" (click)="theme.alternarPlegado('propia')" [attr.aria-expanded]="!theme.estaPlegado('propia')"
+                    [title]="theme.estaPlegado('propia') ? 'Mostrar la flota propia' : 'Esconder la flota propia (solo en tu cuenta)'">
+              <i class="bi" [ngClass]="theme.estaPlegado('propia') ? 'bi-chevron-right' : 'bi-chevron-down'"></i>
+              Flota propia <span>· {{ vehiculosPropiosOrdenados().length }} vehículos{{ theme.estaPlegado('propia') ? ' (escondidos)' : '' }}</span>
+            </button>
+          </td>
+        </tr>
         <ng-container *ngFor="let v of vehiculosPropiosOrdenados(); trackBy: trackByVehiculo">
-          <tr class="ruto-tr-vehicle" *ngIf="filaVisiblePorTransportadora(v)" [attr.data-placa]="v.p" [class.ruto-fila-resaltada]="esVehiculoResaltado(v)" [attr.data-estado]="v.estado" [attr.data-transportadora]="v.tr || v.transportadora || 'Makand'">
+          <tr class="ruto-tr-vehicle" [class.ruto-fila-plegada]="theme.estaPlegado('propia')" *ngIf="filaVisiblePorTransportadora(v)" [attr.data-placa]="v.p" [class.ruto-fila-resaltada]="esVehiculoResaltado(v)" [attr.data-estado]="v.estado" [attr.data-transportadora]="v.tr || v.transportadora || 'Makand'">
           <td class="ruto-td-vehicle-info">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
               <div>
@@ -190,9 +230,10 @@
 
           <td class="ruto-td-next-delivery" [innerHTML]="safeHtml(proximaEntrega(v))"></td>
 
-          <td *ngFor="let d of diasMes" class="ruto-td-day-cell" [class.hoy]="esHoy(d)" [attr.data-dia]="d"
+          <td *ngFor="let d of diasMes" class="ruto-td-day-cell" [class.hoy]="esHoy(d)" [class.ruto-col-oculta]="!diaVisible(d)" [attr.data-dia]="d" (dblclick)="abrirNotaDia(v, d, $event)"
               [class.ruto-destino]="arrastrando && celdaDestino === (v.p || '').toUpperCase().trim() + '-' + d"
               (dragover)="alPasarSobreCelda($event, v, d)" (drop)="alSoltarEnCelda($event, v, d)">
+            <div *ngIf="notaDe(v, d) as nota" class="ruto-nota-dia" (click)="abrirNotaDia(v, d, $event)" (dblclick)="$event.stopPropagation()" [title]="nota.texto + (nota.por ? ' — ' + autorNota(nota) : '')"><i class="bi bi-sticky-fill"></i> {{ nota.texto }}</div>
 
             <!-- Varado: un registro por día, independiente del estado
                  general del vehículo — nunca lo tapa un mantenimiento
@@ -220,7 +261,7 @@
                 </div>
 
                 <div *ngIf="vj.isStart && vj.type !== 'cancelado'"
-                     (click)="verDetalle(vj.id)" data-guia="ruto-viaje"
+                     (click)="clicViaje($event, vj.id)" data-guia="ruto-viaje" [class.ruto-seleccionado]="seleccion.has(vj.id)"
                      (mouseenter)="mostrarTooltipViaje($event, vj, v)"
                      (mousemove)="moverTooltipViaje($event)"
                      (mouseleave)="ocultarTooltipViaje()"
@@ -228,7 +269,7 @@
                      (dragstart)="alEmpezarArrastre($event, vj, v)" (dragend)="alTerminarArrastre()"
                      (contextmenu)="abrirMenuViaje($event, vj, v)"
                      [class.ruto-arrastrado]="arrastrando?.id === vj.id"
-                     class="ruto-card-viaje" [attr.data-viaje]="vj.id" [class.ap-cambio-vivo]="cambiadosVivo.has(vj.id)" [attr.data-autor]="cambiadosVivo.has(vj.id) ? autorDe(vj.id) : null" [style.--color-vivo]="cambiadosVivo.has(vj.id) ? colorAutorDe(vj.id) : null"
+                     class="ruto-card-viaje" [class.ruto-atenuado]="hayFiltroViajes && !coincideFiltroViaje(vj, v)" [attr.data-viaje]="vj.id" [class.ap-cambio-vivo]="cambiadosVivo.has(vj.id)" [attr.data-autor]="cambiadosVivo.has(vj.id) ? autorDe(vj.id) : null" [style.--color-vivo]="cambiadosVivo.has(vj.id) ? colorAutorDe(vj.id) : null"
                      [ngClass]="vj.cssClass"
                      [style.border-left]="vj.prioridad === 'urgente' ? '4px solid #ef4444' : (vj.prioridad === 'alta' ? '4px solid #f59e0b' : '')">
 
@@ -312,7 +353,11 @@
           <tr class="ruto-tr-cupo-header" [style.background]="te.col">
             <td [attr.colspan]="diasMes.length + 2">
               <div class="ruto-cupo-header-inner">
-                <span>{{ te.nombre }} - Cupos confirmados el mismo día</span>
+                <button type="button" class="ruto-plegar ruto-plegar-cupo" (click)="theme.alternarPlegado(te.nombre)" [attr.aria-expanded]="!theme.estaPlegado(te.nombre)"
+                        [title]="theme.estaPlegado(te.nombre) ? 'Mostrar los cupos de ' + te.nombre : 'Esconder los cupos de ' + te.nombre + ' (solo en tu cuenta)'">
+                  <i class="bi" [ngClass]="theme.estaPlegado(te.nombre) ? 'bi-chevron-right' : 'bi-chevron-down'"></i>
+                  {{ te.nombre }} - Cupos confirmados el mismo día<span class="ruto-plegado-nota" *ngIf="theme.estaPlegado(te.nombre)"> · {{ vehiculosCupoDeTransportadora(te.nombre).length }} escondidos</span>
+                </button>
                 <div class="ruto-cupo-header-botones">
                   <button *ngIf="auth.puede('reacomodarCupos')" class="ruto-btn-confirmar-cupo ruto-btn-reacomodar" [disabled]="reacomodandoCupos"
                           (click)="reacomodarCupos(te.clave === 'arsi' ? 'Arsitrans' : 'Polar')"
@@ -326,7 +371,7 @@
           </tr>
 
           <ng-container *ngFor="let v of vehiculosCupoDeTransportadora(te.nombre); trackBy: trackByVehiculo">
-            <tr class="ruto-tr-vehicle" *ngIf="filaVisiblePorTransportadora(v)" [attr.data-placa]="v.p" [class.ruto-fila-resaltada]="esVehiculoResaltado(v)" [attr.data-estado]="v.estado" [attr.data-transportadora]="v.tr || v.transportadora || te.nombre">
+            <tr class="ruto-tr-vehicle" [class.ruto-fila-plegada]="theme.estaPlegado(te.nombre)" *ngIf="filaVisiblePorTransportadora(v)" [attr.data-placa]="v.p" [class.ruto-fila-resaltada]="esVehiculoResaltado(v)" [attr.data-estado]="v.estado" [attr.data-transportadora]="v.tr || v.transportadora || te.nombre">
             <td class="ruto-td-vehicle-info ruto-td-vehicle-info-cupo" [style.background]="te.col" [style.borderColor]="te.col">
               <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
                 <div>
@@ -350,9 +395,10 @@
 
             <td class="ruto-td-next-delivery" [innerHTML]="safeHtml(proximaEntrega(v))"></td>
 
-            <td *ngFor="let d of diasMes" class="ruto-td-day-cell" [class.hoy]="esHoy(d)" [attr.data-dia]="d"
+            <td *ngFor="let d of diasMes" class="ruto-td-day-cell" [class.hoy]="esHoy(d)" [class.ruto-col-oculta]="!diaVisible(d)" [attr.data-dia]="d" (dblclick)="abrirNotaDia(v, d, $event)"
               [class.ruto-destino]="arrastrando && celdaDestino === (v.p || '').toUpperCase().trim() + '-' + d"
               (dragover)="alPasarSobreCelda($event, v, d)" (drop)="alSoltarEnCelda($event, v, d)">
+            <div *ngIf="notaDe(v, d) as nota" class="ruto-nota-dia" (click)="abrirNotaDia(v, d, $event)" (dblclick)="$event.stopPropagation()" [title]="nota.texto + (nota.por ? ' — ' + nota.por : '')"><i class="bi bi-sticky-fill"></i> {{ nota.texto }}</div>
 
               <!-- Varado: un registro por día, independiente del estado
                    general del vehículo — nunca lo tapa un mantenimiento
@@ -380,7 +426,7 @@
                   </div>
 
                   <div *ngIf="vj.isStart && vj.type !== 'cancelado'"
-                       (click)="verDetalle(vj.id)" data-guia="ruto-viaje"
+                       (click)="clicViaje($event, vj.id)" data-guia="ruto-viaje" [class.ruto-seleccionado]="seleccion.has(vj.id)"
                        (mouseenter)="mostrarTooltipViaje($event, vj, v)"
                        (mousemove)="moverTooltipViaje($event)"
                        (mouseleave)="ocultarTooltipViaje()"
@@ -388,7 +434,7 @@
                        (dragstart)="alEmpezarArrastre($event, vj, v)" (dragend)="alTerminarArrastre()"
                        (contextmenu)="abrirMenuViaje($event, vj, v)"
                        [class.ruto-arrastrado]="arrastrando?.id === vj.id"
-                       class="ruto-card-viaje" [attr.data-viaje]="vj.id" [class.ap-cambio-vivo]="cambiadosVivo.has(vj.id)" [attr.data-autor]="cambiadosVivo.has(vj.id) ? autorDe(vj.id) : null" [style.--color-vivo]="cambiadosVivo.has(vj.id) ? colorAutorDe(vj.id) : null"
+                       class="ruto-card-viaje" [class.ruto-atenuado]="hayFiltroViajes && !coincideFiltroViaje(vj, v)" [attr.data-viaje]="vj.id" [class.ap-cambio-vivo]="cambiadosVivo.has(vj.id)" [attr.data-autor]="cambiadosVivo.has(vj.id) ? autorDe(vj.id) : null" [style.--color-vivo]="cambiadosVivo.has(vj.id) ? colorAutorDe(vj.id) : null"
                        [ngClass]="vj.cssClass">
 
                     <div *ngIf="viajesConCambioPendiente.has(vj.id)" class="ruto-badge-pendiente" title="Este viaje tiene un cambio esperando aprobación"><i class="bi bi-hourglass-split"></i> Cambio por aprobar</div>
@@ -1076,6 +1122,8 @@
   <div class="ruto-menu-linea"></div>
   <button role="menuitem" (click)="accionMenu('whatsapp')"><i class="bi bi-whatsapp"></i> Avisar al conductor por WhatsApp</button>
   <button role="menuitem" *ngIf="m.vj.cond || conductoresMap[m.v.p]" (click)="accionMenu('agenda')"><i class="bi bi-calendar-week"></i> Agenda del conductor</button>
+  <button role="menuitem" *ngIf="auth.puedeEditar" (click)="accionMenu('seleccionar')"><i class="bi" [ngClass]="seleccion.has(m.vj.id) ? 'bi-check-square-fill' : 'bi-check-square'"></i> {{ seleccion.has(m.vj.id) ? 'Quitar de la selección' : 'Seleccionar (para cambiar varios)' }}</button>
+  <button role="menuitem" *ngIf="auth.puedeEditar" (click)="accionMenu('nota')"><i class="bi bi-sticky"></i> Nota en este día</button>
   <button role="menuitem" (click)="accionMenu('fijar')"><i class="bi" [ngClass]="estaFijado(m.v) ? 'bi-pin-angle-fill' : 'bi-pin-angle'"></i> {{ estaFijado(m.v) ? 'Quitar ' + m.v.p + ' de arriba' : 'Fijar ' + m.v.p + ' arriba' }}</button>
 </div>
 
@@ -1209,3 +1257,45 @@
   </div>
 </div>
 <app-plan-b *ngIf="planBPlaca" [placa]="planBPlaca" (cerrar)="planBPlaca = null"></app-plan-b>
+
+<!-- Barra de los viajes seleccionados (Ctrl/Cmd + clic). -->
+<div class="ruto-lote" *ngIf="seleccion.size" animate.leave="ap-ocultar" role="region" aria-label="Viajes seleccionados" data-guia="ruto-lote">
+  <div class="ruto-lote-cab">
+    <b>{{ seleccion.size }} viaje{{ seleccion.size === 1 ? '' : 's' }} seleccionado{{ seleccion.size === 1 ? '' : 's' }}</b>
+    <small>Clic en otros para sumarlos o quitarlos · Esc para salir</small>
+  </div>
+  <div class="ruto-lote-acciones">
+    <button type="button" [class.on]="loteAccion === 'conductor'" (click)="loteAccion = loteAccion === 'conductor' ? '' : 'conductor'"><i class="bi bi-person-badge"></i> Conductor</button>
+    <button type="button" [class.on]="loteAccion === 'mover'" (click)="loteAccion = loteAccion === 'mover' ? '' : 'mover'"><i class="bi bi-arrow-left-right"></i> Correr días</button>
+    <button type="button" [class.on]="loteAccion === 'cancelar'" (click)="loteAccion = loteAccion === 'cancelar' ? '' : 'cancelar'"><i class="bi bi-x-octagon"></i> Cancelar</button>
+    <button type="button" class="ruto-lote-salir" (click)="limpiarSeleccion()" title="Quitar la selección"><i class="bi bi-x-lg"></i></button>
+  </div>
+  <div class="ruto-lote-form" *ngIf="loteAccion">
+    <ng-container *ngIf="loteAccion === 'conductor'">
+      <select [(ngModel)]="loteConductor"><option value="">Elige el conductor…</option><option *ngFor="let c of conductoresParaLote" [value]="c">{{ c }}</option></select>
+    </ng-container>
+    <ng-container *ngIf="loteAccion === 'mover'">
+      <label>Días <input type="number" [(ngModel)]="loteDias" min="-31" max="31" step="1"></label>
+      <small>1 = un día después · -1 = un día antes</small>
+    </ng-container>
+    <ng-container *ngIf="loteAccion === 'cancelar'">
+      <input type="text" [(ngModel)]="loteMotivo" placeholder="Motivo de la cancelación" maxlength="200" (keydown.enter)="aplicarLote()">
+    </ng-container>
+    <button type="button" class="ruto-lote-aplicar" [disabled]="loteTrabajando" (click)="aplicarLote()">{{ loteTrabajando ? 'Guardando…' : 'Aplicar' }}</button>
+  </div>
+</div>
+
+<!-- Nota en un día de un vehículo -->
+<div class="ruto-nota-fondo" *ngIf="notaEditando" (click)="notaEditando = null"></div>
+<div class="ruto-nota-editor" *ngIf="notaEditando as n" role="dialog" aria-label="Nota del día" animate.leave="ap-ocultar">
+  <h4><i class="bi bi-sticky-fill"></i> Nota · {{ n.placa }} · día {{ n.dia }}</h4>
+  <p *ngIf="n.existente?.por" class="ruto-nota-quien">Escrita por {{ autorNota(n.existente) }}{{ n.existente.en ? ' · ' + fechaHoraCorta(n.existente.en) : '' }}</p>
+  <textarea [(ngModel)]="n.texto" rows="3" maxlength="300" placeholder="Ej. revisión 8 a. m., llamar al conductor, recoger repuesto…" [readonly]="!auth.puedeEditar" (keydown.escape)="notaEditando = null"></textarea>
+  <div class="ruto-nota-botones">
+    <button *ngIf="n.existente && auth.puedeEditar" type="button" class="borrar" (click)="guardarNotaDia(true)"><i class="bi bi-trash"></i> Borrar</button>
+    <span></span>
+    <button type="button" (click)="notaEditando = null">{{ auth.puedeEditar ? 'Cancelar' : 'Cerrar' }}</button>
+    <button *ngIf="auth.puedeEditar" type="button" class="guardar" (click)="guardarNotaDia()">Guardar</button>
+  </div>
+  <small>Las notas las ve todo el equipo. No cambian ningún viaje.</small>
+</div>

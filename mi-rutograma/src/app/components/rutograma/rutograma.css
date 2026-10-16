@@ -1744,3 +1744,97 @@ body.ruto-arrastrando .ruto-hover-tooltip { display: none; }
 .ruto-card-viaje { position: relative; }
 .ruto-quien { position: absolute; top: 2px; right: 3px; z-index: 2; pointer-events: auto; }
 .ruto-quien { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
+
+/* ===== Vista: Hoy, semana, grupos plegados, filtros ===== */
+.ruto-vista { display: inline-flex; align-items: center; gap: 4px; }
+.ruto-vista .btn-zoom { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
+.ruto-btn-hoy { background: rgba(245, 158, 11, .18); color: #fbbf24; font-weight: 700; }
+.ruto-btn-hoy:hover { background: rgba(245, 158, 11, .3); }
+.ruto-btn-semana.on { background: #2563eb; color: #fff; }
+.ruto-semana-texto { font-size: 12px; font-weight: 600; color: var(--text2); white-space: nowrap; padding: 0 2px; }
+.ruto-col-oculta { display: none !important; }
+.ruto-fila-plegada { display: none !important; }
+.ruto-hoy-destello { animation: ruto-hoy-latido 1.5s ease; }
+@keyframes ruto-hoy-latido { 0%, 100% { box-shadow: none; } 25%, 70% { box-shadow: 0 0 0 3px #fbbf24, 0 0 18px rgba(251, 191, 36, .7); } }
+
+/* Semana: columnas anchas y tarjetas más grandes. */
+.ruto-modo-semana .ruto-td-day-cell { min-width: 118px; width: 13%; }
+.ruto-modo-semana .ruto-th-day { font-size: 13px; padding: 6px 4px; }
+.ruto-modo-semana .ruto-card-viaje { padding: 6px 8px; min-height: 64px; }
+.ruto-modo-semana .ruto-card-route { font-size: 13px; }
+.ruto-modo-semana .ruto-card-transport, .ruto-modo-semana .ruto-card-driver, .ruto-modo-semana .ruto-card-meta, .ruto-modo-semana .ruto-card-cajas { font-size: 11.5px; }
+
+/* Encabezado de grupo (flota propia) y botón de plegar. */
+.ruto-tr-grupo td { padding: 0; border: none; background: var(--bg3); }
+.ruto-plegar { position: sticky; left: 0; display: inline-flex; align-items: center; gap: 6px; background: transparent; border: none; color: var(--text);
+  font: inherit; font-size: 12px; font-weight: 800; letter-spacing: .3px; padding: 7px 12px; cursor: pointer; border-radius: 6px; }
+.ruto-plegar span { font-weight: 600; color: var(--text2); }
+.ruto-plegar:hover { background: rgba(255, 255, 255, .06); }
+.ruto-plegar i { transition: transform .2s ease; }
+.ruto-plegar-cupo { padding: 0; color: inherit; }
+.ruto-plegar-cupo span { color: inherit; opacity: .85; }
+
+/* Barra de filtros. */
+.ruto-filtros { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+.ruto-filtro-viajes { display: flex; align-items: center; gap: 6px; background: var(--color-fondo-input); border: 1px solid var(--color-borde); border-radius: 8px;
+  padding: 5px 10px; color: var(--color-texto-apagado); font-size: 12px; flex: 0 1 340px; min-width: 200px; }
+.ruto-filtro-viajes.activo { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, .25); }
+.ruto-filtro-viajes input { background: transparent; border: none; outline: none; color: var(--color-texto-principal); font-size: 12px; width: 100%; font-family: inherit; }
+.ruto-filtro-chip, .ruto-filtro-guardar, .ruto-filtro-limpiar { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer;
+  background: var(--bg3); border: 1px solid var(--border2); color: var(--text); }
+.ruto-filtro-chip.on { background: #2563eb; border-color: #3b82f6; color: #fff; }
+.ruto-filtro-x { opacity: .6; font-weight: 700; padding-left: 2px; }
+.ruto-filtro-x:hover { opacity: 1; color: #f87171; }
+.ruto-filtro-guardar { color: #60a5fa; }
+.ruto-filtro-limpiar { background: transparent; color: var(--text2); }
+.ruto-filtro-nombre { display: inline-flex; gap: 4px; }
+.ruto-filtro-nombre input { background: var(--color-fondo-input); border: 1px solid #3b82f6; border-radius: 8px; color: var(--color-texto-principal); font: inherit; font-size: 12px; padding: 4px 8px; width: 170px; }
+.ruto-filtro-nombre button { background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+.ruto-filtro-nombre button:disabled { opacity: .5; cursor: default; }
+.ruto-card-viaje.ruto-atenuado { opacity: .22; filter: grayscale(.7); transition: opacity .2s ease; }
+.ruto-card-viaje.ruto-atenuado:hover { opacity: .7; }
+@media (max-width: 700px) { .ruto-filtro-viajes { flex-basis: 100%; } }
+
+/* ===== Varios viajes seleccionados ===== */
+.ruto-card-viaje.ruto-seleccionado { outline: 3px solid #38bdf8; outline-offset: -1px; box-shadow: 0 0 0 4px rgba(56, 189, 248, .25), 0 4px 14px rgba(0, 0, 0, .4); position: relative; }
+.ruto-card-viaje.ruto-seleccionado::after { content: '✓'; position: absolute; top: -6px; left: -6px; width: 16px; height: 16px; border-radius: 50%; background: #0ea5e9; color: #fff;
+  font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
+.ruto-lote { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 9990; background: var(--color-fondo-tarjeta, #0f172a); border: 1px solid #0ea5e9;
+  border-radius: 14px; box-shadow: 0 12px 40px rgba(0, 0, 0, .55); padding: 10px 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+  max-width: calc(100vw - 32px); animation: ruto-lote-entra .25s ease; }
+@keyframes ruto-lote-entra { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.ruto-lote-cab { display: flex; flex-direction: column; }
+.ruto-lote-cab b { font-size: 14px; color: #7dd3fc; }
+.ruto-lote-cab small { font-size: 11.5px; color: var(--text2); }
+.ruto-lote-acciones { display: flex; gap: 6px; flex-wrap: wrap; }
+.ruto-lote button { font: inherit; font-size: 12.5px; border-radius: 8px; padding: 6px 10px; cursor: pointer; background: var(--bg3); border: 1px solid var(--border2); color: var(--text); display: inline-flex; gap: 5px; align-items: center; }
+.ruto-lote button.on { background: #0ea5e9; border-color: #38bdf8; color: #fff; }
+.ruto-lote-salir { background: transparent !important; }
+.ruto-lote-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-basis: 100%; }
+.ruto-lote-form select, .ruto-lote-form input { background: var(--color-fondo-input); border: 1px solid var(--color-borde); border-radius: 8px; color: var(--color-texto-principal); font: inherit; font-size: 13px; padding: 6px 8px; }
+.ruto-lote-form input[type=text] { min-width: 240px; flex: 1; }
+.ruto-lote-form input[type=number] { width: 70px; margin-left: 4px; }
+.ruto-lote-form label { font-size: 13px; }
+.ruto-lote-form small { font-size: 11.5px; color: var(--text2); }
+.ruto-lote .ruto-lote-aplicar { background: #16a34a; border-color: #22c55e; color: #fff; font-weight: 700; }
+.ruto-lote .ruto-lote-aplicar:disabled { opacity: .6; cursor: default; }
+@media (max-width: 600px) { .ruto-lote { bottom: 8px; padding: 8px 10px; } .ruto-lote-form input[type=text] { min-width: 0; } }
+
+/* ===== Notas en un día de un vehículo ===== */
+.ruto-nota-dia { background: #fde68a; color: #422006; border-radius: 4px; font-size: 9.5px; font-weight: 700; padding: 2px 4px; margin: 1px 1px 2px; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; box-shadow: 0 1px 2px rgba(0,0,0,.35); transform: rotate(-.6deg); }
+.ruto-nota-dia:hover { background: #fcd34d; }
+.ruto-modo-semana .ruto-nota-dia { font-size: 11px; white-space: normal; max-width: none; }
+.ruto-nota-fondo { position: fixed; inset: 0; z-index: 9991; background: rgba(0, 0, 0, .35); }
+.ruto-nota-editor { position: fixed; z-index: 9992; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 32px)); background: var(--color-fondo-tarjeta, #0f172a);
+  border: 1px solid #f59e0b; border-radius: 14px; padding: 16px; box-shadow: 0 20px 50px rgba(0, 0, 0, .55); animation: ruto-lote-entra-c .2s ease; }
+@keyframes ruto-lote-entra-c { from { opacity: 0; transform: translate(-50%, -46%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+.ruto-nota-editor h4 { margin: 0 0 6px; font-size: 15px; display: flex; gap: 8px; align-items: center; color: #fbbf24; }
+.ruto-nota-quien { margin: 0 0 8px; font-size: 12px; color: var(--text2); }
+.ruto-nota-editor textarea { width: 100%; box-sizing: border-box; background: #fef9c3; color: #422006; border: none; border-radius: 8px; padding: 10px; font: inherit; font-size: 14px; resize: vertical; }
+.ruto-nota-botones { display: flex; gap: 8px; margin-top: 10px; }
+.ruto-nota-botones span { flex: 1; }
+.ruto-nota-botones button { font: inherit; font-size: 13px; border-radius: 8px; padding: 7px 14px; cursor: pointer; background: var(--bg3); border: 1px solid var(--border2); color: var(--text); }
+.ruto-nota-botones .guardar { background: #f59e0b; border-color: #fbbf24; color: #1c1300; font-weight: 700; }
+.ruto-nota-botones .borrar { color: #f87171; }
+.ruto-nota-editor small { display: block; margin-top: 8px; font-size: 11.5px; color: var(--text2); }
