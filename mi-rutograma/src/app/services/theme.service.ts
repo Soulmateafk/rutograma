@@ -54,7 +54,11 @@ export interface Apariencia {
   ambienteVol: number;                              // 0-100
   enfoque: boolean;                                 // modo enfoque (solo el Rutograma, pantalla completa) — no se guarda
   notas: NotaPersonal[];                            // notas rápidas: solo las ve esta cuenta
+  rutoPlegados: string[];                           // grupos plegados del Rutograma ('propia', 'ARSITRANS', 'POLAR')
+  rutoSemana: boolean;                              // Rutograma de una sola semana
+  rutoFiltros: FiltroRuto[];                        // filtros guardados del Rutograma
 }
+export interface FiltroRuto { id: string; nombre: string; placa: string; tr: string; texto: string; }
 export interface NotaPersonal { id: string; texto: string; color: string; hecha: boolean; en: string; }
 
 const POR_DEFECTO: Apariencia = {
@@ -62,7 +66,7 @@ const POR_DEFECTO: Apariencia = {
   colorPropio: '', fondoTinte: false, coloresTr: { makand: '', arsitrans: '', polar: '' }, daltonismo: false, esquinas: 'normal', saludo: true,
   efectos: { onda: true, progreso: true, cascada: true, mes: true, vivo: true, temblor: true, destello: true, brillo: true, previa: true, confeti: true, rastro: true, transicion: true, clima: true }, temporada: 'auto',
   fondo: 'ninguno', fondoBrillo: 55, fondoVidrio: 35, fuente: 'sistema', densidad: 'normal', barra: 'arriba', inicio: '', avatar: '', foto: '', fijados: [],
-  tablero: { orden: [], ocultos: [] }, sonidos: true, volumen: 50, sonidoTemporada: true, contadorNavidad: true, mascota: true, verPersonas: true, verEnVivo: { cabecitas: true, marcas: true, aviso: true }, ambiente: '', ambienteVol: 35, enfoque: false, notas: []
+  tablero: { orden: [], ocultos: [] }, sonidos: true, volumen: 50, sonidoTemporada: true, contadorNavidad: true, mascota: true, verPersonas: true, verEnVivo: { cabecitas: true, marcas: true, aviso: true }, ambiente: '', ambienteVol: 35, enfoque: false, notas: [], rutoPlegados: [], rutoSemana: false, rutoFiltros: []
 };
 export const FONDOS: Array<{ valor: Fondo; nombre: string }> = [
   { valor: 'ninguno', nombre: 'Ninguno' }, { valor: 'cielo', nombre: 'Cielo de verdad' }, { valor: 'aurora', nombre: 'Aurora' }, { valor: 'atardecer', nombre: 'Atardecer' },
@@ -263,7 +267,7 @@ export class ThemeService {
 
   /** ¿Es distinta de como viene la app? (para mostrar "Restablecer") */
   public get personalizada(): boolean {
-    const estilo = (a: Apariencia) => { const { avatar, foto, fijados, tablero, inicio, notas, ...resto } = this.limpiar(a); return JSON.stringify(resto); };
+    const estilo = (a: Apariencia) => { const { avatar, foto, fijados, tablero, inicio, notas, rutoPlegados, rutoSemana, rutoFiltros, ...resto } = this.limpiar(a); return JSON.stringify(resto); };
     return estilo(this.ap) !== estilo(POR_DEFECTO);
   }
 
@@ -319,6 +323,12 @@ export class ThemeService {
       notas: Array.isArray(p.notas) ? p.notas.filter((n: any) => n && typeof n.texto === 'string').slice(0, 30).map((n: any) => ({
         id: String(n.id || Math.random().toString(36).slice(2, 10)).slice(0, 20), texto: String(n.texto).slice(0, 1000),
         color: /^[a-z]{1,12}$/.test(n.color || '') ? n.color : 'amarillo', hecha: n.hecha === true, en: String(n.en || '').slice(0, 30)
+      })) : [],
+      rutoPlegados: Array.isArray(p.rutoPlegados) ? p.rutoPlegados.filter((x: any) => ['propia', 'ARSITRANS', 'POLAR'].includes(x)) : [],
+      rutoSemana: p.rutoSemana === true,
+      rutoFiltros: Array.isArray(p.rutoFiltros) ? p.rutoFiltros.filter((f: any) => f && typeof f.nombre === 'string').slice(0, 12).map((f: any) => ({
+        id: String(f.id || Math.random().toString(36).slice(2, 10)).slice(0, 20), nombre: String(f.nombre).slice(0, 40),
+        placa: String(f.placa || '').slice(0, 30), tr: ['makand', 'arsitrans', 'polar'].includes(f.tr) ? f.tr : '', texto: String(f.texto || '').slice(0, 60)
       })) : []
     };
   }
@@ -436,8 +446,8 @@ export class ThemeService {
   public alternarAnimaciones(): void { this.cambiar({ sinAnimaciones: !this.ap.sinAnimaciones }); }
   public restablecer(): void {
     // La foto, el avatar, lo fijado y el Dashboard son de la persona, no del estilo: se quedan.
-    const { avatar, foto, fijados, tablero, inicio, notas } = this.ap;
-    this.cambiar({ ...POR_DEFECTO, coloresTr: { ...POR_DEFECTO.coloresTr }, efectos: { ...POR_DEFECTO.efectos }, avatar, foto, fijados, tablero, inicio, notas });
+    const { avatar, foto, fijados, tablero, inicio, notas, rutoPlegados, rutoSemana, rutoFiltros } = this.ap;
+    this.cambiar({ ...POR_DEFECTO, coloresTr: { ...POR_DEFECTO.coloresTr }, efectos: { ...POR_DEFECTO.efectos }, avatar, foto, fijados, tablero, inicio, notas, rutoPlegados, rutoSemana, rutoFiltros });
   }
   public alternarTinte(): void { this.cambiar({ fondoTinte: !this.ap.fondoTinte }); }
   public alternarDaltonismo(): void { this.cambiar({ daltonismo: !this.ap.daltonismo }); }
@@ -547,6 +557,17 @@ export class ThemeService {
     this.ap = this.limpiar({ ...this.ap, ambienteVol }); this.aplicar();
   }
   public alternarSonidoTemporada(): void { this.cambiar({ sonidoTemporada: !this.ap.sonidoTemporada }); this.sonido.tocar('aprobar'); }
+  // Rutograma: grupos plegados, vista de una semana y filtros guardados (de cada cuenta).
+  public estaPlegado(grupo: string): boolean { return this.ap.rutoPlegados.includes(grupo); }
+  public alternarPlegado(grupo: string): void {
+    this.cambiar({ rutoPlegados: this.estaPlegado(grupo) ? this.ap.rutoPlegados.filter(g => g !== grupo) : [...this.ap.rutoPlegados, grupo] });
+  }
+  public alternarSemanaRuto(): void { this.cambiar({ rutoSemana: !this.ap.rutoSemana }); }
+  public guardarFiltroRuto(f: Omit<FiltroRuto, 'id'>): void {
+    this.cambiar({ rutoFiltros: [...this.ap.rutoFiltros.filter(x => x.nombre.toLowerCase() !== f.nombre.toLowerCase()), { ...f, id: Math.random().toString(36).slice(2, 10) }].slice(-12) });
+  }
+  public quitarFiltroRuto(id: string): void { this.cambiar({ rutoFiltros: this.ap.rutoFiltros.filter(x => x.id !== id) }); }
+
   public estaFijado(placa: string): boolean { return this.ap.fijados.includes(String(placa || '').toUpperCase()); }
   public alternarFijado(placa: string): void {
     const p = String(placa || '').toUpperCase();

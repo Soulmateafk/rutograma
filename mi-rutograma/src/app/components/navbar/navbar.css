@@ -274,3 +274,19 @@
 .nav-tareas.on { border-color: #22c55e; color: #22c55e; }
 .nav-tareas .nav-notas-num { background: #22c55e; color: #052e16; }
 .nav-tareas.urgente .nav-notas-num { background: #ef4444; color: #fff; animation: dt-latido 1.6s ease-in-out infinite; }
+
+/* Mis cambios de hoy */
+.nav-mis-cambios { position: relative; display: inline-flex; }
+.nav-mis-cambios .btn.on { background: #2563eb; color: #fff; }
+.nav-mis-cambios-panel { position: absolute; top: calc(100% + 6px); right: 0; z-index: 9995; width: min(360px, calc(100vw - 24px)); max-height: 60vh; overflow: auto;
+  background: var(--color-fondo-tarjeta, #0f172a); border: 1px solid var(--color-borde, #334155); border-radius: 12px; box-shadow: 0 14px 40px rgba(0, 0, 0, .5); padding: 8px; }
+.nmc-cab { display: flex; align-items: baseline; justify-content: space-between; padding: 4px 6px 8px; border-bottom: 1px solid var(--color-borde, #334155); margin-bottom: 4px; }
+.nmc-cab b { font-size: 13px; }
+.nmc-cab small { font-size: 11px; color: var(--color-texto-apagado, #64748b); }
+.nmc-vacio { font-size: 12.5px; color: var(--color-texto-secundario); padding: 10px 6px; }
+.nmc-fila { display: grid; grid-template-columns: 58px 1fr auto; gap: 8px; align-items: center; padding: 6px; border-radius: 8px; font-size: 12.5px; }
+.nmc-fila:hover { background: rgba(148, 163, 184, .08); }
+.nmc-hora { color: var(--color-texto-apagado, #64748b); font-size: 11.5px; }
+.nmc-texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nmc-fila button { background: var(--bg3, #1e293b); border: 1px solid var(--color-borde, #334155); color: var(--color-texto-principal); border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+.nmc-fila button:disabled { opacity: .35; cursor: default; }

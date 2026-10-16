@@ -132,6 +132,31 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     this.zone.run(() => this.cdr.detectChanges());
   }
 
+  // Mis cambios de hoy: la lista de lo que se puede deshacer, uno por uno.
+  public misCambiosAbierto = false;
+  public misCambios: Array<{ descripcion: string; timestamp: number; tipo: string; bloqueado: boolean }> = [];
+  public deshaciendoUno = false;
+  @HostListener('document:click', ['$event'])
+  public cerrarMisCambiosAfuera(e: MouseEvent): void {
+    if (this.misCambiosAbierto && !(e.target as HTMLElement)?.closest?.('.nav-mis-cambios')) this.misCambiosAbierto = false;
+  }
+  public alternarMisCambios(): void {
+    this.misCambiosAbierto = !this.misCambiosAbierto;
+    if (this.misCambiosAbierto) this.misCambios = this.dataService.cambiosDeHoy();
+  }
+  public async deshacerUno(c: { descripcion: string; timestamp: number; tipo: string }): Promise<void> {
+    if (!(await this.confirmarSiEsMasivo(this.dataService.pilaDeshacer.find(e => e.timestamp === c.timestamp), 'Deshacer'))) return;
+    this.deshaciendoUno = true;
+    try {
+      const r = await this.dataService.deshacerCambio(c.timestamp);
+      this.ui.mostrarToast(r.mensaje, r.ok ? 'ok' : 'err');
+    } finally {
+      this.deshaciendoUno = false;
+      this.misCambios = this.dataService.cambiosDeHoy();
+      this.zone.run(() => this.cdr.detectChanges());
+    }
+  }
+
   public async rehacerUltimoCambio(): Promise<void> {
     const pila = this.dataService.pilaRehacer;
     if (!(await this.confirmarSiEsMasivo(pila[pila.length - 1], 'Rehacer'))) return;
@@ -598,6 +623,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     { nombre: 'Presentación', ruta: '/presentacion' },
     { nombre: 'Tareas', ruta: '/tareas' },
     { nombre: 'Cumplimiento', ruta: '/cumplimiento' },
+    { nombre: 'Pronóstico', ruta: '/pronostico' },
     { nombre: 'Reglas', ruta: '/reglas' },
     { nombre: 'Comparendos', ruta: '/comparendos' },
     { nombre: 'Quejas', ruta: '/quejas' },
@@ -628,6 +654,7 @@ export class NavbarComponent implements AfterViewInit, OnDestroy {
     { nombre: 'Presentación', ruta: '/presentacion' },
     { nombre: 'Tareas', ruta: '/tareas' },
     { nombre: 'Cumplimiento', ruta: '/cumplimiento' },
+    { nombre: 'Pronóstico', ruta: '/pronostico' },
     { nombre: 'Reglas', ruta: '/reglas' },
     { nombre: 'Comparendos', ruta: '/comparendos' },
     { nombre: 'Quejas', ruta: '/quejas' },

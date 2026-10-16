@@ -36,6 +36,7 @@ const { reglasIncumplidas } = require('./reglas-asignacion');
 const { crearPresencia, primerNombre } = require('./presencia');
 const { armarHojaDeVida } = require('./hoja-vida');
 const { armarCumplimiento, horaDelViaje } = require('./cumplimiento');
+const { armarPronostico } = require('./pronostico');
 const { compararConVisto, armarVisto } = require('./avisos-conductor');
 const { faltasDeClave, mensajeClave, errorNombre, errorEmail, errorDepartamento, nombreLimpio, DEPARTAMENTOS,
     normalizarPlaca, errorConductor, errorVehiculo } = require('./validaciones');
@@ -2621,7 +2622,7 @@ app.post('/api/guias/reiniciar', (req, res) => {
 // reglasAsignacion / picoPlaca: ver reglas-asignacion.js. anuncios: la pizarra.
 // comparendos: multas por vehículo y conductor. quejas: reclamos de clientes.
 // ubicaciones: coordenadas de destinos que el mapa no conocía.
-const CLAVES_CONFIG_COMPARTIDA = { transportadoras: 'array', cuposExt: 'array', festivos: 'array', reglasAsignacion: 'array', picoPlaca: 'array', anuncios: 'array', comparendos: 'array', quejas: 'array', ubicaciones: 'array', celebraciones: 'array' };
+const CLAVES_CONFIG_COMPARTIDA = { transportadoras: 'array', cuposExt: 'array', festivos: 'array', reglasAsignacion: 'array', picoPlaca: 'array', anuncios: 'array', comparendos: 'array', quejas: 'array', ubicaciones: 'array', celebraciones: 'array', notasDia: 'array' };
 
 app.post('/api/configuracion/compartida', (req, res) => {
     try {
@@ -3181,6 +3182,22 @@ app.get('/api/cumplimiento', (req, res) => {
         res.json({ ok: true, ...armarCumplimiento(leerExcel(), { anio, mes }) });
     } catch (error) {
         console.error('🚨 Error en /api/cumplimiento:', error);
+        res.status(500).json({ ok: false, msg: error.message });
+    }
+});
+
+// Pronóstico de un mes con los anteriores (ver pronostico.js). Solo lee.
+app.get('/api/pronostico', (req, res) => {
+    try {
+        const anio = Number(req.query.anio), mes = Number(req.query.mes);
+        if (!Number.isInteger(anio) || !Number.isInteger(mes) || mes < 0 || mes > 11) {
+            return res.status(400).json({ ok: false, msg: 'Mes o año inválido.' });
+        }
+        const data = leerExcel();
+        const festivos = leerConfigCompartidaDB(modoActual()).festivos || data.festivos || [];
+        res.json({ ok: true, ...armarPronostico({ viajes: data.viajes, festivos }, { anio, mes }) });
+    } catch (error) {
+        console.error('🚨 Error en /api/pronostico:', error);
         res.status(500).json({ ok: false, msg: error.message });
     }
 });
@@ -4918,6 +4935,12 @@ function preferenciasDe(usuario) {
         ambienteVol: Number.isFinite(p.ambienteVol) ? Math.max(0, Math.min(100, Math.round(p.ambienteVol))) : 35,
         notas: Array.isArray(p.notas) ? p.notas.filter(n => n && typeof n.texto === 'string').slice(0, 30).map(n => ({
             id: String(n.id || '').slice(0, 20), texto: String(n.texto).slice(0, 1000), color: /^[a-z]{1,12}$/.test(n.color || '') ? n.color : 'amarillo', hecha: n.hecha === true, en: String(n.en || '').slice(0, 30)
+        })) : [],
+        rutoPlegados: Array.isArray(p.rutoPlegados) ? p.rutoPlegados.filter(x => ['propia', 'ARSITRANS', 'POLAR'].includes(x)) : [],
+        rutoSemana: p.rutoSemana === true,
+        rutoFiltros: Array.isArray(p.rutoFiltros) ? p.rutoFiltros.filter(f => f && typeof f.nombre === 'string').slice(0, 12).map(f => ({
+            id: String(f.id || '').slice(0, 20), nombre: String(f.nombre).slice(0, 40), placa: String(f.placa || '').slice(0, 30),
+            tr: ['makand', 'arsitrans', 'polar'].includes(f.tr) ? f.tr : '', texto: String(f.texto || '').slice(0, 60)
         })) : []
     };
 }
