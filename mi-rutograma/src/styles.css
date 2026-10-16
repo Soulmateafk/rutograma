@@ -1102,6 +1102,10 @@ html.densidad-comoda .btn { padding: 8px 16px; }
   html.barra-lado.con-barra .nav-r .btn { flex: 1 1 auto; }
   html.barra-lado.con-barra .fecha-nav { width: 100%; text-align: center; }
   html.barra-lado.con-barra nav::before, html.barra-lado.con-barra nav::after { display: none; }
+  /* Lo que se abre desde la barra (En línea, resultados del buscador) sale por fuera, a su derecha:
+     dentro de la columna se cortaba (la barra tiene su propio scroll). */
+  html.barra-lado.con-barra .el-panel { position: fixed !important; left: 224px !important; right: auto !important; top: auto !important; bottom: 12px !important; max-height: calc(100vh - 24px) !important; }
+  html.barra-lado.con-barra .nb-resultados { position: fixed !important; left: 224px !important; top: 12px !important; max-width: calc(100vw - 240px) !important; }
 }
 
 /* Avatar / foto de la cuenta en la barra. */
