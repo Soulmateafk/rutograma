@@ -34,7 +34,7 @@ const CAMPOS_RUTA: Array<[string[], string]> = [
   [['cod', 'codigo'], 'Código'], [['dest', 'destino'], 'Destino'], [['clientes'], 'Clientes'], [['diasTrans'], 'Días de tránsito'], [['dias'], 'Días y horas de salida'], [['obs'], 'Observaciones']
 ];
 const CAMPOS_NOVEDAD: Array<[string[], string]> = [[['tipo'], 'Tipo'], [['titulo'], 'Título'], [['desc', 'descripcion'], 'Qué pasó']];
-const NOMBRES_CONFIG: Record<string, string> = { transportadoras: 'Transportadoras', cuposExt: 'Cupos de Configuración', festivos: 'Festivos', reglasAsignacion: 'Reglas por cliente o ruta', picoPlaca: 'Pico y placa', anuncios: 'Pizarra de anuncios', comparendos: 'Comparendos', quejas: 'Quejas de clientes', ubicaciones: 'Ubicaciones del mapa', celebraciones: 'Celebraciones', notasDia: 'Notas del Rutograma' };
+const NOMBRES_CONFIG: Record<string, string> = { transportadoras: 'Transportadoras', cuposExt: 'Cupos de Configuración', festivos: 'Festivos', reglasAsignacion: 'Reglas por cliente o ruta', picoPlaca: 'Pico y placa', anuncios: 'Pizarra de anuncios', comparendos: 'Comparendos', quejas: 'Quejas de clientes', ubicaciones: 'Ubicaciones del mapa', celebraciones: 'Celebraciones', notasDia: 'Notas del Rutograma', ajustesSesion: 'Cierre de sesión por inactividad' };
 
 /** Valor legible: fechas "mar 13 oct 2026", sí/no, listas, horarios por día. */
 export function legible(v: any, etiqueta = ''): string {

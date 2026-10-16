@@ -157,6 +157,17 @@
         </div>
       </div>
 
+      <!-- Pasteles -->
+      <div *ngSwitchCase="'pasteles'" class="pr-cont">
+        <h2>De un vistazo <small>{{ d.m.periodo.etiqueta }}</small></h2>
+        <div class="pr-cuatro">
+          <ng-container *ngTemplateOutlet="pastelTpl; context: { $implicit: estados(d.m), titulo: 'Cómo terminaron los viajes', hueco: true, centro: d.m.total }"></ng-container>
+          <ng-container *ngTemplateOutlet="pastelTpl; context: { $implicit: d.m.porCliente, titulo: 'Clientes', hueco: false }"></ng-container>
+          <ng-container *ngTemplateOutlet="pastelTpl; context: { $implicit: d.m.porDestino, titulo: 'Destinos', hueco: false }"></ng-container>
+          <ng-container *ngTemplateOutlet="pastelTpl; context: { $implicit: propiosVsTerceros(d.m), titulo: 'Flota propia o terceros', hueco: true, centro: d.m.partePropia + '%' }"></ng-container>
+        </div>
+      </div>
+
       <!-- Equipo -->
       <div *ngSwitchCase="'equipo'" class="pr-cont">
         <h2>El equipo <small>{{ d.m.periodo.etiqueta }}</small></h2>
@@ -230,6 +241,29 @@
         </div>
       </div>
 
+      <!-- Comparación: pasteles -->
+      <div *ngSwitchCase="'comparaPasteles'" class="pr-cont">
+        <h2>Cómo se repartió cada período</h2>
+        <div class="pr-comp-pasteles" [style.grid-template-columns]="'repeat(' + metricasElegidas().length + ', 1fr)'">
+          <div class="pr-comp-col" *ngFor="let m of metricasElegidas(); let i = index">
+            <div class="pr-comp-tit"><span class="pr-punto" [style.background]="colorSerie(i)"></span>{{ m.periodo.corta }}</div>
+            <svg viewBox="0 0 200 200" class="pr-pastel pr-con-hueco">
+              <g class="pr-pastel-giro"><path *ngFor="let t of pastel(estados(m), true); let j = index; trackBy: porNombre" [attr.d]="t.d" [style.fill]="t.color" [style.animation-delay.ms]="j * 90"><title>{{ t.nombre }}: {{ t.n }} ({{ t.pct }}%)</title></path></g>
+              <ng-container *ngFor="let t of pastel(estados(m), true); trackBy: porNombre"><text *ngIf="t.etiqueta" [attr.x]="t.tx" [attr.y]="t.ty" text-anchor="middle" class="pr-pastel-pct">{{ t.pct }}%</text></ng-container>
+              <text x="100" y="108" text-anchor="middle" class="pr-dona-n">{{ m.total }}</text>
+            </svg>
+            <svg viewBox="0 0 200 200" class="pr-pastel">
+              <g class="pr-pastel-giro"><path *ngFor="let t of pastel(m.porTransportadora); let j = index; trackBy: porNombre" [attr.d]="t.d" [style.fill]="t.color" [style.animation-delay.ms]="j * 90"><title>{{ t.nombre }}: {{ t.n }} ({{ t.pct }}%)</title></path></g>
+              <ng-container *ngFor="let t of pastel(m.porTransportadora); trackBy: porNombre"><text *ngIf="t.etiqueta" [attr.x]="t.tx" [attr.y]="t.ty" text-anchor="middle" class="pr-pastel-pct">{{ t.pct }}%</text></ng-container>
+            </svg>
+          </div>
+        </div>
+        <div class="pr-leyenda"><b class="pr-ley-t">Arriba, cómo terminaron:</b>
+          <span *ngFor="let e of estados(metricasElegidas()[0]); trackBy: porNombre"><i [style.background]="e.color"></i>{{ e.nombre }}</span></div>
+        <div class="pr-leyenda"><b class="pr-ley-t">Abajo, transportadora:</b>
+          <span *ngFor="let t of pastel(metricasElegidas()[0].porTransportadora); trackBy: porNombre"><i [style.background]="t.color"></i>{{ t.nombre }}</span></div>
+      </div>
+
       <!-- Comparación: clientes -->
       <div *ngSwitchCase="'comparaClientes'" class="pr-cont">
         <h2>Clientes, período contra período</h2>
@@ -257,5 +291,22 @@
         <p>{{ metricasElegidas().length }} período{{ metricasElegidas().length === 1 ? '' : 's' }} · {{ metricasElegidas()[0]?.total ?? 0 }}{{ metricasElegidas().length > 1 ? ' → ' + metricasElegidas()[metricasElegidas().length - 1].total : '' }} viajes</p>
       </div>
     </ng-container>
+  </div>
+</ng-template>
+
+<ng-template #pastelTpl let-lista let-titulo="titulo" let-hueco="hueco" let-centro="centro">
+  <div class="pr-caja pr-caja-pastel">
+    <h3>{{ titulo }}</h3>
+    <div class="pr-pastel-fila">
+      <svg viewBox="0 0 200 200" class="pr-pastel" [class.pr-con-hueco]="hueco">
+        <g class="pr-pastel-giro">
+          <path *ngFor="let t of pastel(lista, hueco); let i = index; trackBy: porNombre" [attr.d]="t.d" [style.fill]="t.color" [style.animation-delay.ms]="i * 90"><title>{{ t.nombre }}: {{ t.n }} ({{ t.pct }}%)</title></path>
+        </g>
+        <ng-container *ngFor="let t of pastel(lista, hueco); trackBy: porNombre"><text *ngIf="t.etiqueta" [attr.x]="t.tx" [attr.y]="t.ty" text-anchor="middle" class="pr-pastel-pct">{{ t.pct }}%</text></ng-container>
+        <text *ngIf="hueco && centro !== undefined" x="100" y="108" text-anchor="middle" class="pr-dona-n">{{ centro }}</text>
+      </svg>
+      <ul class="pr-ley-lista"><li *ngFor="let t of pastel(lista, hueco); trackBy: porNombre"><i [style.background]="t.color"></i>{{ t.nombre }} <b>{{ t.n }}</b> <small>{{ t.pct }}%</small></li></ul>
+    </div>
+    <p class="pr-vacio" *ngIf="!pastel(lista, hueco).length">Sin datos.</p>
   </div>
 </ng-template>

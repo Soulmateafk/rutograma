@@ -8,6 +8,7 @@ import { UiService } from '../../services/ui.service';
 import { AuthService } from '../../services/auth.service';
 import { GuiaService } from '../../services/guia.service';
 import { errorEmail, faltasDeClave, mensajeClave } from '../../services/validaciones';
+import { OPCIONES_INACTIVIDAD, MINUTOS_INACTIVIDAD, textoMinutosInactividad } from '../../services/inactividad.service';
 
 type RolAsignable = 'editor' | 'lector' | 'jefe' | 'auxiliar' | 'conductor' | 'despachos';
 
@@ -74,6 +75,73 @@ export class Admin implements OnInit, OnDestroy {
     const rol = (pidioConductor ? 'conductor' : (u.rol && u.rol !== 'admin' ? u.rol : 'editor')) as RolAsignable;
     const conductorCed = String(u.conductorCed || '') || (pidioConductor ? this.conductorPorNombre(u.nombre) : '');
     this.modalPermisos = { usuario: u, modo, rol, permisos: modo === 'aprobar' ? permisosDeRol(rol) : this.permisosDe(u), conductorCed };
+  }
+
+  // ============================================================
+  // TABLA DE PERMISOS: todas las cuentas de oficina y sus permisos en una
+  // sola tabla; cada casilla se guarda al tocarla (igual que en la ventana
+  // "Permisos" de cada cuenta).
+  // ============================================================
+  public readonly cortos: Record<string, string> = {
+    editar: 'Hacer cambios', sinAprobacion: 'Sin aprobación', eliminar: 'Eliminar', generarMatriz: 'Generar Matriz', editarDiasPasados: 'Días pasados',
+    importarExcel: 'Importar Excel', reacomodarCupos: 'Reacomodar cupos', editarConfiguracion: 'Configuración', editarHistorico: 'Histórico',
+    cambiarModo: 'Modo prueba', restaurarRespaldos: 'Respaldos', enviarVencimientos: 'Vencimientos', aprobarCambios: 'Aprobar cambios',
+    verAdministracion: 'Ver administración', gestionarCuentas: 'Aceptar cuentas', verSesionesTodas: 'Ver sesiones', gestionarDispositivos: 'Dispositivos'
+  };
+  public guardandoCelda = '';
+  public get cuentasDeOficina(): CuentaUsuario[] {
+    return this.usuarios.filter(u => u.estado === 'APPROVED' && !['admin', 'conductor', 'despachos'].includes(String(u.rol || 'editor')))
+      .sort((a, b) => String(a.nombre || a.email).localeCompare(String(b.nombre || b.email), 'es'));
+  }
+  public tienePermiso(u: CuentaUsuario, clave: keyof Permisos): boolean { return !!this.permisosDe(u)[clave]; }
+  public bloqueadoPorEditar(u: CuentaUsuario, clave: keyof Permisos): boolean {
+    return PERMISOS_QUE_REQUIEREN_EDITAR.includes(clave) && !this.permisosDe(u).editar;
+  }
+  public async alternarCelda(u: CuentaUsuario, clave: keyof Permisos): Promise<void> {
+    if (this.guardandoCelda) return;
+    const actuales = this.permisosDe(u);
+    const p = { ...actuales, [clave]: !actuales[clave] };
+    if (PERMISOS_QUE_REQUIEREN_EDITAR.includes(clave) && p[clave]) p.editar = true;
+    const nuevos = normalizarPermisos(p);
+    const rol = (u.rol || 'editor') as RolAsignable;
+    const personalizados = mismosPermisos(nuevos, permisosDeRol(rol)) ? null : nuevos;
+    this.guardandoCelda = u.email + clave;
+    try {
+      await this.guardarRolYPermisos(u, rol, personalizados, (u as any).conductorCed || null);
+      u.permisos = personalizados as any;
+      this.ui.mostrarToast(`${u.nombre || u.email}: ${this.cortos[clave]} ${nuevos[clave] ? 'activado' : 'quitado'}.`, 'ok');
+    } catch {
+      this.ui.mostrarToast('No se pudo guardar el permiso.', 'err');
+    } finally {
+      this.guardandoCelda = '';
+      this.cdr.detectChanges();
+    }
+  }
+  public async volverAlRol(u: CuentaUsuario): Promise<void> {
+    const rol = (u.rol || 'editor') as RolAsignable;
+    try {
+      await this.guardarRolYPermisos(u, rol, null, (u as any).conductorCed || null);
+      u.permisos = null as any;
+      this.ui.mostrarToast(`${u.nombre || u.email} vuelve a los permisos de ${this.nombreRol(rol)}.`, 'ok');
+    } catch { this.ui.mostrarToast('No se pudo guardar.', 'err'); }
+    this.cdr.detectChanges();
+  }
+
+  // Cierre de sesión por inactividad (para todo el equipo).
+  public readonly opcionesInactividad = OPCIONES_INACTIVIDAD;
+  public textoInactividad = textoMinutosInactividad;
+  public get minutosInactividad(): number {
+    const n = Number(this.ds.S?.ajustesSesion?.[0]?.minutosInactividad);
+    return OPCIONES_INACTIVIDAD.includes(n) ? n : MINUTOS_INACTIVIDAD;
+  }
+  public async cambiarInactividad(minutos: number): Promise<void> {
+    const antes = JSON.parse(JSON.stringify(this.ds.S.ajustesSesion || []));
+    this.ds.S.ajustesSesion = [{ minutosInactividad: Number(minutos) }];
+    await this.ds.autoSave();
+    await this.ds.guardarConfigCompartida('ajustesSesion');
+    this.ds.registrarCambio({ tipo: 'config', clave: 'ajustesSesion', antes, despues: this.ds.S.ajustesSesion, descripcion: `Cierre por inactividad: ${textoMinutosInactividad(Number(minutos))}` });
+    this.ui.mostrarToast(`Listo: la sesión se cierra tras ${textoMinutosInactividad(Number(minutos))} sin usar la app (en todos los equipos).`, 'ok');
+    this.cdr.detectChanges();
   }
 
   public esSolicitudDeConductor(u: CuentaUsuario): boolean {
@@ -167,7 +235,7 @@ export class Admin implements OnInit, OnDestroy {
   cargando: boolean = false;
 
   // --- Auditoría ---
-  pestaniaActiva: 'cuentas' | 'auditoria' | 'dispositivos' | 'correo' = 'cuentas';
+  pestaniaActiva: 'cuentas' | 'auditoria' | 'dispositivos' | 'correo' | 'permisos' = 'cuentas';
 
   // --- Correo (solo admin) ---
   estadoCorreo: any = null;
@@ -267,8 +335,9 @@ export class Admin implements OnInit, OnDestroy {
     this.subCambios?.unsubscribe();
   }
 
-  cambiarPestania(p: 'cuentas' | 'auditoria' | 'dispositivos' | 'correo') {
+  cambiarPestania(p: 'cuentas' | 'auditoria' | 'dispositivos' | 'correo' | 'permisos') {
     if (p === 'correo' && !this.auth.isAdmin) return;
+    if (p === 'permisos' && !this.auth.isAdmin && !this.auth.puedeAprobar) return;
     if (p === 'dispositivos' && !this.auth.isAdmin && !this.auth.puede('gestionarDispositivos')) return;
     this.pestaniaActiva = p;
     if (p === 'correo') this.cargarEstadoCorreo();

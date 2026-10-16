@@ -2622,7 +2622,7 @@ app.post('/api/guias/reiniciar', (req, res) => {
 // reglasAsignacion / picoPlaca: ver reglas-asignacion.js. anuncios: la pizarra.
 // comparendos: multas por vehículo y conductor. quejas: reclamos de clientes.
 // ubicaciones: coordenadas de destinos que el mapa no conocía.
-const CLAVES_CONFIG_COMPARTIDA = { transportadoras: 'array', cuposExt: 'array', festivos: 'array', reglasAsignacion: 'array', picoPlaca: 'array', anuncios: 'array', comparendos: 'array', quejas: 'array', ubicaciones: 'array', celebraciones: 'array', notasDia: 'array' };
+const CLAVES_CONFIG_COMPARTIDA = { transportadoras: 'array', cuposExt: 'array', festivos: 'array', reglasAsignacion: 'array', picoPlaca: 'array', anuncios: 'array', comparendos: 'array', quejas: 'array', ubicaciones: 'array', celebraciones: 'array', notasDia: 'array', ajustesSesion: 'array' };
 
 app.post('/api/configuracion/compartida', (req, res) => {
     try {

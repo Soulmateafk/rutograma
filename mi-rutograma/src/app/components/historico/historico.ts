@@ -117,6 +117,71 @@ export class Historico implements OnInit, OnDestroy {
   public readonly anchoGrafica = 600;
   public readonly altoGrafica = 160;
 
+  // ============================================================
+  // ÚLTIMOS 12 MESES (con los viajes de la base, no solo los meses
+  // cerrados) y BUSCAR en todos los meses una placa, cliente, ruta,
+  // destino o conductor. Solo lee.
+  // ============================================================
+  private readonly MESES_NOMBRE = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  private mesDeViaje(v: any): { anio: number; mes: number } | null {
+    const i = this.MESES_NOMBRE.indexOf(String(v.mes ?? '').toLowerCase().trim());
+    if (i !== -1 && Number(v.anio)) return { anio: Number(v.anio), mes: i };
+    const f = String(v.fecha || '');
+    return /^\d{4}-\d{2}/.test(f) ? { anio: Number(f.slice(0, 4)), mes: Number(f.slice(5, 7)) - 1 } : null;
+  }
+  public verSerie: 'viajes' | 'cajas' = 'viajes';
+  private cacheDoce: { de: any; valor: any[] } | null = null;
+  public get doceMeses(): Array<{ etiqueta: string; anio: number; mes: number; viajes: number; cajas: number; cancelados: number; actual: boolean }> {
+    const viajes = this.ds.S?.viajes || [];
+    const previo = this.cacheDoce;
+    if (previo && previo.de === viajes) return previo.valor;
+    const hoy = new Date();
+    const lista = Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(hoy.getFullYear(), hoy.getMonth() - 11 + i, 1);
+      return { etiqueta: `${this.mesesShorthand[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`, anio: d.getFullYear(), mes: d.getMonth(), viajes: 0, cajas: 0, cancelados: 0, actual: i === 11 };
+    });
+    const idx = new Map(lista.map((x, i) => [x.anio * 12 + x.mes, i]));
+    for (const v of viajes) {
+      const m = this.mesDeViaje(v); if (!m) continue;
+      const i = idx.get(m.anio * 12 + m.mes); if (i === undefined) continue;
+      if (v.estado === 'Cancelado') { lista[i].cancelados++; continue; }
+      lista[i].viajes++;
+      lista[i].cajas += Number(v.cajas) || 0;
+    }
+    this.cacheDoce = { de: viajes, valor: lista };
+    return lista;
+  }
+  public get maxSerie(): number { return Math.max(1, ...this.doceMeses.map(x => this.verSerie === 'viajes' ? x.viajes : x.cajas)); }
+  public get hayDoce(): boolean { return this.doceMeses.some(x => x.viajes); }
+  public valorSerie(x: any): number { return this.verSerie === 'viajes' ? x.viajes : x.cajas; }
+
+  public busquedaMeses = '';
+  public get resultadosMeses(): Array<{ etiqueta: string; viajes: number; cajas: number; desde: string; hasta: string; ejemplos: string }> {
+    const q = this.busquedaMeses.trim().toLowerCase();
+    if (q.length < 2) return [];
+    const porMes = new Map<number, { anio: number; mes: number; viajes: number; cajas: number; fechas: string[]; rutas: Map<string, number> }>();
+    for (const v of this.ds.S?.viajes || []) {
+      if (v.estado === 'Cancelado') continue;
+      const texto = [v.p, v.placa, v.placaReal, v.cliente, v.cli2, v.ruta, v.codigo, v.destino, v.dest2, v.cond].map(x => String(x || '').toLowerCase()).join(' | ');
+      if (!texto.includes(q)) continue;
+      const m = this.mesDeViaje(v); if (!m) continue;
+      const k = m.anio * 12 + m.mes;
+      if (!porMes.has(k)) porMes.set(k, { anio: m.anio, mes: m.mes, viajes: 0, cajas: 0, fechas: [], rutas: new Map() });
+      const g = porMes.get(k)!;
+      g.viajes++; g.cajas += Number(v.cajas) || 0;
+      if (v.fecha) g.fechas.push(String(v.fecha).slice(0, 10));
+      const r = String(v.ruta || v.codigo || v.destino || '').trim();
+      if (r) g.rutas.set(r, (g.rutas.get(r) || 0) + 1);
+    }
+    return [...porMes.entries()].sort((a, b) => b[0] - a[0]).map(([, g]) => {
+      const f = g.fechas.sort();
+      const top = [...g.rutas.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([r, n]) => `${r} (${n})`).join(', ');
+      return { etiqueta: `${this.MESES_NOMBRE[g.mes].charAt(0).toUpperCase() + this.MESES_NOMBRE[g.mes].slice(1)} ${g.anio}`, viajes: g.viajes, cajas: g.cajas,
+        desde: f[0] || '', hasta: f[f.length - 1] || '', ejemplos: top };
+    });
+  }
+  public get totalBusqueda(): number { return this.resultadosMeses.reduce((s, x) => s + x.viajes, 0); }
+
   /** Historial ordenado cronológicamente (el más viejo primero). */
   public get historialOrdenado(): any[] {
     return [...this.historial].sort((a, b) => {

@@ -209,6 +209,12 @@
             <span *ngIf="!r.horaFinCargue"> · lleva {{ llevaCargando(r) }}</span>
             <span *ngIf="r.totalCajas"> · {{ r.totalCajas }} cajas</span>
           </div>
+          <div *ngIf="!r.horaFinCargue && minutosEnCargue(r) !== null" class="dp-crono" [ngClass]="'dp-crono-' + colorCargue(r)" data-guia="dp-crono"
+               [title]="'Lleva ' + llevaCargando(r) + ' de un límite de ' + textoMinutos(limiteMin)">
+            <i class="bi bi-stopwatch"></i>
+            <div class="dp-crono-barra"><i [style.width.%]="pctCargue(r) > 100 ? 100 : pctCargue(r)"></i></div>
+            <b>{{ llevaCargando(r) || '0 min' }}</b><small>/ {{ textoMinutos(limiteMin) }}</small>
+          </div>
           <div *ngIf="estaDemorado(r)" class="dp-aviso-demora"><i class="bi bi-alarm"></i> Demorado: pasó el límite de {{ textoMinutos(limiteMin) }}</div>
           <div *ngIf="r.pendiente" class="dp-etiqueta-pend"><i class="bi bi-wifi-off"></i> En este celular, sin enviar</div>
         </div>
@@ -216,6 +222,19 @@
           <i class="bi" [ngClass]="siguientePaso(r).campo === 'horaSalida' ? 'bi-truck' : 'bi-check2-circle'"></i>
           {{ guardandoPaso(r) ? 'Guardando…' : siguientePaso(r).texto }}
         </button>
+      </div>
+
+      <!-- Cola de hoy: en qué orden deberían llegar los camiones a cargar (por hora de salida). -->
+      <div class="dp-cola" *ngIf="colaHoy.length" data-guia="dp-cola">
+        <h3><i class="bi bi-list-ol"></i> Cola de hoy <span class="dp-contador">{{ colaHoy.length - colaSalieron }}</span>
+          <button *ngIf="colaSalieron" class="dp-enlace" (click)="verColaCompleta = !verColaCompleta">{{ verColaCompleta ? 'Ocultar' : 'Ver' }} los que salieron ({{ colaSalieron }})</button></h3>
+        <p class="dp-sub">Por hora de salida. Los 3 que siguen y no han llegado van marcados; toca uno para anotar su llegada.</p>
+        <div *ngFor="let x of colaVisible; trackBy: trackCola" class="dp-cola-fila" [ngClass]="'dp-cola-' + x.estado" [class.dp-sigue]="x.sigue"
+             [class.dp-cola-tocable]="!x.reg" (click)="anotarDeCola(x)">
+          <span class="dp-cola-hora">{{ x.v.hora && x.v.hora !== '--:--' ? x.v.hora : '—' }}</span>
+          <span class="dp-cola-quien"><b>{{ x.v.placa }}</b> <span class="dp-destino">→ {{ x.v.destino || x.v.ruta }}</span><small *ngIf="x.v.conductor" class="dp-sub"> · {{ x.v.conductor }}</small></span>
+          <span class="dp-cola-estado">{{ x.sigue && x.estado === 'falta' ? 'Sigue' : textoEstadoCola(x) }}</span>
+        </div>
       </div>
     </section>
   </div>

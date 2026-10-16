@@ -7,8 +7,8 @@ import { Metricas, Periodo, conclusiones, metricas, periodosDisponibles } from '
 
 type Diapositiva =
   | { tipo: 'portada' }
-  | { tipo: 'kpis' | 'serie' | 'reparto' | 'equipo' | 'calidad'; m: Metricas }
-  | { tipo: 'comparaKpis' | 'comparaSerie' | 'comparaClientes' | 'conclusiones' }
+  | { tipo: 'kpis' | 'serie' | 'reparto' | 'pasteles' | 'equipo' | 'calidad'; m: Metricas }
+  | { tipo: 'comparaKpis' | 'comparaSerie' | 'comparaPasteles' | 'comparaClientes' | 'conclusiones' }
   | { tipo: 'cierre' };
 
 /**
@@ -47,8 +47,8 @@ export class PresentacionComponent implements OnInit, OnDestroy {
     const ms = this.metricasElegidas();
     const lista: Diapositiva[] = [{ tipo: 'portada' }];
     const conDetalle = this.detalle() || ms.length === 1;
-    if (conDetalle) ms.forEach(m => lista.push({ tipo: 'kpis', m }, { tipo: 'serie', m }, { tipo: 'reparto', m }, { tipo: 'equipo', m }, { tipo: 'calidad', m }));
-    if (ms.length >= 2) lista.push({ tipo: 'comparaKpis' }, { tipo: 'comparaSerie' }, { tipo: 'comparaClientes' }, { tipo: 'conclusiones' });
+    if (conDetalle) ms.forEach(m => lista.push({ tipo: 'kpis', m }, { tipo: 'serie', m }, { tipo: 'reparto', m }, { tipo: 'pasteles', m }, { tipo: 'equipo', m }, { tipo: 'calidad', m }));
+    if (ms.length >= 2) lista.push({ tipo: 'comparaKpis' }, { tipo: 'comparaSerie' }, { tipo: 'comparaPasteles' }, { tipo: 'comparaClientes' }, { tipo: 'conclusiones' });
     lista.push({ tipo: 'cierre' });
     return lista;
   });
@@ -131,6 +131,44 @@ export class PresentacionComponent implements OnInit, OnDestroy {
       return { ...x, d, color: x.nombre === 'Otros' ? 'var(--pr-otros)' : this.colorSerie(i), pct: Math.round(f * 100) };
     });
   }
+  /**
+   * Pastel (hueco = false) o dona. Cada porción trae su camino SVG, su color,
+   * su porcentaje y dónde poner el porcentaje encima (si cabe).
+   */
+  public pastel(lista: Array<{ nombre: string; n: number; color?: string }>, hueco = false, maxPorciones = 6): Array<{ nombre: string; n: number; d: string; color: string; pct: number; tx: number; ty: number; etiqueta: boolean }> {
+    const limpia = lista.filter(x => x.n > 0);
+    const total = limpia.reduce((s, x) => s + x.n, 0); if (!total) return [];
+    const top = limpia.length > maxPorciones ? [...limpia.slice(0, maxPorciones - 1), { nombre: 'Otros', n: limpia.slice(maxPorciones - 1).reduce((s, x) => s + x.n, 0) }] : limpia;
+    let ang = -Math.PI / 2; const R = 88, r = hueco ? 50 : 0, c = 100;
+    const pt = (rad: number, a: number) => `${(c + rad * Math.cos(a)).toFixed(2)} ${(c + rad * Math.sin(a)).toFixed(2)}`;
+    return top.map((x: any, i) => {
+      const f = x.n / total, a0 = ang, a1 = ang + f * Math.PI * 2; ang = a1;
+      const l = a1 - a0 > Math.PI ? 1 : 0, medio = (a0 + a1) / 2, re = hueco ? (R + r) / 2 : R * 0.62;
+      let d: string;
+      if (f >= 0.9999) d = hueco ? `M ${c} ${c - R} A ${R} ${R} 0 1 1 ${c - 0.01} ${c - R} L ${c - 0.01} ${c - r} A ${r} ${r} 0 1 0 ${c} ${c - r} Z` : `M ${c} ${c - R} A ${R} ${R} 0 1 1 ${c - 0.01} ${c - R} Z`;
+      else d = hueco ? `M ${pt(R, a0)} A ${R} ${R} 0 ${l} 1 ${pt(R, a1)} L ${pt(r, a1)} A ${r} ${r} 0 ${l} 0 ${pt(r, a0)} Z` : `M ${c} ${c} L ${pt(R, a0)} A ${R} ${R} 0 ${l} 1 ${pt(R, a1)} Z`;
+      return { nombre: x.nombre, n: x.n, d, color: x.color || (x.nombre === 'Otros' ? 'var(--pr-otros)' : this.colorSerie(i)), pct: Math.round(f * 100),
+        tx: +(c + re * Math.cos(medio)).toFixed(1), ty: +(c + re * Math.sin(medio) + 5).toFixed(1), etiqueta: f >= 0.07 };
+    });
+  }
+  public porNombre(_: number, x: any): string { return x.nombre; }
+  /** Estado de los viajes del período, con colores fijos. */
+  public estados(m: Metricas): Array<{ nombre: string; n: number; color: string }> {
+    return [
+      { nombre: 'Entregados', n: m.entregados, color: 'var(--pr-ok)' },
+      { nombre: 'En ruta', n: m.enRuta, color: 'var(--pr-s1)' },
+      { nombre: 'Por salir', n: m.porSalir, color: 'var(--pr-s4)' },
+      { nombre: 'Cancelados', n: m.cancelados, color: 'var(--pr-s2)' }
+    ];
+  }
+  /** Flota propia contra terceros (y cuántos fueron viajes extra). */
+  public propiosVsTerceros(m: Metricas): Array<{ nombre: string; n: number; color: string }> {
+    return [
+      { nombre: 'Flota propia', n: Math.max(0, m.total - m.terceros), color: 'var(--pr-s3)' },
+      { nombre: 'Terceros', n: m.terceros, color: 'var(--pr-s5)' }
+    ];
+  }
+
   /** Clientes de todos los períodos (los 6 con más viajes), para comparar. */
   public clientesComparados = computed(() => {
     const ms = this.metricasElegidas(); const total = new Map<string, number>();
