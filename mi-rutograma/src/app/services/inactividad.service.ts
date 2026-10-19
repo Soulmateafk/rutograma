@@ -1,16 +1,19 @@
-import { Injectable, NgZone, PLATFORM_ID, inject, signal } from '@angular/core';
+import { Injectable, Injector, NgZone, PLATFORM_ID, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { AuthService } from './auth.service';
 import { UiService } from './ui.service';
 import { API } from '../api-base';
+import { DataService } from './data';
 
 const API_URL = API;
 
-/** Tiempo sin usar la app tras el que se cierra la sesión. */
+/** Tiempo sin usar la app tras el que se cierra la sesión (por defecto; el jefe lo cambia en Administración). */
 export const MINUTOS_INACTIVIDAD = 60;
+export const OPCIONES_INACTIVIDAD = [15, 30, 60, 120, 240];
 /** Cuánto antes se avisa, con cuenta regresiva. */
 const MINUTOS_AVISO = 5;
 const CLAVE_ULTIMA_ACTIVIDAD = 'ultima-actividad';
+export const textoMinutosInactividad = (m: number) => m % 60 === 0 ? (m === 60 ? '1 hora' : `${m / 60} horas`) : `${m} minutos`;
 
 /**
  * CIERRE POR INACTIVIDAD — si nadie usa la app durante 1 hora en este
@@ -28,6 +31,17 @@ export class InactividadService {
   private ui = inject(UiService);
   private zone = inject(NgZone);
   private esNavegador = isPlatformBrowser(inject(PLATFORM_ID));
+  private injector = inject(Injector);
+
+  /** Minutos escogidos para todo el equipo (configuración compartida "ajustesSesion"). */
+  public get minutos(): number {
+    try {
+      // Se pide al usarlo (no al crear el servicio) para no crear dependencias en círculo.
+      const ds: any = this.injector.get(DataService as any, null);
+      const n = Number(ds?.S?.ajustesSesion?.[0]?.minutosInactividad);
+      return OPCIONES_INACTIVIDAD.includes(n) ? n : MINUTOS_INACTIVIDAD;
+    } catch { return MINUTOS_INACTIVIDAD; }
+  }
 
   /** Segundos que faltan para cerrar (null = no hay aviso en pantalla). */
   public segundosRestantes = signal<number | null>(null);
@@ -86,7 +100,7 @@ export class InactividadService {
       this.ultimaLocal = Date.now();
       return;
     }
-    const restante = MINUTOS_INACTIVIDAD * 60_000 - (Date.now() - this.ultimaActividad());
+    const restante = this.minutos * 60_000 - (Date.now() - this.ultimaActividad());
     if (restante <= 0) {
       this.zone.run(() => this.cerrarPorInactividad());
     } else if (restante <= MINUTOS_AVISO * 60_000) {
@@ -106,7 +120,7 @@ export class InactividadService {
       // La sesión también se cierra en el servidor (deja de contar en Sesiones).
       await this.auth.fetchAutenticado(`${API_URL}/sesiones/cerrar-actual`, { method: 'POST' }).catch(() => null);
       await this.auth.cerrarSesion();
-      this.ui.mostrarToast(`Se cerró tu sesión porque no usaste la app durante ${MINUTOS_INACTIVIDAD / 60 === 1 ? '1 hora' : MINUTOS_INACTIVIDAD + ' minutos'}. Vuelve a entrar cuando quieras.`, 'info');
+      this.ui.mostrarToast(`Se cerró tu sesión porque no usaste la app durante ${textoMinutosInactividad(this.minutos)}. Vuelve a entrar cuando quieras.`, 'info');
     } finally {
       this.cerrando = false;
     }

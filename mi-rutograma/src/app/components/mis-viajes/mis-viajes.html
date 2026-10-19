@@ -107,7 +107,21 @@
         <strong>{{ conductor?.nombre }}</strong>
         <span>{{ buscadoPor === 'placa' ? placaBuscada : conductor?.placa }} · Viajes al {{ ultimaActualizacion | date:'d MMM y, h:mm a' }}</span>
       </div>
-      <section *ngFor="let d of dias; let i = index" class="mv-dia" [class.mv-hoy]="d.esHoy" [attr.data-guia]="i === 0 ? 'mv-dias' : null">
+      <div class="mv-semana mv-no-foto" data-guia="mv-semana">
+        <div class="mv-tabs" role="tablist">
+          <button type="button" [class.on]="vista === 'hoy'" (click)="cambiarVista('hoy')">Hoy</button>
+          <button type="button" [class.on]="vista === 'semana'" (click)="cambiarVista('semana')">Esta semana</button>
+          <button type="button" [class.on]="vista === 'todo'" (click)="cambiarVista('todo')">Todo</button>
+        </div>
+        <div class="mv-tira">
+          <button type="button" *ngFor="let t of tiraSemana" class="mv-tira-dia" [class.hoy]="t.esHoy" [class.pasado]="t.pasado" [class.descanso]="t.descanso" [class.con]="t.viajes"
+                  (click)="irADia(t.fecha)" [title]="t.descanso ? 'Descanso' : (t.viajes ? t.viajes + ' viaje(s)' : 'Sin viajes')">
+            <span>{{ t.letra }}</span><b>{{ t.num }}</b>
+            <small>{{ t.descanso ? '🌙' : (t.viajes ? t.viajes + (t.viajes === 1 ? ' viaje' : ' viajes') : '—') }}</small>
+          </button>
+        </div>
+      </div>
+      <section *ngFor="let d of diasVisibles; let i = index" class="mv-dia" [class.mv-hoy]="d.esHoy" [attr.data-fecha]="d.fecha" [attr.data-guia]="i === 0 ? 'mv-dias' : null">
         <h2>{{ d.titulo }}</h2>
         <div *ngIf="d.descanso" class="mv-descanso"><i class="bi bi-moon-stars-fill"></i> Día de descanso</div>
         <div *ngIf="!d.viajes.length && !d.descanso" class="mv-sin">Sin viajes</div>

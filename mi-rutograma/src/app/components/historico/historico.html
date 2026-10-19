@@ -8,6 +8,45 @@
     </div>
   </div>
 
+  <!-- ===================== ÚLTIMOS 12 MESES ===================== -->
+  <div class="tendencia-card hi-doce" *ngIf="hayDoce" data-guia="hi-doce">
+    <div class="hi-doce-cab">
+      <div class="card-label">ÚLTIMOS 12 MESES</div>
+      <div class="hi-tabs">
+        <button type="button" [class.on]="verSerie === 'viajes'" (click)="verSerie = 'viajes'">Viajes</button>
+        <button type="button" [class.on]="verSerie === 'cajas'" (click)="verSerie = 'cajas'">Cajas</button>
+      </div>
+    </div>
+    <div class="hi-barras">
+      <div class="hi-barra" *ngFor="let x of doceMeses" [class.actual]="x.actual"
+           [title]="x.etiqueta + ': ' + x.viajes + ' viajes, ' + (x.cajas | number:'1.0-0':'es') + ' cajas' + (x.cancelados ? ', ' + x.cancelados + ' cancelados' : '')">
+        <b>{{ valorSerie(x) ? (valorSerie(x) | number:'1.0-0':'es') : '' }}</b>
+        <div class="hi-pista"><i [style.height.%]="valorSerie(x) / maxSerie * 100" [class.cajas]="verSerie === 'cajas'"></i></div>
+        <span>{{ x.etiqueta }}</span>
+      </div>
+    </div>
+    <p class="hi-nota">Con todos los viajes guardados (no hace falta cerrar el mes). El mes actual va resaltado; los cancelados no cuentan.</p>
+  </div>
+
+  <!-- ===================== BUSCAR EN TODOS LOS MESES ===================== -->
+  <div class="historico-card hi-buscar" data-guia="hi-buscar">
+    <div class="card-label">BUSCAR EN TODOS LOS MESES</div>
+    <div class="hi-buscar-caja">
+      <i class="bi bi-search"></i>
+      <input type="text" [(ngModel)]="busquedaMeses" placeholder="Placa, cliente, ruta, destino o conductor (ej. LUN 428, D1, Cali)">
+      <i *ngIf="busquedaMeses" class="bi bi-x-circle-fill hi-limpiar" (click)="busquedaMeses = ''"></i>
+    </div>
+    <ng-container *ngIf="busquedaMeses.trim().length >= 2">
+      <p class="hi-nota" *ngIf="resultadosMeses.length">Aparece en <b>{{ resultadosMeses.length }}</b> mes{{ resultadosMeses.length === 1 ? '' : 'es' }}, <b>{{ totalBusqueda }}</b> viajes en total.</p>
+      <p class="hi-nota" *ngIf="!resultadosMeses.length">No aparece en ningún mes guardado.</p>
+      <div class="hi-res" *ngFor="let r of resultadosMeses">
+        <div class="hi-res-mes"><b>{{ r.etiqueta }}</b><small *ngIf="r.desde">del {{ r.desde | date:'d MMM':'':'es' }} al {{ r.hasta | date:'d MMM':'':'es' }}</small></div>
+        <div class="hi-res-num"><b>{{ r.viajes }}</b> viajes · {{ r.cajas | number:'1.0-0':'es' }} cajas</div>
+        <div class="hi-res-rutas" *ngIf="r.ejemplos">{{ r.ejemplos }}</div>
+      </div>
+    </ng-container>
+  </div>
+
   <!-- ===================== TENDENCIA HISTÓRICA ===================== -->
   <div class="tendencia-card" *ngIf="historialOrdenado.length > 1">
     <div class="card-label">TENDENCIA — ÚLTIMOS MESES</div>

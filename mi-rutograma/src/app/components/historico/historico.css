@@ -369,3 +369,29 @@
     min-width: 0;
   }
 }
+
+/* Últimos 12 meses */
+.hi-doce-cab { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hi-tabs { display: flex; gap: 6px; }
+.hi-tabs button { background: transparent; border: 1px solid var(--color-borde, #334155); color: var(--color-texto-secundario); border-radius: 999px; padding: 4px 12px; font: inherit; font-size: 12.5px; cursor: pointer; }
+.hi-tabs button.on { background: #2563eb; border-color: #3b82f6; color: #fff; }
+.hi-barras { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; align-items: end; height: 190px; margin-top: 12px; }
+.hi-barra { display: flex; flex-direction: column; align-items: center; height: 100%; gap: 3px; min-width: 0; }
+.hi-barra b { font-size: 11px; white-space: nowrap; }
+.hi-pista { flex: 1; width: 100%; max-width: 44px; display: flex; align-items: flex-end; }
+.hi-pista i { display: block; width: 100%; background: linear-gradient(0deg, #2563eb, #60a5fa); border-radius: 6px 6px 0 0; transition: height .45s cubic-bezier(.2, .8, .2, 1); min-height: 2px; }
+.hi-pista i.cajas { background: linear-gradient(0deg, #059669, #34d399); }
+.hi-barra span { font-size: 11px; color: var(--color-texto-secundario); white-space: nowrap; }
+.hi-barra.actual span { color: #fbbf24; font-weight: 700; }
+.hi-barra.actual .hi-pista i { box-shadow: 0 0 0 2px #fbbf24; }
+.hi-nota { font-size: 12.5px; color: var(--color-texto-secundario); margin: 10px 0 0; }
+
+/* Buscar en todos los meses */
+.hi-buscar-caja { display: flex; align-items: center; gap: 8px; background: var(--color-fondo-input); border: 1px solid var(--color-borde); border-radius: 10px; padding: 8px 12px; margin-top: 8px; }
+.hi-buscar-caja input { flex: 1; background: transparent; border: none; outline: none; color: var(--color-texto-principal); font: inherit; font-size: 14px; }
+.hi-limpiar { cursor: pointer; color: var(--color-texto-apagado); }
+.hi-res { display: grid; grid-template-columns: minmax(150px, 1fr) auto; gap: 2px 14px; padding: 9px 4px; border-bottom: 1px solid var(--color-borde, #1e293b); font-size: 13.5px; }
+.hi-res-mes small { display: block; color: var(--color-texto-secundario); font-size: 12px; }
+.hi-res-num { text-align: right; }
+.hi-res-rutas { grid-column: 1 / -1; font-size: 12px; color: var(--color-texto-secundario); }
+@media (max-width: 600px) { .hi-barras { gap: 3px; height: 160px; } .hi-barra b { font-size: 9px; } .hi-barra span { font-size: 9px; } }

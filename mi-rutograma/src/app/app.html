@@ -38,6 +38,7 @@
 </div>
 
 <app-navbar *ngIf="mostrarNavbar() && !cargandoInicial()"></app-navbar>
+<app-aviso-liviano *ngIf="!sinSesion()"></app-aviso-liviano>
 
 <div class="banner-sin-conexion" *ngIf="dataService.sinConexion && !cargandoInicial() && !authService.esConductor">
   <i class="bi bi-wifi-off"></i>

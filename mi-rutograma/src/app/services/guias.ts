@@ -258,6 +258,8 @@ export const GUIAS: Record<string, Guia> = {
   historico: {
     titulo: 'Histórico',
     pasos: [
+      { el: 'hi-doce', titulo: 'Últimos 12 meses', texto: 'Viajes (o cajas) de cada uno de los últimos 12 meses en barras, con todos los viajes guardados: no hace falta cerrar el mes. El mes actual va resaltado.' },
+      { el: 'hi-buscar', titulo: 'Buscar en todos los meses', texto: 'Escribe una placa, un cliente, una ruta, un destino o un conductor y ves en qué meses aparece, cuántos viajes y cajas tuvo, y sus rutas más comunes.' },
       { el: '.button-group', titulo: 'Acciones', texto: '"Cerrar mes" guarda una foto del mes que estás viendo (no borra viajes). También puedes exportar todo a Excel.' },
       { el: '.tendencia-card', titulo: 'Tendencia', texto: 'Cómo han cambiado el costo y los viajes mes a mes.' },
       { el: '.historico-item', titulo: 'Meses guardados', texto: 'Cada mes cerrado con sus totales. Haz clic para ver el detalle.' }
@@ -314,6 +316,7 @@ export const GUIAS: Record<string, Guia> = {
   presentacion: {
     titulo: 'Modo presentación',
     pasos: [
+      { el: '', titulo: 'Gráficas de pastel', texto: 'Cada período trae una diapositiva "De un vistazo" con pasteles: cómo terminaron los viajes, clientes, destinos y flota propia frente a terceros. Al comparar períodos, sale uno al lado del otro.' },
       { el: '.pr-modos', titulo: 'Semanas, meses o ambos', texto: 'Escoge qué quieres mostrar. Con "Ambos" puedes mezclar semanas y meses: en la comparación se usa también el promedio de viajes por día para que sea justa.' },
       { el: '.pr-rapidos', titulo: 'Rápido', texto: 'Atajos para lo más común: este mes contra el pasado, las últimas 4 semanas, etc.' },
       { el: '.pr-chips', titulo: 'Marca los períodos', texto: 'Hasta 6. Con uno solo ves su resumen; con dos o más, además, la comparación y las conclusiones.' },
@@ -342,6 +345,7 @@ export const GUIAS: Record<string, Guia> = {
   'mis-viajes': {
     titulo: 'Mis viajes',
     pasos: [
+      { el: 'mv-semana', titulo: 'Tu semana', texto: 'Arriba ves la semana de lunes a domingo: cuántos viajes tienes cada día y tus descansos (🌙). Toca un día para ir a él. Con "Hoy", "Esta semana" o "Todo" escoges qué ver.' },
       { el: 'mv-identificar', titulo: 'Identifícate', texto: 'Escribe tu nombre y la placa del vehículo. Luego confirmas que la información sea correcta.' },
       { el: 'mv-confirmar', titulo: 'Confirma que eres tú', texto: 'Revisa que el nombre y la placa sean los tuyos y toca confirmar. Si no, vuelve atrás y escríbelos otra vez.' },
       { el: 'mv-cabecera', titulo: 'Tu cuenta', texto: 'Tu nombre y tu vehículo. Con los botones actualizas o cierras sesión. Si te quedas sin señal, igual ves tu ruta guardada y puedes marcar "Ya salí", "Ya llegué" o reportar novedades: se envían solos cuando vuelva la señal, con la hora en que los tocaste.' },
@@ -369,6 +373,8 @@ export const GUIAS: Record<string, Guia> = {
   despachos: {
     titulo: 'Despachos',
     pasos: [
+      { el: 'dp-cola', titulo: 'Cola de hoy', texto: 'Los vehículos que salen hoy, en orden de hora de salida: quién está cargando, quién ya salió y quién falta. Los 3 que siguen y no han llegado van marcados en azul; "Ya debía salir" en rojo. Toca uno para anotar su llegada.' },
+      { el: 'dp-crono', titulo: 'Cronómetro del cargue', texto: 'Cada vehículo en el cargue tiene un cronómetro con una barrita: verde va bien, amarillo ya va por el 75 % del límite, y rojo pasó el límite (se pedirá el motivo).' },
       { el: 'dp-despachador', titulo: 'Quién despacha', texto: 'Escribe tu nombre. Este equipo lo recuerda para la próxima vez; si despacha otra persona, cámbialo.' },
       { el: 'dp-llegada', titulo: 'Fecha y hora programada', texto: 'La fecha del despacho. La hora programada se llena sola al escoger el viaje, y la puedes cambiar.' },
       { el: 'dp-vehiculo', titulo: 'Placa', texto: 'Escribe la placa; la app te sugiere las de la flota y muestra el conductor.' },
@@ -394,6 +400,7 @@ export const GUIAS: Record<string, Guia> = {
   admin: {
     titulo: 'Administración',
     pasos: [
+      { el: 'adm-permisos', titulo: 'Permisos y sesión', texto: 'En una sola tabla, qué puede hacer cada cuenta (el administrador lo cambia tocando las casillas). Y cuánto tiempo sin usar la app se espera para cerrar la sesión en los equipos de la oficina.' },
       { el: '.admin-tabs', titulo: 'Secciones', texto: 'Cuentas, Auditoría (quién cambió qué y cuándo), y según tus permisos, Correo y Dispositivos.' },
       { el: '.cuenta-conductores', titulo: 'Cuenta de conductores', texto: 'Una cuenta compartida para todos los conductores: cada uno escribe su nombre y placa para ver sus viajes.' },
       { el: '.cuenta-despachos', titulo: 'Cuenta de despachos', texto: 'Una cuenta para quien está en el cargue: solo ve la pantalla Despachos, donde anota llegada y fin de cargue de cada vehículo.' },
